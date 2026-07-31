@@ -1,0 +1,30 @@
+# ── Dependencias ──────────────────────────────────
+node_modules/
+
+# ── Variables de entorno (NUNCA subir) ────────────
+.env
+.env.local
+.env.production
+# .env.example  ← este SÍ se sube
+
+# ── Base de datos local ───────────────────────────
+data/
+*.sqlite
+*.sqlite3
+*.db
+
+# ── Build del frontend ────────────────────────────
+frontend/dist/
+frontend/.vite/
+
+# ── Logs ──────────────────────────────────────────
+*.log
+npm-debug.log*
+
+# ── Sistema operativo ─────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── IDEs ──────────────────────────────────────────
+.vscode/settings.json
+.idea/
