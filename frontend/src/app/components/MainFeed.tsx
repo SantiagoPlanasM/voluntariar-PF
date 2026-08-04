@@ -97,10 +97,12 @@ export function MainFeed() {
             ))}
           </div>
         ) : projects.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-5xl mb-3">🔍</p>
-            <p className="font-medium text-gray-500">No hay proyectos</p>
-            <p className="text-sm text-gray-400 mt-1">Probá con otros filtros</p>
+          <div className="text-center py-16 flex flex-col items-center justify-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-500 shadow-inner">
+              <Search className="w-8 h-8" />
+            </div>
+            <p className="text-gray-700 font-bold text-lg">No hay proyectos</p>
+            <p className="text-gray-500 text-sm mt-1">Probá buscando con otros filtros o palabras clave</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">

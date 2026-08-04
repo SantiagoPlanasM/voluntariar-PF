@@ -1,19 +1,19 @@
 import { useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Leaf, Utensils, GraduationCap, PawPrint, HeartPulse, Laptop } from 'lucide-react';
 import { api, Project } from '../../lib/api';
 import { ProjectCard } from './ProjectCard';
 
 const CATEGORIES = [
-  { name: 'Medio Ambiente', emoji: '🌿' },
-  { name: 'Alimentación',   emoji: '🍎' },
-  { name: 'Educación',      emoji: '📚' },
-  { name: 'Animales',       emoji: '🐾' },
-  { name: 'Salud',          emoji: '❤️' },
-  { name: 'Tecnología',     emoji: '💻' },
+  { name: 'Medio Ambiente', icon: Leaf },
+  { name: 'Alimentación', icon: Utensils },
+  { name: 'Educación', icon: GraduationCap },
+  { name: 'Animales', icon: PawPrint },
+  { name: 'Salud', icon: HeartPulse },
+  { name: 'Tecnología', icon: Laptop },
 ];
 
 export function ExploreScreen() {
-  const [query, setQuery]     = useState('');
+  const [query, setQuery] = useState('');
   const [results, setResults] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -54,10 +54,12 @@ export function ExploreScreen() {
           <>
             <h2 className="font-bold text-sm text-gray-700 mb-3">Categorías</h2>
             <div className="grid grid-cols-2 gap-3">
-              {CATEGORIES.map(({ name, emoji }) => (
+              {CATEGORIES.map(({ name, icon: IconComponent }) => (
                 <button key={name} onClick={() => searchCategory(name)}
                   className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3 hover:border-emerald-200 hover:shadow-md transition-all text-left active:scale-[0.98]">
-                  <span className="text-2xl">{emoji}</span>
+                  <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 flex-shrink-0">
+                    <IconComponent className="w-5 h-5" />
+                  </div>
                   <span className="font-semibold text-sm text-gray-800">{name}</span>
                 </button>
               ))}
@@ -76,11 +78,13 @@ export function ExploreScreen() {
             ))}
           </div>
         ) : results.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-4xl mb-3">🔍</p>
-            <p className="text-gray-400 font-medium">Sin resultados para "{query}"</p>
+          <div className="text-center py-12 flex flex-col items-center justify-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-400 shadow-inner">
+              <Search className="w-8 h-8" />
+            </div>
+            <p className="text-gray-700 font-bold text-lg">Sin resultados para "{query}"</p>
             <button onClick={() => { setSearched(false); setQuery(''); }}
-              className="text-sm text-emerald-600 font-semibold mt-2">
+              className="text-sm text-emerald-600 font-semibold mt-2 hover:underline">
               Ver categorías
             </button>
           </div>

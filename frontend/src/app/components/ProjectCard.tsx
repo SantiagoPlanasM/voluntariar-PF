@@ -19,11 +19,11 @@ function safeMoney(val: any) {
 export function ProjectCard({ project, onRefresh }: Props) {
   const { user, openAuthModal } = useAuth();
   const [enrolling, setEnrolling] = useState(false);
-  const [enrolled, setEnrolled]   = useState(false);
-  const [msg, setMsg]             = useState('');
+  const [enrolled, setEnrolled] = useState(false);
+  const [msg, setMsg] = useState('');
 
-  const fundPct   = safePct(project.current_funding, project.funding_goal);
-  const volPct    = safePct(project.current_volunteers, project.volunteers_needed);
+  const fundPct = safePct(project.current_funding, project.funding_goal);
+  const volPct = safePct(project.current_volunteers, project.volunteers_needed);
   const spotsLeft = (project.volunteers_needed || 0) - (project.current_volunteers || 0);
   const hasFunding = (project.funding_goal || 0) > 0;
 
@@ -47,8 +47,8 @@ export function ProjectCard({ project, onRefresh }: Props) {
           {project.image
             ? <img src={project.image} alt={project.title} className="w-full h-full object-cover" loading="lazy" />
             : <div className="w-full h-full bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center">
-                <Heart className="w-10 h-10 text-emerald-300" />
-              </div>
+              <Heart className="w-10 h-10 text-emerald-300" />
+            </div>
           }
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
           <div className="absolute top-3 left-3">
