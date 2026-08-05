@@ -36,7 +36,7 @@ export function Root() {
 // ── Sidebar voluntario ────────────────────────────────────────────────────
 function SidebarNav() {
   const { pathname } = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, openAuthModal } = useAuth();
   const navigate = useNavigate();
 
   const links = [
@@ -76,24 +76,33 @@ function SidebarNav() {
 
       {/* User + logout */}
       <div className="px-3 py-4 border-t border-gray-100">
-        {user && (
-          <div className="flex items-center gap-3 px-3 py-2 mb-1">
-            {user.avatar
-              ? <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
-              : <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700 flex-shrink-0">{user.name[0]}</div>
-            }
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
-              <p className="text-xs text-gray-400 truncate">{user.email}</p>
+        {user ? (
+          <>
+            <div className="flex items-center gap-3 px-3 py-2 mb-1">
+              {user.avatar
+                ? <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                : <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700 flex-shrink-0">{user.name[0]}</div>
+              }
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
+                <p className="text-xs text-gray-400 truncate">{user.email}</p>
+              </div>
             </div>
-          </div>
+            <button
+              onClick={() => { logout(); navigate('/'); }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-colors">
+              <LogOut className="w-5 h-5" strokeWidth={1.8} />
+              Cerrar sesión
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => openAuthModal('Iniciá sesión para continuar')}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-emerald-600 hover:bg-emerald-50 transition-colors">
+            <LogOut className="w-5 h-5 rotate-180" strokeWidth={1.8} />
+            Iniciar sesión
+          </button>
         )}
-        <button
-          onClick={() => { logout(); navigate('/'); }}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-colors">
-          <LogOut className="w-5 h-5" strokeWidth={1.8} />
-          Cerrar sesión
-        </button>
       </div>
     </aside>
   );
@@ -102,7 +111,7 @@ function SidebarNav() {
 // ── Sidebar ONG ───────────────────────────────────────────────────────────
 function NGOSidebarNav() {
   const { pathname } = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, openAuthModal } = useAuth();
   const navigate = useNavigate();
 
   const links = [
@@ -142,24 +151,33 @@ function NGOSidebarNav() {
 
       {/* User + logout */}
       <div className="px-3 py-4 border-t border-gray-100">
-        {user && (
-          <div className="flex items-center gap-3 px-3 py-2 mb-1">
-            {user.avatar
-              ? <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
-              : <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0">{user.name[0]}</div>
-            }
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
-              <p className="text-xs text-gray-400 truncate">{user.email}</p>
+        {user ? (
+          <>
+            <div className="flex items-center gap-3 px-3 py-2 mb-1">
+              {user.avatar
+                ? <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                : <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0">{user.name[0]}</div>
+              }
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
+                <p className="text-xs text-gray-400 truncate">{user.email}</p>
+              </div>
             </div>
-          </div>
+            <button
+              onClick={() => { logout(); navigate('/'); }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-colors">
+              <LogOut className="w-5 h-5" strokeWidth={1.8} />
+              Cerrar sesión
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => openAuthModal('Iniciá sesión para continuar')}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-600 hover:bg-blue-50 transition-colors">
+            <LogOut className="w-5 h-5 rotate-180" strokeWidth={1.8} />
+            Iniciar sesión
+          </button>
         )}
-        <button
-          onClick={() => { logout(); navigate('/'); }}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-colors">
-          <LogOut className="w-5 h-5" strokeWidth={1.8} />
-          Cerrar sesión
-        </button>
       </div>
     </aside>
   );

@@ -15,7 +15,13 @@ export function MainFeed() {
   const [search, setSearch]     = useState('');
   const [cat, setCat]           = useState('Todos');
 
-  useEffect(() => { load(); }, [cat]);
+  useEffect(() => {
+    if (!user) {
+      navigate('/', { replace: true });
+    } else {
+      load();
+    }
+  }, [user, cat]);
 
   const load = async () => {
     setLoading(true);

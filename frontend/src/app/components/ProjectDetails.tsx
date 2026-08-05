@@ -84,192 +84,218 @@ export function ProjectDetails() {
   return (
     // pb-32 en mobile para que el botón fijo no tape el contenido
     // md:pb-8 en desktop donde no hay botón fijo
-    <div className="min-h-screen bg-gray-50 md:ml-60 pb-32 md:pb-8">
+    <div className="min-h-screen bg-gray-50 md:ml-60 pb-32 lg:pb-12">
 
       {/* Hero */}
-      <div className="relative h-56 sm:h-72">
-        {project.image
-          ? <img src={project.image} alt={project.title} className="w-full h-full object-cover" />
-          : <div className="w-full h-full bg-gradient-to-br from-emerald-200 to-teal-300" />
-        }
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+      <div className="relative h-64 sm:h-80 md:h-96 w-full overflow-hidden bg-zinc-900">
+        {project.image ? (
+          <img src={project.image} alt={project.title} className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700 opacity-80" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+        
         <button onClick={() => navigate(-1)}
-          className="absolute top-4 left-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg">
-          <ArrowLeft className="w-5 h-5 text-gray-800" />
+          className="absolute top-6 left-6 w-11 h-11 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-md hover:bg-white hover:scale-105 active:scale-95 transition-all z-10 group"
+          title="Volver">
+          <ArrowLeft className="w-5 h-5 text-gray-800 group-hover:-translate-x-0.5 transition-transform" />
         </button>
-        <div className="absolute bottom-4 left-4 flex gap-2">
-          <span className="px-3 py-1 bg-white/95 rounded-full text-xs font-bold text-gray-800">{project.category}</span>
-          {project.type === 'fugaz'
-            ? <span className="px-3 py-1 bg-blue-600/90 rounded-full text-xs font-bold text-white flex items-center gap-1"><Zap className="w-3 h-3" />Fugaz</span>
-            : <span className="px-3 py-1 bg-emerald-600/90 rounded-full text-xs font-bold text-white flex items-center gap-1"><Calendar className="w-3 h-3" />Sostenido</span>
-          }
+        
+        <div className="absolute bottom-6 left-6 right-6 flex flex-col gap-2">
+          <div className="flex gap-2">
+            <span className="px-3.5 py-1 bg-emerald-500 text-white rounded-full text-xs font-bold uppercase tracking-wider shadow-sm">{project.category}</span>
+            {project.type === 'fugaz' ? (
+              <span className="px-3.5 py-1 bg-blue-600 text-white rounded-full text-xs font-bold flex items-center gap-1.5 shadow-sm"><Zap className="w-3.5 h-3.5" />Fugaz</span>
+            ) : (
+              <span className="px-3.5 py-1 bg-teal-600 text-white rounded-full text-xs font-bold flex items-center gap-1.5 shadow-sm"><Calendar className="w-3.5 h-3.5" />Sostenido</span>
+            )}
+          </div>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight drop-shadow-sm mt-1">{project.title}</h1>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5">
-
-        {/* ── DESKTOP: 3-col grid ─────────────────────────────── */}
-        <div className="md:grid md:grid-cols-3 md:gap-6">
-
-          {/* Main column — visible on ALL screen sizes */}
-          <div className="md:col-span-2 space-y-4">
-
-            {/* Header card */}
-            <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100">
-              <div className="flex items-center gap-2 mb-2">
-                {project.ngo_logo
-                  ? <img src={project.ngo_logo} alt={project.ngo_name} className="w-8 h-8 rounded-full object-cover ring-2 ring-gray-100" />
-                  : <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700">{project.ngo_name?.[0]}</div>
-                }
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+          
+          {/* Columna izquierda (2/3) - Contenido Principal */}
+          <div className="lg:col-span-2 space-y-6">
+            
+            {/* NGO Host Info (Elegant row above description) */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {project.ngo_logo ? (
+                  <img src={project.ngo_logo} alt={project.ngo_name} className="w-12 h-12 rounded-xl object-cover ring-2 ring-gray-50 shadow-sm" />
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-lg font-bold text-emerald-700 shadow-sm">{project.ngo_name?.[0]}</div>
+                )}
                 <div>
-                  <p className="text-sm font-semibold text-gray-800">{project.ngo_name}</p>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                    <span className="text-xs text-gray-400">{(project.avg_rating || 0).toFixed(1)} · {project.ratings.length} reseñas</span>
-                  </div>
+                  <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider">Organizado por</p>
+                  <p className="text-base font-bold text-gray-900 leading-tight">{project.ngo_name}</p>
                 </div>
               </div>
-              <h1 className="text-xl sm:text-2xl font-black text-gray-900">{project.title}</h1>
+              
+              <div className="flex items-center gap-1 bg-yellow-50 px-3 py-1.5 rounded-xl border border-yellow-100 shadow-sm">
+                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                <span className="text-sm font-bold text-yellow-800">{(project.avg_rating || 0).toFixed(1)}</span>
+                <span className="text-xs text-yellow-600/80">({project.ratings.length} reseñas)</span>
+              </div>
             </div>
 
-            {/* Info grid — visible on ALL sizes */}
-            <div className="grid grid-cols-2 gap-2">
+            {/* Info grid on MOBILE - hidden on Desktop since it will be in the sticky sidebar */}
+            <div className="grid grid-cols-2 gap-3 lg:hidden">
               {[
                 { icon: MapPin,     label: 'Ubicación',   val: project.location },
                 { icon: Clock,      label: project.type === 'fugaz' ? 'Duración' : 'Horas/sem', val: hoursLabel },
                 { icon: DollarSign, label: 'Costo',       val: (project.cost_per_person || 0) === 0 ? 'Gratis' : safeMoney(project.cost_per_person) },
                 { icon: Users,      label: 'Voluntarios', val: `${project.current_volunteers || 0}/${project.volunteers_needed || 0}` },
               ].map(({ icon: Icon, label, val }) => (
-                <div key={label} className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
-                  <div className="flex items-center gap-1.5 text-gray-400 mb-1">
-                    <Icon className="w-3.5 h-3.5" /><span className="text-xs">{label}</span>
+                <div key={label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 flex-shrink-0">
+                    <Icon className="w-5 h-5" />
                   </div>
-                  <p className="text-sm font-bold text-gray-900">{val}</p>
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase font-semibold tracking-wider">{label}</p>
+                    <p className="text-sm font-bold text-gray-800 leading-tight mt-0.5">{val}</p>
+                  </div>
                 </div>
               ))}
             </div>
 
-            {/* Progress — visible on ALL sizes */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
-              <h3 className="font-bold text-sm text-gray-900">Progreso del proyecto</h3>
-              {hasFunding && (
-                <div>
-                  <div className="flex justify-between text-xs mb-1.5">
-                    <span className="text-gray-500">Financiamiento</span>
-                    <span className="font-bold text-blue-600">{fundPct}% · {safeMoney(project.current_funding)}</span>
-                  </div>
-                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all" style={{ width: `${fundPct}%` }} />
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1">Meta: {safeMoney(project.funding_goal)}</p>
-                </div>
-              )}
-              <div>
-                <div className="flex justify-between text-xs mb-1.5">
-                  <span className="text-gray-500 flex items-center gap-1"><Users className="w-3 h-3" />Voluntarios</span>
-                  <span className="font-bold text-emerald-600">{volPct}% · {project.current_volunteers || 0}/{project.volunteers_needed || 0}</span>
-                </div>
-                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all" style={{ width: `${volPct}%` }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Roles */}
-            {project.roles_needed?.length > 0 && (
-              <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                <div className="flex items-center gap-2 mb-3">
-                  <Briefcase className="w-4 h-4 text-emerald-600" />
-                  <h3 className="font-bold text-sm text-gray-900">Roles buscados</h3>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {project.roles_needed.map((r, i) => (
-                    <span key={i} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full">{r}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Tabs */}
+            {/* Tabs container */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="flex border-b border-gray-100">
+              <div className="flex border-b border-gray-100 bg-gray-50/50 p-1">
                 {(['details', 'ratings', 'comments'] as Tab[]).map(t => (
                   <button key={t} onClick={() => setTab(t)}
-                    className={`flex-1 py-3 text-xs sm:text-sm font-bold transition-colors ${tab === t ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-gray-400 hover:text-gray-600'}`}>
+                    className={`flex-1 py-3 text-xs sm:text-sm font-bold rounded-xl transition-all ${
+                      tab === t 
+                        ? 'bg-white text-emerald-600 shadow-sm border border-gray-100' 
+                        : 'text-gray-400 hover:text-gray-600 hover:bg-white/50'
+                    }`}>
                     {t === 'details' ? 'Detalles' : t === 'ratings' ? `Reseñas (${project.ratings.length})` : `Comentarios (${project.comments.length})`}
                   </button>
                 ))}
               </div>
-              <div className="p-4 sm:p-5">
+              
+              <div className="p-5 sm:p-6">
                 {tab === 'details' && (
-                  <div className="space-y-4">
-                    <p className="text-sm text-gray-600 leading-relaxed">{project.full_description || project.description}</p>
+                  <div className="space-y-6">
+                    <div className="prose prose-emerald max-w-none">
+                      <p className="text-sm sm:text-base text-gray-600 leading-relaxed whitespace-pre-line">{project.full_description || project.description}</p>
+                    </div>
+                    
                     {project.requirements?.length > 0 && (
-                      <>
-                        <h4 className="font-bold text-sm text-gray-900">Requisitos</h4>
-                        <ul className="space-y-1.5">
+                      <div className="pt-4 border-t border-gray-100">
+                        <h4 className="font-bold text-sm text-gray-900 uppercase tracking-wider mb-3">Requisitos obligatorios</h4>
+                        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {project.requirements.map((r, i) => (
-                            <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-2 flex-shrink-0" />{r}
+                            <li key={i} className="flex items-center gap-2.5 text-sm text-gray-600 bg-gray-50 px-3.5 py-2.5 rounded-xl border border-gray-100 animate-fade-in">
+                              <span className="w-2 h-2 bg-emerald-500 rounded-full flex-shrink-0" />
+                              <span className="leading-tight">{r}</span>
                             </li>
                           ))}
                         </ul>
-                      </>
+                      </div>
+                    )}
+
+                    {/* Progress Indicators - visible in left column */}
+                    <div className="bg-gray-50/60 rounded-2xl p-5 border border-gray-100 space-y-4 pt-4 mt-6">
+                      <h4 className="font-bold text-sm text-gray-900 uppercase tracking-wider">Estado del proyecto</h4>
+                      {hasFunding && (
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-gray-500 font-medium">Financiamiento recolectado</span>
+                            <span className="font-bold text-blue-600">{fundPct}% · {safeMoney(project.current_funding)} / {safeMoney(project.funding_goal)}</span>
+                          </div>
+                          <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-500" style={{ width: `${fundPct}%` }} />
+                          </div>
+                        </div>
+                      )}
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500 font-medium">Cupo de voluntarios</span>
+                          <span className="font-bold text-emerald-600">{volPct}% · {project.current_volunteers || 0} / {project.volunteers_needed || 0}</span>
+                        </div>
+                        <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full transition-all duration-500" style={{ width: `${volPct}%` }} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Roles sought - elegant style */}
+                    {project.roles_needed?.length > 0 && (
+                      <div className="pt-4 border-t border-gray-100">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Briefcase className="w-4 h-4 text-emerald-600" />
+                          <h4 className="font-bold text-sm text-gray-900 uppercase tracking-wider">Perfiles requeridos</h4>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {project.roles_needed.map((r, i) => (
+                            <span key={i} className="px-3.5 py-2 bg-emerald-50/70 border border-emerald-100 text-emerald-800 text-xs font-bold rounded-xl shadow-xs">{r}</span>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
+                
                 {tab === 'ratings' && (
                   project.ratings.length === 0
-                    ? <p className="text-sm text-gray-400 text-center py-6">Sin reseñas aún</p>
+                    ? <p className="text-sm text-gray-400 text-center py-8">Sin reseñas aún. ¡Sé el primero en calificar este proyecto!</p>
                     : <div className="space-y-4">
                         {project.ratings.map(r => (
-                          <div key={r.id} className="flex gap-3">
-                            <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700 flex-shrink-0">{r.user_name[0]}</div>
-                            <div>
-                              <p className="text-sm font-semibold text-gray-800">{r.user_name}</p>
-                              <div className="flex my-0.5">
-                                {Array.from({ length: 5 }).map((_, i) => (
-                                  <Star key={i} className={`w-3.5 h-3.5 ${i < r.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'}`} />
-                                ))}
+                          <div key={r.id} className="flex gap-4 p-4 rounded-2xl bg-gray-50/50 border border-gray-100">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-100 to-teal-200 flex items-center justify-center text-sm font-bold text-emerald-700 flex-shrink-0 shadow-sm">{r.user_name[0]}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-start">
+                                <p className="text-sm font-bold text-gray-800">{r.user_name}</p>
+                                <div className="flex bg-yellow-50 px-2 py-0.5 rounded-lg border border-yellow-100">
+                                  <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400 mr-1 mt-0.5" />
+                                  <span className="text-xs font-bold text-yellow-700">{r.rating}</span>
+                                </div>
                               </div>
-                              {r.comment && <p className="text-xs text-gray-500">{r.comment}</p>}
+                              {r.comment && <p className="text-xs sm:text-sm text-gray-600 mt-1.5 leading-relaxed">{r.comment}</p>}
                             </div>
                           </div>
                         ))}
                       </div>
                 )}
+                
                 {tab === 'comments' && (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {project.comments.length === 0 && (
-                      <p className="text-sm text-gray-400 text-center py-4">Sin comentarios aún. ¡Sé el primero!</p>
+                      <p className="text-sm text-gray-400 text-center py-6">Sin comentarios aún. ¡Escribí una pregunta o saludo!</p>
                     )}
-                    {project.comments.map(c => (
-                      <div key={c.id} className="flex gap-2">
-                        <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 flex-shrink-0">{c.user_name[0]}</div>
-                        <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-3 py-2 flex-1">
-                          <p className="text-xs font-bold text-gray-700">{c.user_name}</p>
-                          <p className="text-xs text-gray-600 mt-0.5">{c.comment}</p>
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                      {project.comments.map(c => (
+                        <div key={c.id} className="flex gap-3 items-start">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-cyan-200 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0 shadow-xs">{c.user_name[0]}</div>
+                          <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-tl-none px-4 py-2.5 flex-1">
+                            <p className="text-xs font-bold text-gray-800">{c.user_name}</p>
+                            <p className="text-xs sm:text-sm text-gray-600 mt-1">{c.comment}</p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                    <form onSubmit={handleComment} className="pt-2 border-t border-gray-100 space-y-1.5">
+                      ))}
+                    </div>
+                    
+                    <form onSubmit={handleComment} className="pt-4 border-t border-gray-100 space-y-2">
                       <div className="flex gap-2">
                         <input
                           value={comment}
                           onChange={e => { setComment(e.target.value); setCommentErr(''); }}
-                          placeholder={user ? 'Escribí un comentario...' : 'Iniciá sesión para comentar'}
+                          placeholder={user ? 'Escribí un comentario público...' : 'Iniciá sesión para realizar un comentario'}
                           readOnly={!user}
                           onClick={() => !user && openAuthModal('Iniciá sesión para comentar')}
-                          className={`flex-1 px-3 py-2 bg-gray-100 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 ${!user ? 'cursor-pointer' : ''}`}
+                          className={`flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all ${!user ? 'cursor-pointer' : ''}`}
                         />
                         {user && (
                           <button type="submit" disabled={commenting}
-                            className="w-9 h-9 bg-emerald-600 text-white rounded-xl flex items-center justify-center disabled:opacity-60 flex-shrink-0">
-                            {commenting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                            className="px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center justify-center disabled:opacity-60 flex-shrink-0 transition-colors shadow-sm shadow-emerald-100">
+                            {commenting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                           </button>
                         )}
                       </div>
-                      {commentErr && <p className="text-xs text-red-500 ml-1">{commentErr}</p>}
+                      {commentErr && <p className="text-xs text-red-500 ml-1 font-semibold">{commentErr}</p>}
                     </form>
                   </div>
                 )}
@@ -277,21 +303,56 @@ export function ProjectDetails() {
             </div>
           </div>
 
-          {/* ── SIDEBAR: solo desktop ─────────────────────────── */}
-          <div className="hidden md:flex flex-col gap-4 mt-0">
-            {enrollMsg && (
-              <p className={`text-sm text-center font-semibold px-3 py-2 rounded-xl ${enrollMsg.startsWith('✓') ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
-                {enrollMsg}
-              </p>
-            )}
-            <EnrollButton />
+          {/* Columna derecha (1/3) - Barra Lateral Sticky en Desktop */}
+          <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-24">
+            
+            {/* Principal Action & NGO organizadora */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-5">
+              <div>
+                <h3 className="font-bold text-base text-gray-900 mb-1">¡Inscríbete hoy!</h3>
+                <p className="text-xs text-gray-400">Sumate como voluntario en este proyecto social.</p>
+              </div>
+
+              {enrollMsg && (
+                <div className={`text-sm text-center font-bold px-4 py-3 rounded-xl shadow-xs ${enrollMsg.startsWith('✓') ? 'bg-emerald-50 border border-emerald-100 text-emerald-700' : 'bg-red-50 border border-red-100 text-red-600'}`}>
+                  {enrollMsg}
+                </div>
+              )}
+
+              <EnrollButton className="hover:scale-[1.02] active:scale-[0.98]" />
+            </div>
+
+            {/* Fact grid - solo visible en Desktop */}
+            <div className="hidden lg:block bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4">
+              <h3 className="font-bold text-sm text-gray-900 uppercase tracking-wider border-b border-gray-50 pb-2">Información general</h3>
+              <div className="space-y-4">
+                {[
+                  { icon: MapPin,     label: 'Ubicación',   val: project.location, color: 'text-rose-500', bg: 'bg-rose-50' },
+                  { icon: Clock,      label: project.type === 'fugaz' ? 'Duración' : 'Horas/semana', val: hoursLabel, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+                  { icon: DollarSign, label: 'Costo',       val: (project.cost_per_person || 0) === 0 ? 'Gratis' : safeMoney(project.cost_per_person), color: 'text-amber-500', bg: 'bg-amber-50' },
+                  { icon: Users,      label: 'Voluntarios inscritos', val: `${project.current_volunteers || 0} de ${project.volunteers_needed || 0}`, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+                ].map(({ icon: Icon, label, val, color, bg }) => (
+                  <div key={label} className="flex items-start gap-3">
+                    <div className={`w-9 h-9 rounded-xl ${bg} ${color} flex items-center justify-center flex-shrink-0`}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider leading-tight">{label}</p>
+                      <p className="text-sm font-bold text-gray-800 leading-snug mt-0.5 truncate">{val}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
           </div>
+
         </div>
       </div>
 
       {/* ── BOTÓN FIJO MOBILE/TABLET (oculto en desktop) ─── */}
       {/* z-[60] para estar sobre el BottomNav que tiene z-50   */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 pb-4 z-[60] shadow-lg">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-gray-100 px-4 pt-3 pb-4 z-[60] shadow-lg">
         {enrollMsg && (
           <p className={`text-xs text-center mb-2 font-semibold ${enrollMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-500'}`}>
             {enrollMsg}

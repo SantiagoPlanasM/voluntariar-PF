@@ -12,38 +12,38 @@ function fmt(p) {
   return {
     ...p,
     // Compatibilidad frontend: mapear campos nuevos a los nombres que espera el front
-    title:              p.titulo,
-    description:        p.descripcion,
-    full_description:   p.descripcion_full,
-    image:              p.foto_perfil,
-    category:           p.category_name || p.categoria || '',
-    location:           p.ubicacion,
-    type:               p.tipo,
-    volunteers_needed:  p.cupos        || 0,
+    title: p.titulo,
+    description: p.descripcion,
+    full_description: p.descripcion_full,
+    image: p.foto_perfil,
+    category: p.category_name || p.categoria || '',
+    location: p.ubicacion,
+    type: p.tipo,
+    volunteers_needed: p.cupos || 0,
     current_volunteers: p.cupos_ocupados || 0,
-    funding_goal:       p.meta_financiera || 0,
-    current_funding:    p.recaudado    || 0,
-    cost_per_person:    p.costo        || 0,
-    hours_per_week:     p.horas_semanales || null,
-    duration:           p.duracion     || null,
-    roles_needed:       parseJson(p.roles_json),
-    requirements:       parseJson(p.requisitos_json),
+    funding_goal: p.meta_financiera || 0,
+    current_funding: p.recaudado || 0,
+    cost_per_person: p.costo || 0,
+    hours_per_week: p.horas_semanales || null,
+    duration: p.duracion || null,
+    roles_needed: parseJson(p.roles_json),
+    requirements: parseJson(p.requisitos_json),
   };
 }
 
 // ── Validación ────────────────────────────────────────────────────────────
 function validateProject(body) {
   const { title, description, location, tipo, duracion, horas_semanales, cupos } = body;
-  if (!title?.trim() || title.trim().length < 3)        return 'El título debe tener al menos 3 caracteres';
+  if (!title?.trim() || title.trim().length < 3) return 'El título debe tener al menos 3 caracteres';
   if (!description?.trim() || description.trim().length < 10) return 'La descripción debe tener al menos 10 caracteres';
-  if (!location?.trim())                                return 'La ubicación es obligatoria (podés poner "Remoto")';
-  if (tipo === 'fugaz' && !duracion?.trim())            return 'La duración es obligatoria para proyectos fugaces';
+  if (!location?.trim()) return 'La ubicación es obligatoria (podés poner "Remoto")';
+  if (tipo === 'fugaz' && !duracion?.trim()) return 'La duración es obligatoria para proyectos fugaces';
   if (tipo === 'sostenido') {
     const h = parseInt(horas_semanales);
-    if (!horas_semanales || isNaN(h) || h < 1)         return 'Las horas semanales deben ser un número positivo';
+    if (!horas_semanales || isNaN(h) || h < 1) return 'Las horas semanales deben ser un número positivo';
   }
   const v = parseInt(cupos);
-  if (!cupos || isNaN(v) || v < 1)                     return 'Los cupos deben ser un número positivo';
+  if (!cupos || isNaN(v) || v < 1) return 'Los cupos deben ser un número positivo';
   return null;
 }
 
@@ -92,7 +92,7 @@ router.get('/', optionalAuth, async (req, res) => {
     }
     if (search && search.trim()) {
       const q = `%${search.trim()}%`;
-      const si = i; const ti = i+1; const ni = i+2; const ci = i+3; const ui = i+4;
+      const si = i; const ti = i + 1; const ni = i + 2; const ci = i + 3; const ui = i + 4;
       sql += ` AND (p.titulo LIKE $${si} OR p.descripcion LIKE $${ti} OR n.nombre LIKE $${ni} OR c.nombre LIKE $${ci} OR p.ubicacion LIKE $${ui})`;
       params.push(q, q, q, q, q); i += 5;
     }
@@ -122,11 +122,11 @@ router.get('/', optionalAuth, async (req, res) => {
         simpleSql += ` AND p.id IN (SELECT project_id FROM project_categorias pc2 JOIN categorias c2 ON c2.id=pc2.categoria_id WHERE c2.nombre=$${si++})`;
         simpleParams.push(category);
       }
-      if (type && type !== 'Todos')  { simpleSql += ` AND p.tipo=$${si++}`;   simpleParams.push(type); }
-      if (status)                    { simpleSql += ` AND p.status=$${si++}`; simpleParams.push(status); }
+      if (type && type !== 'Todos') { simpleSql += ` AND p.tipo=$${si++}`; simpleParams.push(type); }
+      if (status) { simpleSql += ` AND p.status=$${si++}`; simpleParams.push(status); }
       if (search && search.trim()) {
         const q = `%${search.trim()}%`;
-        simpleSql += ` AND (p.titulo LIKE $${si} OR p.descripcion LIKE $${si+1} OR n.nombre LIKE $${si+2} OR p.ubicacion LIKE $${si+3})`;
+        simpleSql += ` AND (p.titulo LIKE $${si} OR p.descripcion LIKE $${si + 1} OR n.nombre LIKE $${si + 2} OR p.ubicacion LIKE $${si + 3})`;
         simpleParams.push(q, q, q, q); si += 4;
       }
       simpleSql += ` ORDER BY p.created_at DESC LIMIT $${si++} OFFSET $${si++}`;
@@ -178,9 +178,9 @@ router.get('/:id', optionalAuth, async (req, res) => {
       `SELECT c.nombre FROM project_categorias pc JOIN categorias c ON c.id = pc.categoria_id WHERE pc.project_id = $1 LIMIT 1`, [req.params.id]
     );
 
-    project.roles_json      = JSON.stringify(rolesRows.map(r => r.nombre));
+    project.roles_json = JSON.stringify(rolesRows.map(r => r.nombre));
     project.requisitos_json = JSON.stringify(reqRows.map(r => r.descripcion));
-    project.category_name   = catRow?.nombre || '';
+    project.category_name = catRow?.nombre || '';
 
     const comments = await db.all(
       `SELECT c.*, u.name AS user_name, u.avatar AS user_avatar
@@ -244,10 +244,10 @@ router.post('/', requireAuth, requireRole('ngo'), async (req, res) => {
         meta_financiera, recaudado, costo, horas_semanales)
        VALUES ($1,$2,$3,$4,$5,$6,'active',$7,$8,$9,0,$10,0,$11,$12)`,
       [ngo.id, title.trim(), description.trim(), full_description?.trim() || null,
-       image || null, type || 'fugaz', location.trim(), duration?.trim() || null,
-       parseInt(cupos) || 0, parseFloat(funding_goal) || 0,
-       parseFloat(cost_per_person) || 0,
-       type === 'sostenido' ? parseInt(hours_per_week) : null]
+      image || null, type || 'fugaz', location.trim(), duration?.trim() || null,
+      parseInt(cupos) || 0, parseFloat(funding_goal) || 0,
+      parseFloat(cost_per_person) || 0,
+      type === 'sostenido' ? parseInt(hours_per_week) : null]
     );
 
     const newProject = await db.get(
@@ -264,7 +264,7 @@ router.post('/', requireAuth, requireRole('ngo'), async (req, res) => {
       await db.run(
         'INSERT INTO project_categorias (project_id, categoria_id) VALUES ($1,$2)',
         [newProject.id, cat.id]
-      ).catch(() => {}); // ignorar duplicado
+      ).catch(() => { }); // ignorar duplicado
     }
 
     // Roles
@@ -278,7 +278,7 @@ router.post('/', requireAuth, requireRole('ngo'), async (req, res) => {
       await db.run(
         'INSERT INTO project_roles (project_id, rol_id) VALUES ($1,$2)',
         [newProject.id, rol.id]
-      ).catch(() => {});
+      ).catch(() => { });
     }
 
     // Requisitos
@@ -309,18 +309,18 @@ router.put('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
     if (!project) return res.status(404).json({ error: 'Proyecto no encontrado o sin permiso' });
 
     const { title, description, full_description, image, location, type, duration,
-            cupos, funding_goal, cost_per_person, hours_per_week, status } = req.body;
+      cupos, funding_goal, cost_per_person, hours_per_week, status } = req.body;
 
     await db.run(
       `UPDATE projects SET titulo=$1, descripcion=$2, descripcion_full=$3, foto_perfil=$4,
        ubicacion=$5, tipo=$6, status=$7, duracion=$8, cupos=$9, meta_financiera=$10,
        costo=$11, horas_semanales=$12, updated_at=CURRENT_TIMESTAMP WHERE id=$13`,
       [title?.trim(), description?.trim(), full_description?.trim() || null, image || null,
-       location?.trim(), type, status || 'active', duration?.trim() || null,
-       parseInt(cupos) || 0, parseFloat(funding_goal) || 0,
-       parseFloat(cost_per_person) || 0,
-       type === 'sostenido' ? parseInt(hours_per_week) : null,
-       req.params.id]
+      location?.trim(), type, status || 'active', duration?.trim() || null,
+      parseInt(cupos) || 0, parseFloat(funding_goal) || 0,
+      parseFloat(cost_per_person) || 0,
+      type === 'sostenido' ? parseInt(hours_per_week) : null,
+      req.params.id]
     );
 
     const updated = await db.get('SELECT * FROM projects WHERE id=$1', [req.params.id]);
@@ -346,7 +346,7 @@ router.delete('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
 });
 
 // ── POST /api/projects/:id/comments ──────────────────────────────────────
-const BLACKLIST = ['pelotudo','boludo','idiota','imbecil','mierda','puto','puta','hdp','concha','forro','tarado'];
+const BLACKLIST = ['pelotudo', 'boludo', 'idiota', 'imbecil', 'mierda', 'puto', 'puta', 'hdp', 'concha', 'forro', 'tarado'];
 const hasBadWord = (t) => BLACKLIST.some(w => t.toLowerCase().includes(w));
 
 router.post('/:id/comments', requireAuth, async (req, res) => {
