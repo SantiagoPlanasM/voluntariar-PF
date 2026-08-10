@@ -2,13 +2,17 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { sendEmail } = require('../lib/email');
+const { newEnrollmentEmail, enrollmentApprovedEmail, enrollmentRejectedEmail } = require('../lib/emailTemplates');
+
+const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
 const router = express.Router();
 
 // ── POST /api/enrollments ─────────────────────────────────────────────────
 router.post('/', requireAuth, requireRole('volunteer'), async (req, res) => {
   try {
-    const { project_id, mensaje } = req.body;
+    const { project_id, message } = req.body;
     if (!project_id) return res.status(400).json({ error: 'project_id requerido' });
 
     const project = await db.get(
@@ -30,17 +34,20 @@ router.post('/', requireAuth, requireRole('volunteer'), async (req, res) => {
     await db.run(
       `INSERT INTO enrollments (user_id, project_id, status, mensaje)
        VALUES ($1,$2,'pending',$3)`,
-      [req.user.id, project_id, mensaje || null]
+      [req.user.id, project_id, message || null]
     );
 
     const enrollment = await db.get(
-      'SELECT * FROM enrollments WHERE user_id=$1 AND project_id=$2',
+      `SELECT id, user_id, project_id, status, mensaje AS message,
+              horas_realizadas, created_at, updated_at
+       FROM enrollments WHERE user_id=$1 AND project_id=$2`,
       [req.user.id, project_id]
     );
 
-    // Notificar a la ONG
+    // Notificar a la ONG (in-app + email)
     const ngo = await db.get(
-      `SELECT u.id FROM projects p
+      `SELECT u.id, u.email, u.name AS user_name, n.nombre AS ngo_name
+       FROM projects p
        JOIN ngos n ON n.id = p.ngo_id
        JOIN users u ON u.id = n.user_id
        WHERE p.id = $1`, [project_id]
@@ -53,6 +60,12 @@ router.post('/', requireAuth, requireRole('volunteer'), async (req, res) => {
          `${req.user.name} quiere unirse a "${project.titulo}"`,
          JSON.stringify({ project_id, user_id: req.user.id })]
       ).catch(() => {}); // no bloquear si falla la notif
+
+      const { subject, html } = newEnrollmentEmail({
+        ngoName: ngo.ngo_name, volunteerName: req.user.name,
+        projectTitle: project.titulo, projectId: project_id, appUrl: APP_URL,
+      });
+      sendEmail({ to: ngo.email, subject, html }).catch(() => {}); // fire-and-forget, no bloquea la respuesta
     }
 
     res.status(201).json({ enrollment, message: 'Inscripción enviada. Pendiente de aprobación.' });
@@ -70,7 +83,8 @@ router.post('/', requireAuth, requireRole('volunteer'), async (req, res) => {
 router.get('/my', requireAuth, async (req, res) => {
   try {
     const enrollments = await db.all(
-      `SELECT e.*,
+      `SELECT e.id, e.user_id, e.project_id, e.status, e.mensaje AS message,
+              e.horas_realizadas, e.created_at, e.updated_at,
               p.titulo AS title, p.foto_perfil AS image, p.tipo AS type,
               p.ubicacion AS location, p.status AS project_status,
               n.nombre AS ngo_name, n.foto_perfil AS ngo_logo,
@@ -103,7 +117,8 @@ router.get('/project/:projectId', requireAuth, requireRole('ngo'), async (req, r
 
     const { status } = req.query;
     let sql = `
-      SELECT e.*,
+      SELECT e.id, e.user_id, e.project_id, e.status, e.mensaje AS message,
+             e.horas_realizadas, e.created_at, e.updated_at,
              u.name AS volunteer_name, u.email AS volunteer_email,
              u.avatar AS volunteer_avatar, u.bio AS volunteer_bio
       FROM enrollments e
@@ -130,9 +145,12 @@ router.patch('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
 
     const ngo = await db.get('SELECT id FROM ngos WHERE user_id=$1', [req.user.id]);
     const enrollment = await db.get(
-      `SELECT e.*, p.titulo, p.ngo_id
+      `SELECT e.*, p.titulo, p.ngo_id, u.email AS volunteer_email, u.name AS volunteer_name,
+              n.nombre AS ngo_name
        FROM enrollments e
        JOIN projects p ON p.id = e.project_id
+       JOIN ngos n ON n.id = p.ngo_id
+       JOIN users u ON u.id = e.user_id
        WHERE e.id = $1 AND p.ngo_id = $2`,
       [req.params.id, ngo?.id]
     );
@@ -176,6 +194,13 @@ router.patch('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
          : 'Gracias por tu interés. Seguí explorando otros proyectos.',
        JSON.stringify({ project_id: enrollment.project_id })]
     ).catch(() => {});
+
+    const templateFn = status === 'approved' ? enrollmentApprovedEmail : enrollmentRejectedEmail;
+    const { subject, html } = templateFn({
+      volunteerName: enrollment.volunteer_name, projectTitle: enrollment.titulo,
+      ngoName: enrollment.ngo_name, appUrl: APP_URL,
+    });
+    sendEmail({ to: enrollment.volunteer_email, subject, html }).catch(() => {});
 
     res.json({ message: `Inscripción ${status === 'approved' ? 'aprobada' : 'rechazada'}` });
   } catch (err) {

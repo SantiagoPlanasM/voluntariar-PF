@@ -1,5 +1,5 @@
 // src/lib/api.ts
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+export const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 export const getToken = () => localStorage.getItem('v_token');
 export const setToken = (t: string) => localStorage.setItem('v_token', t);
@@ -32,12 +32,16 @@ export const api = {
     login: (b: { email: string; password: string }) =>
       req<{ token: string; user: User }>('/auth/login', { method: 'POST', body: JSON.stringify(b) }),
     me: () => req<{ user: User }>('/auth/me'),
+    updateMe: (b: { name?: string; bio?: string; location?: string; avatar?: string }) =>
+      req<{ user: User }>('/auth/me', { method: 'PUT', body: JSON.stringify(b) }),
   },
   projects: {
     list: (p?: Record<string, string>) => {
       const qs = p ? '?' + new URLSearchParams(p).toString() : '';
       return req<{ projects: Project[] }>(`/projects${qs}`);
     },
+    recommended: (limit = 10) =>
+      req<{ recommendations: Project[]; based_on_history: boolean }>(`/projects/recommended?limit=${limit}`),
     get: (id: string) => req<{ project: ProjectDetail }>(`/projects/${id}`),
     create: (b: Partial<Project>) =>
       req<{ project: Project }>('/projects', { method: 'POST', body: JSON.stringify(b) }),
@@ -49,6 +53,15 @@ export const api = {
       req<{ comment: Comment }>(`/projects/${id}/comments`, { method: 'POST', body: JSON.stringify({ comment }) }),
     rate: (id: string, rating: number, comment?: string) =>
       req<{ message: string }>(`/projects/${id}/ratings`, { method: 'POST', body: JSON.stringify({ rating, comment }) }),
+    kpis: {
+      list: (projectId: string) => req<{ kpis: KPI[] }>(`/projects/${projectId}/kpis`),
+      create: (projectId: string, b: Partial<KPI>) =>
+        req<{ kpi: KPI }>(`/projects/${projectId}/kpis`, { method: 'POST', body: JSON.stringify(b) }),
+      update: (projectId: string, kpiId: string, b: Partial<KPI>) =>
+        req<{ kpi: KPI }>(`/projects/${projectId}/kpis/${kpiId}`, { method: 'PUT', body: JSON.stringify(b) }),
+      delete: (projectId: string, kpiId: string) =>
+        req<{ message: string }>(`/projects/${projectId}/kpis/${kpiId}`, { method: 'DELETE' }),
+    },
   },
   enrollments: {
     enroll: (project_id: string, message?: string) =>
@@ -60,9 +73,28 @@ export const api = {
     cancel: (id: string) => req<{ message: string }>(`/enrollments/${id}`, { method: 'DELETE' }),
   },
   ngos: {
-    me: () => req<{ ngo: NGO; projects: Project[]; stats: NGOStats }>('/ngos/me'),
+    me: () => req<{ ngo: NGO; projects: Project[]; stats: NGOStats; pending_enrollments: EnrollmentWithVolunteer[] }>('/ngos/me'),
     get: (id: string) => req<{ ngo: NGO; projects: Project[] }>(`/ngos/${id}`),
     update: (b: Partial<NGO>) => req<{ ngo: NGO }>('/ngos/me', { method: 'PUT', body: JSON.stringify(b) }),
+  },
+  voluntarios: {
+    habilidades: {
+      list: () => req<{ habilidades: VolunteerSkill[] }>('/voluntarios/me/habilidades'),
+      update: (habilidades: { habilidad_id: string; nivel?: string }[]) =>
+        req<{ habilidades: VolunteerSkill[] }>('/voluntarios/me/habilidades', {
+          method: 'PUT', body: JSON.stringify({ habilidades }),
+        }),
+    },
+  },
+  catalog: {
+    habilidades: () => req<{ habilidades: SkillCatalogItem[] }>('/habilidades'),
+  },
+  messages: {
+    conversations: () => req<{ conversations: Conversation[] }>('/messages/conversations'),
+    thread: (userId: string) => req<{ messages: ChatMessage[]; other: Conversation['user'] }>(`/messages/thread/${userId}`),
+    send: (to: string, body: string) =>
+      req<{ message: ChatMessage }>('/messages', { method: 'POST', body: JSON.stringify({ to, body }) }),
+    markRead: (userId: string) => req(`/messages/thread/${userId}/read`, { method: 'PATCH' }),
   },
   notifications: {
     list: () => req<{ notifications: AppNotification[]; unread: number }>('/notifications'),
@@ -86,9 +118,35 @@ export interface Project {
   cost_per_person: number; hours_per_week?: number;
   roles_needed: string[]; requirements?: string[];
   followers: number; ngo_name?: string; ngo_logo?: string; created_at?: string;
+  recommendation_score?: number; recommendation_reasons?: string[];
 }
+export interface KPI {
+  id: string; project_id: string; nombre: string;
+  descripcion?: string; valor?: number;
+  tipo_valor: string; unidad?: string; fecha?: string;
+  created_at: string;
+}
+
+export interface SkillCatalogItem {
+  id: string; nombre: string; descripcion?: string;
+}
+export interface VolunteerSkill {
+  id: string; nombre: string; descripcion?: string;
+  nivel: 'basico' | 'intermedio' | 'avanzado';
+}
+
+export interface ChatMessage {
+  id: string; sender_id: string; receiver_id: string; body: string;
+  read: boolean | 0 | 1; created_at: string;
+  sender_name?: string; sender_avatar?: string;
+}
+export interface Conversation {
+  user: { id: string; name: string; avatar?: string; role: string };
+  last_message: string; last_at: string | null; last_from_me: boolean; unread: number;
+}
+
 export interface ProjectDetail extends Project {
-  comments: AppComment[]; ratings: Rating[];
+  comments: AppComment[]; ratings: Rating[]; kpis: KPI[];
   avg_rating: number; my_enrollment?: Enrollment | null;
 }
 export interface Enrollment {

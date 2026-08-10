@@ -47,7 +47,7 @@ export function NGOOwnProfile() {
   const inp = 'w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
 
   return (
-    <div className="min-h-screen bg-gray-50 md:ml-60">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-gradient-to-br from-blue-600 to-emerald-600 px-4 pt-14 pb-8 relative">
         <div className="absolute top-4 right-4 flex gap-2">

@@ -58,113 +58,18 @@ if (USE_POSTGRES) {
 
 } else {
   // ── SQLite (local) ─────────────────────────────────────────────────────────
-  const path = require('path');
-  const fs   = require('fs');
+  const Database = require('better-sqlite3');
+  const path     = require('path');
+  const fs       = require('fs');
 
   const DATA_DIR = path.join(__dirname, '../../data');
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  const DB_PATH = path.join(DATA_DIR, 'voluntariar.sqlite');
 
-  let sqlite;
-  let initPromise;
-  let useSqlJs = false;
+  const sqlite = new Database(path.join(DATA_DIR, 'voluntariar.sqlite'));
+  sqlite.pragma('journal_mode = WAL');
+  sqlite.pragma('foreign_keys = ON');
 
-  try {
-    const Database = require('better-sqlite3');
-    sqlite = new Database(DB_PATH);
-    sqlite.pragma('journal_mode = WAL');
-    sqlite.pragma('foreign_keys = ON');
-    console.log('🗄️  Conectado a SQLite (local, nativo)');
-  } catch (err) {
-    console.warn('⚠️  No se pudo cargar better-sqlite3 (puede deberse a tu versión de Node.js). Usando fallback de WebAssembly (sql.js)...');
-    useSqlJs = true;
-  }
-
-  // Si usamos sql.js, inicializamos de forma asíncrona pero perezosa
-  async function getSqliteDb() {
-    if (sqlite) return sqlite;
-    if (!initPromise) {
-      initPromise = (async () => {
-        const initSqlJs = require('sql.js');
-        const SQL = await initSqlJs();
-        let dbInstance;
-        if (fs.existsSync(DB_PATH)) {
-          const fileBuffer = fs.readFileSync(DB_PATH);
-          dbInstance = new SQL.Database(fileBuffer);
-        } else {
-          dbInstance = new SQL.Database();
-          // Guardar base inicial vacía
-          const data = dbInstance.export();
-          fs.writeFileSync(DB_PATH, Buffer.from(data));
-        }
-        dbInstance.run('PRAGMA journal_mode = WAL');
-        dbInstance.run('PRAGMA foreign_keys = ON');
-        console.log('🗄️  Conectado a SQLite (local, WebAssembly)');
-        return dbInstance;
-      })();
-    }
-    sqlite = await initPromise;
-    return sqlite;
-  }
-
-  function saveSqlJsDb() {
-    if (!useSqlJs || !sqlite) return;
-    const data = sqlite.export();
-    fs.writeFileSync(DB_PATH, Buffer.from(data));
-  }
-
-  class SqlJsStatement {
-    constructor(sqlJsDb, sql) {
-      this.db = sqlJsDb;
-      this.sql = sql;
-    }
-
-    all(...params) {
-      const stmt = this.db.prepare(this.sql);
-      try {
-        stmt.bind(params);
-        const rows = [];
-        while (stmt.step()) {
-          rows.push(stmt.getAsObject());
-        }
-        return rows;
-      } finally {
-        stmt.free();
-      }
-    }
-
-    get(...params) {
-      const stmt = this.db.prepare(this.sql);
-      try {
-        stmt.bind(params);
-        if (stmt.step()) {
-          return stmt.getAsObject();
-        }
-        return undefined;
-      } finally {
-        stmt.free();
-      }
-    }
-
-    run(...params) {
-      const stmt = this.db.prepare(this.sql);
-      try {
-        stmt.run(params);
-        const changes = this.db.getRowsModified();
-        let lastInsertRowid = null;
-        try {
-          const res = this.db.exec("SELECT last_insert_rowid() AS id");
-          if (res && res[0] && res[0].values && res[0].values[0]) {
-            lastInsertRowid = res[0].values[0][0];
-          }
-        } catch (e) {}
-        saveSqlJsDb();
-        return { changes, lastInsertRowid };
-      } finally {
-        stmt.free();
-      }
-    }
-  }
+  console.log('🗄️  Conectado a SQLite (local)');
 
   // Detecta si la query devuelve filas (SELECT/WITH) o es DDL/DML
   function isReadQuery(sql) {
@@ -172,11 +77,11 @@ if (USE_POSTGRES) {
     return s.startsWith('SELECT') || s.startsWith('WITH');
   }
 
-  // Traduce sintaxis PostgreSQL → SQLite
+  // Traduce sintaxis PostgreSQL → SQLite (todo excepto los placeholders $N,
+  // que se manejan aparte en remapParams porque también necesitan reordenar
+  // el array de parámetros).
   function translatePg(sql) {
     return sql
-      // Parámetros: $1, $2 → ?
-      .replace(/\$\d+/g, '?')
       // Timestamps
       .replace(/CURRENT_TIMESTAMP/gi, "datetime('now')")
       // Funciones de string case-insensitive
@@ -184,7 +89,27 @@ if (USE_POSTGRES) {
       // Conflict handling
       .replace(/\bON CONFLICT\s+DO NOTHING\b/gi, 'OR IGNORE')
       .replace(/\bON CONFLICT\s*\([^)]+\)\s*DO NOTHING\b/gi, 'OR IGNORE')
+      // INSERT normal → INSERT OR IGNORE cuando corresponda
+      // (se maneja en el código, no aquí)
+      // GREATEST no existe en SQLite → ya usamos CASE WHEN en el código
+      // COALESCE sí existe en SQLite, no necesita traducción
+      // JSON functions → SQLite no las tiene, el código evita usarlas en SQLite
       ;
+  }
+
+  // Reemplaza cada $N por ? (placeholder posicional de SQLite) y devuelve un
+  // array de parámetros alineado a cada aparición. Esto es necesario porque
+  // en Postgres es válido reusar el mismo $N más de una vez en una query
+  // (p. ej. `WHERE (a=$1 AND b=$2) OR (a=$2 AND b=$1)`), pero el binding
+  // posicional de better-sqlite3/SQLite exige un valor por cada `?`, no por
+  // cada número de parámetro único. Sin este remapeo, una query que reusa un
+  // $N queda con menos valores bindeados que `?` tiene, y termina
+  // devolviendo cero filas en silencio (sin lanzar error) en vez del
+  // resultado esperado.
+  function remapParams(sql, params) {
+    const order = [];
+    const translated = sql.replace(/\$(\d+)/g, (_, n) => { order.push(Number(n) - 1); return '?'; });
+    return { translated, remapped: order.map(i => params[i]) };
   }
 
   db = {
@@ -192,40 +117,36 @@ if (USE_POSTGRES) {
 
     // query(): para DDL (CREATE TABLE, CREATE INDEX) y SELECT general
     query: async (sql, params = []) => {
-      const dbInstance = useSqlJs ? await getSqliteDb() : sqlite;
-      const translated = translatePg(sql);
-      const stmt = useSqlJs ? new SqlJsStatement(dbInstance, translated) : dbInstance.prepare(translated);
+      const { translated, remapped } = remapParams(translatePg(sql), params);
+      const stmt = sqlite.prepare(translated);
       if (isReadQuery(translated)) {
-        return { rows: stmt.all(...params) };
+        return { rows: stmt.all(...remapped) };
       } else {
-        const info = stmt.run(...params);
+        const info = stmt.run(...remapped);
         return { rows: [], changes: info.changes, lastID: info.lastInsertRowid };
       }
     },
 
     // run(): INSERT, UPDATE, DELETE — siempre sin filas de retorno
     run: async (sql, params = []) => {
-      const dbInstance = useSqlJs ? await getSqliteDb() : sqlite;
-      const translated = translatePg(sql);
-      const stmt = useSqlJs ? new SqlJsStatement(dbInstance, translated) : dbInstance.prepare(translated);
-      const info = stmt.run(...params);
+      const { translated, remapped } = remapParams(translatePg(sql), params);
+      const stmt = sqlite.prepare(translated);
+      const info = stmt.run(...remapped);
       return { lastID: info.lastInsertRowid, changes: info.changes };
     },
 
     // get(): SELECT que devuelve una sola fila
     get: async (sql, params = []) => {
-      const dbInstance = useSqlJs ? await getSqliteDb() : sqlite;
-      const translated = translatePg(sql);
-      const stmt = useSqlJs ? new SqlJsStatement(dbInstance, translated) : dbInstance.prepare(translated);
-      return stmt.get(...params);
+      const { translated, remapped } = remapParams(translatePg(sql), params);
+      const stmt = sqlite.prepare(translated);
+      return stmt.get(...remapped);
     },
 
     // all(): SELECT que devuelve múltiples filas
     all: async (sql, params = []) => {
-      const dbInstance = useSqlJs ? await getSqliteDb() : sqlite;
-      const translated = translatePg(sql);
-      const stmt = useSqlJs ? new SqlJsStatement(dbInstance, translated) : dbInstance.prepare(translated);
-      return stmt.all(...params);
+      const { translated, remapped } = remapParams(translatePg(sql), params);
+      const stmt = sqlite.prepare(translated);
+      return stmt.all(...remapped);
     },
 
     sqlite,

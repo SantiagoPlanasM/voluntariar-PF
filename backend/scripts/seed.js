@@ -9,14 +9,14 @@ async function seed() {
 
   // ── Usuarios ──────────────────────────────────────────────────────────────
   const users = [
-    { id: 'user-vol-1', name: 'María García', email: 'maria@example.com', password: hash('Password1'), role: 'volunteer' },
-    { id: 'user-vol-2', name: 'Juan Pérez', email: 'juan@example.com', password: hash('Password1'), role: 'volunteer' },
-    { id: 'user-vol-3', name: 'Lucía Fernández', email: 'lucia@example.com', password: hash('Password1'), role: 'volunteer' },
-    { id: 'user-ngo-1', name: 'Admin Sustentando', email: 'admin@sustentando.org', password: hash('Password1'), role: 'ngo' },
-    { id: 'user-ngo-2', name: 'Admin GreenCba', email: 'admin@greencba.org', password: hash('Password1'), role: 'ngo' },
-    { id: 'user-ngo-3', name: 'Admin Banco Alimentos', email: 'admin@bancoalimentos.org', password: hash('Password1'), role: 'ngo' },
-    { id: 'user-ngo-4', name: 'Admin TechSocial', email: 'admin@techsocial.org', password: hash('Password1'), role: 'ngo' },
-    { id: 'user-comp-1', name: 'Admin TechCorp', email: 'admin@techcorp.com', password: hash('Password1'), role: 'company' },
+    { id: 'user-vol-1',  name: 'María García',        email: 'maria@example.com',           password: hash('Password1'), role: 'volunteer' },
+    { id: 'user-vol-2',  name: 'Juan Pérez',           email: 'juan@example.com',            password: hash('Password1'), role: 'volunteer' },
+    { id: 'user-vol-3',  name: 'Lucía Fernández',      email: 'lucia@example.com',           password: hash('Password1'), role: 'volunteer' },
+    { id: 'user-ngo-1',  name: 'Admin Sustentando',    email: 'admin@sustentando.org',       password: hash('Password1'), role: 'ngo' },
+    { id: 'user-ngo-2',  name: 'Admin GreenCba',       email: 'admin@greencba.org',          password: hash('Password1'), role: 'ngo' },
+    { id: 'user-ngo-3',  name: 'Admin Banco Alimentos',email: 'admin@bancoalimentos.org',    password: hash('Password1'), role: 'ngo' },
+    { id: 'user-ngo-4',  name: 'Admin TechSocial',     email: 'admin@techsocial.org',        password: hash('Password1'), role: 'ngo' },
+    { id: 'user-comp-1', name: 'Admin TechCorp',       email: 'admin@techcorp.com',          password: hash('Password1'), role: 'company' },
   ];
 
   for (const u of users) {
@@ -33,9 +33,9 @@ async function seed() {
 
   // ── Perfiles de voluntarios ───────────────────────────────────────────────
   const voluntarios = [
-    { user_id: 'user-vol-1', nombre: 'María', apellido: 'García', ubicacion: 'Córdoba Capital' },
-    { user_id: 'user-vol-2', nombre: 'Juan', apellido: 'Pérez', ubicacion: 'Córdoba Capital' },
-    { user_id: 'user-vol-3', nombre: 'Lucía', apellido: 'Fernández', ubicacion: 'Alta Gracia, Córdoba' },
+    { user_id: 'user-vol-1', nombre: 'María',  apellido: 'García',    ubicacion: 'Córdoba Capital' },
+    { user_id: 'user-vol-2', nombre: 'Juan',   apellido: 'Pérez',     ubicacion: 'Córdoba Capital' },
+    { user_id: 'user-vol-3', nombre: 'Lucía',  apellido: 'Fernández', ubicacion: 'Alta Gracia, Córdoba' },
   ];
   for (const v of voluntarios) {
     const exists = await db.get('SELECT id FROM voluntarios WHERE user_id=$1', [v.user_id]);
@@ -51,30 +51,22 @@ async function seed() {
 
   // ── ONGs ──────────────────────────────────────────────────────────────────
   const ngos = [
-    {
-      id: 'ngo-1', user_id: 'user-ngo-1', nombre: 'Sustentando',
+    { id: 'ngo-1', user_id: 'user-ngo-1', nombre: 'Sustentando',
       descripcion: 'Organización dedicada a la reforestación y educación ambiental en Córdoba.',
       mision: 'Reforestar 10.000 hectáreas para 2030.', founded: '2015',
-      ubicacion: 'Córdoba, Argentina', followers: 1240
-    },
-    {
-      id: 'ngo-2', user_id: 'user-ngo-2', nombre: 'Green Córdoba',
+      ubicacion: 'Córdoba, Argentina', followers: 1240 },
+    { id: 'ngo-2', user_id: 'user-ngo-2', nombre: 'Green Córdoba',
       descripcion: 'Conectamos ciudadanos comprometidos con el planeta.',
       mision: 'Ciudad más verde, ciudadanos más felices.', founded: '2018',
-      ubicacion: 'Córdoba, Argentina', followers: 890
-    },
-    {
-      id: 'ngo-3', user_id: 'user-ngo-3', nombre: 'Banco de Alimentos Córdoba',
+      ubicacion: 'Córdoba, Argentina', followers: 890 },
+    { id: 'ngo-3', user_id: 'user-ngo-3', nombre: 'Banco de Alimentos Córdoba',
       descripcion: 'Rescatamos alimentos y los distribuimos a familias en vulnerabilidad.',
       mision: 'Cero desperdicio, cero hambre en Córdoba.', founded: '2010',
-      ubicacion: 'Córdoba, Argentina', followers: 3400
-    },
-    {
-      id: 'ngo-4', user_id: 'user-ngo-4', nombre: 'TechSocial',
+      ubicacion: 'Córdoba, Argentina', followers: 3400 },
+    { id: 'ngo-4', user_id: 'user-ngo-4', nombre: 'TechSocial',
       descripcion: 'Usamos la tecnología como herramienta de inclusión social.',
       mision: 'Reducir la brecha digital en barrios vulnerables.', founded: '2020',
-      ubicacion: 'Córdoba, Argentina', followers: 620
-    },
+      ubicacion: 'Córdoba, Argentina', followers: 620 },
   ];
 
   for (const n of ngos) {
@@ -280,9 +272,9 @@ async function seed() {
           costo, horas_semanales)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
         [p.id, p.ngo_id, p.titulo, p.descripcion, p.descripcion_full, p.foto_perfil,
-        p.tipo, p.status, p.ubicacion, p.duracion || null,
-        p.cupos, p.cupos_ocupados, p.meta_financiera, p.recaudado, p.costo,
-        p.horas_semanales || null]
+         p.tipo, p.status, p.ubicacion, p.duracion || null,
+         p.cupos, p.cupos_ocupados, p.meta_financiera, p.recaudado, p.costo,
+         p.horas_semanales || null]
       );
 
       // Categoría
@@ -291,7 +283,7 @@ async function seed() {
         await db.run(
           'INSERT INTO project_categorias (project_id, categoria_id) VALUES ($1,$2)',
           [p.id, catId]
-        ).catch(() => { });
+        ).catch(() => {});
       }
 
       // Roles
@@ -301,7 +293,7 @@ async function seed() {
           await db.run(
             'INSERT INTO project_roles (project_id, rol_id) VALUES ($1,$2)',
             [p.id, rolId]
-          ).catch(() => { });
+          ).catch(() => {});
         }
       }
 
@@ -318,14 +310,14 @@ async function seed() {
 
   // ── Inscripciones ─────────────────────────────────────────────────────────
   const enrollments = [
-    { user_id: 'user-vol-1', project_id: 'proj-1', status: 'approved' },
-    { user_id: 'user-vol-1', project_id: 'proj-7', status: 'approved' },
-    { user_id: 'user-vol-1', project_id: 'proj-9', status: 'pending' },
-    { user_id: 'user-vol-2', project_id: 'proj-1', status: 'pending' },
-    { user_id: 'user-vol-2', project_id: 'proj-3', status: 'approved' },
-    { user_id: 'user-vol-2', project_id: 'proj-8', status: 'approved' },
-    { user_id: 'user-vol-3', project_id: 'proj-4', status: 'approved' },
-    { user_id: 'user-vol-3', project_id: 'proj-10', status: 'pending' },
+    { user_id: 'user-vol-1', project_id: 'proj-1',  status: 'approved' },
+    { user_id: 'user-vol-1', project_id: 'proj-7',  status: 'approved' },
+    { user_id: 'user-vol-1', project_id: 'proj-9',  status: 'pending'  },
+    { user_id: 'user-vol-2', project_id: 'proj-1',  status: 'pending'  },
+    { user_id: 'user-vol-2', project_id: 'proj-3',  status: 'approved' },
+    { user_id: 'user-vol-2', project_id: 'proj-8',  status: 'approved' },
+    { user_id: 'user-vol-3', project_id: 'proj-4',  status: 'approved' },
+    { user_id: 'user-vol-3', project_id: 'proj-10', status: 'pending'  },
   ];
 
   for (const e of enrollments) {

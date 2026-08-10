@@ -2,6 +2,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors    = require('cors');
+const http    = require('http');
+const { initWebSocket } = require('./ws');
 
 const app = express();
 
@@ -32,6 +34,8 @@ app.use('/api/projects',       require('./routes/projects'));
 app.use('/api/enrollments',    require('./routes/enrollments'));
 app.use('/api/ngos',           require('./routes/ngos'));
 app.use('/api/notifications',  require('./routes/notifications'));
+app.use('/api/voluntarios',    require('./routes/voluntarios'));
+app.use('/api/messages',       require('./routes/messages'));
 
 // ── Rutas de catálogos (solo GET, datos base) ─────────────────────────────
 const db = require('./db');
@@ -70,8 +74,12 @@ app.use((err, req, res, next) => {
 
 // ── Start ─────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
+const server = http.createServer(app);
+initWebSocket(server); // chat en tiempo real, mismo puerto, path /ws
+
+server.listen(PORT, () => {
   console.log(`\n🚀 Voluntariar API → http://localhost:${PORT}`);
+  console.log(`   WebSocket (chat) → ws://localhost:${PORT}/ws`);
   console.log(`   Entorno: ${process.env.NODE_ENV || 'development'}`);
   console.log(`   DB:      ${process.env.USE_POSTGRES === 'true' ? 'PostgreSQL' : 'SQLite'}\n`);
 });

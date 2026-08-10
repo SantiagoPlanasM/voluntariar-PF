@@ -1,20 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Search, Heart, Users, MapPin, Zap, Calendar, Clock, DollarSign, Sparkles, ArrowRight, Leaf, Utensils, GraduationCap, PawPrint, HeartPulse } from 'lucide-react';
+import { Search, Heart, Users, MapPin, Zap, Calendar, Clock, DollarSign, Sparkles, ArrowRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { api, Project } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
-import volunteersBg from '../../assets/volunteers_hero_bg.png';
-import uccLogo from '../../assets/ucc_logo.png';
-
-
 
 const CATEGORIES = [
-  { name: 'Todos', icon: Sparkles },
-  { name: 'Medio Ambiente', icon: Leaf },
-  { name: 'Alimentación', icon: Utensils },
-  { name: 'Educación', icon: GraduationCap },
-  { name: 'Animales', icon: PawPrint },
-  { name: 'Salud', icon: HeartPulse },
+  { name: 'Todos',           emoji: '✨' },
+  { name: 'Medio Ambiente',  emoji: '🌿' },
+  { name: 'Alimentación',    emoji: '🍎' },
+  { name: 'Educación',       emoji: '📚' },
+  { name: 'Animales',        emoji: '🐾' },
+  { name: 'Salud',           emoji: '❤️' },
 ];
 
 function safeMoney(val: any): string {
@@ -32,9 +28,9 @@ export function PublicFeed() {
   const { user, openAuthModal } = useAuth();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [cat, setCat] = useState('Todos');
+  const [loading, setLoading]   = useState(true);
+  const [search, setSearch]     = useState('');
+  const [cat, setCat]           = useState('Todos');
 
   useEffect(() => {
     if (user) { navigate(user.role === 'ngo' ? '/ngo/dashboard' : '/feed', { replace: true }); return; }
@@ -48,7 +44,7 @@ export function PublicFeed() {
     try {
       const params: Record<string, string> = {};
       if (cat !== 'Todos') params.category = cat;
-      if (search.trim()) params.search = search.trim();
+      if (search.trim())   params.search   = search.trim();
       setProjects((await api.projects.list(params)).projects);
     } catch { setProjects([]); }
     finally { setLoading(false); }
@@ -64,14 +60,7 @@ export function PublicFeed() {
               <Heart className="w-5 h-5 text-white fill-white" />
             </div>
             <span className="font-black text-xl text-gray-900 tracking-tight">Voluntariar</span>
-            <a 
-              href="https://www.ucc.edu.ar/" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="hidden sm:flex items-center ml-2.5 hover:opacity-80 transition-opacity"
-            >
-              <img src={uccLogo} alt="UCC" className="h-11 object-contain" />
-            </a>
+            <span className="hidden sm:inline text-xs text-gray-400 font-medium ml-1 border border-gray-200 px-2 py-0.5 rounded-full">UCC</span>
           </div>
 
           {/* Search en desktop */}
@@ -99,41 +88,18 @@ export function PublicFeed() {
       </header>
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}
-      <section className="relative bg-zinc-900 text-white overflow-hidden">
-        {/* Background Image (Clean) */}
-        <div className="absolute inset-0 z-0 select-none pointer-events-none">
-          <img
-            src={volunteersBg}
-            alt="Voluntarios"
-            className="w-full h-full object-cover object-center"
-          />
-        </div>
-
-        {/* Blurred Glass Overlay (Fades out to the right) */}
-        <div 
-          className="absolute inset-0 z-0 backdrop-blur-xl bg-zinc-950/30 select-none pointer-events-none"
-          style={{
-            maskImage: 'linear-gradient(to right, rgba(0,0,0,1) 25%, rgba(0,0,0,0) 75%)',
-            WebkitMaskImage: 'linear-gradient(to right, rgba(0,0,0,1) 25%, rgba(0,0,0,0) 75%)'
-          }}
-        />
-
-        {/* Gradient for text contrast */}
-        <div 
-          className="absolute inset-0 z-0 bg-gradient-to-r from-zinc-950/80 via-zinc-950/50 to-transparent select-none pointer-events-none"
-        />
-
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16 md:py-20">
+      <section className="bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16 md:py-20">
           <div className="max-w-2xl">
             <div className="flex items-center gap-1.5 mb-3">
-              <Sparkles className="w-4 h-4 text-emerald-400" />
-              <span className="text-xs font-semibold text-zinc-400 uppercase tracking-widest">Red Social Solidaria · UCC</span>
+              <Sparkles className="w-4 h-4 text-emerald-300" />
+              <span className="text-xs font-semibold text-emerald-300 uppercase tracking-widest">Red Social Solidaria · UCC</span>
             </div>
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-black leading-tight mb-4">
               Hacé la diferencia.<br />
-              <span className="text-emerald-400">Hoy.</span>
+              <span className="text-emerald-300">Hoy.</span>
             </h1>
-            <p className="text-zinc-300 text-base sm:text-lg leading-relaxed mb-8 max-w-lg">
+            <p className="text-emerald-100 text-base sm:text-lg leading-relaxed mb-8 max-w-lg">
               Conectamos voluntarios con proyectos sociales reales en Córdoba.
               Desde una jornada de un día hasta proyectos sostenidos.
             </p>
@@ -143,11 +109,11 @@ export function PublicFeed() {
               {[
                 { val: `${projects.length || '—'}`, label: 'proyectos activos' },
                 { val: '2.4k', label: 'voluntarios' },
-                { val: '12', label: 'ONGs aliadas' },
+                { val: '12',   label: 'ONGs aliadas' },
               ].map(({ val, label }) => (
                 <div key={label}>
                   <p className="text-2xl sm:text-3xl font-black">{val}</p>
-                  <p className="text-xs sm:text-sm text-zinc-400">{label}</p>
+                  <p className="text-xs sm:text-sm text-emerald-300">{label}</p>
                 </div>
               ))}
             </div>
@@ -165,11 +131,11 @@ export function PublicFeed() {
             {/* CTA buttons */}
             <div className="hidden md:flex gap-3 mt-4">
               <button onClick={() => openAuthModal('Creá tu cuenta gratis y empezá a ayudar hoy')}
-                className="px-6 py-3 bg-white text-zinc-950 font-bold rounded-xl hover:bg-zinc-100 transition-colors shadow-lg flex items-center gap-2">
+                className="px-6 py-3 bg-white text-emerald-700 font-bold rounded-xl hover:bg-emerald-50 transition-colors shadow-lg flex items-center gap-2">
                 Crear cuenta gratis <ArrowRight className="w-4 h-4" />
               </button>
               <button onClick={() => openAuthModal()}
-                className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-colors">
+                className="px-6 py-3 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-xl transition-colors">
                 Iniciar sesión
               </button>
             </div>
@@ -181,11 +147,12 @@ export function PublicFeed() {
       <div className="sticky top-16 z-10 bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex gap-2 py-3 overflow-x-auto scrollbar-hide">
-            {CATEGORIES.map(({ name, icon: IconComponent }) => (
+            {CATEGORIES.map(({ name, emoji }) => (
               <button key={name} onClick={() => setCat(name)}
-                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${cat === name ? 'bg-emerald-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}>
-                <IconComponent className="w-3.5 h-3.5" /> {name}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
+                  cat === name ? 'bg-emerald-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}>
+                {emoji} {name}
               </button>
             ))}
           </div>
@@ -216,12 +183,9 @@ export function PublicFeed() {
             ))}
           </div>
         ) : projects.length === 0 ? (
-          <div className="text-center py-20 flex flex-col items-center justify-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-500 shadow-inner">
-              <Search className="w-8 h-8" />
-            </div>
-            <p className="text-gray-700 font-bold text-lg">Sin proyectos en esta categoría</p>
-            <p className="text-gray-500 text-sm mt-1">Probá buscando con otros filtros o palabras clave</p>
+          <div className="text-center py-20">
+            <p className="text-5xl mb-4">🔍</p>
+            <p className="text-gray-400 font-medium text-lg">Sin proyectos en esta categoría</p>
           </div>
         ) : (
           <>
@@ -256,8 +220,8 @@ export function PublicFeed() {
 
 // ── Card pública ──────────────────────────────────────────────────────────
 function PublicCard({ project, onAction }: { project: Project; onAction: () => void }) {
-  const fundPct = safePct(project.current_funding, project.funding_goal);
-  const volPct = safePct(project.current_volunteers, project.volunteers_needed);
+  const fundPct   = safePct(project.current_funding, project.funding_goal);
+  const volPct    = safePct(project.current_volunteers, project.volunteers_needed);
   const spotsLeft = (project.volunteers_needed || 0) - (project.current_volunteers || 0);
   const hasFunding = (project.funding_goal || 0) > 0;
 
@@ -268,8 +232,8 @@ function PublicCard({ project, onAction }: { project: Project; onAction: () => v
           {project.image
             ? <img src={project.image} alt={project.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
             : <div className="w-full h-full bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center">
-              <Heart className="w-12 h-12 text-emerald-300" />
-            </div>
+                <Heart className="w-12 h-12 text-emerald-300" />
+              </div>
           }
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
           <div className="absolute top-3 left-3 flex gap-1.5">

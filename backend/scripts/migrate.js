@@ -243,6 +243,16 @@ async function migrate() {
       created_at  ${NOW}
     )`,
 
+    // ── 17b. MENSAJES — chat 1 a 1 ─────────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS messages (
+      id           ${UUID_PK},
+      sender_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      receiver_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      body         TEXT NOT NULL,
+      read         ${BOOL} DEFAULT ${isPg ? 'false' : '0'},
+      created_at   ${NOW}
+    )`,
+
     // ══ TABLAS INTERMEDIAS N:M ════════════════════════════════════════════
 
     // ── 18. ONG × Categoría ───────────────────────────────────────────────
@@ -328,6 +338,10 @@ async function migrate() {
     // Notificaciones
     `CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(read)`,
+    // Mensajes (chat 1 a 1)
+    `CREATE INDEX IF NOT EXISTS idx_messages_sender     ON messages(sender_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_messages_receiver   ON messages(receiver_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_messages_created    ON messages(created_at)`,
     // Requisitos y KPIs
     `CREATE INDEX IF NOT EXISTS idx_requisitos_project ON requisitos(project_id)`,
     `CREATE INDEX IF NOT EXISTS idx_kpis_project       ON kpis(project_id)`,

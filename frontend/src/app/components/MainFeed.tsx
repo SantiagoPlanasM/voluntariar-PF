@@ -14,14 +14,14 @@ export function MainFeed() {
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
   const [cat, setCat]           = useState('Todos');
+  const [recommended, setRecommended] = useState<Project[]>([]);
+
+  useEffect(() => { load(); }, [cat]);
 
   useEffect(() => {
-    if (!user) {
-      navigate('/', { replace: true });
-    } else {
-      load();
-    }
-  }, [user, cat]);
+    if (user?.role !== 'volunteer') return;
+    api.projects.recommended(8).then(r => setRecommended(r.recommendations)).catch(() => {});
+  }, [user]);
 
   const load = async () => {
     setLoading(true);
@@ -88,6 +88,23 @@ export function MainFeed() {
       </header>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5">
+        {/* Recomendados para vos — solo en la vista sin filtros, para no competir con una búsqueda activa */}
+        {recommended.length > 0 && cat === 'Todos' && !search.trim() && (
+          <div className="mb-6">
+            <h2 className="text-sm font-bold text-gray-900 mb-3">✨ Recomendados para vos</h2>
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
+              {recommended.map(p => (
+                <div key={p.id} className="w-64 flex-shrink-0">
+                  <ProjectCard project={p} onRefresh={load} />
+                  {p.recommendation_reasons?.[0] && (
+                    <p className="text-[11px] text-emerald-600 font-medium mt-1.5 px-1">{p.recommendation_reasons[0]}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Grid: 1 col mobile, 2 col tablet, 3 col desktop */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
@@ -103,12 +120,10 @@ export function MainFeed() {
             ))}
           </div>
         ) : projects.length === 0 ? (
-          <div className="text-center py-16 flex flex-col items-center justify-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-500 shadow-inner">
-              <Search className="w-8 h-8" />
-            </div>
-            <p className="text-gray-700 font-bold text-lg">No hay proyectos</p>
-            <p className="text-gray-500 text-sm mt-1">Probá buscando con otros filtros o palabras clave</p>
+          <div className="text-center py-16">
+            <p className="text-5xl mb-3">🔍</p>
+            <p className="font-medium text-gray-500">No hay proyectos</p>
+            <p className="text-sm text-gray-400 mt-1">Probá con otros filtros</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">

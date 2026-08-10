@@ -23,14 +23,9 @@ export function NGODashboard() {
   const load = async () => {
     setLoading(true);
     try {
-      const { ngo: n, projects: p, stats: s } = await api.ngos.me();
+      const { ngo: n, projects: p, stats: s, pending_enrollments } = await api.ngos.me();
       setNgo(n); setProjects(p); setStats(s);
-      const all: EnrollmentWithVolunteer[] = [];
-      for (const proj of p) {
-        try { const { enrollments } = await api.enrollments.byProject(proj.id);
-          all.push(...enrollments.filter(e=>e.status==='pending')); } catch {}
-      }
-      setPending(all);
+      setPending(pending_enrollments);
     } catch (e: any) {
       if (e.message?.includes('Token')||e.message?.includes('autenticado')) navigate('/');
     } finally { setLoading(false); }
@@ -43,12 +38,16 @@ export function NGODashboard() {
     finally { setProcessing(null); }
   };
 
-  const filtered = projects.filter(p => p.title.toLowerCase().includes(search.toLowerCase().trim()));
+  const filtered = projects.filter(
+    p => (p.title ?? p.titulo ?? "")
+        .toLowerCase()
+        .includes(search.toLowerCase().trim())
+  );
 
-  if (loading) return <div className="flex items-center justify-center h-screen md:ml-60"><Loader2 className="w-8 h-8 animate-spin text-blue-600"/></div>;
+  if (loading) return <div className="flex items-center justify-center h-screen"><Loader2 className="w-8 h-8 animate-spin text-blue-600"/></div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 md:ml-60">
+    <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between gap-4 mb-3">
@@ -59,10 +58,16 @@ export function NGODashboard() {
                 <p className="text-xs text-gray-400">Panel de gestión</p>
               </div>
             </div>
-            <button onClick={() => navigate('/ngo/create')}
-              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-700 transition-colors flex-shrink-0">
-              <Plus className="w-4 h-4"/><span className="hidden sm:inline">Nuevo proyecto</span><span className="sm:hidden">Nuevo</span>
-            </button>
+            <div className="flex gap-2">
+              <button onClick={() => ngo && navigate(`/ngo/empleados/${ngo.id}`)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-xs font-semibold hover:bg-gray-50 transition-colors">
+                <Users className="w-3.5 h-3.5"/>Equipo
+              </button>
+              <button onClick={() => navigate('/ngo/create')}
+                className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-700 transition-colors flex-shrink-0">
+                <Plus className="w-4 h-4"/><span className="hidden sm:inline">Nuevo proyecto</span><span className="sm:hidden">Nuevo</span>
+              </button>
+            </div>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"/>

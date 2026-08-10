@@ -16,6 +16,9 @@ function fmtNgo(n) {
     description: n.descripcion,
     mission:     n.mision,
     location:    n.ubicacion,
+    // categoria_nombre viene del LEFT JOIN con ngo_categorias/categorias
+    // cuando la query lo incluye; si no, queda undefined (no rompe nada)
+    category:    n.categoria_nombre || undefined,
   };
 }
 
@@ -40,7 +43,14 @@ router.get('/', async (req, res) => {
 // ── GET /api/ngos/me ──────────────────────────────────────────────────────
 router.get('/me', requireAuth, requireRole('ngo'), async (req, res) => {
   try {
-    const ngo = await db.get('SELECT * FROM ngos WHERE user_id=$1', [req.user.id]);
+    const ngo = await db.get(
+      `SELECT n.*, COALESCE(c.nombre, '') AS categoria_nombre
+       FROM ngos n
+       LEFT JOIN ngo_categorias nc ON nc.ngo_id = n.id
+       LEFT JOIN categorias c ON c.id = nc.categoria_id
+       WHERE n.user_id=$1`,
+      [req.user.id]
+    );
     if (!ngo) return res.status(404).json({ error: 'Perfil ONG no encontrado' });
 
     const projects = await db.all(
@@ -60,11 +70,20 @@ router.get('/me', requireAuth, requireRole('ngo'), async (req, res) => {
       [ngo.id]
     );
 
-    const pendingCount = await db.get(
-      `SELECT COUNT(*) AS cnt
+    // Solicitudes pendientes, con los datos de contacto ya incluidos —
+    // antes el frontend (NGODashboard.tsx) pedía esto con una llamada
+    // extra POR CADA proyecto (N+1: hasta 1 llamada HTTP por proyecto listado,
+    // ver PROJECT_ANALYSIS.md §21). Trayéndolo acá, en la misma respuesta que
+    // ya arma projects/stats, esa pantalla pasa a necesitar una sola llamada.
+    const pendingEnrollments = await db.all(
+      `SELECT e.id, e.user_id, e.project_id, e.status, e.mensaje AS message, e.created_at,
+              u.name AS volunteer_name, u.email AS volunteer_email, u.avatar AS volunteer_avatar,
+              p.titulo AS project_title
        FROM enrollments e
+       JOIN users u ON u.id = e.user_id
        JOIN projects p ON p.id = e.project_id
-       WHERE p.ngo_id=$1 AND e.status='pending'`,
+       WHERE p.ngo_id=$1 AND e.status='pending'
+       ORDER BY e.created_at DESC`,
       [ngo.id]
     );
 
@@ -74,10 +93,10 @@ router.get('/me', requireAuth, requireRole('ngo'), async (req, res) => {
       completed_projects:  parseInt(statsRow?.completed_projects) || 0,
       total_volunteers:    parseInt(statsRow?.total_volunteers)  || 0,
       total_funding:       parseFloat(statsRow?.total_funding)   || 0,
-      pending_enrollments: parseInt(pendingCount?.cnt)           || 0,
+      pending_enrollments: pendingEnrollments.length,
     };
 
-    res.json({ ngo: fmtNgo(ngo), projects, stats });
+    res.json({ ngo: fmtNgo(ngo), projects, stats, pending_enrollments: pendingEnrollments });
   } catch (err) {
     console.error('GET /ngos/me error:', err);
     res.status(500).json({ error: 'Error al obtener perfil' });
@@ -87,12 +106,19 @@ router.get('/me', requireAuth, requireRole('ngo'), async (req, res) => {
 // ── GET /api/ngos/:id ─────────────────────────────────────────────────────
 router.get('/:id', async (req, res) => {
   try {
-    const ngo = await db.get('SELECT * FROM ngos WHERE id=$1', [req.params.id]);
+    const ngo = await db.get(
+      `SELECT n.*, COALESCE(c.nombre, '') AS categoria_nombre
+       FROM ngos n
+       LEFT JOIN ngo_categorias nc ON nc.ngo_id = n.id
+       LEFT JOIN categorias c ON c.id = nc.categoria_id
+       WHERE n.id=$1`,
+      [req.params.id]
+    );
     if (!ngo) return res.status(404).json({ error: 'ONG no encontrada' });
 
     const projects = await db.all(
-      `SELECT id, titulo AS title, foto_perfil AS image, tipo AS type,
-              status, cupos_ocupados AS current_volunteers, cupos AS volunteers_needed,
+      `SELECT p.id, p.titulo AS title, p.foto_perfil AS image, p.tipo AS type,
+              p.status, p.cupos_ocupados AS current_volunteers, p.cupos AS volunteers_needed,
               COALESCE(c.nombre,'') AS category
        FROM projects p
        LEFT JOIN project_categorias pc ON pc.project_id = p.id
@@ -104,6 +130,7 @@ router.get('/:id', async (req, res) => {
 
     res.json({ ngo: fmtNgo(ngo), projects });
   } catch (err) {
+    console.error('GET /ngos/:id error:', err);
     res.status(500).json({ error: 'Error al obtener ONG' });
   }
 });
@@ -111,7 +138,7 @@ router.get('/:id', async (req, res) => {
 // ── PUT /api/ngos/me ──────────────────────────────────────────────────────
 router.put('/me', requireAuth, requireRole('ngo'), async (req, res) => {
   try {
-    const { name, description, mission, location, logo, cover_image, alias, founded } = req.body;
+    const { name, description, mission, location, logo, cover_image, alias, founded, category } = req.body;
 
     if (name && name.trim().length < 2)
       return res.status(400).json({ error: 'El nombre debe tener al menos 2 caracteres' });
@@ -125,6 +152,9 @@ router.put('/me', requireAuth, requireRole('ngo'), async (req, res) => {
       if (existing) return res.status(409).json({ error: 'El alias ya está en uso' });
     }
 
+    const ngoRow = await db.get('SELECT id FROM ngos WHERE user_id=$1', [req.user.id]);
+    if (!ngoRow) return res.status(404).json({ error: 'Perfil ONG no encontrado' });
+
     await db.run(
       `UPDATE ngos SET
          nombre=$1, descripcion=$2, mision=$3, ubicacion=$4,
@@ -134,7 +164,26 @@ router.put('/me', requireAuth, requireRole('ngo'), async (req, res) => {
       [name, description, mission, location, logo, cover_image, alias || null, founded || null, req.user.id]
     );
 
-    const updated = await db.get('SELECT * FROM ngos WHERE user_id=$1', [req.user.id]);
+    // Persistir la categoría (viene como nombre, ej. "Educación") en la tabla N:M
+    if (category) {
+      const categoria = await db.get('SELECT id FROM categorias WHERE nombre=$1', [category]);
+      if (categoria) {
+        await db.run('DELETE FROM ngo_categorias WHERE ngo_id=$1', [ngoRow.id]);
+        await db.run(
+          'INSERT INTO ngo_categorias (ngo_id, categoria_id) VALUES ($1,$2)',
+          [ngoRow.id, categoria.id]
+        );
+      }
+    }
+
+    const updated = await db.get(
+      `SELECT n.*, COALESCE(c.nombre, '') AS categoria_nombre
+       FROM ngos n
+       LEFT JOIN ngo_categorias nc ON nc.ngo_id = n.id
+       LEFT JOIN categorias c ON c.id = nc.categoria_id
+       WHERE n.user_id=$1`,
+      [req.user.id]
+    );
     res.json({ ngo: fmtNgo(updated) });
   } catch (err) {
     console.error('PUT /ngos/me error:', err);
@@ -263,3 +312,6 @@ router.post('/:id/empleados', requireAuth, requireRole('ngo'), async (req, res) 
 });
 
 module.exports = router;
+
+// ── GET /api/projects/:id/kpis ────────────────────────────────────────────
+// (registrado en index.js como ruta de projects)

@@ -1,6 +1,6 @@
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useNavigate, Link } from 'react-router';
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Users, CheckCircle, Clock, XCircle, Loader2, DollarSign } from 'lucide-react';
+import { ArrowLeft, Users, CheckCircle, Clock, XCircle, Loader2, DollarSign, BarChart2, MessageCircle } from 'lucide-react';
 import { api, Project, EnrollmentWithVolunteer } from '../../lib/api';
 
 export function NGOProjectDetail() {
@@ -52,6 +52,11 @@ export function NGOProjectDetail() {
             <h1 className="text-base font-bold text-gray-900 leading-tight">{project.title}</h1>
             <p className="text-xs text-gray-500">{project.category} · {project.type}</p>
           </div>
+          <button
+            onClick={() => navigate(`/ngo/kpis/${projectId}`)}
+            className="ml-auto flex items-center gap-1.5 px-3 py-2 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-xl text-xs font-bold transition-colors">
+            <BarChart2 className="w-3.5 h-3.5" />KPIs
+          </button>
         </div>
       </header>
 
@@ -104,12 +109,19 @@ export function NGOProjectDetail() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-sm font-semibold text-gray-900">{e.volunteer_name}</p>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
-                          e.status === 'approved' ? 'bg-green-50 text-green-600'
-                          : e.status === 'pending' ? 'bg-amber-50 text-amber-500'
-                          : 'bg-red-50 text-red-500'}`}>
-                          {e.status === 'approved' ? 'Aprobado' : e.status === 'pending' ? 'Pendiente' : 'Rechazado'}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            e.status === 'approved' ? 'bg-green-50 text-green-600'
+                            : e.status === 'pending' ? 'bg-amber-50 text-amber-500'
+                            : 'bg-red-50 text-red-500'}`}>
+                            {e.status === 'approved' ? 'Aprobado' : e.status === 'pending' ? 'Pendiente' : 'Rechazado'}
+                          </span>
+                          <button onClick={() => navigate(`/ngo/messages/${e.user_id}`)}
+                            className="w-7 h-7 rounded-full bg-blue-50 hover:bg-blue-100 flex items-center justify-center transition-colors"
+                            title={`Mensaje a ${e.volunteer_name}`}>
+                            <MessageCircle className="w-3.5 h-3.5 text-blue-600" />
+                          </button>
+                        </div>
                       </div>
                       <p className="text-xs text-gray-400">{e.volunteer_email}</p>
                       {e.message && <p className="text-xs text-gray-500 italic mt-1">"{e.message}"</p>}

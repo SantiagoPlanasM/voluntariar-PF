@@ -1,5 +1,5 @@
 import { Heart, MapPin, Users, DollarSign, Zap, Calendar, Clock, Loader2 } from 'lucide-react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { Project, api } from '../../lib/api';
 import { useState } from 'react';
 import { useAuth } from '../../lib/AuthContext';
@@ -18,14 +18,20 @@ function safeMoney(val: any) {
 
 export function ProjectCard({ project, onRefresh }: Props) {
   const { user, openAuthModal } = useAuth();
+  const navigate = useNavigate();
   const [enrolling, setEnrolling] = useState(false);
-  const [enrolled, setEnrolled] = useState(false);
-  const [msg, setMsg] = useState('');
+  const [enrolled, setEnrolled]   = useState(false);
+  const [msg, setMsg]             = useState('');
 
-  const fundPct = safePct(project.current_funding, project.funding_goal);
-  const volPct = safePct(project.current_volunteers, project.volunteers_needed);
+  const fundPct   = safePct(project.current_funding, project.funding_goal);
+  const volPct    = safePct(project.current_volunteers, project.volunteers_needed);
   const spotsLeft = (project.volunteers_needed || 0) - (project.current_volunteers || 0);
   const hasFunding = (project.funding_goal || 0) > 0;
+
+  const goToProject = () => navigate(`/project/${project.id}`);
+  const handleCardKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goToProject(); }
+  };
 
   const handleEnroll = async (e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation();
@@ -41,14 +47,15 @@ export function ProjectCard({ project, onRefresh }: Props) {
   };
 
   return (
-    <Link to={`/project/${project.id}`}>
+    <div onClick={goToProject} onKeyDown={handleCardKeyDown} role="link" tabIndex={0}
+      className="cursor-pointer">
       <article className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:border-emerald-200 hover:shadow-lg transition-all">
         <div className="relative h-44 overflow-hidden bg-gray-100">
           {project.image
             ? <img src={project.image} alt={project.title} className="w-full h-full object-cover" loading="lazy" />
             : <div className="w-full h-full bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center">
-              <Heart className="w-10 h-10 text-emerald-300" />
-            </div>
+                <Heart className="w-10 h-10 text-emerald-300" />
+              </div>
           }
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
           <div className="absolute top-3 left-3">
@@ -68,13 +75,15 @@ export function ProjectCard({ project, onRefresh }: Props) {
         </div>
 
         <div className="p-4">
-          <div className="flex items-center gap-2 mb-2">
+          <Link to={project.ngo_id ? `/ngo/${project.ngo_id}` : '#'}
+            onClick={e => e.stopPropagation()}
+            className="flex items-center gap-2 mb-2 hover:opacity-80 transition-opacity">
             {project.ngo_logo
               ? <img src={project.ngo_logo} alt={project.ngo_name} className="w-6 h-6 rounded-full object-cover ring-1 ring-gray-200" />
               : <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-[10px] font-bold text-emerald-700">{project.ngo_name?.[0]}</div>
             }
-            <span className="text-xs font-semibold text-gray-500">{project.ngo_name}</span>
-          </div>
+            <span className="text-xs font-semibold text-gray-500 hover:text-emerald-600 transition-colors">{project.ngo_name}</span>
+          </Link>
 
           <h3 className="font-bold text-base text-gray-900 leading-snug mb-1">{project.title}</h3>
           <p className="text-xs text-gray-500 line-clamp-2 mb-3">{project.description}</p>
@@ -144,6 +153,6 @@ export function ProjectCard({ project, onRefresh }: Props) {
           </button>
         </div>
       </article>
-    </Link>
+    </div>
   );
 }

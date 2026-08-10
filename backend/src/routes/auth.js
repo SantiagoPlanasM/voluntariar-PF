@@ -149,9 +149,26 @@ router.put('/me', requireAuth, async (req, res) => {
       const nameErr = validateName(name);
       if (nameErr) return res.status(400).json({ error: nameErr });
     }
+
+    const current = await db.get(
+      'SELECT name, bio, location, avatar FROM users WHERE id=$1',
+      [req.user.id]
+    );
+    if (!current) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    // Actualización parcial real: un campo no enviado (undefined) conserva
+    // su valor anterior en vez de pisarlo con null. better-sqlite3 (y
+    // Postgres) además rechazan bindear undefined directamente, así que de
+    // paso evita ese error.
     await db.run(
       `UPDATE users SET name=$1, bio=$2, location=$3, avatar=$4, updated_at=CURRENT_TIMESTAMP WHERE id=$5`,
-      [name, bio, location, avatar, req.user.id]
+      [
+        name ?? current.name,
+        bio !== undefined ? bio : current.bio,
+        location !== undefined ? location : current.location,
+        avatar !== undefined ? avatar : current.avatar,
+        req.user.id,
+      ]
     );
     const updated = await db.get(
       'SELECT id, name, email, role, avatar, bio, location FROM users WHERE id=$1',
@@ -159,6 +176,7 @@ router.put('/me', requireAuth, async (req, res) => {
     );
     res.json({ user: updated });
   } catch (err) {
+    console.error('PUT /auth/me error:', err);
     res.status(500).json({ error: 'Error interno' });
   }
 });
