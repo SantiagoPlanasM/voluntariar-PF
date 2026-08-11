@@ -119,6 +119,11 @@ export function MyParticipation() {
                     <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{item.location}</span>
                     <span className="flex items-center gap-1"><Tag className="w-3 h-3" />{item.category}</span>
                   </div>
+                  {item.status === 'approved' && !!item.hours_logged && (
+                    <p className="flex items-center gap-1 text-xs text-blue-600 font-semibold mt-1.5">
+                      <Clock className="w-3 h-3" />{item.hours_logged} {item.hours_logged === 1 ? 'hora verificada' : 'horas verificadas'} por la ONG
+                    </p>
+                  )}
                 </div>
               </div>
 

@@ -84,7 +84,7 @@ router.get('/my', requireAuth, async (req, res) => {
   try {
     const enrollments = await db.all(
       `SELECT e.id, e.user_id, e.project_id, e.status, e.mensaje AS message,
-              e.horas_realizadas, e.created_at, e.updated_at,
+              e.horas_realizadas AS hours_logged, e.created_at, e.updated_at,
               p.titulo AS title, p.foto_perfil AS image, p.tipo AS type,
               p.ubicacion AS location, p.status AS project_status,
               n.nombre AS ngo_name, n.foto_perfil AS ngo_logo,
@@ -118,7 +118,7 @@ router.get('/project/:projectId', requireAuth, requireRole('ngo'), async (req, r
     const { status } = req.query;
     let sql = `
       SELECT e.id, e.user_id, e.project_id, e.status, e.mensaje AS message,
-             e.horas_realizadas, e.created_at, e.updated_at,
+             e.horas_realizadas AS hours_logged, e.created_at, e.updated_at,
              u.name AS volunteer_name, u.email AS volunteer_email,
              u.avatar AS volunteer_avatar, u.bio AS volunteer_bio
       FROM enrollments e
@@ -237,18 +237,24 @@ router.delete('/:id', requireAuth, async (req, res) => {
 });
 
 // ── PATCH /api/enrollments/:id/horas ─────────────────────────────────────
-// Registrar horas realizadas por el voluntario
-router.patch('/:id/horas', requireAuth, async (req, res) => {
+// Carga/edita las horas cumplidas por un voluntario. Lo hace la ONG dueña
+// del proyecto (no el propio voluntario) — son horas *verificadas*, no un
+// auto-reporte; si el voluntario pudiera cargarlas él mismo no habría forma
+// de confiar en el dato para las estadísticas del proyecto.
+router.patch('/:id/horas', requireAuth, requireRole('ngo'), async (req, res) => {
   try {
     const { horas } = req.body;
     const h = parseFloat(horas);
     if (isNaN(h) || h < 0) return res.status(400).json({ error: 'Horas debe ser un número positivo' });
 
+    const ngo = await db.get('SELECT id FROM ngos WHERE user_id=$1', [req.user.id]);
     const enrollment = await db.get(
-      'SELECT * FROM enrollments WHERE id=$1 AND user_id=$2 AND status=$3',
-      [req.params.id, req.user.id, 'approved']
+      `SELECT e.* FROM enrollments e
+       JOIN projects p ON p.id = e.project_id
+       WHERE e.id=$1 AND p.ngo_id=$2 AND e.status='approved'`,
+      [req.params.id, ngo?.id]
     );
-    if (!enrollment) return res.status(404).json({ error: 'Inscripción aprobada no encontrada' });
+    if (!enrollment) return res.status(404).json({ error: 'Inscripción aprobada no encontrada o sin permiso' });
 
     await db.run(
       'UPDATE enrollments SET horas_realizadas=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2',
@@ -256,6 +262,7 @@ router.patch('/:id/horas', requireAuth, async (req, res) => {
     );
     res.json({ message: 'Horas registradas', horas: h });
   } catch (err) {
+    console.error('PATCH /enrollments/:id/horas error:', err);
     res.status(500).json({ error: 'Error al registrar horas' });
   }
 });

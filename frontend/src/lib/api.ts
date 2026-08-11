@@ -71,6 +71,8 @@ export const api = {
     updateStatus: (id: string, status: 'approved' | 'rejected') =>
       req<{ message: string }>(`/enrollments/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
     cancel: (id: string) => req<{ message: string }>(`/enrollments/${id}`, { method: 'DELETE' }),
+    logHours: (id: string, horas: number) =>
+      req<{ message: string; horas: number }>(`/enrollments/${id}/horas`, { method: 'PATCH', body: JSON.stringify({ horas }) }),
   },
   ngos: {
     me: () => req<{ ngo: NGO; projects: Project[]; stats: NGOStats; pending_enrollments: EnrollmentWithVolunteer[] }>('/ngos/me'),
@@ -151,7 +153,8 @@ export interface ProjectDetail extends Project {
 }
 export interface Enrollment {
   id: string; user_id: string; project_id: string;
-  status: 'pending' | 'approved' | 'rejected'; message?: string; created_at: string;
+  status: 'pending' | 'approved' | 'rejected'; message?: string;
+  hours_logged?: number; created_at: string;
 }
 export interface EnrollmentWithProject extends Enrollment {
   title: string; image?: string; category: string; type: string;

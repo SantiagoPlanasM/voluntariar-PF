@@ -2,19 +2,7 @@ import { useNavigate } from 'react-router';
 import { MessageCircle } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useChat } from '../../lib/ChatContext';
-
-function timeAgo(iso: string | null) {
-  if (!iso) return '';
-  const diffMs = Date.now() - new Date(iso.replace(' ', 'T') + 'Z').getTime();
-  const min = Math.floor(diffMs / 60000);
-  if (min < 1) return 'ahora';
-  if (min < 60) return `${min} min`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `${h} h`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `${d} d`;
-  return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
-}
+import { timeAgo } from '../../lib/format';
 
 export function MessagesScreen() {
   const { user } = useAuth();

@@ -65,52 +65,17 @@ if (USE_POSTGRES) {
   const DATA_DIR = path.join(__dirname, '../../data');
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-  const sqlite = new Database(path.join(DATA_DIR, 'voluntariar.sqlite'));
+  // SQLITE_PATH permite apuntar a un archivo distinto (usado por los tests
+  // de integración, para no tocar la base de datos de desarrollo). Sin esta
+  // variable, el comportamiento es exactamente el de siempre.
+  const sqlitePath = process.env.SQLITE_PATH || path.join(DATA_DIR, 'voluntariar.sqlite');
+  const sqlite = new Database(sqlitePath);
   sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('foreign_keys = ON');
 
   console.log('🗄️  Conectado a SQLite (local)');
 
-  // Detecta si la query devuelve filas (SELECT/WITH) o es DDL/DML
-  function isReadQuery(sql) {
-    const s = sql.trimStart().toUpperCase();
-    return s.startsWith('SELECT') || s.startsWith('WITH');
-  }
-
-  // Traduce sintaxis PostgreSQL → SQLite (todo excepto los placeholders $N,
-  // que se manejan aparte en remapParams porque también necesitan reordenar
-  // el array de parámetros).
-  function translatePg(sql) {
-    return sql
-      // Timestamps
-      .replace(/CURRENT_TIMESTAMP/gi, "datetime('now')")
-      // Funciones de string case-insensitive
-      .replace(/\bILIKE\b/gi, 'LIKE')
-      // Conflict handling
-      .replace(/\bON CONFLICT\s+DO NOTHING\b/gi, 'OR IGNORE')
-      .replace(/\bON CONFLICT\s*\([^)]+\)\s*DO NOTHING\b/gi, 'OR IGNORE')
-      // INSERT normal → INSERT OR IGNORE cuando corresponda
-      // (se maneja en el código, no aquí)
-      // GREATEST no existe en SQLite → ya usamos CASE WHEN en el código
-      // COALESCE sí existe en SQLite, no necesita traducción
-      // JSON functions → SQLite no las tiene, el código evita usarlas en SQLite
-      ;
-  }
-
-  // Reemplaza cada $N por ? (placeholder posicional de SQLite) y devuelve un
-  // array de parámetros alineado a cada aparición. Esto es necesario porque
-  // en Postgres es válido reusar el mismo $N más de una vez en una query
-  // (p. ej. `WHERE (a=$1 AND b=$2) OR (a=$2 AND b=$1)`), pero el binding
-  // posicional de better-sqlite3/SQLite exige un valor por cada `?`, no por
-  // cada número de parámetro único. Sin este remapeo, una query que reusa un
-  // $N queda con menos valores bindeados que `?` tiene, y termina
-  // devolviendo cero filas en silencio (sin lanzar error) en vez del
-  // resultado esperado.
-  function remapParams(sql, params) {
-    const order = [];
-    const translated = sql.replace(/\$(\d+)/g, (_, n) => { order.push(Number(n) - 1); return '?'; });
-    return { translated, remapped: order.map(i => params[i]) };
-  }
+  const { isReadQuery, translatePg, remapParams } = require('./sqlTranslate');
 
   db = {
     type: 'sqlite',

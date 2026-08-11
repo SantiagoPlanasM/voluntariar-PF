@@ -1,6 +1,6 @@
 import { useParams, useNavigate, Link } from 'react-router';
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Users, CheckCircle, Clock, XCircle, Loader2, DollarSign, BarChart2, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Users, CheckCircle, Clock, XCircle, Loader2, DollarSign, BarChart2, MessageCircle, Clock3, Save } from 'lucide-react';
 import { api, Project, EnrollmentWithVolunteer } from '../../lib/api';
 
 export function NGOProjectDetail() {
@@ -11,6 +11,8 @@ export function NGOProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [processing, setProcessing] = useState<string | null>(null);
+  const [hoursDraft, setHoursDraft] = useState<Record<string, string>>({});
+  const [savingHours, setSavingHours] = useState<string | null>(null);
 
   useEffect(() => { if (projectId) load(); }, [projectId]);
 
@@ -31,6 +33,17 @@ export function NGOProjectDetail() {
     try { await api.enrollments.updateStatus(id, status); load(); }
     catch (e: any) { alert(e.message); }
     finally { setProcessing(null); }
+  };
+
+  const handleSaveHours = async (id: string) => {
+    const val = parseFloat(hoursDraft[id]);
+    if (isNaN(val) || val < 0) { alert('Ingresá un número de horas válido'); return; }
+    setSavingHours(id);
+    try {
+      await api.enrollments.logHours(id, val);
+      setEnrollments(prev => prev.map(e => e.id === id ? { ...e, hours_logged: val } : e));
+    } catch (e: any) { alert(e.message); }
+    finally { setSavingHours(null); }
   };
 
   const filtered = filter === 'all' ? enrollments : enrollments.filter(e => e.status === filter);
@@ -137,6 +150,24 @@ export function NGOProjectDetail() {
                       <button onClick={() => handle(e.id, 'rejected')} disabled={processing === e.id}
                         className="flex-1 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-semibold hover:bg-red-100 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50">
                         <XCircle className="w-3.5 h-3.5" />Rechazar
+                      </button>
+                    </div>
+                  )}
+                  {e.status === 'approved' && (
+                    <div className="flex items-center gap-2 mt-3 ml-13">
+                      <Clock3 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                      <input
+                        type="number" min="0" step="0.5"
+                        placeholder={e.hours_logged ? undefined : '0'}
+                        defaultValue={e.hours_logged || ''}
+                        onChange={ev => setHoursDraft(d => ({ ...d, [e.id]: ev.target.value }))}
+                        className="w-20 px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-xs text-gray-400">horas cumplidas</span>
+                      <button onClick={() => handleSaveHours(e.id)} disabled={savingHours === e.id || hoursDraft[e.id] === undefined}
+                        className="ml-auto flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-semibold disabled:opacity-40 transition-colors">
+                        {savingHours === e.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                        Guardar
                       </button>
                     </div>
                   )}

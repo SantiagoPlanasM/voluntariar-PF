@@ -182,3 +182,8 @@ router.put('/me', requireAuth, async (req, res) => {
 });
 
 module.exports = router;
+// Exportadas aparte para poder testearlas de forma aislada, sin pegarle a la
+// API completa (mismo patrón que insertMessage en routes/messages.js).
+module.exports.validateEmail = validateEmail;
+module.exports.validateName = validateName;
+module.exports.validatePassword = validatePassword;

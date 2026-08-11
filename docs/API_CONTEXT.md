@@ -34,7 +34,7 @@
 | GET | `/api/enrollments/project/:projectId` | Sí | ngo (dueño) | `routes/enrollments.js` |
 | PATCH | `/api/enrollments/:id` | Sí | ngo (dueño) | `routes/enrollments.js` |
 | DELETE | `/api/enrollments/:id` | Sí | dueño de la inscripción | `routes/enrollments.js` |
-| PATCH | `/api/enrollments/:id/horas` | Sí | ngo (dueño) | `routes/enrollments.js` |
+| PATCH | `/api/enrollments/:id/horas` | Sí | ngo (dueño del proyecto) | `routes/enrollments.js` |
 | GET | `/api/ngos` | No | — | `routes/ngos.js` |
 | GET | `/api/ngos/me` | Sí | ngo | `routes/ngos.js` |
 | GET | `/api/ngos/:id` | No | — | `routes/ngos.js` |
@@ -168,7 +168,10 @@
 - **Respuesta 200:** `{ success: true }`.
 
 ### `PATCH /api/enrollments/:id/horas` — Auth, role `ngo` (dueño del proyecto)
-- **Body:** `{ horas_realizadas }` — carga de horas cumplidas por el voluntario.
+- **Decisión de diseño (ver `PROJECT_ANALYSIS.md §21-22`):** originalmente el código dejaba que el propio voluntario auto-reportara sus horas (con la documentación de esta misma sección diciendo lo contrario) y no tenía ninguna UI que lo usara. Se decidió que las horas queden **verificadas por la ONG dueña del proyecto**, no auto-reportadas — patrón estándar en plataformas de voluntariado, y más confiable para las estadísticas del proyecto.
+- **Body:** `{ horas }`.
+- **UI:** `NGOProjectDetail.tsx`, un input + botón por cada inscripto aprobado. El voluntario ve el valor ya cargado (solo lectura) en `MyParticipation.tsx`.
+- **Respuesta 200:** `{ message, horas }`. **Errores:** `403` si no sos ONG, `404` si la inscripción no existe, no está aprobada, o el proyecto no es tuyo.
 - **Respuesta 200:** `{ enrollment }`.
 
 **Alertas por email:** `POST /` y `PATCH /:id` (aprobar/rechazar) además disparan un email (fire-and-forget, vía `lib/email.js` + Resend) a la ONG o al voluntario según corresponda, al lado de la notificación in-app que ya existía. Sin `RESEND_API_KEY` configurada, el envío se omite silenciosamente — nunca bloquea ni rompe la respuesta del endpoint. Ver `PROJECT_ANALYSIS.md §19`.

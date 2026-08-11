@@ -542,6 +542,10 @@ router.post('/:id/ratings', requireAuth, async (req, res) => {
 });
 
 module.exports = router;
+// Exportadas aparte para poder testearlas de forma aislada (mismo patrón
+// que insertMessage en routes/messages.js).
+module.exports.validateProject = validateProject;
+module.exports.hasBadWord = hasBadWord;
 
 // ── GET /api/projects/:id/kpis ────────────────────────────────────────────
 router.get('/:id/kpis', async (req, res) => {

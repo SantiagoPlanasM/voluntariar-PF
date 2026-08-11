@@ -412,3 +412,67 @@ Se repitió la regla de esta conversación: nada se da por probado sin correrlo.
 - Regresión completa de todo lo construido antes en esta conversación (recomendaciones, habilidades, creación de proyecto con cupos, categoría de ONG) — todo sigue funcionando, sin ningún error nuevo en el log del servidor.
 - `npm run build` (Vite) real sobre el frontend — compila sin errores.
 - Test unitario aislado de `emailTemplates.js` confirmando que el escape de HTML funciona contra un input malicioso.
+
+## 22. Decisión: horas verificadas por la ONG (no auto-reporte del voluntario)
+
+Siguiendo el hallazgo de §21, se decidió que `PATCH /api/enrollments/:id/horas` sea cargado por la **ONG dueña del proyecto**, no por el propio voluntario — es el patrón estándar en plataformas de voluntariado reales (las horas quedan *verificadas* por quien puede confirmar que la participación fue real, en vez de ser un auto-reporte sin control).
+
+### Cambios
+- **Backend** (`enrollments.js`): la ruta pasó de `requireAuth` + `WHERE user_id=req.user.id` a `requireAuth, requireRole('ngo')` + `WHERE p.ngo_id=<ngo del usuario>` (mismo patrón de autorización que el resto de los endpoints de gestión de inscripciones, como aprobar/rechazar). Las dos queries de lectura (`GET /my`, `GET /project/:projectId`) ahora exponen el campo como `hours_logged` (inglés, consistente con el resto del contrato) en vez de `horas_realizadas` crudo.
+- **Frontend:**
+  - `api.ts`: nuevo `api.enrollments.logHours(id, horas)`, y `hours_logged` agregado al tipo `Enrollment`.
+  - `NGOProjectDetail.tsx`: cada inscripto aprobado ahora tiene un input + botón "Guardar" para cargar/editar sus horas.
+  - `MyParticipation.tsx`: el voluntario ve sus horas ya verificadas ("X horas verificadas por la ONG") en modo solo lectura — no tiene forma de auto-cargarlas.
+
+### Verificación (servidor real)
+Se probaron los 4 casos relevantes de autorización: el voluntario ya no puede auto-reportar sus horas (`403`), la ONG dueña del proyecto sí puede (`200`), una ONG que no es dueña del proyecto no puede (`404`, mismo criterio de "no filtrar existencia" que el resto de la app), y el voluntario ve el valor cargado reflejado en su propio historial.
+
+## 23. Tests automatizados
+
+A pedido del usuario, se armó una suite de tests para todo lo construido en esta conversación — sin depender de frameworks pesados: `node:test` (incluido en Node desde la v18, cero dependencias nuevas) para el backend, y Vitest (la pareja natural de Vite, integración casi sin configuración) para el frontend.
+
+### Backend — `node:test`
+
+**Refactors previos, necesarios para poder testear (sin cambiar comportamiento):**
+- `src/db/sqlTranslate.js` (nuevo): se extrajeron `translatePg`, `remapParams` e `isReadQuery` de adentro de `db/index.js` a su propio módulo puro, sin efectos secundarios — antes eran funciones privadas dentro del closure que abre la conexión a SQLite, imposibles de importar de forma aislada.
+- `db/index.js` ahora soporta la variable de entorno `SQLITE_PATH` para apuntar a un archivo de base de datos distinto al de desarrollo (usada únicamente por los tests de integración).
+- `src/routes/auth.js` y `src/routes/projects.js`: se exportaron `validateEmail`/`validateName`/`validatePassword` y `validateProject`/`hasBadWord` además del router (mismo patrón que ya existía en `messages.js` con `insertMessage`), para poder testear las validaciones sin tener que levantar todo el servidor.
+- `src/index.js`: ahora exporta también `server` (además de `app`), y usa `process.env.PORT` tal como ya hacía — los tests lo fuerzan a `0` para levantar en un puerto libre asignado por el sistema operativo.
+
+**Tests unitarios** (`test/unit/`, sin base de datos, milisegundos):
+- `sqlTranslate.test.js` — 15 tests. El más importante: regresión explícita del bug B9 (placeholders `$N` reusados), con un test que arma la query exacta del historial de chat y confirma que genera la cantidad correcta de `?` y el array de parámetros correctamente alineado.
+- `validators.test.js` — 22 tests. Regresión del bug B5 (`validateProject` rechazando por `volunteers_needed` faltante/inválido, aceptando el string numérico tal como llega desde un `<input>`), más cobertura de `validateEmail`/`validateName`/`validatePassword` y `hasBadWord`.
+- `emailTemplates.test.js` — 7 tests. Regresión del fix de HTML sin escapar (§21): confirma que un nombre de voluntario, título de proyecto o nombre de ONG con `<script>`/`<img onerror=...>`/`<svg onload=...>` nunca aparece sin escapar en el HTML final.
+
+**Tests de integración** (`test/integration/`, servidor real + SQLite temporal descartable):
+- `helpers.js` — levanta el servidor Express real (con su WebSocket) contra un archivo SQLite temporal (`os.tmpdir()`), migrado desde cero para cada test file, nunca toca `backend/data/`. Se borra al terminar.
+- `api.test.js` — 26 tests, HTTP real de punta a punta: registro/login (incluida la regla de que un email duplicado da `409`, no `400` — algo que corrigió mis propias expectativas de test, no el código), creación de proyecto (regresión B5), categoría de ONG persistiendo entre requests (regresión B2), mensaje de inscripción (regresión B1), aprobación con `cupos_ocupados` incrementando, el flujo nuevo de horas verificadas por la ONG (§22), recomendaciones con y sin historial, envío/lectura de mensajes de chat.
+
+**Bug real encontrado por los tests, no por prueba manual:** al escribir el test de la categoría de ONG (regresión B2), un test que solo mandaba `{name, category}` (sin describir el resto de los campos del perfil) hizo explotar `PUT /api/ngos/me` con `500` — mismo bug de "parámetro `undefined` sin manejar" que B8 (`PUT /auth/me`), pero en un archivo distinto (`ngos.js`) que no se había tocado al arreglar B8. Se confirmó que **también afecta al formulario real de la app**: `NGOOwnProfile.tsx` nunca incluye `logo`/`cover_image`/`alias`/`founded` en su estado, así que esos campos siempre llegan `undefined` al backend — cualquier edición de perfil de ONG desde la UI real disparaba este mismo `500`. Se corrigió con el mismo patrón que B8 (leer la fila actual, conservar los campos no enviados en vez de pisarlos con `null`). Este hallazgo es la mejor demostración de por qué vale la pena tener tests: correr la app a mano con datos de seed no lo iba a mostrar porque el perfil de demo ya tenía todos los campos poblados de antes.
+
+**Resultado:** 71/71 tests pasan (15 + 22 + 7 unitarios, 26 de integración + 1 health check).
+
+**Cómo correrlos:** `cd backend && npm test` (usa `node --test`, que descubre automáticamente todo bajo `test/`).
+
+**Limitación conocida de este entorno de análisis, no del proyecto:** todos los tests se verificaron corriendo de verdad, pero usando el mismo shim de `node:sqlite` de toda esta conversación (por la falta de un build de `better-sqlite3` disponible para la versión de Node de este sandbox). En tu máquina, con `npm install` normal, van a correr contra el `better-sqlite3` real — el comportamiento de SQLite que están verificando (bind de parámetros, placeholders repetidos, etc.) es idéntico en ambos, así que no hay razón para esperar resultados distintos.
+
+### Frontend — Vitest + Testing Library
+
+**Setup nuevo:**
+- `vite.config.ts`: bloque `test` agregado (reutiliza los mismos alias y plugins que ya tenía la config de Vite — no hay archivo de configuración duplicado).
+- `src/test/setup.ts`: habilita los matchers de `@testing-library/jest-dom` (`toBeInTheDocument()`, etc.) en todos los tests.
+- Nuevas dependencias de desarrollo: `vitest`, `@testing-library/react`, `@testing-library/jest-dom`, `jsdom`. Ninguna se agrega al bundle de producción (son todas `devDependencies`).
+
+**Refactor previo, necesario para poder testear:** `timeAgo` (antes definida inline y duplicada de hecho entre `MessagesScreen.tsx`) y `formatTime` (`ChatThread.tsx`) se extrajeron a `src/lib/format.ts` — mismo patrón que las extracciones del backend. Los dos componentes ahora importan desde ahí en vez de tener su propia copia.
+
+**Tests:**
+- `src/lib/format.test.ts` — 7 tests para `timeAgo`/`formatTime`, con el reloj del sistema fijado (`vi.useFakeTimers`) para que sean deterministas sin importar cuándo se corran.
+- `src/app/components/ProjectCard.test.tsx` — 3 tests de humo sobre el componente más reutilizado de la app: se renderiza con datos mínimos envuelto en `<AuthProvider>` + `<MemoryRouter>` (las dos dependencias de contexto que necesita), confirma que muestra el título/ubicación/progreso de voluntarios, y que no explota si faltan campos opcionales.
+
+**Resultado:** 10/10 tests pasan. `npm run build` (Vite) sigue compilando sin errores después de la extracción de utilidades.
+
+**Cómo correrlos:** `cd frontend && npm test` (usa `vitest run`, sin modo watch).
+
+### Alcance y qué falta (para que quede claro qué cubre esto y qué no)
+
+Esto es un punto de partida sólido, no cobertura exhaustiva. Cubre las áreas de mayor riesgo (todo lo que tuvo un bug real en esta conversación) más los flujos centrales (auth, proyectos, inscripciones, mensajes, recomendaciones). **No** cubre: componentes de UI más allá de `ProjectCard` (KPIs, Habilidades, NGODashboard, etc. no tienen tests todavía), el WebSocket en sí (los tests de mensajes usan el REST, no abren una conexión WS real — igual que la verificación manual de la sección §18), ni los templates de email más allá del escape de HTML (no se verifica el subject/wording de cada variante exhaustivamente). Agregar tests para una nueva feature de acá en más: seguir el mismo patrón (unitarios para lógica pura, un test de integración por flujo nuevo que agregue un endpoint).

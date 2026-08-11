@@ -4,10 +4,7 @@ import { ArrowLeft, Send, Loader2 } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useChat } from '../../lib/ChatContext';
 import { api, ChatMessage } from '../../lib/api';
-
-function formatTime(iso: string) {
-  return new Date(iso.replace(' ', 'T') + 'Z').toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-}
+import { formatTime } from '../../lib/format';
 
 export function ChatThread() {
   const { userId } = useParams();

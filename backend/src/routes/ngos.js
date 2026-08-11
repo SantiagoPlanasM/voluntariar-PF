@@ -152,16 +152,33 @@ router.put('/me', requireAuth, requireRole('ngo'), async (req, res) => {
       if (existing) return res.status(409).json({ error: 'El alias ya está en uso' });
     }
 
-    const ngoRow = await db.get('SELECT id FROM ngos WHERE user_id=$1', [req.user.id]);
+    const ngoRow = await db.get('SELECT * FROM ngos WHERE user_id=$1', [req.user.id]);
     if (!ngoRow) return res.status(404).json({ error: 'Perfil ONG no encontrado' });
 
+    // Actualización parcial real: un campo no enviado (undefined) conserva
+    // su valor anterior en vez de pisarse con null — mismo bug y mismo fix
+    // que tuvo PUT /api/auth/me (ver docs/PROJECT_ANALYSIS.md §13, bug B8).
+    // Acá pasaba en la práctica incluso desde el formulario real de la app:
+    // NGOOwnProfile.tsx nunca manda `logo`/`cover_image`/`alias`/`founded`
+    // en su estado, así que esos campos llegaban `undefined` y SQLite
+    // rechazaba el bind con un 500 en cualquier edición de perfil de ONG.
     await db.run(
       `UPDATE ngos SET
          nombre=$1, descripcion=$2, mision=$3, ubicacion=$4,
          foto_perfil=$5, banner=$6, alias=$7, founded=$8,
          updated_at=CURRENT_TIMESTAMP
        WHERE user_id=$9`,
-      [name, description, mission, location, logo, cover_image, alias || null, founded || null, req.user.id]
+      [
+        name ?? ngoRow.nombre,
+        description !== undefined ? description : ngoRow.descripcion,
+        mission !== undefined ? mission : ngoRow.mision,
+        location !== undefined ? location : ngoRow.ubicacion,
+        logo !== undefined ? logo : ngoRow.foto_perfil,
+        cover_image !== undefined ? cover_image : ngoRow.banner,
+        alias !== undefined ? alias : ngoRow.alias,
+        founded !== undefined ? founded : ngoRow.founded,
+        req.user.id,
+      ]
     );
 
     // Persistir la categoría (viene como nombre, ej. "Educación") en la tabla N:M

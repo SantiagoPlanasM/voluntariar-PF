@@ -85,3 +85,4 @@ server.listen(PORT, () => {
 });
 
 module.exports = app;
+module.exports.server = server; // usado por los tests de integración para levantar/cerrar el server real
