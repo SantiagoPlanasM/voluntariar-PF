@@ -445,7 +445,14 @@ export function CreateVoluntariado() {
               <p className="text-sm font-bold text-gray-800 mb-3">Resumen</p>
               <div className="space-y-1.5 text-sm text-gray-600">
                 <p><span className="font-medium text-gray-800">{form.title || '—'}</span></p>
-                <p>{form.type === 'fugaz' ? '⚡ Fugaz' : '🌱 Sostenido'} · {form.category} · {form.location || '—'}</p>
+                <p className="flex items-center gap-1.5 flex-wrap">
+                  {form.type === 'fugaz' ? (
+                    <span className="flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-amber-500" /> Fugaz</span>
+                  ) : (
+                    <span className="flex items-center gap-1"><Sprout className="w-3.5 h-3.5 text-emerald-600" /> Sostenido</span>
+                  )}
+                  <span>· {form.category} · {form.location || '—'}</span>
+                </p>
                 <p>{form.volunteers_needed ? `${form.volunteers_needed} voluntarios` : '—'} · {roles.length} roles · {requirements.length} requisitos</p>
               </div>
             </div>

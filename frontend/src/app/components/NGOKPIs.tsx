@@ -17,7 +17,7 @@ const TIPO_LABELS: Record<string, string> = {
 function formatValor(kpi: KPI): string {
   if (kpi.valor === null || kpi.valor === undefined) return '—';
   if (kpi.tipo_valor === 'porcentaje') return `${kpi.valor}%`;
-  if (kpi.tipo_valor === 'booleano')   return kpi.valor ? 'Sí ✓' : 'No ✗';
+  if (kpi.tipo_valor === 'booleano')   return kpi.valor ? 'Sí' : 'No';
   return `${kpi.valor}${kpi.unidad ? ' ' + kpi.unidad : ''}`;
 }
 

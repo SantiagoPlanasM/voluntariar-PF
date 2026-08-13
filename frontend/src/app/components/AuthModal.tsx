@@ -56,7 +56,7 @@ const ROLES = [
 ];
 
 export function AuthModal() {
-  const { showAuthModal, closeAuthModal, authModalIntent, login, register, loading, user } = useAuth();
+  const { showAuthModal, closeAuthModal, authModalIntent, authModalTab, login, register, loading, user } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab]         = useState<Tab>('login');
   const [role, setRole]       = useState<'volunteer' | 'ngo' | 'company'>('volunteer');
@@ -64,6 +64,12 @@ export function AuthModal() {
   const [error, setError]     = useState('');
   const [fieldErrors, setFieldErrors] = useState({ name: '', email: '', password: '' });
   const [form, setForm]       = useState({ name: '', email: '', password: '' });
+
+  useEffect(() => {
+    if (showAuthModal) {
+      setTab(authModalTab);
+    }
+  }, [showAuthModal, authModalTab]);
 
   useEffect(() => {
     if (user && !showAuthModal) {

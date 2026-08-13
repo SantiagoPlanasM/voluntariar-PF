@@ -139,7 +139,11 @@ export function NGOPublicProfile() {
                     <div className="p-4 flex gap-3 hover:bg-gray-50 transition-colors">
                       {p.image
                         ? <img src={p.image} alt={p.title} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
-                        : <div className="w-14 h-14 rounded-xl bg-emerald-50 flex items-center justify-center text-xl flex-shrink-0">🌱</div>
+                        : (
+                          <div className="w-14 h-14 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                            <Sprout className="w-6 h-6 text-emerald-600" />
+                          </div>
+                        )
                       }
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">

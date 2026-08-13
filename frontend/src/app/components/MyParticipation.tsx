@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { CheckCircle, Clock, XCircle, MapPin, Tag, Loader2, Star } from 'lucide-react';
+import { CheckCircle, Clock, XCircle, MapPin, Tag, Loader2, Star, Lock, Sprout } from 'lucide-react';
 import { api, EnrollmentWithProject } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { ReviewModal } from './ReviewModal';
@@ -37,7 +37,7 @@ export function MyParticipation() {
 
   if (!user) return (
     <div className="flex flex-col items-center justify-center h-screen gap-3 bg-gray-50 md:ml-60">
-      <p className="text-3xl">🔒</p>
+      <Lock className="w-10 h-10 text-gray-300" />
       <p className="text-gray-500 font-medium">Iniciá sesión para ver tus participaciones</p>
       <button onClick={() => openAuthModal()}
         className="text-sm text-white bg-emerald-600 px-5 py-2.5 rounded-xl font-bold">
@@ -83,10 +83,13 @@ export function MyParticipation() {
             <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
-            <p className="text-3xl mb-2">
-              {filter === 'all' ? '🌱' : filter === 'pending' ? '⏳' : filter === 'approved' ? '✅' : '❌'}
-            </p>
+          <div className="text-center py-12 bg-white rounded-2xl border border-gray-100 flex flex-col items-center justify-center">
+            <div className="mb-3">
+              {filter === 'all' && <Sprout className="w-10 h-10 text-emerald-500" />}
+              {filter === 'pending' && <Clock className="w-10 h-10 text-amber-500" />}
+              {filter === 'approved' && <CheckCircle className="w-10 h-10 text-green-600" />}
+              {filter === 'rejected' && <XCircle className="w-10 h-10 text-red-500" />}
+            </div>
             <p className="text-gray-400 font-medium">
               {filter === 'all' ? 'No participaste en ningún proyecto aún'
                 : `Sin participaciones ${filter === 'pending' ? 'pendientes' : filter === 'approved' ? 'aprobadas' : 'rechazadas'}`}
@@ -105,7 +108,11 @@ export function MyParticipation() {
               <div className="flex gap-3 p-4">
                 {item.image
                   ? <img src={item.image} alt={item.title} className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
-                  : <div className="w-16 h-16 rounded-xl bg-emerald-50 flex-shrink-0 flex items-center justify-center text-2xl">🌱</div>
+                  : (
+                    <div className="w-16 h-16 rounded-xl bg-emerald-50 flex-shrink-0 flex items-center justify-center">
+                      <Sprout className="w-7 h-7 text-emerald-600" />
+                    </div>
+                  )
                 }
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">

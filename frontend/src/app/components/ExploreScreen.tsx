@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Leaf, Apple, BookOpen, PawPrint, HeartPulse, Laptop } from 'lucide-react';
 import { api, Project } from '../../lib/api';
 import { ProjectCard } from './ProjectCard';
 
 const CATEGORIES = [
-  { name: 'Medio Ambiente', emoji: '🌿' },
-  { name: 'Alimentación',   emoji: '🍎' },
-  { name: 'Educación',      emoji: '📚' },
-  { name: 'Animales',       emoji: '🐾' },
-  { name: 'Salud',          emoji: '❤️' },
-  { name: 'Tecnología',     emoji: '💻' },
+  { name: 'Medio Ambiente', icon: Leaf,       color: 'text-emerald-500 bg-emerald-55/10 border-emerald-100' },
+  { name: 'Alimentación',   icon: Apple,      color: 'text-rose-500 bg-rose-55/10 border-rose-100' },
+  { name: 'Educación',      icon: BookOpen,   color: 'text-indigo-500 bg-indigo-55/10 border-indigo-100' },
+  { name: 'Animales',       icon: PawPrint,   color: 'text-amber-500 bg-amber-55/10 border-amber-100' },
+  { name: 'Salud',          icon: HeartPulse, color: 'text-red-500 bg-red-55/10 border-red-100' },
+  { name: 'Tecnología',     icon: Laptop,     color: 'text-blue-500 bg-blue-55/10 border-blue-100' },
 ];
 
 export function ExploreScreen() {
@@ -54,11 +54,13 @@ export function ExploreScreen() {
           <>
             <h2 className="font-bold text-sm text-gray-700 mb-3">Categorías</h2>
             <div className="grid grid-cols-2 gap-3">
-              {CATEGORIES.map(({ name, emoji }) => (
+              {CATEGORIES.map(({ name, icon: Icon, color }) => (
                 <button key={name} onClick={() => searchCategory(name)}
-                  className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3 hover:border-emerald-200 hover:shadow-md transition-all text-left active:scale-[0.98]">
-                  <span className="text-2xl">{emoji}</span>
-                  <span className="font-semibold text-sm text-gray-800">{name}</span>
+                  className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-4 hover:border-emerald-200 hover:shadow-md transition-all text-left active:scale-[0.98] group">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-all ${color} group-hover:scale-105 duration-200`}>
+                    <Icon className="w-5 h-5" strokeWidth={2.2} />
+                  </div>
+                  <span className="font-bold text-sm text-gray-800 group-hover:text-emerald-700 transition-colors">{name}</span>
                 </button>
               ))}
             </div>
@@ -76,8 +78,8 @@ export function ExploreScreen() {
             ))}
           </div>
         ) : results.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-4xl mb-3">🔍</p>
+          <div className="text-center py-12 flex flex-col items-center justify-center">
+            <Search className="w-10 h-10 text-gray-300 mb-3" />
             <p className="text-gray-400 font-medium">Sin resultados para "{query}"</p>
             <button onClick={() => { setSearched(false); setQuery(''); }}
               className="text-sm text-emerald-600 font-semibold mt-2">

@@ -149,7 +149,7 @@ export function ProjectCard({ project, onRefresh }: Props) {
               ${enrolled ? 'bg-gray-100 text-gray-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200'}
               disabled:opacity-60`}>
             {enrolling && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            {enrolled ? 'Inscripto ✓' : 'Inscribirme'}
+            {enrolled ? 'Inscripto' : 'Inscribirme'}
           </button>
         </div>
       </article>

@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Bell, CheckCheck, Loader2, ArrowLeft } from 'lucide-react';
+import { Bell, CheckCheck, Loader2, ArrowLeft, CheckCircle, XCircle, UserPlus, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { api, AppNotification } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 
-const TYPE_ICON: Record<string, string> = {
-  enrollment_approved: '✅',
-  enrollment_rejected: '❌',
-  new_enrollment:      '🙋',
-  new_project:         '🌱',
-  default:             '🔔',
+const TYPE_ICON = {
+  enrollment_approved: { icon: CheckCircle, color: 'text-green-600 bg-green-50 border-green-100' },
+  enrollment_rejected: { icon: XCircle,     color: 'text-red-500 bg-red-50 border-red-100' },
+  new_enrollment:      { icon: UserPlus,    color: 'text-blue-500 bg-blue-50 border-blue-100' },
+  new_project:         { icon: Heart,       color: 'text-emerald-500 bg-emerald-50 border-emerald-100' },
+  default:             { icon: Bell,        color: 'text-gray-500 bg-gray-50 border-gray-100' },
 };
 
 function timeAgo(dateStr: string) {
@@ -92,16 +92,15 @@ export function NotificationsScreen() {
         ) : (
           notifs.map(n => {
             const isUnread = !n.read && n.read !== 1;
-            const icon = TYPE_ICON[n.type] || TYPE_ICON.default;
+            const config = TYPE_ICON[n.type as keyof typeof TYPE_ICON] || TYPE_ICON.default;
+            const Icon = config.icon;
             return (
               <div key={n.id}
                 className={`bg-white rounded-2xl border p-4 flex gap-3 transition-all ${
                   isUnread ? 'border-emerald-200 shadow-sm' : 'border-gray-100'
                 }`}>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${
-                  isUnread ? 'bg-emerald-50' : 'bg-gray-50'
-                }`}>
-                  {icon}
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border ${config.color}`}>
+                  <Icon className="w-5 h-5" strokeWidth={2.2} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">

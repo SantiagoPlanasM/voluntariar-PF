@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, LogOut } from 'lucide-react';
+import { Search, LogOut, Sparkles } from 'lucide-react';
 import { api, Project } from '../../lib/api';
 import { ProjectCard } from './ProjectCard';
 import { useAuth } from '../../lib/AuthContext';
@@ -44,7 +44,7 @@ export function MainFeed() {
           <div className="py-3 flex items-center justify-between gap-4">
             <div>
               <h1 className="text-base sm:text-lg font-black text-gray-900">Inicio</h1>
-              <p className="text-xs text-gray-400">Hola, {user?.name?.split(' ')[0]} 👋</p>
+              <p className="text-xs text-gray-400">Hola, {user?.name?.split(' ')[0]}</p>
             </div>
             {/* Search en desktop inline */}
             <form onSubmit={e => { e.preventDefault(); load(); }}
@@ -91,7 +91,10 @@ export function MainFeed() {
         {/* Recomendados para vos — solo en la vista sin filtros, para no competir con una búsqueda activa */}
         {recommended.length > 0 && cat === 'Todos' && !search.trim() && (
           <div className="mb-6">
-            <h2 className="text-sm font-bold text-gray-900 mb-3">✨ Recomendados para vos</h2>
+            <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-emerald-500 animate-pulse" />
+              <span>Recomendados para vos</span>
+            </h2>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
               {recommended.map(p => (
                 <div key={p.id} className="w-64 flex-shrink-0">
@@ -120,8 +123,8 @@ export function MainFeed() {
             ))}
           </div>
         ) : projects.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-5xl mb-3">🔍</p>
+          <div className="text-center py-16 flex flex-col items-center justify-center">
+            <Search className="w-12 h-12 text-gray-300 mb-3" />
             <p className="font-medium text-gray-500">No hay proyectos</p>
             <p className="text-sm text-gray-400 mt-1">Probá con otros filtros</p>
           </div>

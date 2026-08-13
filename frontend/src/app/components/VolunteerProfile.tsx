@@ -1,5 +1,5 @@
 import { useAuth } from '../../lib/AuthContext';
-import { LogOut, CheckCircle, Clock, Heart, Edit2, Save, X, Loader2, Sparkles } from 'lucide-react';
+import { LogOut, CheckCircle, Clock, Heart, Edit2, Save, X, Loader2, Sparkles, MapPin, User, Sprout } from 'lucide-react';
 import { useNavigate, Link } from 'react-router';
 import { useEffect, useState } from 'react';
 import { api, EnrollmentWithProject, SkillCatalogItem, VolunteerSkill } from '../../lib/api';
@@ -98,9 +98,15 @@ export function VolunteerProfile() {
           </div>
           <h1 className="text-2xl font-bold text-white mb-0.5">{user.name}</h1>
           <p className="text-white/70 text-sm">{user.email}</p>
-          {user.location && <p className="text-white/60 text-xs mt-1">📍 {user.location}</p>}
-          <span className="mt-2 inline-block px-3 py-1 bg-white/20 text-white text-xs rounded-full font-medium">
-            🙋 Voluntario
+          {user.location && (
+            <p className="text-white/60 text-xs mt-1 flex items-center justify-center gap-1">
+              <MapPin className="w-3 h-3" />
+              <span>{user.location}</span>
+            </p>
+          )}
+          <span className="mt-2 inline-flex items-center gap-1 px-3 py-1 bg-white/20 text-white text-xs rounded-full font-medium">
+            <User className="w-3 h-3" />
+            <span>Voluntario</span>
           </span>
         </div>
       </div>
@@ -228,8 +234,8 @@ export function VolunteerProfile() {
               {[1,2].map(i => <div key={i} className="h-16 bg-gray-200 rounded-xl animate-pulse" />)}
             </div>
           ) : enrollments.length === 0 ? (
-            <div className="text-center py-8 bg-white rounded-2xl border border-gray-100">
-              <p className="text-3xl mb-2">🌱</p>
+            <div className="text-center py-8 bg-white rounded-2xl border border-gray-100 flex flex-col items-center justify-center">
+              <Sprout className="w-8 h-8 text-emerald-500 mb-2" />
               <p className="text-sm text-gray-500">Aún no participaste en ningún proyecto</p>
               <Link to="/feed" className="text-sm text-emerald-600 font-semibold mt-2 inline-block">Explorar proyectos →</Link>
             </div>
@@ -240,7 +246,11 @@ export function VolunteerProfile() {
                   <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 flex gap-3 items-center hover:border-emerald-200 transition-colors">
                     {e.image
                       ? <img src={e.image} alt={e.title} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
-                      : <div className="w-12 h-12 rounded-xl bg-emerald-50 flex-shrink-0 flex items-center justify-center text-xl">🌱</div>
+                      : (
+                        <div className="w-12 h-12 rounded-xl bg-emerald-50 flex-shrink-0 flex items-center justify-center">
+                          <Sprout className="w-5 h-5 text-emerald-600" />
+                        </div>
+                      )
                     }
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">{e.title}</p>
@@ -250,7 +260,7 @@ export function VolunteerProfile() {
                       e.status === 'approved' ? 'bg-green-50 text-green-600'
                       : e.status === 'pending' ? 'bg-amber-50 text-amber-500'
                       : 'bg-red-50 text-red-500'}`}>
-                      {e.status === 'approved' ? '✓ Aprobado' : e.status === 'pending' ? '⏳ Pendiente' : '✕ Rechazado'}
+                      {e.status === 'approved' ? 'Aprobado' : e.status === 'pending' ? 'Pendiente' : 'Rechazado'}
                     </span>
                   </div>
                 </Link>

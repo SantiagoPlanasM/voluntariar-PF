@@ -1,6 +1,6 @@
 import { useParams, useNavigate, Link } from 'react-router';
 import { useState, useEffect } from 'react';
-import { ArrowLeft, MapPin, Clock, Users, DollarSign, Calendar, Star, Briefcase, Loader2, Send, Zap } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, Users, DollarSign, Calendar, Star, Briefcase, Loader2, Send, Zap, BarChart3 } from 'lucide-react';
 import { api, ProjectDetail } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 
@@ -35,7 +35,7 @@ export function ProjectDetails() {
   const handleEnroll = async () => {
     if (!user) { openAuthModal('Iniciá sesión para inscribirte'); return; }
     setEnrolling(true); setEnrollMsg('');
-    try { await api.enrollments.enroll(id!); setEnrollMsg('✓ Inscripción enviada.'); load(id!); }
+    try { await api.enrollments.enroll(id!); setEnrollMsg('Inscripción enviada.'); load(id!); }
     catch (e: any) { setEnrollMsg(e.message); }
     finally { setEnrolling(false); }
   };
@@ -76,7 +76,7 @@ export function ProjectDetails() {
         disabled:opacity-60 ${className}`}>
       {enrolling && <Loader2 className="w-4 h-4 animate-spin" />}
       {alreadyEnrolled
-        ? `Inscripto · ${project.my_enrollment?.status === 'approved' ? 'Aprobado ✓' : 'Pendiente'}`
+        ? `Inscripto · ${project.my_enrollment?.status === 'approved' ? 'Aprobado' : 'Pendiente'}`
         : 'Unirme como voluntario'}
     </button>
   );
@@ -197,7 +197,7 @@ export function ProjectDetails() {
         {project.kpis && project.kpis.length > 0 && (
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-lg">📊</span>
+              <BarChart3 className="w-5 h-5 text-violet-600" />
               <h3 className="font-bold text-sm text-gray-900">Impacto del proyecto</h3>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -206,7 +206,7 @@ export function ProjectDetails() {
                   <p className="text-xl font-black text-violet-700">
                     {k.valor !== null && k.valor !== undefined
                       ? k.tipo_valor === 'porcentaje' ? `${k.valor}%`
-                        : k.tipo_valor === 'booleano' ? (k.valor ? 'Sí ✓' : 'No')
+                        : k.tipo_valor === 'booleano' ? (k.valor ? 'Sí' : 'No')
                         : `${k.valor}${k.unidad ? ' ' + k.unidad : ''}`
                       : '—'}
                   </p>
@@ -307,7 +307,7 @@ export function ProjectDetails() {
           {/* ── SIDEBAR: solo desktop ─────────────────────────── */}
           <div className="hidden md:flex flex-col gap-4 mt-0">
             {enrollMsg && (
-              <p className={`text-sm text-center font-semibold px-3 py-2 rounded-xl ${enrollMsg.startsWith('✓') ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
+              <p className={`text-sm text-center font-semibold px-3 py-2 rounded-xl ${enrollMsg === 'Inscripción enviada.' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
                 {enrollMsg}
               </p>
             )}
@@ -320,7 +320,7 @@ export function ProjectDetails() {
       {/* z-[60] para estar sobre el BottomNav que tiene z-50   */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 pb-4 z-[60] shadow-lg">
         {enrollMsg && (
-          <p className={`text-xs text-center mb-2 font-semibold ${enrollMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-500'}`}>
+          <p className={`text-xs text-center mb-2 font-semibold ${enrollMsg === 'Inscripción enviada.' ? 'text-emerald-600' : 'text-red-500'}`}>
             {enrollMsg}
           </p>
         )}

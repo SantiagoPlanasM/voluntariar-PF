@@ -3,16 +3,18 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { api, getToken, setToken, removeToken, getUser, setUser, removeUser, User } from './api';
 
 interface Ctx {
-  user: User | null;
-  token: string | null;
   loading: boolean;
   showAuthModal: boolean;
-  authModalIntent: string; // mensaje al usuario de por qué se le pide auth
-  openAuthModal(intent?: string): void;
+  authModalIntent: string;
+  authModalTab: 'login' | 'register';
+  setAuthModalTab(tab: 'login' | 'register'): void;
+  openAuthModal(intent?: string, defaultTab?: 'login' | 'register'): void;
   closeAuthModal(): void;
   login(email: string, password: string): Promise<void>;
   register(name: string, email: string, password: string, role: string): Promise<void>;
   logout(): void;
+  token: string | null;
+  user: any;
 }
 
 const AuthContext = createContext<Ctx | null>(null);
@@ -23,6 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalIntent, setAuthModalIntent] = useState('');
+  const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
 
   useEffect(() => {
     if (getToken() && !user) {
@@ -32,7 +35,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const openAuthModal = (intent = '') => { setAuthModalIntent(intent); setShowAuthModal(true); };
+  const openAuthModal = (intent = '', defaultTab?: 'login' | 'register') => {
+    setAuthModalIntent(intent);
+    if (defaultTab) {
+      setAuthModalTab(defaultTab);
+    } else {
+      const lower = intent.toLowerCase();
+      if (lower.includes('gratis') || lower.includes('cuenta') || lower.includes('regist') || lower.includes('unirme')) {
+        setAuthModalTab('register');
+      } else {
+        setAuthModalTab('login');
+      }
+    }
+    setShowAuthModal(true);
+  };
   const closeAuthModal = () => setShowAuthModal(false);
 
   const login = async (email: string, password: string) => {
@@ -56,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => { removeToken(); removeUser(); setT(null); setU(null); };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, showAuthModal, authModalIntent, openAuthModal, closeAuthModal, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, showAuthModal, authModalIntent, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
