@@ -4,6 +4,7 @@ import { api, getToken, setToken, removeToken, getUser, setUser, removeUser, Use
 
 interface Ctx {
   loading: boolean;
+  initializing: boolean;
   showAuthModal: boolean;
   authModalIntent: string;
   authModalTab: 'login' | 'register';
@@ -20,18 +21,25 @@ interface Ctx {
 const AuthContext = createContext<Ctx | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setU] = useState<User | null>(getUser());
+  const [user, setU] = useState<User | null>(null);
   const [token, setT] = useState<string | null>(getToken());
   const [loading, setLoading] = useState(false);
+  // True while we're verifying an existing token on startup
+  const [initializing, setInitializing] = useState(!!getToken());
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalIntent, setAuthModalIntent] = useState('');
   const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
 
   useEffect(() => {
-    if (getToken() && !user) {
+    const savedToken = getToken();
+    if (savedToken) {
       api.auth.me()
         .then(({ user: u }) => { setU(u); setUser(u); })
-        .catch(() => { removeToken(); removeUser(); setT(null); });
+        .catch(() => { removeToken(); removeUser(); setT(null); })
+        .finally(() => setInitializing(false));
+    } else {
+      // No token — nothing to verify, resolve immediately
+      setInitializing(false);
     }
   }, []);
 
@@ -72,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => { removeToken(); removeUser(); setT(null); setU(null); };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, showAuthModal, authModalIntent, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, initializing, showAuthModal, authModalIntent, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

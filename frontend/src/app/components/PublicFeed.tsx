@@ -25,7 +25,7 @@ function safePct(a: any, b: any): number {
 }
 
 export function PublicFeed() {
-  const { user, openAuthModal } = useAuth();
+  const { user, initializing, openAuthModal } = useAuth();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -33,11 +33,13 @@ export function PublicFeed() {
   const [cat, setCat]           = useState('Todos');
 
   useEffect(() => {
+    // Wait until auth state is settled
+    if (initializing) return;
     if (user) { navigate(user.role === 'ngo' ? '/ngo/dashboard' : '/feed', { replace: true }); return; }
     load();
-  }, [user]);
+  }, [user, initializing]);
 
-  useEffect(() => { if (!user) load(); }, [cat]);
+  useEffect(() => { if (!initializing && !user) load(); }, [cat]);
 
   const load = async () => {
     setLoading(true);
@@ -49,6 +51,15 @@ export function PublicFeed() {
     } catch { setProjects([]); }
     finally { setLoading(false); }
   };
+
+  // Show nothing while auth is being verified to prevent flashing
+  if (initializing) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">

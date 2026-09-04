@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router';
-import { Home, Search, ClipboardList, User, Bell, MessageCircle } from 'lucide-react';
+import { Home, Search, ClipboardList, User, MessageCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
@@ -10,7 +10,6 @@ const links = [
   { to: '/explore',       icon: Search,        label: 'Explorar' },
   { to: '/participation', icon: ClipboardList, label: 'Mis acciones' },
   { to: '/messages',      icon: MessageCircle, label: 'Mensajes', chatBadge: true },
-  { to: '/notifications', icon: Bell,          label: 'Alertas', badge: true },
   { to: '/profile',       icon: User,          label: 'Perfil' },
 ];
 

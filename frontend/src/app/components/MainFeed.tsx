@@ -1,15 +1,22 @@
 import { useState, useEffect } from 'react';
-import { Search, LogOut, Sparkles } from 'lucide-react';
+import { Search, LogOut, Sparkles, Bell } from 'lucide-react';
 import { api, Project } from '../../lib/api';
 import { ProjectCard } from './ProjectCard';
 import { useAuth } from '../../lib/AuthContext';
-import { useNavigate } from 'react-router';
+import { useNavigate, Link, useLocation } from 'react-router';
 
 const CATEGORIES = ['Todos','Fugaces','Sostenidos','Medio Ambiente','Alimentación','Educación','Animales','Salud'];
 
 export function MainFeed() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    api.notifications.list().then(r => setUnread(r.unread)).catch(() => {});
+  }, [user, pathname]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
@@ -56,11 +63,23 @@ export function MainFeed() {
                   value={search} onChange={e => setSearch(e.target.value)} />
               </div>
             </form>
-            <button onClick={() => { logout(); navigate('/'); }}
-              className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors flex-shrink-0"
-              title="Cerrar sesión">
-              <LogOut className="w-4 h-4 text-gray-600" />
-            </button>
+            <div className="flex items-center gap-2">
+              <Link to="/notifications"
+                className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors flex-shrink-0 relative"
+                title="Notificaciones">
+                <Bell className="w-4 h-4 text-gray-600" />
+                {unread > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                    {unread > 9 ? '9+' : unread}
+                  </span>
+                )}
+              </Link>
+              <button onClick={() => { logout(); navigate('/'); }}
+                className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors flex-shrink-0"
+                title="Cerrar sesión">
+                <LogOut className="w-4 h-4 text-gray-600" />
+              </button>
+            </div>
           </div>
 
           {/* Search mobile */}

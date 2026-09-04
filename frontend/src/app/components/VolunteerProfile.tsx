@@ -7,6 +7,7 @@ import { api, EnrollmentWithProject, SkillCatalogItem, VolunteerSkill } from '..
 const NAME_RE = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]{2,50}$/;
 const NIVEL_LABELS: Record<string, string> = { basico: 'Básico', intermedio: 'Intermedio', avanzado: 'Avanzado' };
 
+
 export function VolunteerProfile() {
   const { user, logout, login } = useAuth();
   const navigate = useNavigate();
@@ -77,7 +78,7 @@ export function VolunteerProfile() {
   return (
     <div className="min-h-screen bg-gray-50 md:ml-60">
       {/* Header */}
-      <div className="bg-gradient-to-br from-emerald-600 to-teal-700 px-4 pt-14 pb-10 relative">
+      <div className="bg-gradient-to-br from-emerald-600 to-teal-700 px-4 pt-14 pb-10 relative z-0">
         <div className="absolute top-4 right-4 flex gap-2">
           <button onClick={() => { setEditing(!editing); setSaveErr(''); }}
             className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
@@ -112,7 +113,7 @@ export function VolunteerProfile() {
       </div>
 
       {/* Stats */}
-      <div className="px-4 -mt-6 mb-5">
+      <div className="px-4 -mt-6 mb-5 relative z-10">
         <div className="bg-white rounded-2xl shadow-xl p-4 grid grid-cols-3 gap-4 border border-gray-100">
           {[
             { icon: CheckCircle, label: 'Aprobadas',  val: approved,           color: 'text-green-600',  bg: 'bg-green-50'  },
@@ -130,7 +131,7 @@ export function VolunteerProfile() {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 space-y-4 pb-8">
+      <div className="max-w-2xl mx-auto px-4 space-y-4 pb-8 relative z-10">
         {/* Editar perfil */}
         {editing && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-4">
