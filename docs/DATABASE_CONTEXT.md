@@ -38,10 +38,11 @@ Todas las claves primarias son `TEXT` (UUID v4-like), no enteros autoincremental
 | 19 | `project_categorias` | N:M — Proyecto ↔ Categoría |
 | 20 | `project_roles` | N:M — Proyecto ↔ Rol (con `cantidad` necesitada) |
 | 21 | `voluntario_habilidades` | N:M — Voluntario ↔ Habilidad (con `nivel`) |
-| 22 | `empresa_voluntariados` | N:M — Empresa ↔ Proyecto (patrocinio RSE, con `aporte`) |
+| 22 | `empresa_voluntariados` | N:M — Empresa ↔ Proyecto (patrocinio RSE, con `aporte` y `estado`) |
 | 23 | `ngo_follows` | N:M — Usuario sigue a ONG |
 | 24 | `project_follows` | N:M — Usuario sigue Proyecto |
 | 25 | `messages` | Mensajes del chat 1 a 1 (remitente, destinatario, cuerpo, leído) |
+| 26 | `empresa_categorias` | N:M — Empresa ↔ Categoría (agregada 2026-09, ver `PROJECT_ANALYSIS.md §24`) |
 
 ## 2. Detalle de columnas por tabla
 
@@ -163,7 +164,7 @@ id · sender_id (NOT NULL FK→users CASCADE) · receiver_id (NOT NULL FK→user
 | `project_categorias` | (project_id, categoria_id) | — |
 | `project_roles` | (project_id, rol_id) | `cantidad` (DEFAULT 1, CHECK > 0) |
 | `voluntario_habilidades` | (user_id, habilidad_id) | `nivel` (CHECK IN `basico`,`intermedio`,`avanzado`, default `basico`) |
-| `empresa_voluntariados` | (empresa_id, project_id) | `aporte` (REAL, DEFAULT 0, CHECK ≥ 0), `created_at` |
+| `empresa_voluntariados` | (empresa_id, project_id) | `aporte` (REAL, DEFAULT 0, CHECK ≥ 0), `estado` (CHECK IN `propuesto`,`aceptado`,`rechazado`, default `propuesto` — agregada 2026-09 vía `ALTER TABLE`, ver `PROJECT_ANALYSIS.md §26`), `mensaje`, `created_at`, `updated_at` |
 | `ngo_follows` | (user_id, ngo_id) | `created_at` |
 | `project_follows` | (user_id, project_id) | `created_at` |
 
@@ -263,7 +264,7 @@ Todas las tablas "principales" (1–17) usan `id TEXT PRIMARY KEY` generado por 
 | `reuniones.empleado_id → empleados.id` | **SET NULL** |
 | `reuniones.user_id → users.id` / `.project_id → projects.id` | CASCADE |
 | `comments.*`, `ratings.*`, `notifications.user_id` | CASCADE |
-| todas las tablas N:M (18–24) | CASCADE en ambos lados |
+| todas las tablas N:M (18–24, 26) | CASCADE en ambos lados |
 
 Borrar un `user` en cascada elimina: su perfil de ONG/empresa/voluntario, todos sus proyectos (si es ONG, en cascada también borra inscripciones/comentarios/ratings/kpis/requisitos de esos proyectos), sus inscripciones, comentarios, ratings, notificaciones, seguimientos. Es un borrado destructivo total sin soft-delete.
 

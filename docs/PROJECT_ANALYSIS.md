@@ -476,3 +476,121 @@ A pedido del usuario, se armó una suite de tests para todo lo construido en est
 ### Alcance y qué falta (para que quede claro qué cubre esto y qué no)
 
 Esto es un punto de partida sólido, no cobertura exhaustiva. Cubre las áreas de mayor riesgo (todo lo que tuvo un bug real en esta conversación) más los flujos centrales (auth, proyectos, inscripciones, mensajes, recomendaciones). **No** cubre: componentes de UI más allá de `ProjectCard` (KPIs, Habilidades, NGODashboard, etc. no tienen tests todavía), el WebSocket en sí (los tests de mensajes usan el REST, no abren una conexión WS real — igual que la verificación manual de la sección §18), ni los templates de email más allá del escape de HTML (no se verifica el subject/wording de cada variante exhaustivamente). Agregar tests para una nueva feature de acá en más: seguir el mismo patrón (unitarios para lógica pura, un test de integración por flujo nuevo que agregue un endpoint).
+
+## 24. Feature: Materialización del rol Empresa — perfil real (primera entrega del módulo Empresas)
+
+**Contexto:** a pedido del usuario, se prioriza `BACKEND_ROADMAP_ANALYSIS.md` punto 1 (modelo de Empresas + JWT), por ser la pieza de la que dependen el resto de los módulos de empresa (patrocinio, dashboard, chat). Alcance de esta entrega: solo el **perfil propio de empresa** (equivalente a lo que ya existía para ONG en `ngos.js`). Patrocinio, dashboard con KPIs y "empleados"/voluntarios propios quedan fuera de esta entrega — son las siguientes del roadmap de empresas.
+
+### Qué ya existía (sin tocar)
+- `users.role CHECK(...,'company')` y la tabla `empresas` (1:1 con `users`) ya estaban en el esquema desde el análisis inicial.
+- `POST /api/auth/register` ya crea la fila en `empresas` cuando `role='company'`.
+- El JWT ya lleva `role` embebido — no hizo falta ningún cambio de forma del token.
+
+### Qué faltaba y se agregó
+- **Tabla nueva** `empresa_categorias` (N:M Empresa↔Categoría, mismo shape que `ngo_categorias`) — aditiva, no toca ninguna tabla existente. Agregada en `scripts/migrate.js`.
+- **Archivo nuevo** `backend/src/routes/empresas.js`, montado en `src/index.js` como `/api/empresas` — mismo patrón exacto que `ngos.js`:
+  - `GET /api/empresas` (público, listado).
+  - `GET /api/empresas/me` (auth, `requireRole('company')`).
+  - `GET /api/empresas/:id` (público, columnas explícitas, sin `SELECT *`).
+  - `PUT /api/empresas/me` (auth, `requireRole('company')`, actualización parcial real — mismo patrón anti-B8 que `PUT /api/ngos/me`: leer la fila actual y no pisar con `null` los campos no enviados).
+- Documentado en `API_CONTEXT.md` (nueva sección "Empresas") y `DATABASE_CONTEXT.md` (tabla #26).
+
+### Sobre "resolver la deuda de guardas cosméticas del frontend"
+Se confirmó que el problema real era la ausencia de endpoints `requireRole('company')`, no la guarda de frontend en sí (que sigue siendo, correctamente, solo UX — regla 15 de `AI_RULES.md`). Con `empresas.js` ya protegido server-side, cualquier guarda de frontend que se agregue después es cosmética por diseño, no la única línea de defensa.
+
+### Verificación (servidor real, mismo shim de `node:sqlite` de siempre por la limitación de este entorno para compilar `better-sqlite3`)
+- `migrate.js` corrido dos veces seguidas (idempotencia) — sin errores, `empresa_categorias` se crea una sola vez.
+- Login con la empresa de seed (`admin@techcorp.com`) → `200`.
+- `GET /api/empresas/me` recién logueado → devuelve el perfil con `industria` del seed.
+- `PUT /api/empresas/me` enviando solo `{ description, category }` (sin `logo`/`banner`/`industry`) → `200`, y se confirmó que `industria` **no se pierde** (mismo chequeo que ya se hizo para B8/B2).
+- `GET /api/empresas/me` posterior → la descripción y la categoría persisten.
+- `GET /api/empresas` (listado público) y `GET /api/empresas/:id` (perfil público) → `200`, con `category` resuelta.
+- `GET /api/empresas/:id` con un id inexistente → `404`.
+- Guarda de rol: un `volunteer` logueado pidiendo `GET /api/empresas/me` → `403 "Requiere rol: company"`; sin token → `401`.
+- Regresión: `GET /api/ngos`, `GET /health` → siguen respondiendo igual que antes del cambio (el `index.js` solo ganó una línea de `app.use`).
+- Se descartó el shim y los `node_modules` de prueba al terminar.
+
+**Próximo paso sugerido:** Sistema de Patrocinio (Empresa↔Proyecto) — punto 5 de `BACKEND_ROADMAP_ANALYSIS.md`, ahora desbloqueado porque ya existe un perfil de empresa real con guarda de rol para colgar los endpoints de propuesta/aceptación.
+
+## 25. Frontend básico para el módulo Empresas (interacciones sobre lo que ya tiene API)
+
+**Contexto:** a pedido del usuario ("quería también agregarle front básico con las interacciones"), se construye la UI mínima que consume los endpoints de `routes/empresas.js` (§24). Mismo patrón visual/estructural que ya existe para ONG, con color violeta para diferenciar el rol a simple vista.
+
+### Archivos nuevos (frontend)
+- `CompanyLayout.tsx`, `CompanySidebarNav.tsx`, `CompanyBottomNav.tsx` — mismo patrón exacto que sus equivalentes `NGO*`.
+- `CompanyOwnProfile.tsx` — perfil propio editable (`GET/PUT /api/empresas/me`). Sin sección de "proyectos patrocinados" real todavía (placeholder explícito) — el patrocinio (roadmap punto 5) no tiene API.
+- `CompanyPublicProfile.tsx` — perfil público (`GET /api/empresas/:id`), con botón de mensaje (reutiliza el chat genérico ya existente).
+- `CompanyOwnProfile.test.tsx`, `CompanyPublicProfile.test.tsx` — tests de integración con React Testing Library, mismo patrón que `ProjectCard.test.tsx` (`api` mockeado, sin red real).
+
+### Archivos modificados
+- `lib/api.ts` — interfaz `Empresa` + namespace `api.empresas` (`me`, `get`, `update`), mismo shape que `api.ngos`.
+- `app/routes.tsx` — nuevo grupo `/company` (`CompanyLayout` con `profile` y `messages`) + ruta pública `company/:id` bajo `Root`.
+- `AuthModal.tsx` — al loguear/registrar, si `user.role === 'company'` ahora redirige a `/company/profile` (antes solo existía el caso `ngo`, `company` quedaba sin redirección).
+- `MessagesScreen.tsx` y `ChatThread.tsx` — el cálculo de la ruta base del chat (`base`/`backTo`) solo contemplaba `ngo` vs. genérico; se agregó el caso `company` para que sus conversaciones abran dentro de `/company/messages/...` y no en `/messages/...` (que renderiza el layout de voluntario).
+
+### Fuera de alcance (a propósito)
+- No hay página de "explorar empresas" — tampoco existe una equivalente para ONG hoy (`ExploreScreen.tsx` es solo de proyectos), así que no se inventó una funcionalidad nueva de navegación.
+- No hay upload de logo/banner — depende del módulo de Multimedia (roadmap punto 2), todavía no implementado; los campos `logo`/`cover_image` se pueden completar por URL igual que en ONG.
+- No hay dashboard ni KPIs de empresa (roadmap punto 6) — no hay API todavía.
+
+### Verificación
+- `npx tsc --noEmit` sobre el proyecto real (se instalaron `@types/react`, `@types/react-dom`, `@types/node`, ausentes en este sandbox, para que el chequeo fuera real y no solo el paso de esbuild de `vite build`) — **cero errores en los archivos tocados**; los errores restantes (`BottomNav.tsx`, `NGODashboard.tsx`, `NGOEmpleados.tsx`, `ProjectDetails.tsx`, `ImportMeta.env`) son preexistentes y no relacionados.
+- `vite build` — compila sin errores.
+- Suite de tests existente (`ProjectCard.test.tsx`, `format.test.ts`, 10 tests) — sigue en verde.
+- Tests nuevos (`CompanyOwnProfile.test.tsx`, `CompanyPublicProfile.test.tsx`, 6 tests) — verifican: que el perfil se pinta con los datos de `api.empresas.me()/get()`, que el `PUT` desde la UI viaja con el payload correcto (incluyendo campos no tocados, como `industry`, para no repetir en el frontend el mismo bug de pisado que B8 en el backend), que el `GET` público pide el `:id` correcto de la URL, y que no explota si faltan campos opcionales.
+- **Verificación end-to-end manual** con el backend real corriendo (mismo shim de `node:sqlite` de siempre) y el frontend con `vite` en modo dev apuntando a él: login/perfil de empresa ya se habían probado por `curl` en §24; en esta entrega se confirmó además que el bundle de producción incluye las rutas nuevas (`company/profile`) y que el dev server sirve `/company/profile` con `200` (fallback de SPA). **No se pudo hacer un click-through visual real** — este sandbox no tiene un navegador headless disponible ni acceso de red para instalar uno —, así que la verificación de la UI se apoya en los tests de RTL (que sí montan los componentes reales en jsdom) en vez de una captura de pantalla. Recomendado: probarlo una vez en un entorno con browser antes de darlo por cerrado del todo.
+- Todos los procesos y bases de datos de prueba (incluido el shim de `better-sqlite3`, exclusivo de este sandbox) se descartaron al terminar; no forman parte de la entrega.
+
+**Próximo paso sugerido:** igual que en §24 — Sistema de Patrocinio (Empresa↔Proyecto), que ahora también podría traer su propia pantalla básica (lista de propuestas + aceptar/rechazar del lado ONG) siguiendo este mismo patrón.
+
+## 26. Sistema de Patrocinio (Empresa ↔ Proyecto) — backend + frontend básico
+
+**Contexto:** roadmap punto 5 de `BACKEND_ROADMAP_ANALYSIS.md`, ahora desbloqueado por §24/§25. Usa `empresa_voluntariados`, que existía sin API.
+
+### Backend
+- `scripts/migrate.js`: se agregó un helper `columnExists()`/`addColumnIfNotExists()` (primera migración aditiva de columnas del proyecto — hasta ahora todo se creaba con `CREATE TABLE IF NOT EXISTS` desde cero) para agregar `estado` (CHECK `propuesto`/`aceptado`/`rechazado`, default `propuesto`), `mensaje` y `updated_at` a `empresa_voluntariados` sin romper si `migrate.js` ya se corrió antes. Índice nuevo `idx_empresa_vol_estado`.
+- `routes/empresas.js`: `POST /me/patrocinios` (proponer — re-propone sobre una fila `rechazada` en vez de duplicar, por la PK compuesta), `DELETE /me/patrocinios/:projectId` (retirar, solo si sigue `propuesto`), `GET /me/patrocinios` (listar las propias).
+- `routes/ngos.js`: `GET /me/patrocinios` (listar las que le proponen a la ONG), `PATCH /me/patrocinios/:empresaId/:projectId` (aceptar/rechazar — autorización por `JOIN` a `projects.ngo_id`, `409` si ya estaba decidida).
+- `lib/emailTemplates.js`: `sponsorProposalEmail` (a la ONG) y `sponsorDecisionEmail` (a la empresa), mismo patrón `wrapper()`/`esc()` que los templates de inscripción.
+- Notificaciones in-app en ambas direcciones (propuesta nueva → ONG; decisión → empresa), mismo patrón fire-and-forget que `enrollments.js`.
+
+### Frontend
+- `lib/api.ts`: interfaz `Patrocinio` + `api.empresas.patrocinios.{list,propose,withdraw}` + `api.ngos.patrocinios.{list,decide}`.
+- `CompanyOwnProfile.tsx`: la sección "Proyectos patrocinados" pasó de placeholder a real — lista los patrocinios propios con badge de estado, un botón "Proponer" que despliega un selector de proyectos activos (excluye los que ya tienen una propuesta vigente) + mensaje opcional, y un botón de retirar por cada propuesta pendiente.
+- `NGOPatrocinios.tsx` (nuevo): pantalla para la ONG, separada en "Pendientes" (con botones Aceptar/Rechazar) e "Historial" (decididas). Agregada a `NGOSidebarNav.tsx`/`NGOBottomNav.tsx` como "Patrocinios"/"Sponsors" y a `routes.tsx` como `/ngo/patrocinios`.
+
+### Verificación
+- **Backend, servidor real** (mismo shim de siempre): se probó el flujo completo por `curl` — proponer, doble-propuesta (`409`), listar desde ambos lados, aceptar, decidir dos veces la misma (`409`), estado inválido (`400`), autorización cruzada (otra ONG intentando decidir → `404`), notificación in-app resultante, retirar una propuesta pendiente, y re-proponer después de retirar y después de un rechazo (ambos casos **no** dan `409`, a diferencia de re-proponer sobre una ya vigente).
+- Suite de tests del backend (71/71) — sigue en verde tras los cambios en `ngos.js`, `empresas.js`, `emailTemplates.js` y `migrate.js`.
+- **Frontend:** `tsc --noEmit` sin errores nuevos, `vite build` limpio.
+- Tests nuevos con RTL: `CompanyOwnProfile.test.tsx` ampliado (6 tests: perfil, update parcial, patrocinios sin explotar, listar patrocinios con estado, proponer con `project_id`+`mensaje` correctos y refresco posterior, retirar con el `project_id` correcto) y `NGOPatrocinios.test.tsx` (4 tests: lista con mensaje de la empresa, aceptar, rechazar, estado vacío). Total suite frontend: 23/23 en verde.
+- Se descartaron las bases de datos y procesos de prueba al terminar.
+
+**Próximo paso sugerido:** Dashboard de Empresa con KPIs (roadmap punto 6) — ahora hay datos reales de patrocinio para agregar (proyectos patrocinados, aporte total, impacto), o Chatbot FAQ (roadmap punto 9, aislado y de bajo riesgo si se prefiere una tarea más chica.
+
+## 27. Chatbot FAQ (sin IA)
+
+**Contexto:** roadmap punto 9. Aislado, sin dependencias de otros módulos.
+
+### Backend
+- `scripts/migrate.js`: tabla `faqs` nueva (`categoria`, `pregunta`, `respuesta`, `keywords`, `orden`, `activo`) + 2 índices + 8 FAQs semilla (3 voluntario, 3 ONG, 2 generales), insertadas de forma idempotente.
+- `routes/faqs.js` nuevo: `GET /` (catálogo, filtrable por categoría) y `POST /ask` (matching).
+
+**Dos bugs de matching reales encontrados y corregidos durante la verificación** (no solo "quedó lindo", se probaron las 8 preguntas semilla parafraseadas/conjugadas contra el servidor real hasta que las 8 matchearon):
+1. El pre-filtro SQL con `LIKE` sobre la palabra completa descartaba candidatos antes de que el scoring en JS pudiera evaluarlos (ej. "inscribo" no aparece literal en la keyword "inscripción" aunque comparten sentido).
+2. El primer intento de arreglo (comparar por prefijo de 4 caracteres) generó el problema inverso: falsos positivos entre palabras con la misma raíz corta pero distinto significado ("inscribir" vs "inscripción" comparten "insc"). Se descartó la idea de "stemming" por prefijo de largo fijo.
+
+**Solución final:** dado que la tabla de FAQs es chica por diseño (catálogo curado a mano, nunca miles de filas), se eliminó el pre-filtro SQL — se trae todo el pool activo (opcionalmente filtrado por categoría) y se puntúa 100% en JS por substring bidireccional (`keyword.includes(palabra) || palabra.includes(keyword)`), sin heurísticas de prefijo. Las keywords de cada FAQ incluyen variantes conjugadas explícitas cuando hace falta (ej. `aprobar,apruebo`, verbo irregular) en vez de depender de que el algoritmo adivine la raíz. Esto es más simple, más predecible, y más fácil de extender a futuro (agregar una palabra al CSV de `keywords` en vez of tocar código).
+
+### Frontend
+- `lib/api.ts`: `Faq`, `AskFaqResponse`, `api.faqs.{list, ask}`.
+- `ChatbotWidget.tsx` (nuevo): botón flotante + panel de chat, disponible en los tres layouts (`Root.tsx`, `NGOLayout.tsx`, `CompanyLayout.tsx`). Categoría automática según `user.role` (`ngo`→`ngo`, `volunteer`→`voluntario`, sin filtro para `company`/anónimo). Muestra sugerencias iniciales al abrir: si no hay match, siempre devuelve alternativas en vez de un callejón sin salida.
+
+### Verificación
+- Backend: las 8 preguntas semilla probadas parafraseadas/conjugadas contra el servidor real (curl), más casos límite (sin match, pregunta corta → `400`, filtro por categoría, catálogo). Suite de tests del backend: 71/71 en verde.
+- Frontend: `tsc --noEmit` y `vite build` sin errores nuevos.
+- **Otro bug real encontrado por los tests** (no de lógica de negocio esta vez, de compatibilidad): `bottomRef.current.scrollIntoView(...)` explotaba en jsdom (no implementa ese método) al montar `ChatbotWidget` en el test. Se corrigió con `scrollIntoView?.(...)`, defensivo también en producción por si algún entorno no lo soporta.
+- 5 tests nuevos con RTL (`ChatbotWidget.test.tsx`): arranca cerrado sin pedir nada a la API, carga sugerencias al abrir, tocar una sugerencia pregunta y muestra la respuesta con match, pregunta sin match muestra sugerencias de respaldo, no envía preguntas vacías. Suite frontend completa: 28/28 en verde.
+- Se descartaron las bases de datos y procesos de prueba al terminar.
+
+**Próximo paso sugerido:** Dashboard de Empresa con KPIs (roadmap punto 6), o Sistema de Multimedia (roadmap punto 2), que es prerrequisito de Gestión de CV.

@@ -1,6 +1,7 @@
 import { Outlet, useLocation, Link, useNavigate } from 'react-router';
 import { BottomNav } from './BottomNav';
 import { AuthModal } from './AuthModal';
+import { ChatbotWidget } from './ChatbotWidget';
 import { useAuth } from '../../lib/AuthContext';
 import { useChat } from '../../lib/ChatContext';
 import { useEffect, useState } from 'react';
@@ -25,6 +26,7 @@ export function Root() {
         </>
       )}
       <AuthModal />
+      <ChatbotWidget />
     </div>
   );
 }

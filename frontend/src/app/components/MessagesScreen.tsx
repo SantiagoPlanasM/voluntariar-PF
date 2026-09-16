@@ -9,7 +9,7 @@ export function MessagesScreen() {
   const { conversations } = useChat();
   const navigate = useNavigate();
 
-  const base = user?.role === 'ngo' ? '/ngo/messages' : '/messages';
+  const base = user?.role === 'ngo' ? '/ngo/messages' : user?.role === 'company' ? '/company/messages' : '/messages';
 
   return (
     <div className="max-w-2xl mx-auto w-full px-4 py-5">

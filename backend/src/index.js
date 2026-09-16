@@ -33,6 +33,8 @@ app.use('/api/auth',           require('./routes/auth'));
 app.use('/api/projects',       require('./routes/projects'));
 app.use('/api/enrollments',    require('./routes/enrollments'));
 app.use('/api/ngos',           require('./routes/ngos'));
+app.use('/api/empresas',       require('./routes/empresas'));
+app.use('/api/faqs',           require('./routes/faqs'));
 app.use('/api/notifications',  require('./routes/notifications'));
 app.use('/api/voluntarios',    require('./routes/voluntarios'));
 app.use('/api/messages',       require('./routes/messages'));

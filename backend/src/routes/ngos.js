@@ -2,6 +2,10 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { sendEmail } = require('../lib/email');
+const { sponsorDecisionEmail } = require('../lib/emailTemplates');
+
+const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
 const router = express.Router();
 
@@ -330,5 +334,111 @@ router.post('/:id/empleados', requireAuth, requireRole('ngo'), async (req, res) 
 
 module.exports = router;
 
-// ── GET /api/projects/:id/kpis ────────────────────────────────────────────
-// (registrado en index.js como ruta de projects)
+// ── Sistema de Patrocinio (Empresa ↔ Proyecto) — lado ONG ──────────────────
+// Agregado 2026-09 (roadmap punto 5). La propuesta la crea la empresa
+// (ver POST /api/empresas/me/patrocinios); acá la ONG dueña del proyecto la
+// lista y decide.
+
+function fmtPatrocinioParaNgo(p) {
+  return {
+    empresa_id: p.empresa_id,
+    project_id: p.project_id,
+    estado: p.estado,
+    mensaje: p.mensaje,
+    aporte: p.aporte,
+    created_at: p.created_at,
+    updated_at: p.updated_at,
+    project_title: p.project_title,
+    empresa_name: p.empresa_name,
+    empresa_logo: p.empresa_logo,
+    empresa_industry: p.empresa_industry,
+  };
+}
+
+// ── GET /api/ngos/me/patrocinios ───────────────────────────────────────────
+// Todas las propuestas de patrocinio (cualquier estado) sobre los proyectos
+// de la ONG logueada.
+router.get('/me/patrocinios', requireAuth, requireRole('ngo'), async (req, res) => {
+  try {
+    const ngo = await db.get('SELECT id FROM ngos WHERE user_id=$1', [req.user.id]);
+    if (!ngo) return res.status(404).json({ error: 'Perfil ONG no encontrado' });
+
+    const patrocinios = await db.all(
+      `SELECT ev.*, p.titulo AS project_title,
+              e.nombre AS empresa_name, e.foto_perfil AS empresa_logo, e.industria AS empresa_industry
+       FROM empresa_voluntariados ev
+       JOIN projects p ON p.id = ev.project_id
+       JOIN empresas e ON e.id = ev.empresa_id
+       WHERE p.ngo_id=$1
+       ORDER BY ev.updated_at DESC`,
+      [ngo.id]
+    );
+    res.json({ patrocinios: patrocinios.map(fmtPatrocinioParaNgo) });
+  } catch (err) {
+    console.error('GET /ngos/me/patrocinios error:', err);
+    res.status(500).json({ error: 'Error al obtener patrocinios' });
+  }
+});
+
+// ── PATCH /api/ngos/me/patrocinios/:empresaId/:projectId ──────────────────
+// Aceptar o rechazar una propuesta de patrocinio sobre un proyecto propio.
+// La autorización de propiedad se hace con el JOIN a projects.ngo_id en el
+// WHERE — nunca se confía en el :projectId de la URL sin validar el dueño
+// (mismo criterio que el resto de los endpoints de escritura de este archivo).
+router.patch('/me/patrocinios/:empresaId/:projectId', requireAuth, requireRole('ngo'), async (req, res) => {
+  try {
+    const { estado } = req.body;
+    if (!['aceptado', 'rechazado'].includes(estado))
+      return res.status(400).json({ error: 'Estado debe ser: aceptado o rechazado' });
+
+    const ngo = await db.get('SELECT id FROM ngos WHERE user_id=$1', [req.user.id]);
+    if (!ngo) return res.status(404).json({ error: 'Perfil ONG no encontrado' });
+
+    const patrocinio = await db.get(
+      `SELECT ev.*, p.titulo, p.ngo_id, e.nombre AS empresa_name,
+              u.id AS empresa_user_id, u.email AS empresa_email
+       FROM empresa_voluntariados ev
+       JOIN projects p ON p.id = ev.project_id
+       JOIN empresas e ON e.id = ev.empresa_id
+       JOIN users u ON u.id = e.user_id
+       WHERE ev.empresa_id=$1 AND ev.project_id=$2 AND p.ngo_id=$3`,
+      [req.params.empresaId, req.params.projectId, ngo.id]
+    );
+    if (!patrocinio) return res.status(404).json({ error: 'Propuesta no encontrada o sin permiso' });
+    if (patrocinio.estado !== 'propuesto')
+      return res.status(409).json({ error: 'Esta propuesta ya fue decidida' });
+
+    await db.run(
+      `UPDATE empresa_voluntariados SET estado=$1, updated_at=CURRENT_TIMESTAMP
+       WHERE empresa_id=$2 AND project_id=$3`,
+      [estado, req.params.empresaId, req.params.projectId]
+    );
+
+    const ngoRow = await db.get('SELECT nombre FROM ngos WHERE id=$1', [ngo.id]);
+
+    await db.run(
+      `INSERT INTO notifications (user_id, type, title, body, data)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [patrocinio.empresa_user_id,
+       estado === 'aceptado' ? 'sponsor_accepted' : 'sponsor_rejected',
+       estado === 'aceptado'
+         ? `¡${ngoRow.nombre} aceptó tu patrocinio de "${patrocinio.titulo}"!`
+         : `${ngoRow.nombre} no aceptó tu propuesta de patrocinio a "${patrocinio.titulo}"`,
+       estado === 'aceptado'
+         ? 'Ya podés coordinar los detalles por mensaje.'
+         : 'Podés proponer patrocinar otros proyectos.',
+       JSON.stringify({ project_id: patrocinio.project_id })]
+    ).catch(() => {});
+
+    const { subject, html } = sponsorDecisionEmail({
+      empresaName: patrocinio.empresa_name, projectTitle: patrocinio.titulo,
+      ngoName: ngoRow.nombre, accepted: estado === 'aceptado', appUrl: APP_URL,
+    });
+    sendEmail({ to: patrocinio.empresa_email, subject, html }).catch(() => {});
+
+    res.json({ message: `Propuesta ${estado}` });
+  } catch (err) {
+    console.error('PATCH /ngos/me/patrocinios/:empresaId/:projectId error:', err);
+    res.status(500).json({ error: 'Error al actualizar propuesta' });
+  }
+});

@@ -74,6 +74,7 @@ export function AuthModal() {
   useEffect(() => {
     if (user && !showAuthModal) {
       if (user.role === 'ngo') navigate('/ngo/dashboard');
+      else if (user.role === 'company') navigate('/company/profile');
     }
   }, [user, showAuthModal]);
 

@@ -20,7 +20,7 @@ export function ChatThread() {
   const [err, setErr]           = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const backTo = user?.role === 'ngo' ? '/ngo/messages' : '/messages';
+  const backTo = user?.role === 'ngo' ? '/ngo/messages' : user?.role === 'company' ? '/company/messages' : '/messages';
 
   useEffect(() => {
     if (!userId) return;

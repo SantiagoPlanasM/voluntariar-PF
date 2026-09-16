@@ -1,32 +1,33 @@
 import { Link, useLocation, useNavigate } from 'react-router';
-import { LayoutDashboard, Plus, User, LogOut, Heart, MessageCircle, Handshake } from 'lucide-react';
+import { Building2, LogOut, Heart, MessageCircle } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useChat } from '../../lib/ChatContext';
 
-export function NGOSidebarNav() {
+// Solo "Mi Empresa" y "Mensajes" por ahora — el perfil es lo único que tiene
+// API real (ver docs/PROJECT_ANALYSIS.md §24). Cuando se implemente el
+// sistema de patrocinio y el dashboard con KPIs (roadmap punto 5/6), acá se
+// agregan esos links, mismo criterio que NGOSidebarNav.
+export function CompanySidebarNav() {
   const { pathname }     = useLocation();
   const { user, logout } = useAuth();
   const { unreadTotal }  = useChat();
   const navigate         = useNavigate();
 
   const links = [
-    { to: '/ngo/dashboard',    icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/ngo/create',       icon: Plus,            label: 'Nuevo Voluntariado' },
-    { to: '/ngo/patrocinios',  icon: Handshake,       label: 'Patrocinios' },
-    { to: '/ngo/messages',     icon: MessageCircle,   label: 'Mensajes', badge: unreadTotal },
-    { to: '/ngo/profile',      icon: User,            label: 'Mi ONG' },
+    { to: '/company/profile',  icon: Building2,     label: 'Mi Empresa' },
+    { to: '/company/messages', icon: MessageCircle, label: 'Mensajes', badge: unreadTotal },
   ];
 
   return (
     <aside className="hidden md:flex w-60 flex-shrink-0 sticky top-0 h-screen bg-white border-r border-gray-100 flex-col z-30 shadow-sm">
       <div className="px-6 py-5 border-b border-gray-100">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center">
+          <div className="w-8 h-8 bg-violet-600 rounded-xl flex items-center justify-center">
             <Heart className="w-4 h-4 text-white fill-white" />
           </div>
           <span className="font-black text-lg text-gray-900">Voluntariar</span>
         </div>
-        <p className="text-xs text-gray-400 mt-0.5 ml-10">Panel ONG</p>
+        <p className="text-xs text-gray-400 mt-0.5 ml-10">Panel Empresa</p>
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1">
@@ -35,9 +36,9 @@ export function NGOSidebarNav() {
           return (
             <Link key={to} to={to}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors relative ${
-                active ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                active ? 'bg-violet-50 text-violet-700 font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               }`}>
-              <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-blue-600' : 'text-gray-400'}`} strokeWidth={active ? 2.5 : 1.8} />
+              <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-violet-600' : 'text-gray-400'}`} strokeWidth={active ? 2.5 : 1.8} />
               <span className="flex-1">{label}</span>
               {!!badge && (
                 <span className="w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
@@ -54,7 +55,7 @@ export function NGOSidebarNav() {
           <div className="flex items-center gap-3 px-3 py-2 mb-2">
             {user.avatar
               ? <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
-              : <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0">{user.name[0]}</div>
+              : <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-xs font-bold text-violet-700 flex-shrink-0">{user.name[0]}</div>
             }
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>

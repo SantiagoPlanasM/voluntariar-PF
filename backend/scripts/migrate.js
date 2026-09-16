@@ -253,6 +253,20 @@ async function migrate() {
       created_at   ${NOW}
     )`,
 
+    // ── 17c. FAQS — Chatbot simple sin IA ──────────────────────────────────
+    // Agregada 2026-09 (roadmap punto 9). Sin embeddings ni proveedor de IA:
+    // el matching se hace por keywords en el controlador (routes/faqs.js).
+    `CREATE TABLE IF NOT EXISTS faqs (
+      id          ${UUID_PK},
+      categoria   TEXT,
+      pregunta    TEXT NOT NULL,
+      respuesta   TEXT NOT NULL,
+      keywords    TEXT NOT NULL,
+      orden       INTEGER DEFAULT 0,
+      activo      ${BOOL} DEFAULT ${isPg ? 'true' : '1'},
+      created_at  ${NOW}
+    )`,
+
     // ══ TABLAS INTERMEDIAS N:M ════════════════════════════════════════════
 
     // ── 18. ONG × Categoría ───────────────────────────────────────────────
@@ -260,6 +274,16 @@ async function migrate() {
       ngo_id      TEXT NOT NULL REFERENCES ngos(id) ON DELETE CASCADE,
       categoria_id TEXT NOT NULL REFERENCES categorias(id) ON DELETE CASCADE,
       PRIMARY KEY (ngo_id, categoria_id)
+    )`,
+
+    // ── 18b. Empresa × Categoría ─────────────────────────────────────────
+    // Agregada 2026-09: materialización del rol `company` (antes solo tenía
+    // perfil en `empresas`, sin categorías de interés como sí tiene `ngos`
+    // vía `ngo_categorias`). Aditiva — no toca ninguna tabla existente.
+    `CREATE TABLE IF NOT EXISTS empresa_categorias (
+      empresa_id   TEXT NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
+      categoria_id TEXT NOT NULL REFERENCES categorias(id) ON DELETE CASCADE,
+      PRIMARY KEY (empresa_id, categoria_id)
     )`,
 
     // ── 19. Voluntariado × Categoría ──────────────────────────────────────
@@ -320,6 +344,39 @@ async function migrate() {
     console.log(`  ✅ Tabla: ${match ? match[1] : '?'}`);
   }
 
+  // ── Migraciones aditivas de columnas (ALTER TABLE) ─────────────────────────
+  // SQLite no soporta `ADD COLUMN IF NOT EXISTS`, así que cada columna se
+  // agrega solo si todavía no existe (chequeo previo por PRAGMA/information_
+  // schema, portable entre los dos motores) — permite correr `migrate.js`
+  // las veces que sea sin romper si la columna ya está.
+  console.log('\n🧩 Migraciones aditivas...');
+
+  async function columnExists(table, column) {
+    if (isPg) {
+      const row = await db.get(
+        `SELECT 1 FROM information_schema.columns WHERE table_name=$1 AND column_name=$2`,
+        [table, column]
+      );
+      return !!row;
+    }
+    const cols = await db.all(`PRAGMA table_info(${table})`, []);
+    return cols.some(c => c.name === column);
+  }
+
+  async function addColumnIfNotExists(table, column, definition) {
+    if (await columnExists(table, column)) return;
+    await db.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    console.log(`  ✅ Columna agregada: ${table}.${column}`);
+  }
+
+  // Agregadas 2026-09 para el Sistema de Patrocinio (empresa ↔ proyecto):
+  // `empresa_voluntariados` solo tenía `aporte`, sin forma de distinguir una
+  // propuesta pendiente de una aceptada o rechazada.
+  await addColumnIfNotExists('empresa_voluntariados', 'estado',
+    `TEXT NOT NULL DEFAULT 'propuesto' CHECK(estado IN ('propuesto','aceptado','rechazado'))`);
+  await addColumnIfNotExists('empresa_voluntariados', 'mensaje', 'TEXT');
+  await addColumnIfNotExists('empresa_voluntariados', 'updated_at', NOW);
+
   // ── Índices ───────────────────────────────────────────────────────────────
   console.log('\n🔍 Creando índices...');
   const indexes = [
@@ -342,6 +399,9 @@ async function migrate() {
     `CREATE INDEX IF NOT EXISTS idx_messages_sender     ON messages(sender_id)`,
     `CREATE INDEX IF NOT EXISTS idx_messages_receiver   ON messages(receiver_id)`,
     `CREATE INDEX IF NOT EXISTS idx_messages_created    ON messages(created_at)`,
+    // FAQs (chatbot)
+    `CREATE INDEX IF NOT EXISTS idx_faqs_categoria       ON faqs(categoria)`,
+    `CREATE INDEX IF NOT EXISTS idx_faqs_activo          ON faqs(activo)`,
     // Requisitos y KPIs
     `CREATE INDEX IF NOT EXISTS idx_requisitos_project ON requisitos(project_id)`,
     `CREATE INDEX IF NOT EXISTS idx_kpis_project       ON kpis(project_id)`,
@@ -353,6 +413,8 @@ async function migrate() {
     `CREATE INDEX IF NOT EXISTS idx_reuniones_user     ON reuniones(user_id)`,
     // Empleados
     `CREATE INDEX IF NOT EXISTS idx_empleados_ngo      ON empleados(ngo_id)`,
+    // Patrocinios (Empresa × Proyecto)
+    `CREATE INDEX IF NOT EXISTS idx_empresa_vol_estado ON empresa_voluntariados(estado)`,
   ];
 
   for (const idx of indexes) {
@@ -423,6 +485,44 @@ async function migrate() {
     }
   }
   console.log(`  ✅ ${habilidades.length} habilidades`);
+
+  const faqs = [
+    { categoria: 'voluntario', pregunta: '¿Cómo me inscribo a un voluntariado?',
+      respuesta: 'Entrá al proyecto que te interesa y tocá "Inscribirme". La ONG revisa tu inscripción y te avisamos por notificación cuando la aprueba o rechaza.',
+      keywords: 'inscribir,inscribo,inscribirme,anotarme,participar,unirme,sumarme', orden: 1 },
+    { categoria: 'voluntario', pregunta: '¿Cómo cancelo mi inscripción?',
+      respuesta: 'Desde "Mi Participación" podés ver tus inscripciones activas y cancelarlas si todavía no empezó el voluntariado.',
+      keywords: 'cancelar,cancelo,baja,anular,desinscribir', orden: 2 },
+    { categoria: 'voluntario', pregunta: '¿Cómo edito mi perfil?',
+      respuesta: 'Andá a tu perfil y tocá el ícono de lápiz para editar tu foto, descripción, ubicación y habilidades.',
+      keywords: 'perfil,editar,modificar,foto,datos', orden: 3 },
+    { categoria: 'ngo', pregunta: '¿Cómo creo un nuevo voluntariado?',
+      respuesta: 'Desde el panel de tu ONG, tocá "Nuevo Voluntariado" y completá el formulario con título, descripción, cupos y categoría.',
+      keywords: 'crear,creo,publicar,armar,cargar,proyecto', orden: 1 },
+    { categoria: 'ngo', pregunta: '¿Cómo apruebo o rechazo inscripciones?',
+      respuesta: 'En el detalle de cada proyecto vas a ver la lista de inscriptos pendientes, con botones para aprobar o rechazar cada uno.',
+      keywords: 'aprobar,apruebo,rechazar,rechazo,pendiente,revisar', orden: 2 },
+    { categoria: 'ngo', pregunta: '¿Qué es un patrocinio de empresa?',
+      respuesta: 'Es cuando una empresa propone apoyar uno de tus proyectos. Vas a ver las propuestas en "Patrocinios", donde podés aceptarlas o rechazarlas.',
+      keywords: 'patrocinio,empresa,sponsor,auspicio', orden: 3 },
+    { categoria: 'general', pregunta: '¿Voluntariar tiene costo?',
+      respuesta: 'No, usar la plataforma es gratis tanto para voluntarios como para ONGs.',
+      keywords: 'costo,precio,gratis,pagar,plata', orden: 1 },
+    { categoria: 'general', pregunta: '¿Cómo contacto a una ONG o empresa?',
+      respuesta: 'Podés escribirle directamente por el chat de Voluntariar desde su perfil, o desde el detalle del proyecto.',
+      keywords: 'contactar,contacto,mensaje,chat,escribir,comunicarme', orden: 2 },
+  ];
+
+  for (const f of faqs) {
+    const exists = await db.get('SELECT id FROM faqs WHERE pregunta=$1', [f.pregunta]);
+    if (!exists) {
+      await db.run(
+        `INSERT INTO faqs (categoria, pregunta, respuesta, keywords, orden) VALUES ($1,$2,$3,$4,$5)`,
+        [f.categoria, f.pregunta, f.respuesta, f.keywords, f.orden]
+      );
+    }
+  }
+  console.log(`  ✅ ${faqs.length} FAQs`);
 
   console.log('\n✅ Migraciones completadas');
   process.exit(0);

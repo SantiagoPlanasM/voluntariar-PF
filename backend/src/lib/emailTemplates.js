@@ -83,4 +83,41 @@ function enrollmentRejectedEmail({ volunteerName, projectTitle, ngoName, appUrl 
   };
 }
 
-module.exports = { newEnrollmentEmail, enrollmentApprovedEmail, enrollmentRejectedEmail };
+/** Se manda a la ONG cuando una empresa propone patrocinar uno de sus proyectos. */
+function sponsorProposalEmail({ ngoName, empresaName, projectTitle, projectId, appUrl }) {
+  return {
+    subject: `${empresaName} quiere patrocinar "${projectTitle}"`,
+    html: wrapper(
+      '¡Nueva propuesta de patrocinio!',
+      `<p>Hola ${esc(ngoName) || ''},</p>
+       <p><strong>${esc(empresaName)}</strong> propuso patrocinar tu proyecto <strong>"${esc(projectTitle)}"</strong>.</p>
+       <p>Podés aceptar o rechazar la propuesta desde tu panel.</p>`,
+      'Ver propuesta',
+      appUrl ? `${appUrl}/ngo/dashboard/project/${projectId}` : undefined
+    ),
+  };
+}
+
+/** Se manda a la empresa cuando la ONG acepta o rechaza su propuesta de patrocinio. */
+function sponsorDecisionEmail({ empresaName, projectTitle, ngoName, accepted, appUrl }) {
+  return {
+    subject: accepted
+      ? `¡${ngoName} aceptó tu patrocinio de "${projectTitle}"!`
+      : `Novedades sobre tu propuesta de patrocinio a "${projectTitle}"`,
+    html: wrapper(
+      accepted ? '¡Buenas noticias!' : 'Novedades sobre tu propuesta',
+      accepted
+        ? `<p>Hola ${esc(empresaName) || ''},</p>
+           <p><strong>${esc(ngoName)}</strong> aceptó tu propuesta de patrocinio para <strong>"${esc(projectTitle)}"</strong>.</p>`
+        : `<p>Hola ${esc(empresaName) || ''},</p>
+           <p>Esta vez <strong>${esc(ngoName)}</strong> no aceptó tu propuesta para <strong>"${esc(projectTitle)}"</strong>.</p>`,
+      'Ver mi empresa',
+      appUrl ? `${appUrl}/company/profile` : undefined
+    ),
+  };
+}
+
+module.exports = {
+  newEnrollmentEmail, enrollmentApprovedEmail, enrollmentRejectedEmail,
+  sponsorProposalEmail, sponsorDecisionEmail,
+};

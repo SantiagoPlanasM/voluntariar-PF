@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router';
 import { Root } from './components/Root';
 import { NGOLayout } from './components/NGOLayout';
+import { CompanyLayout } from './components/CompanyLayout';
 import { PublicFeed } from './components/PublicFeed';
 import { MainFeed } from './components/MainFeed';
 import { ProjectDetails } from './components/ProjectDetails';
@@ -9,6 +10,9 @@ import { NGODashboard } from './components/NGODashboard';
 import { NGOProjectDetail } from './components/NGOProjectDetail';
 import { CreateVoluntariado } from './components/CreateVoluntariado';
 import { NGOOwnProfile } from './components/NGOOwnProfile';
+import { NGOPatrocinios } from './components/NGOPatrocinios';
+import { CompanyOwnProfile } from './components/CompanyOwnProfile';
+import { CompanyPublicProfile } from './components/CompanyPublicProfile';
 import { ExploreScreen } from './components/ExploreScreen';
 import { MyParticipation } from './components/MyParticipation';
 import { NotificationsScreen } from './components/NotificationsScreen';
@@ -33,6 +37,7 @@ export const router = createBrowserRouter([
       { path: 'messages',        Component: MessagesScreen },
       { path: 'messages/:userId', Component: ChatThread },
       { path: 'ngo/:id',         Component: NGOPublicProfile },
+      { path: 'company/:id',     Component: CompanyPublicProfile },
     ],
   },
   {
@@ -44,10 +49,22 @@ export const router = createBrowserRouter([
       { path: 'dashboard/project/:projectId',     Component: NGOProjectDetail },
       { path: 'create',                           Component: CreateVoluntariado },
       { path: 'profile',                          Component: NGOOwnProfile },
+      { path: 'patrocinios',                      Component: NGOPatrocinios },
       { path: 'empleados/:id',                    Component: NGOEmpleados },
       { path: 'kpis/:projectId',                  Component: NGOKPIs },
       { path: 'messages',                         Component: MessagesScreen },
       { path: 'messages/:userId',                 Component: ChatThread },
     ],
   },
+  {
+    path: '/company',
+    Component: CompanyLayout,
+    children: [
+      { index: true,               Component: CompanyOwnProfile },
+      { path: 'profile',           Component: CompanyOwnProfile },
+      { path: 'messages',          Component: MessagesScreen },
+      { path: 'messages/:userId',  Component: ChatThread },
+    ],
+  },
 ]);
+

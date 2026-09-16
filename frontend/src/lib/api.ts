@@ -78,6 +78,23 @@ export const api = {
     me: () => req<{ ngo: NGO; projects: Project[]; stats: NGOStats; pending_enrollments: EnrollmentWithVolunteer[] }>('/ngos/me'),
     get: (id: string) => req<{ ngo: NGO; projects: Project[] }>(`/ngos/${id}`),
     update: (b: Partial<NGO>) => req<{ ngo: NGO }>('/ngos/me', { method: 'PUT', body: JSON.stringify(b) }),
+    patrocinios: {
+      list: () => req<{ patrocinios: Patrocinio[] }>('/ngos/me/patrocinios'),
+      decide: (empresaId: string, projectId: string, estado: 'aceptado' | 'rechazado') =>
+        req<{ message: string }>(`/ngos/me/patrocinios/${empresaId}/${projectId}`, { method: 'PATCH', body: JSON.stringify({ estado }) }),
+    },
+  },
+  empresas: {
+    me: () => req<{ empresa: Empresa }>('/empresas/me'),
+    get: (id: string) => req<{ empresa: Empresa }>(`/empresas/${id}`),
+    update: (b: Partial<Empresa>) => req<{ empresa: Empresa }>('/empresas/me', { method: 'PUT', body: JSON.stringify(b) }),
+    patrocinios: {
+      list: () => req<{ patrocinios: Patrocinio[] }>('/empresas/me/patrocinios'),
+      propose: (project_id: string, mensaje?: string) =>
+        req<{ message: string }>('/empresas/me/patrocinios', { method: 'POST', body: JSON.stringify({ project_id, mensaje }) }),
+      withdraw: (projectId: string) =>
+        req<{ message: string }>(`/empresas/me/patrocinios/${projectId}`, { method: 'DELETE' }),
+    },
   },
   voluntarios: {
     habilidades: {
@@ -101,6 +118,11 @@ export const api = {
   notifications: {
     list: () => req<{ notifications: AppNotification[]; unread: number }>('/notifications'),
     markAllRead: () => req('/notifications/read-all', { method: 'PATCH' }),
+  },
+  faqs: {
+    list: (categoria?: string) => req<{ faqs: Faq[] }>(`/faqs${categoria ? `?categoria=${categoria}` : ''}`),
+    ask: (question: string, categoria?: string) =>
+      req<AskFaqResponse>('/faqs/ask', { method: 'POST', body: JSON.stringify({ question, categoria }) }),
   },
 };
 
@@ -168,6 +190,30 @@ export interface NGO {
   id: string; user_id: string; name: string; logo?: string;
   cover_image?: string; category?: string; description?: string;
   mission?: string; founded?: string; location?: string; followers: number;
+}
+export interface Empresa {
+  id: string; user_id: string; name: string; logo?: string;
+  cover_image?: string; category?: string; description?: string;
+  mission?: string; industry?: string; location?: string; followers: number;
+}
+export interface Faq {
+  id: string; categoria?: string; pregunta: string; respuesta: string;
+}
+export interface AskFaqResponse {
+  matched: boolean;
+  best?: Faq;
+  alternatives?: Faq[];
+  suggestions?: { id: string; pregunta: string }[];
+}
+export interface Patrocinio {
+  empresa_id: string; project_id: string;
+  estado: 'propuesto' | 'aceptado' | 'rechazado';
+  mensaje?: string; aporte: number; created_at: string; updated_at: string;
+  project_title: string; project_image?: string; project_status?: string;
+  // Presentes cuando lo devuelve GET /api/empresas/me/patrocinios (vista empresa)
+  ngo_id?: string; ngo_name?: string; ngo_logo?: string;
+  // Presentes cuando lo devuelve GET /api/ngos/me/patrocinios (vista ONG)
+  empresa_name?: string; empresa_logo?: string; empresa_industry?: string;
 }
 export interface NGOStats {
   total_projects: number; active_projects: number;

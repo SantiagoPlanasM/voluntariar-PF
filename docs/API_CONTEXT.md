@@ -213,6 +213,74 @@
 
 ---
 
+## Empresas (`routes/empresas.js`)
+
+> Agregado 2026-09: materializa el rol `company`, que hasta ahora solo existía en `users.role` y en la tabla `empresas` (creada en el registro) sin ningún endpoint propio ni guarda `requireRole('company')` real. Mismo patrón exacto que `routes/ngos.js`.
+
+### `GET /api/empresas` — Público
+- **Respuesta 200:** `{ empresas: Empresa[] }`, con `category` resuelta vía `LEFT JOIN` a `empresa_categorias`/`categorias` (tabla nueva, ver `DATABASE_CONTEXT.md`).
+
+### `GET /api/empresas/me` — Auth, role `company`
+- Devuelve el perfil completo de la empresa de la sesión, incluyendo `category`.
+- **Errores:** `403` si el rol no es `company`, `404` si no tiene perfil de empresa (no debería pasar en la práctica — se crea en el registro).
+
+### `GET /api/empresas/:id` — Público
+- Perfil público de una empresa por id. Columnas seleccionadas explícitamente (no `SELECT *`), por si en el futuro se agregan columnas sensibles a `empresas`.
+- **Errores:** `404` si no existe.
+
+### `PUT /api/empresas/me` — Auth, role `company`
+- **Body:** `{ name?, description?, mission?, location?, logo?, cover_image?, industry?, category? }` — actualización parcial real (mismo patrón anti-B8 que `PUT /api/ngos/me`: un campo no enviado conserva su valor anterior, no se pisa con `null`).
+- `category` es el nombre de una categoría existente (ej. `"Tecnología"`) — mismo patrón "borrar e insertar" que `ngo_categorias`.
+- **Respuesta 200:** `{ empresa }` (incluye `category` actualizada).
+
+**Todavía sin API**: dashboard agregado de empresa con KPIs, gestión de voluntarios propios (roadmap puntos 6/8). El patrocinio (`empresa_voluntariados`) sí tiene API completa — ver más abajo.
+
+---
+
+## Patrocinio (Empresa ↔ Proyecto) — `routes/empresas.js` + `routes/ngos.js`
+
+> Agregado 2026-09 (roadmap punto 5). Usa `empresa_voluntariados`, que existía sin API — ahora con columnas `estado` (`propuesto`/`aceptado`/`rechazado`), `mensaje` y `updated_at` agregadas vía `ALTER TABLE` en `scripts/migrate.js`.
+
+### `POST /api/empresas/me/patrocinios` — Auth, role `company`
+- **Body:** `{ project_id, mensaje? }`. El proyecto debe existir y estar `active`.
+- Crea la propuesta en estado `propuesto`. Si ya existe una propuesta **rechazada** con ese proyecto, la reutiliza (resetea a `propuesto`) en vez de fallar — así se puede volver a proponer. Si ya existe una `propuesta`/`aceptada` sin decidir o vigente, `409`.
+- Notifica a la ONG (in-app + email, fire-and-forget).
+- **Respuesta 201:** `{ message }`.
+
+### `DELETE /api/empresas/me/patrocinios/:projectId` — Auth, role `company`
+- Retira una propuesta propia **solo si sigue en `propuesto`** (no se puede retirar una ya aceptada/rechazada). `404` si no aplica.
+
+### `GET /api/empresas/me/patrocinios` — Auth, role `company`
+- Todas las propuestas de la empresa logueada (cualquier estado), con datos del proyecto y de la ONG ya resueltos (sin N+1).
+
+### `GET /api/ngos/me/patrocinios` — Auth, role `ngo`
+- Todas las propuestas de patrocinio (cualquier estado) sobre los proyectos de la ONG logueada, con datos de la empresa ya resueltos.
+
+### `PATCH /api/ngos/me/patrocinios/:empresaId/:projectId` — Auth, role `ngo`
+- **Body:** `{ estado: 'aceptado' | 'rechazado' }`.
+- Autorización por `JOIN` a `projects.ngo_id` en el `WHERE` (nunca se confía en los IDs de la URL sin validar dueño) → `404` si la propuesta no existe o no es de un proyecto propio.
+- `409` si la propuesta ya fue decidida antes (no se puede revertir una decisión por acá).
+- Notifica a la empresa (in-app + email).
+
+---
+
+## Chatbot FAQ (`routes/faqs.js`)
+
+> Agregado 2026-09 (roadmap punto 9). Explícitamente **sin IA**: matching por keywords, sin embeddings ni LLM. Stateless — no hay tabla de historial de conversación.
+
+### `GET /api/faqs?categoria=voluntario` — Público
+- Catálogo completo (para listar como acordeón), opcionalmente filtrado por `categoria` (`voluntario`/`ngo`/`general`).
+- **Respuesta 200:** `{ faqs: [{ id, categoria, pregunta, respuesta }] }`.
+
+### `POST /api/faqs/ask` — Público
+- **Body:** `{ question, categoria? }`.
+- Trae todo el pool de FAQs activas (tabla chica por diseño, sin pre-filtro SQL) y puntúa por coincidencia de keywords en JS (substring bidireccional, sin heurísticas de prefijo — ver comentarios en el código sobre por qué se descartó esa idea).
+- **Respuesta 200 con match:** `{ matched: true, best: Faq, alternatives: Faq[] }`.
+- **Respuesta 200 sin match:** `{ matched: false, suggestions: [{id, pregunta}] }` (nunca deja al frontend sin nada que mostrar).
+- **400** si `question` tiene menos de 3 caracteres.
+
+---
+
 ## Voluntarios (`routes/voluntarios.js`)
 
 ### `GET /api/voluntarios/me/habilidades` — Auth, role `volunteer`
@@ -291,7 +359,7 @@ Chat 1 a 1 básico. El historial y el envío tienen doble vía: REST (siempre di
 
 ## Endpoints ausentes (funcionalidad de esquema sin API)
 
-Las tablas `donaciones`, `reuniones`, `empresa_voluntariados`, `ngo_follows` y `project_follows` **existen en el esquema de base de datos pero no tienen ningún endpoint que las lea o escriba**. Cualquier tarea futura que mencione "donaciones", "reuniones/videollamadas" o "seguir una ONG/proyecto" requiere **construir la API desde cero**, no modificar una existente. *(`voluntario_habilidades` dejó de estar en esta lista — ya tiene API completa, ver sección "Voluntarios" arriba y `PROJECT_ANALYSIS.md §17`.)*
+Las tablas `donaciones`, `reuniones`, `ngo_follows` y `project_follows` **existen en el esquema de base de datos pero no tienen ningún endpoint que las lea o escriba**. Cualquier tarea futura que mencione "donaciones", "reuniones/videollamadas" o "seguir una ONG/proyecto" requiere **construir la API desde cero**, no modificar una existente. *(`voluntario_habilidades` dejó de estar en esta lista — ya tiene API completa, ver sección "Voluntarios" arriba y `PROJECT_ANALYSIS.md §17`. El perfil de `empresas` tampoco — ver sección "Empresas" arriba. `empresa_voluntariados` tampoco — ver sección "Patrocinio" arriba y `PROJECT_ANALYSIS.md §26`.)*
 
 ## Endpoints duplicados o inconsistentes detectados
 
