@@ -332,8 +332,6 @@ router.post('/:id/empleados', requireAuth, requireRole('ngo'), async (req, res) 
   }
 });
 
-module.exports = router;
-
 // ── Sistema de Patrocinio (Empresa ↔ Proyecto) — lado ONG ──────────────────
 // Agregado 2026-09 (roadmap punto 5). La propuesta la crea la empresa
 // (ver POST /api/empresas/me/patrocinios); acá la ONG dueña del proyecto la
@@ -442,3 +440,5 @@ router.patch('/me/patrocinios/:empresaId/:projectId', requireAuth, requireRole('
     res.status(500).json({ error: 'Error al actualizar propuesta' });
   }
 });
+
+module.exports = router;

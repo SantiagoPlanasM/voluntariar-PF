@@ -1,12 +1,9 @@
 import { Link, useLocation, useNavigate } from 'react-router';
-import { Building2, LogOut, Heart, MessageCircle } from 'lucide-react';
+import { Building2, LogOut, Heart, MessageCircle, Search } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useChat } from '../../lib/ChatContext';
 
-// Solo "Mi Empresa" y "Mensajes" por ahora — el perfil es lo único que tiene
-// API real (ver docs/PROJECT_ANALYSIS.md §24). Cuando se implemente el
-// sistema de patrocinio y el dashboard con KPIs (roadmap punto 5/6), acá se
-// agregan esos links, mismo criterio que NGOSidebarNav.
+// Navigation for company panel
 export function CompanySidebarNav() {
   const { pathname }     = useLocation();
   const { user, logout } = useAuth();
@@ -15,6 +12,7 @@ export function CompanySidebarNav() {
 
   const links = [
     { to: '/company/profile',  icon: Building2,     label: 'Mi Empresa' },
+    { to: '/explore',          icon: Search,        label: 'Explorar' },
     { to: '/company/messages', icon: MessageCircle, label: 'Mensajes', badge: unreadTotal },
   ];
 

@@ -1,6 +1,9 @@
 import { useParams, useNavigate, Link } from 'react-router';
 import { useState, useEffect } from 'react';
-import { ArrowLeft, MapPin, Clock, Users, DollarSign, Calendar, Star, Briefcase, Loader2, Send, Zap, BarChart3 } from 'lucide-react';
+import {
+  ArrowLeft, MapPin, Clock, Users, DollarSign, Calendar,
+  Star, Briefcase, Loader2, Send, Zap, BarChart3, Bookmark, Check
+} from 'lucide-react';
 import { api, ProjectDetail } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 
@@ -23,13 +26,53 @@ export function ProjectDetails() {
   const [commenting, setCommenting] = useState(false);
   const [commentErr, setCommentErr] = useState('');
 
+  // Seguir voluntariado
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [togglingFollow, setTogglingFollow] = useState(false);
+
+  // Calificar voluntariado
+  const [userRating, setUserRating] = useState(5);
+  const [ratingComment, setRatingComment] = useState('');
+  const [submittingRating, setSubmittingRating] = useState(false);
+  const [ratingMsg, setRatingMsg] = useState('');
+  const [ratingErr, setRatingErr] = useState('');
+
   useEffect(() => { if (id) load(id); }, [id]);
 
   const load = async (pid: string) => {
     setLoading(true);
-    try { setProject((await api.projects.get(pid)).project); }
+    try {
+      const [projRes, followRes] = await Promise.all([
+        api.projects.get(pid),
+        api.follows.projectStatus(pid).catch(() => ({ following: false })),
+      ]);
+      setProject(projRes.project);
+      setIsFollowing(followRes.following);
+    }
     catch { navigate(-1); }
     finally { setLoading(false); }
+  };
+
+  const handleToggleFollow = async () => {
+    if (!user) {
+      openAuthModal('Iniciá sesión para seguir este voluntariado');
+      return;
+    }
+    if (user.role !== 'volunteer' || !project || togglingFollow) return;
+    setTogglingFollow(true);
+    try {
+      if (isFollowing) {
+        await api.follows.unfollowProject(project.id);
+        setIsFollowing(false);
+      } else {
+        await api.follows.followProject(project.id);
+        setIsFollowing(true);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setTogglingFollow(false);
+    }
   };
 
   const handleEnroll = async () => {
@@ -52,6 +95,25 @@ export function ProjectDetails() {
     finally { setCommenting(false); }
   };
 
+  const handleRate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) { openAuthModal('Iniciá sesión para calificar'); return; }
+    if (!id || submittingRating) return;
+    setSubmittingRating(true);
+    setRatingMsg('');
+    setRatingErr('');
+    try {
+      await api.projects.rate(id, userRating, ratingComment.trim() || undefined);
+      setRatingMsg('¡Calificación guardada con éxito!');
+      setRatingComment('');
+      load(id);
+    } catch (err: any) {
+      setRatingErr(err.message || 'Error al calificar');
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
+
   if (loading) return (
     <div className="flex items-center justify-center h-screen">
       <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
@@ -67,19 +129,43 @@ export function ProjectDetails() {
     ? (project.duration || 'Sin especificar')
     : (project.hours_per_week ? `${project.hours_per_week}h/semana` : 'No especificado');
 
-  const EnrollButton = ({ className = '' }: { className?: string }) => (
-    <button
-      onClick={handleEnroll}
-      disabled={enrolling || alreadyEnrolled}
-      className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2
-        ${alreadyEnrolled ? 'bg-gray-100 text-gray-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-200'}
-        disabled:opacity-60 ${className}`}>
-      {enrolling && <Loader2 className="w-4 h-4 animate-spin" />}
-      {alreadyEnrolled
-        ? `Inscripto · ${project.my_enrollment?.status === 'approved' ? 'Aprobado' : 'Pendiente'}`
-        : 'Unirme como voluntario'}
-    </button>
-  );
+  const EnrollButton = ({ className = '' }: { className?: string }) => {
+    if (user?.role === 'company') {
+      return (
+        <Link
+          to="/company/profile"
+          className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-200 ${className}`}>
+          <Briefcase className="w-4 h-4" />
+          Patrocinar este proyecto
+        </Link>
+      );
+    }
+    if (user?.role === 'ngo') {
+      if (project?.ngo_id) {
+        return (
+          <Link
+            to={`/ngo/dashboard/project/${project.id}`}
+            className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 ${className}`}>
+            Ver en panel ONG
+          </Link>
+        );
+      }
+      return null;
+    }
+    return (
+      <button
+        onClick={handleEnroll}
+        disabled={enrolling || alreadyEnrolled}
+        className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2
+          ${alreadyEnrolled ? 'bg-gray-100 text-gray-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-200'}
+          disabled:opacity-60 ${className}`}>
+        {enrolling && <Loader2 className="w-4 h-4 animate-spin" />}
+        {alreadyEnrolled
+          ? `Inscripto · ${project.my_enrollment?.status === 'approved' ? 'Aprobado' : 'Pendiente'}`
+          : 'Unirme como voluntario'}
+      </button>
+    );
+  };
 
   return (
     // pb-32 en mobile para que el botón fijo no tape el contenido
@@ -97,6 +183,21 @@ export function ProjectDetails() {
           className="absolute top-4 left-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg">
           <ArrowLeft className="w-5 h-5 text-gray-800" />
         </button>
+        {(!user || user.role === 'volunteer') && (
+          <button
+            onClick={handleToggleFollow}
+            disabled={togglingFollow}
+            title={isFollowing ? 'Dejar de seguir voluntariado' : 'Seguir voluntariado'}
+            className={`absolute top-4 right-4 px-3.5 py-2 rounded-full backdrop-blur-md flex items-center gap-1.5 text-xs font-bold transition-all shadow-md ${
+              isFollowing
+                ? 'bg-emerald-600 text-white'
+                : 'bg-white/90 hover:bg-white text-gray-800'
+            }`}
+          >
+            <Bookmark className={`w-3.5 h-3.5 ${isFollowing ? 'fill-current' : ''}`} />
+            <span>{isFollowing ? 'Siguiendo' : 'Seguir'}</span>
+          </button>
+        )}
         <div className="absolute bottom-4 left-4 flex gap-2">
           <span className="px-3 py-1 bg-white/95 rounded-full text-xs font-bold text-gray-800">{project.category}</span>
           {project.type === 'fugaz'
@@ -246,24 +347,97 @@ export function ProjectDetails() {
                   </div>
                 )}
                 {tab === 'ratings' && (
-                  project.ratings.length === 0
-                    ? <p className="text-sm text-gray-400 text-center py-6">Sin reseñas aún</p>
-                    : <div className="space-y-4">
+                  <div className="space-y-5">
+                    {/* Formulario de calificación: solo para voluntarios con inscripción aprobada */}
+                    {project.my_enrollment?.status === 'approved' ? (
+                      <div className="bg-emerald-50/70 rounded-2xl p-4 border border-emerald-100">
+                        <h4 className="font-bold text-xs text-emerald-900 mb-2">
+                          ¿Qué te pareció este voluntariado? Dejá tu reseña
+                        </h4>
+                        <form onSubmit={handleRate} className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-600 font-medium">Tu puntuación:</span>
+                            <div className="flex gap-1">
+                              {[1, 2, 3, 4, 5].map(star => (
+                                <button
+                                  type="button"
+                                  key={star}
+                                  onClick={() => setUserRating(star)}
+                                  className="p-0.5 hover:scale-110 transition-transform"
+                                >
+                                  <Star
+                                    className={`w-6 h-6 ${
+                                      star <= userRating
+                                        ? 'fill-yellow-400 text-yellow-400'
+                                        : 'text-gray-300'
+                                    }`}
+                                  />
+                                </button>
+                              ))}
+                            </div>
+                            <span className="text-xs font-bold text-gray-700 ml-1">
+                              {userRating} / 5
+                            </span>
+                          </div>
+
+                          <textarea
+                            value={ratingComment}
+                            onChange={e => { setRatingComment(e.target.value); setRatingErr(''); }}
+                            placeholder="Escribí tu experiencia, aprendizajes o sugerencias..."
+                            rows={2}
+                            className="w-full px-3 py-2 bg-white rounded-xl text-xs border border-gray-200 focus:border-emerald-500 focus:outline-none resize-none"
+                          />
+
+                          {ratingErr && <p className="text-xs text-red-600 font-medium">{ratingErr}</p>}
+                          {ratingMsg && <p className="text-xs text-emerald-700 font-bold">{ratingMsg}</p>}
+
+                          <button
+                            type="submit"
+                            disabled={submittingRating}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
+                          >
+                            {submittingRating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                            <span>Guardar reseña</span>
+                          </button>
+                        </form>
+                      </div>
+                    ) : (
+                      <div className="bg-gray-50 rounded-2xl p-3 border border-gray-100 text-center">
+                        <p className="text-xs text-gray-500">
+                          Solo los voluntarios que hayan participado con inscripción aprobada pueden calificar este voluntariado.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Lista de reseñas existentes */}
+                    {project.ratings.length === 0 ? (
+                      <p className="text-sm text-gray-400 text-center py-4">Sin reseñas aún</p>
+                    ) : (
+                      <div className="space-y-4">
                         {project.ratings.map(r => (
-                          <div key={r.id} className="flex gap-3">
-                            <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700 flex-shrink-0">{r.user_name[0]}</div>
+                          <div key={r.id} className="flex gap-3 bg-gray-50/50 p-3 rounded-xl border border-gray-100">
+                            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700 flex-shrink-0">
+                              {r.user_name[0]}
+                            </div>
                             <div>
-                              <p className="text-sm font-semibold text-gray-800">{r.user_name}</p>
-                              <div className="flex my-0.5">
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs font-bold text-gray-800">{r.user_name}</p>
+                                <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">
+                                  Participó
+                                </span>
+                              </div>
+                              <div className="flex my-1">
                                 {Array.from({ length: 5 }).map((_, i) => (
                                   <Star key={i} className={`w-3.5 h-3.5 ${i < r.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'}`} />
                                 ))}
                               </div>
-                              {r.comment && <p className="text-xs text-gray-500">{r.comment}</p>}
+                              {r.comment && <p className="text-xs text-gray-600">{r.comment}</p>}
                             </div>
                           </div>
                         ))}
                       </div>
+                    )}
+                  </div>
                 )}
                 {tab === 'comments' && (
                   <div className="space-y-3">
@@ -272,9 +446,20 @@ export function ProjectDetails() {
                     )}
                     {project.comments.map(c => (
                       <div key={c.id} className="flex gap-2">
-                        <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 flex-shrink-0">{c.user_name[0]}</div>
+                        {c.user_avatar ? (
+                          <img src={c.user_avatar} alt={c.user_name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 flex-shrink-0">{c.user_name[0]}</div>
+                        )}
                         <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-3 py-2 flex-1">
-                          <p className="text-xs font-bold text-gray-700">{c.user_name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-xs font-bold text-gray-700">{c.user_name}</p>
+                            {Boolean(c.is_participant) && (
+                              <span className="px-1.5 py-0.5 bg-[#e4f1e0] text-[#255f24] text-[10px] font-bold rounded">
+                                Participó
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-600 mt-0.5">{c.comment}</p>
                         </div>
                       </div>

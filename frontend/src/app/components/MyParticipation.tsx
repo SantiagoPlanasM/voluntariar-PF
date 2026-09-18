@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { CheckCircle, Clock, XCircle, MapPin, Tag, Loader2, Star, Lock, Sprout } from 'lucide-react';
 import { api, EnrollmentWithProject } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
@@ -16,6 +16,7 @@ type FilterKey = 'all' | 'pending' | 'approved' | 'rejected';
 
 export function MyParticipation() {
   const { user, openAuthModal } = useAuth();
+  const navigate = useNavigate();
   const [items, setItems]       = useState<EnrollmentWithProject[]>([]);
   const [loading, setLoading]   = useState(true);
   const [filter, setFilter]     = useState<FilterKey>('all');
@@ -23,6 +24,14 @@ export function MyParticipation() {
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
+    if (user.role === 'ngo') {
+      navigate('/ngo/dashboard', { replace: true });
+      return;
+    }
+    if (user.role === 'company') {
+      navigate('/company/profile', { replace: true });
+      return;
+    }
     api.enrollments.my()
       .then(r => setItems(r.enrollments))
       .catch(() => setItems([]))

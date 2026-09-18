@@ -162,8 +162,6 @@ router.put('/me', requireAuth, requireRole('company'), async (req, res) => {
   }
 });
 
-module.exports = router;
-
 // ── Sistema de Patrocinio (Empresa ↔ Proyecto) ─────────────────────────────
 // Agregado 2026-09 (roadmap punto 5). Usa la tabla `empresa_voluntariados`
 // que ya existía sin API (ver docs/API_CONTEXT.md "Endpoints ausentes"),
@@ -303,3 +301,5 @@ router.delete('/me/patrocinios/:projectId', requireAuth, requireRole('company'),
     res.status(500).json({ error: 'Error al retirar propuesta' });
   }
 });
+
+module.exports = router;

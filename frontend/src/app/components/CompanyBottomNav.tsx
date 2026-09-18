@@ -1,10 +1,11 @@
 import { Link, useLocation, useNavigate } from 'react-router';
-import { Building2, LogOut, MessageCircle } from 'lucide-react';
+import { Building2, LogOut, MessageCircle, Search } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useChat } from '../../lib/ChatContext';
 
 const links = [
   { to: '/company/profile',  icon: Building2,     label: 'Mi Empresa' },
+  { to: '/explore',          icon: Search,        label: 'Explorar' },
   { to: '/company/messages', icon: MessageCircle, label: 'Mensajes', chatBadge: true },
 ];
 

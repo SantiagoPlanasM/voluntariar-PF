@@ -1,8 +1,8 @@
 import { useAuth } from '../../lib/AuthContext';
-import { LogOut, CheckCircle, Clock, Heart, Edit2, Save, X, Loader2, Sparkles, MapPin, User, Sprout } from 'lucide-react';
+import { LogOut, CheckCircle, Clock, Heart, Edit2, Save, X, Loader2, Sparkles, MapPin, User, Sprout, Building2 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router';
 import { useEffect, useState } from 'react';
-import { api, EnrollmentWithProject, SkillCatalogItem, VolunteerSkill } from '../../lib/api';
+import { api, EnrollmentWithProject, SkillCatalogItem, VolunteerSkill, NGO } from '../../lib/api';
 
 const NAME_RE = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]{2,50}$/;
 const NIVEL_LABELS: Record<string, string> = { basico: 'Básico', intermedio: 'Intermedio', avanzado: 'Avanzado' };
@@ -12,6 +12,7 @@ export function VolunteerProfile() {
   const { user, logout, login } = useAuth();
   const navigate = useNavigate();
   const [enrollments, setEnrollments] = useState<EnrollmentWithProject[]>([]);
+  const [myNgos, setMyNgos]           = useState<NGO[]>([]);
   const [loading, setLoading]         = useState(true);
   const [editing, setEditing]         = useState(false);
   const [saving, setSaving]           = useState(false);
@@ -24,6 +25,14 @@ export function VolunteerProfile() {
 
   useEffect(() => {
     if (!user) return;
+    if (user.role === 'ngo') {
+      navigate('/ngo/profile', { replace: true });
+      return;
+    }
+    if (user.role === 'company') {
+      navigate('/company/profile', { replace: true });
+      return;
+    }
     setForm({ name: user.name || '', bio: user.bio || '', location: user.location || '' });
     api.enrollments.my()
       .then(r => setEnrollments(r.enrollments))
@@ -31,6 +40,7 @@ export function VolunteerProfile() {
       .finally(() => setLoading(false));
     api.catalog.habilidades().then(r => setSkillCatalog(r.habilidades)).catch(() => {});
     api.voluntarios.habilidades.list().then(r => setMySkills(r.habilidades)).catch(() => {});
+    api.follows.myNgos().then(r => setMyNgos(r.ngos)).catch(() => {});
   }, [user]);
 
   useEffect(() => {
@@ -223,10 +233,57 @@ export function VolunteerProfile() {
           </div>
         )}
 
+        {/* Mis ONGs seguidas */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-gray-900 flex items-center gap-1.5 text-sm">
+              <Building2 className="w-4 h-4 text-emerald-600" />
+              <span>Mis ONGs seguidas ({myNgos.length})</span>
+            </h2>
+            <Link to="/explore" className="text-xs text-emerald-600 font-semibold">Descubrir más →</Link>
+          </div>
+
+          {myNgos.length === 0 ? (
+            <div className="text-center py-6 bg-white rounded-2xl border border-gray-100 flex flex-col items-center justify-center p-4">
+              <Building2 className="w-8 h-8 text-gray-300 mb-1.5" />
+              <p className="text-xs text-gray-500">Todavía no sigues a ninguna ONG.</p>
+              <Link to="/feed" className="text-xs text-emerald-600 font-bold mt-1.5">
+                Explorar organizaciones →
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {myNgos.map(ngo => (
+                <Link
+                  key={ngo.id}
+                  to={`/ngo/${ngo.id}`}
+                  className="bg-white rounded-2xl p-3.5 border border-gray-100 shadow-sm hover:border-emerald-200 transition-all flex items-center gap-3 group"
+                >
+                  {ngo.logo ? (
+                    <img src={ngo.logo} alt={ngo.name} className="w-11 h-11 rounded-full object-cover ring-2 ring-gray-100 group-hover:ring-emerald-400 transition-all" />
+                  ) : (
+                    <div className="w-11 h-11 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-sm ring-2 ring-gray-100">
+                      {ngo.name[0]}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-gray-900 group-hover:text-emerald-700 transition-colors truncate">
+                      {ngo.name}
+                    </p>
+                    <p className="text-[11px] text-gray-400 truncate mt-0.5">
+                      {ngo.location || 'Argentina'} · {ngo.followers || 0} seguidores
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Últimas participaciones */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-gray-900">Últimas participaciones</h2>
+            <h2 className="font-bold text-gray-900 text-sm">Últimas participaciones</h2>
             <Link to="/participation" className="text-xs text-emerald-600 font-semibold">Ver todas →</Link>
           </div>
 

@@ -38,6 +38,7 @@ app.use('/api/faqs',           require('./routes/faqs'));
 app.use('/api/notifications',  require('./routes/notifications'));
 app.use('/api/voluntarios',    require('./routes/voluntarios'));
 app.use('/api/messages',       require('./routes/messages'));
+app.use('/api/follows',        require('./routes/follows'));
 
 // ── Rutas de catálogos (solo GET, datos base) ─────────────────────────────
 const db = require('./db');

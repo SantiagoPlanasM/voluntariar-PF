@@ -207,6 +207,21 @@ router.get('/recommended', requireAuth, requireRole('volunteer'), async (req, re
     const userRow = await db.get('SELECT location FROM users WHERE id=$1', [req.user.id]);
     const myLocation = userRow?.location?.trim().toLowerCase() || null;
 
+    // 2b) ONGs seguidas directamente y ONGs de proyectos seguidos
+    const [followedNgos, followedProjectNgos] = await Promise.all([
+      db.all('SELECT ngo_id FROM ngo_follows WHERE user_id=$1', [req.user.id]),
+      db.all(
+        `SELECT DISTINCT p.ngo_id FROM project_follows pf
+         JOIN projects p ON p.id = pf.project_id
+         WHERE pf.user_id = $1`,
+        [req.user.id]
+      ),
+    ]);
+    const interestedNgoIds = new Set([
+      ...followedNgos.map(r => r.ngo_id),
+      ...followedProjectNgos.map(r => r.ngo_id),
+    ]);
+
     // 3) Candidatos: proyectos activos, con cupo disponible, en los que el
     //    voluntario todavía no se inscribió. Traemos un pool razonable (100)
     //    y rankeamos en JS — para el volumen de datos de esta plataforma es
@@ -280,6 +295,12 @@ router.get('/recommended', requireAuth, requireRole('volunteer'), async (req, re
 
       if (reasons.length === 0) reasons.push('Podría interesarte');
 
+      // Boost si el proyecto es de una ONG que sigue o de la cual sigue algún voluntariado
+      if (interestedNgoIds.has(p.ngo_id)) {
+        score += 3;
+        reasons.unshift(`De una ONG que seguís o te interesa (${p.ngo_name})`);
+      }
+
       return { project: p, score, reasons };
     });
 
@@ -324,8 +345,11 @@ router.get('/:id', optionalAuth, async (req, res) => {
     project.category_name   = catRow?.nombre || '';
 
     const comments = await db.all(
-      `SELECT c.*, u.name AS user_name, u.avatar AS user_avatar
-       FROM comments c JOIN users u ON u.id = c.user_id
+      `SELECT c.*, u.name AS user_name, u.avatar AS user_avatar,
+              CASE WHEN e.id IS NOT NULL THEN 1 ELSE 0 END AS is_participant
+       FROM comments c
+       JOIN users u ON u.id = c.user_id
+       LEFT JOIN enrollments e ON e.user_id = c.user_id AND e.project_id = c.project_id AND e.status = 'approved'
        WHERE c.project_id = $1 ORDER BY c.created_at DESC`, [req.params.id]
     );
     const ratings = await db.all(
@@ -509,8 +533,11 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
       [req.params.id, req.user.id, comment.trim()]
     );
     const saved = await db.get(
-      `SELECT c.*, u.name AS user_name, u.avatar AS user_avatar
-       FROM comments c JOIN users u ON u.id = c.user_id
+      `SELECT c.*, u.name AS user_name, u.avatar AS user_avatar,
+              CASE WHEN e.id IS NOT NULL THEN 1 ELSE 0 END AS is_participant
+       FROM comments c
+       JOIN users u ON u.id = c.user_id
+       LEFT JOIN enrollments e ON e.user_id = c.user_id AND e.project_id = c.project_id AND e.status = 'approved'
        WHERE c.project_id=$1 AND c.user_id=$2 ORDER BY c.created_at DESC LIMIT 1`,
       [req.params.id, req.user.id]
     );
@@ -524,6 +551,15 @@ router.post('/:id/ratings', requireAuth, async (req, res) => {
     const { rating, comment } = req.body;
     if (!rating || rating < 1 || rating > 5)
       return res.status(400).json({ error: 'Rating entre 1 y 5' });
+
+    // Validación de participación aprobada para calificar
+    const enrollment = await db.get(
+      'SELECT id FROM enrollments WHERE user_id=$1 AND project_id=$2 AND status=$3',
+      [req.user.id, req.params.id, 'approved']
+    );
+    if (!enrollment) {
+      return res.status(403).json({ error: 'Solo voluntarios que hayan participado con inscripción aprobada pueden calificar' });
+    }
 
     const existing = await db.get(
       'SELECT id FROM ratings WHERE user_id=$1 AND project_id=$2',

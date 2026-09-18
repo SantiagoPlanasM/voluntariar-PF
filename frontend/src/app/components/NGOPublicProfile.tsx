@@ -1,6 +1,6 @@
 import { useParams, useNavigate, Link } from 'react-router';
 import { useState, useEffect } from 'react';
-import { ArrowLeft, MapPin, Users, Sprout, Loader2, Calendar, MessageCircle } from 'lucide-react';
+import { ArrowLeft, MapPin, Users, Sprout, Loader2, Calendar, MessageCircle, UserPlus, Check } from 'lucide-react';
 import { api, NGO, Project } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 
@@ -13,20 +13,57 @@ function safePct(a: any, b: any) {
 export function NGOPublicProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, openAuthModal } = useAuth();
   const [ngo, setNgo]         = useState<NGO | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter]   = useState<'all' | 'active' | 'completed'>('all');
 
+  const [following, setFollowing] = useState(false);
+  const [togglingFollow, setTogglingFollow] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    api.ngos.get(id)
-      .then(({ ngo: n, projects: p }) => { setNgo(n); setProjects(p); })
+    Promise.all([
+      api.ngos.get(id),
+      api.follows.ngoStatus(id).catch(() => ({ following: false })),
+    ])
+      .then(([{ ngo: n, projects: p }, statusRes]) => {
+        setNgo(n);
+        setProjects(p);
+        setFollowersCount(n.followers || 0);
+        setFollowing(statusRes.following);
+      })
       .catch(() => navigate(-1))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const handleToggleFollow = async () => {
+    if (!user) {
+      openAuthModal('Iniciá sesión para seguir a esta ONG');
+      return;
+    }
+    if (user.role !== 'volunteer' || !ngo || togglingFollow) return;
+
+    setTogglingFollow(true);
+    try {
+      if (following) {
+        const res = await api.follows.unfollowNgo(ngo.id);
+        setFollowing(false);
+        setFollowersCount(res.followers);
+      } else {
+        const res = await api.follows.followNgo(ngo.id);
+        setFollowing(true);
+        setFollowersCount(res.followers);
+      }
+    } catch (err) {
+      console.error('Error toggling follow:', err);
+    } finally {
+      setTogglingFollow(false);
+    }
+  };
 
   if (loading) return (
     <div className="flex items-center justify-center h-screen">
@@ -69,24 +106,51 @@ export function NGOPublicProfile() {
               </p>
             )}
           </div>
-          {user && user.id !== ngo.user_id && (
-            <button onClick={() => navigate(`/messages/${ngo.user_id}`)}
-              className="mb-1 flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors flex-shrink-0">
-              <MessageCircle className="w-3.5 h-3.5" />Mensaje
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {(!user || user.role === 'volunteer') && (
+              <button
+                onClick={handleToggleFollow}
+                disabled={togglingFollow}
+                className={`mb-1 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all flex-shrink-0 shadow-sm ${
+                  following
+                    ? 'bg-emerald-100 hover:bg-red-50 text-emerald-800 hover:text-red-700 border border-emerald-200 hover:border-red-200'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                }`}
+              >
+                {following ? (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Siguiendo</span>
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>Seguir</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {user && user.id !== ngo.user_id && (
+              <button onClick={() => navigate(`/messages/${ngo.user_id}`)}
+                className="mb-1 flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-colors flex-shrink-0">
+                <MessageCircle className="w-3.5 h-3.5" />Mensaje
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-4">
           {[
+            { val: followersCount,  label: 'Seguidores', color: 'text-amber-600',   bg: 'bg-amber-50'   },
             { val: projects.length, label: 'Proyectos',  color: 'text-emerald-600', bg: 'bg-emerald-50' },
             { val: active,          label: 'Activos',    color: 'text-blue-600',    bg: 'bg-blue-50'    },
             { val: totalVol,        label: 'Voluntarios',color: 'text-violet-600',  bg: 'bg-violet-50'  },
           ].map(({ val, label, color, bg }) => (
             <div key={label} className={`${bg} rounded-2xl p-3 text-center`}>
-              <p className={`text-2xl font-black ${color}`}>{val}</p>
-              <p className="text-xs text-gray-500">{label}</p>
+              <p className={`text-xl sm:text-2xl font-black ${color}`}>{val}</p>
+              <p className="text-[11px] sm:text-xs text-gray-500">{label}</p>
             </div>
           ))}
         </div>

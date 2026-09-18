@@ -35,7 +35,18 @@ export function PublicFeed() {
   useEffect(() => {
     // Wait until auth state is settled
     if (initializing) return;
-    if (user) { navigate(user.role === 'ngo' ? '/ngo/dashboard' : '/feed', { replace: true }); return; }
+    if (user) {
+      if (user.role === 'ngo') {
+        navigate('/ngo/dashboard', { replace: true });
+        return;
+      }
+      if (user.role === 'company') {
+        navigate('/company/profile', { replace: true });
+        return;
+      }
+      navigate('/feed', { replace: true });
+      return;
+    }
     load();
   }, [user, initializing]);
 

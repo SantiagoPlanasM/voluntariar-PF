@@ -75,6 +75,7 @@ export const api = {
       req<{ message: string; horas: number }>(`/enrollments/${id}/horas`, { method: 'PATCH', body: JSON.stringify({ horas }) }),
   },
   ngos: {
+    list: () => req<{ ngos: NGO[] }>('/ngos'),
     me: () => req<{ ngo: NGO; projects: Project[]; stats: NGOStats; pending_enrollments: EnrollmentWithVolunteer[] }>('/ngos/me'),
     get: (id: string) => req<{ ngo: NGO; projects: Project[] }>(`/ngos/${id}`),
     update: (b: Partial<NGO>) => req<{ ngo: NGO }>('/ngos/me', { method: 'PUT', body: JSON.stringify(b) }),
@@ -124,6 +125,24 @@ export const api = {
     ask: (question: string, categoria?: string) =>
       req<AskFaqResponse>('/faqs/ask', { method: 'POST', body: JSON.stringify({ question, categoria }) }),
   },
+  follows: {
+    followNgo: (ngoId: string) =>
+      req<{ following: boolean; followers: number; message: string }>(`/follows/ngo/${ngoId}`, { method: 'POST' }),
+    unfollowNgo: (ngoId: string) =>
+      req<{ following: boolean; followers: number; message: string }>(`/follows/ngo/${ngoId}`, { method: 'DELETE' }),
+    myNgos: () => req<{ ngos: NGO[] }>('/follows/ngo'),
+    ngoStatus: (ngoId: string) => req<{ following: boolean }>(`/follows/ngo/${ngoId}/status`),
+
+    followProject: (projectId: string) =>
+      req<{ following: boolean; followers: number; message: string }>(`/follows/project/${projectId}`, { method: 'POST' }),
+    unfollowProject: (projectId: string) =>
+      req<{ following: boolean; followers: number; message: string }>(`/follows/project/${projectId}`, { method: 'DELETE' }),
+    myProjects: () => req<{ projects: Project[] }>('/follows/project'),
+    projectStatus: (projectId: string) => req<{ following: boolean }>(`/follows/project/${projectId}/status`),
+
+    feed: (limit?: number, offset?: number) =>
+      req<{ projects: FeedProject[]; total: number }>(`/follows/feed?limit=${limit || 20}&offset=${offset || 0}`),
+  },
 };
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -143,6 +162,16 @@ export interface Project {
   roles_needed: string[]; requirements?: string[];
   followers: number; ngo_name?: string; ngo_logo?: string; created_at?: string;
   recommendation_score?: number; recommendation_reasons?: string[];
+}
+export interface FeedProject extends Project {
+  avg_rating?: number;
+  ratings_count?: number;
+  ratings?: Rating[];
+  comments_count?: number;
+  recent_comments?: AppComment[];
+  my_enrollment_status?: 'pending' | 'approved' | 'rejected' | null;
+  follow_source?: 'ngo_follow' | 'project_follow' | 'both';
+  follow_label?: string;
 }
 export interface KPI {
   id: string; project_id: string; nombre: string;
@@ -223,6 +252,7 @@ export interface NGOStats {
 export interface AppComment {
   id: string; user_id: string; user_name: string;
   user_avatar?: string; comment: string; created_at: string;
+  is_participant?: boolean | number;
 }
 export interface Rating {
   id: string; user_id: string; user_name: string;

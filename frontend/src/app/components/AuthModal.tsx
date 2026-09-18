@@ -71,13 +71,6 @@ export function AuthModal() {
     }
   }, [showAuthModal, authModalTab]);
 
-  useEffect(() => {
-    if (user && !showAuthModal) {
-      if (user.role === 'ngo') navigate('/ngo/dashboard');
-      else if (user.role === 'company') navigate('/company/profile');
-    }
-  }, [user, showAuthModal]);
-
   // Reset on open/tab change
   useEffect(() => {
     setError(''); setFieldErrors({ name: '', email: '', password: '' });
@@ -98,8 +91,16 @@ export function AuthModal() {
     const emailErr = validateEmail(form.email);
     if (emailErr) { setFieldErrors(fe => ({ ...fe, email: emailErr })); return; }
     setError('');
-    try { await login(form.email, form.password); }
-    catch (err: any) { setError(err.message); }
+    try {
+      const loggedUser = await login(form.email, form.password);
+      if (loggedUser.role === 'ngo') {
+        navigate('/ngo/dashboard');
+      } else if (loggedUser.role === 'company') {
+        navigate('/company/profile');
+      } else if (window.location.pathname === '/') {
+        navigate('/feed');
+      }
+    } catch (err: any) { setError(err.message); }
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -111,8 +112,16 @@ export function AuthModal() {
     setFieldErrors(newFE);
     if (nameErr || emailErr || passErr) return;
     setError('');
-    try { await register(form.name, form.email, form.password, role); }
-    catch (err: any) { setError(err.message); }
+    try {
+      const registeredUser = await register(form.name, form.email, form.password, role);
+      if (registeredUser.role === 'ngo') {
+        navigate('/ngo/dashboard');
+      } else if (registeredUser.role === 'company') {
+        navigate('/company/profile');
+      } else if (window.location.pathname === '/') {
+        navigate('/feed');
+      }
+    } catch (err: any) { setError(err.message); }
   };
 
   const inp = (hasError: boolean) =>

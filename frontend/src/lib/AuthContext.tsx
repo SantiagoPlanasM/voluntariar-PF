@@ -11,11 +11,11 @@ interface Ctx {
   setAuthModalTab(tab: 'login' | 'register'): void;
   openAuthModal(intent?: string, defaultTab?: 'login' | 'register'): void;
   closeAuthModal(): void;
-  login(email: string, password: string): Promise<void>;
-  register(name: string, email: string, password: string, role: string): Promise<void>;
+  login(email: string, password: string): Promise<User>;
+  register(name: string, email: string, password: string, role: string): Promise<User>;
   logout(): void;
   token: string | null;
-  user: any;
+  user: User | null;
 }
 
 const AuthContext = createContext<Ctx | null>(null);
@@ -65,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { token: t, user: u } = await api.auth.login({ email, password });
       setToken(t); setUser(u); setT(t); setU(u);
       setShowAuthModal(false);
+      return u;
     } finally { setLoading(false); }
   };
 
@@ -74,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { token: t, user: u } = await api.auth.register({ name, email, password, role });
       setToken(t); setUser(u); setT(t); setU(u);
       setShowAuthModal(false);
+      return u;
     } finally { setLoading(false); }
   };
 
