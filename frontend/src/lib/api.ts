@@ -161,6 +161,8 @@ export interface Project {
   cost_per_person: number; hours_per_week?: number;
   roles_needed: string[]; requirements?: string[];
   followers: number; ngo_name?: string; ngo_logo?: string; created_at?: string;
+  latitude?: number | null; longitude?: number | null;
+  modality?: 'presencial' | 'remoto' | 'hibrido';
   recommendation_score?: number; recommendation_reasons?: string[];
 }
 export interface FeedProject extends Project {

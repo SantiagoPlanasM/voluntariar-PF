@@ -190,7 +190,7 @@ export function FeedSidebar({
       {/* ── 4. Mini Footer Institucional ─────────────────────────────────── */}
       <footer className="px-2 pt-2 text-[11px] text-gray-400 space-y-2 leading-relaxed">
         <div className="flex flex-wrap gap-x-2 gap-y-1">
-          <Link to="/explore" className="hover:text-gray-600 transition-colors">Descubrir</Link>
+          <Link to="/explore" className="hover:text-gray-600 transition-colors">Explorar</Link>
           <span>•</span>
           <Link to="/profile" className="hover:text-gray-600 transition-colors">Mi Perfil</Link>
           <span>•</span>

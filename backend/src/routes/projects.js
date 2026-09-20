@@ -18,6 +18,9 @@ function fmt(p) {
     image:              p.foto_perfil,
     category:           p.category_name || p.categoria || '',
     location:           p.ubicacion,
+    modality:           p.modalidad || (p.ubicacion && (p.ubicacion.toLowerCase().includes('remoto') || p.ubicacion.toLowerCase().includes('virtual')) ? 'remoto' : 'presencial'),
+    latitude:           p.latitud != null ? Number(p.latitud) : (p.latitude != null ? Number(p.latitude) : null),
+    longitude:          p.longitud != null ? Number(p.longitud) : (p.longitude != null ? Number(p.longitude) : null),
     type:               p.tipo,
     volunteers_needed:  p.cupos        || 0,
     current_volunteers: p.cupos_ocupados || 0,
@@ -50,7 +53,8 @@ function validateProject(body) {
 // ── GET /api/projects ─────────────────────────────────────────────────────
 router.get('/', optionalAuth, async (req, res) => {
   try {
-    const { category, type, status, search, limit = 20, offset = 0 } = req.query;
+    const { category, type, status, search, modality, modalidad, limit = 20, offset = 0 } = req.query;
+    const modFilter = modality || modalidad;
 
     // Roles como JSON agregado compatible con SQLite y PostgreSQL
     const rolesAgg = db.type === 'postgres'
@@ -90,6 +94,15 @@ router.get('/', optionalAuth, async (req, res) => {
     if (status) {
       sql += ` AND p.status = $${i++}`; params.push(status);
     }
+    if (modFilter && modFilter !== 'all' && modFilter !== 'Todos') {
+      if (modFilter === 'remoto') {
+        sql += ` AND (p.modalidad = 'remoto' OR p.ubicacion LIKE '%remoto%' OR p.ubicacion LIKE '%virtual%')`;
+      } else if (modFilter === 'presencial') {
+        sql += ` AND (p.modalidad = 'presencial' AND (p.ubicacion NOT LIKE '%remoto%' AND p.ubicacion NOT LIKE '%virtual%'))`;
+      } else if (modFilter === 'hibrido') {
+        sql += ` AND p.modalidad = 'hibrido'`;
+      }
+    }
     if (search && search.trim()) {
       const q = `%${search.trim()}%`;
       const si = i; const ti = i+1; const ni = i+2; const ci = i+3; const ui = i+4;
@@ -124,6 +137,15 @@ router.get('/', optionalAuth, async (req, res) => {
       }
       if (type && type !== 'Todos')  { simpleSql += ` AND p.tipo=$${si++}`;   simpleParams.push(type); }
       if (status)                    { simpleSql += ` AND p.status=$${si++}`; simpleParams.push(status); }
+      if (modFilter && modFilter !== 'all' && modFilter !== 'Todos') {
+        if (modFilter === 'remoto') {
+          simpleSql += ` AND (p.modalidad = 'remoto' OR p.ubicacion LIKE '%remoto%' OR p.ubicacion LIKE '%virtual%')`;
+        } else if (modFilter === 'presencial') {
+          simpleSql += ` AND (p.modalidad = 'presencial' AND (p.ubicacion NOT LIKE '%remoto%' AND p.ubicacion NOT LIKE '%virtual%'))`;
+        } else if (modFilter === 'hibrido') {
+          simpleSql += ` AND p.modalidad = 'hibrido'`;
+        }
+      }
       if (search && search.trim()) {
         const q = `%${search.trim()}%`;
         simpleSql += ` AND (p.titulo LIKE $${si} OR p.descripcion LIKE $${si+1} OR n.nombre LIKE $${si+2} OR p.ubicacion LIKE $${si+3})`;
@@ -398,8 +420,11 @@ router.post('/', requireAuth, requireRole('ngo'), async (req, res) => {
     const {
       title, description, full_description, image, category, location,
       type, duration, volunteers_needed, funding_goal, cost_per_person,
-      hours_per_week, roles_needed = [], requirements = []
+      hours_per_week, roles_needed = [], requirements = [],
+      latitude, longitude, latitud, longitud, modality, modalidad
     } = req.body;
+
+    const mod = modality || modalidad || (location && (location.toLowerCase().includes('remoto') || location.toLowerCase().includes('virtual')) ? 'remoto' : 'presencial');
 
     const err = validateProject({
       title, description, location,
@@ -408,17 +433,21 @@ router.post('/', requireAuth, requireRole('ngo'), async (req, res) => {
     });
     if (err) return res.status(400).json({ error: err });
 
+    const lat = latitude != null ? parseFloat(latitude) : (latitud != null ? parseFloat(latitud) : null);
+    const lng = longitude != null ? parseFloat(longitude) : (longitud != null ? parseFloat(longitud) : null);
+
     // Insertar proyecto
     await db.run(
       `INSERT INTO projects (ngo_id, titulo, descripcion, descripcion_full, foto_perfil,
         tipo, status, ubicacion, duracion, cupos, cupos_ocupados,
-        meta_financiera, recaudado, costo, horas_semanales)
-       VALUES ($1,$2,$3,$4,$5,$6,'active',$7,$8,$9,0,$10,0,$11,$12)`,
+        meta_financiera, recaudado, costo, horas_semanales, latitud, longitud, modalidad)
+       VALUES ($1,$2,$3,$4,$5,$6,'active',$7,$8,$9,0,$10,0,$11,$12,$13,$14,$15)`,
       [ngo.id, title.trim(), description.trim(), full_description?.trim() || null,
        image || null, type || 'fugaz', location.trim(), duration?.trim() || null,
        parseInt(volunteers_needed) || 0, parseFloat(funding_goal) || 0,
        parseFloat(cost_per_person) || 0,
-       type === 'sostenido' ? parseInt(hours_per_week) : null]
+       type === 'sostenido' ? parseInt(hours_per_week) : null,
+       lat, lng, mod]
     );
 
     const newProject = await db.get(
@@ -480,17 +509,26 @@ router.put('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
     if (!project) return res.status(404).json({ error: 'Proyecto no encontrado o sin permiso' });
 
     const { title, description, full_description, image, location, type, duration,
-            volunteers_needed, funding_goal, cost_per_person, hours_per_week, status } = req.body;
+            volunteers_needed, funding_goal, cost_per_person, hours_per_week, status,
+            latitude, longitude, latitud, longitud, modality, modalidad } = req.body;
+
+    const lat = latitude !== undefined ? (latitude != null ? parseFloat(latitude) : null)
+              : (latitud !== undefined ? (latitud != null ? parseFloat(latitud) : null) : project.latitud);
+    const lng = longitude !== undefined ? (longitude != null ? parseFloat(longitude) : null)
+              : (longitud !== undefined ? (longitud != null ? parseFloat(longitud) : null) : project.longitud);
+    const mod = modality || modalidad || project.modalidad ||
+              (location && (location.toLowerCase().includes('remoto') || location.toLowerCase().includes('virtual')) ? 'remoto' : 'presencial');
 
     await db.run(
       `UPDATE projects SET titulo=$1, descripcion=$2, descripcion_full=$3, foto_perfil=$4,
        ubicacion=$5, tipo=$6, status=$7, duracion=$8, cupos=$9, meta_financiera=$10,
-       costo=$11, horas_semanales=$12, updated_at=CURRENT_TIMESTAMP WHERE id=$13`,
+       costo=$11, horas_semanales=$12, latitud=$13, longitud=$14, modalidad=$15, updated_at=CURRENT_TIMESTAMP WHERE id=$16`,
       [title?.trim(), description?.trim(), full_description?.trim() || null, image || null,
        location?.trim(), type, status || 'active', duration?.trim() || null,
        parseInt(volunteers_needed) || 0, parseFloat(funding_goal) || 0,
        parseFloat(cost_per_person) || 0,
        type === 'sostenido' ? parseInt(hours_per_week) : null,
+       lat, lng, mod,
        req.params.id]
     );
 

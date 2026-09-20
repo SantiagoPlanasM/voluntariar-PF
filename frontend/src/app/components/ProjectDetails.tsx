@@ -2,7 +2,8 @@ import { useParams, useNavigate, Link } from 'react-router';
 import { useState, useEffect } from 'react';
 import {
   ArrowLeft, MapPin, Clock, Users, DollarSign, Calendar,
-  Star, Briefcase, Loader2, Send, Zap, BarChart3, Bookmark, Check
+  Star, Briefcase, Loader2, Send, Zap, BarChart3, Bookmark, Check,
+  Laptop, Globe
 } from 'lucide-react';
 import { api, ProjectDetail } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
@@ -198,12 +199,21 @@ export function ProjectDetails() {
             <span>{isFollowing ? 'Siguiendo' : 'Seguir'}</span>
           </button>
         )}
-        <div className="absolute bottom-4 left-4 flex gap-2">
+        <div className="absolute bottom-4 left-4 flex gap-2 flex-wrap">
           <span className="px-3 py-1 bg-white/95 rounded-full text-xs font-bold text-gray-800">{project.category}</span>
           {project.type === 'fugaz'
             ? <span className="px-3 py-1 bg-blue-600/90 rounded-full text-xs font-bold text-white flex items-center gap-1"><Zap className="w-3 h-3" />Fugaz</span>
             : <span className="px-3 py-1 bg-emerald-600/90 rounded-full text-xs font-bold text-white flex items-center gap-1"><Calendar className="w-3 h-3" />Sostenido</span>
           }
+          {(project.modality === 'remoto' || project.location?.toLowerCase().includes('remoto') || project.location?.toLowerCase().includes('virtual')) ? (
+            <span className="px-3 py-1 bg-violet-600/90 backdrop-blur-sm rounded-full text-xs font-bold text-white flex items-center gap-1 shadow-sm">
+              <Laptop className="w-3 h-3" /> Remoto
+            </span>
+          ) : project.modality === 'hibrido' ? (
+            <span className="px-3 py-1 bg-sky-600/90 backdrop-blur-sm rounded-full text-xs font-bold text-white flex items-center gap-1 shadow-sm">
+              <Globe className="w-3 h-3" /> Híbrido
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -239,7 +249,21 @@ export function ProjectDetails() {
             {/* Info grid — visible on ALL sizes */}
             <div className="grid grid-cols-2 gap-2">
               {[
-                { icon: MapPin,     label: 'Ubicación',   val: project.location },
+                {
+                  icon: (project.modality === 'remoto' || project.location?.toLowerCase().includes('remoto') || project.location?.toLowerCase().includes('virtual'))
+                    ? Laptop
+                    : project.modality === 'hibrido'
+                    ? Globe
+                    : MapPin,
+                  label: (project.modality === 'remoto' || project.location?.toLowerCase().includes('remoto') || project.location?.toLowerCase().includes('virtual'))
+                    ? 'Modalidad'
+                    : project.modality === 'hibrido'
+                    ? 'Modalidad'
+                    : 'Ubicación',
+                  val: (project.modality === 'remoto' || project.location?.toLowerCase().includes('remoto') || project.location?.toLowerCase().includes('virtual'))
+                    ? (project.location && project.location.toLowerCase() !== 'remoto' ? `Remoto · ${project.location}` : '100% Remoto')
+                    : project.location,
+                },
                 { icon: Clock,      label: project.type === 'fugaz' ? 'Duración' : 'Horas/sem', val: hoursLabel },
                 { icon: DollarSign, label: 'Costo',       val: (project.cost_per_person || 0) === 0 ? 'Gratis' : safeMoney(project.cost_per_person) },
                 { icon: Users,      label: 'Voluntarios', val: `${project.current_volunteers || 0}/${project.volunteers_needed || 0}` },
@@ -248,7 +272,7 @@ export function ProjectDetails() {
                   <div className="flex items-center gap-1.5 text-gray-400 mb-1">
                     <Icon className="w-3.5 h-3.5" /><span className="text-xs">{label}</span>
                   </div>
-                  <p className="text-sm font-bold text-gray-900">{val}</p>
+                  <p className="text-sm font-bold text-gray-900 truncate" title={String(val)}>{val}</p>
                 </div>
               ))}
             </div>

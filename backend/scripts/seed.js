@@ -112,6 +112,7 @@ async function seed() {
       descripcion_full: 'Plantación de especies nativas como tipa, lapacho y cebil. Incluye capacitación previa y herramientas.',
       foto_perfil: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=800&h=600&fit=crop',
       tipo: 'fugaz', status: 'active', ubicacion: 'Parque Sarmiento, Córdoba',
+      latitud: -31.4287, longitud: -64.1756,
       duracion: '2 días (sábado y domingo)', cupos: 50, cupos_ocupados: 23,
       meta_financiera: 15000, recaudado: 8500, costo: 0,
       categoria: 'Medio Ambiente',
@@ -125,6 +126,7 @@ async function seed() {
       descripcion_full: 'Clasificación de residuos, limpieza de vegetación invasora y registro fotográfico.',
       foto_perfil: 'https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=800&h=600&fit=crop',
       tipo: 'fugaz', status: 'active', ubicacion: 'Río Suquía, Córdoba',
+      latitud: -31.4050, longitud: -64.1800,
       duracion: '1 día (8hs a 16hs)', cupos: 80, cupos_ocupados: 67,
       meta_financiera: 8000, recaudado: 5600, costo: 0,
       categoria: 'Medio Ambiente',
@@ -138,6 +140,7 @@ async function seed() {
       descripcion_full: 'Traslado, pesaje, clasificación y armado de cajas familiares para distribución.',
       foto_perfil: 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?w=800&h=600&fit=crop',
       tipo: 'fugaz', status: 'active', ubicacion: 'Galpón Central, Córdoba',
+      latitud: -31.4110, longitud: -64.1920,
       duracion: '1 día (7hs a 15hs)', cupos: 60, cupos_ocupados: 34,
       meta_financiera: 5000, recaudado: 4200, costo: 0,
       categoria: 'Alimentación',
@@ -151,6 +154,7 @@ async function seed() {
       descripcion_full: '48hs donde equipos crean prototipos para resolver problemas concretos de la comunidad.',
       foto_perfil: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&h=600&fit=crop',
       tipo: 'fugaz', status: 'active', ubicacion: 'Universidad Blas Pascal, Córdoba',
+      latitud: -31.3414, longitud: -64.2505,
       duracion: '48 horas (viernes a domingo)', cupos: 40, cupos_ocupados: 28,
       meta_financiera: 20000, recaudado: 14000, costo: 0,
       categoria: 'Tecnología',
@@ -164,6 +168,7 @@ async function seed() {
       descripcion_full: 'Registro en app del estado de cada árbol para el primer mapa forestal digital de Córdoba.',
       foto_perfil: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&h=600&fit=crop',
       tipo: 'fugaz', status: 'active', ubicacion: 'Microcentro, Córdoba',
+      latitud: -31.4167, longitud: -64.1833,
       duracion: '1 día (4 horas)', cupos: 30, cupos_ocupados: 12,
       meta_financiera: 3000, recaudado: 1800, costo: 0,
       categoria: 'Medio Ambiente',
@@ -177,6 +182,7 @@ async function seed() {
       descripcion_full: 'Jornada de cocina masiva: preparación, cocción, emplatado y reparto en puntos del sur de Córdoba.',
       foto_perfil: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&h=600&fit=crop',
       tipo: 'fugaz', status: 'active', ubicacion: 'Comedor Central, Barrio Müller',
+      latitud: -31.4250, longitud: -64.1480,
       duracion: '1 día (8hs a 20hs)', cupos: 35, cupos_ocupados: 20,
       meta_financiera: 18000, recaudado: 9500, costo: 0,
       categoria: 'Alimentación',
@@ -190,6 +196,7 @@ async function seed() {
       descripcion_full: 'Huerta de 200m² con agroecología urbana, compostaje y distribución vecinal.',
       foto_perfil: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&h=600&fit=crop',
       tipo: 'sostenido', status: 'active', ubicacion: 'Barrio Güemes, Córdoba',
+      latitud: -31.4255, longitud: -64.1915,
       horas_semanales: 4, cupos: 20, cupos_ocupados: 8,
       meta_financiera: 25000, recaudado: 12000, costo: 0,
       categoria: 'Alimentación',
@@ -203,6 +210,7 @@ async function seed() {
       descripcion_full: 'Talleres participativos sobre separación en origen y economía circular en 8 escuelas.',
       foto_perfil: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800&h=600&fit=crop',
       tipo: 'sostenido', status: 'active', ubicacion: 'Escuelas de Córdoba Capital',
+      latitud: -31.4200, longitud: -64.1850,
       horas_semanales: 6, cupos: 15, cupos_ocupados: 5,
       meta_financiera: 10000, recaudado: 3000, costo: 0,
       categoria: 'Educación',
@@ -216,6 +224,7 @@ async function seed() {
       descripcion_full: 'Scratch, Python y Arduino para jóvenes de 13 a 18 años de Müller, Liceo y Bella Vista.',
       foto_perfil: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&h=600&fit=crop',
       tipo: 'sostenido', status: 'active', ubicacion: 'Barrios Müller y Liceo, Córdoba',
+      latitud: -31.3700, longitud: -64.1600,
       horas_semanales: 5, cupos: 12, cupos_ocupados: 7,
       meta_financiera: 30000, recaudado: 18000, costo: 0,
       categoria: 'Tecnología',
@@ -229,6 +238,7 @@ async function seed() {
       descripcion_full: 'Matemáticas, lengua, ciencias e inglés dos veces por semana en comedores del sur.',
       foto_perfil: 'https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?w=800&h=600&fit=crop',
       tipo: 'sostenido', status: 'active', ubicacion: 'Comedores del sur (Remoto disponible)',
+      latitud: -31.4450, longitud: -64.1950,
       horas_semanales: 4, cupos: 25, cupos_ocupados: 14,
       meta_financiera: 12000, recaudado: 7800, costo: 0,
       categoria: 'Educación',
@@ -242,6 +252,7 @@ async function seed() {
       descripcion_full: 'Diagnóstico, implementación de Google Workspace y capacitación al equipo de la ONG.',
       foto_perfil: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=600&fit=crop',
       tipo: 'sostenido', status: 'active', ubicacion: 'Remoto + visitas en Córdoba',
+      latitud: -31.4200, longitud: -64.1888,
       horas_semanales: 3, cupos: 10, cupos_ocupados: 4,
       meta_financiera: 8000, recaudado: 2000, costo: 0,
       categoria: 'Tecnología',
@@ -255,6 +266,7 @@ async function seed() {
       descripcion_full: 'Instalación de sensores de bajo costo en hogares para crear el primer mapa de calidad del aire.',
       foto_perfil: 'https://images.unsplash.com/photo-1611273426858-450d8e3c9fce?w=800&h=600&fit=crop',
       tipo: 'sostenido', status: 'active', ubicacion: 'Toda la Ciudad de Córdoba',
+      latitud: -31.4170, longitud: -64.1830,
       horas_semanales: 2, cupos: 50, cupos_ocupados: 22,
       meta_financiera: 40000, recaudado: 25000, costo: 0,
       categoria: 'Medio Ambiente',
@@ -269,12 +281,13 @@ async function seed() {
       await db.run(
         `INSERT INTO projects (id, ngo_id, titulo, descripcion, descripcion_full, foto_perfil,
           tipo, status, ubicacion, duracion, cupos, cupos_ocupados, meta_financiera, recaudado,
-          costo, horas_semanales)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+          costo, horas_semanales, latitud, longitud, modalidad)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
         [p.id, p.ngo_id, p.titulo, p.descripcion, p.descripcion_full, p.foto_perfil,
          p.tipo, p.status, p.ubicacion, p.duracion || null,
          p.cupos, p.cupos_ocupados, p.meta_financiera, p.recaudado, p.costo,
-         p.horas_semanales || null]
+         p.horas_semanales || null, p.latitud || null, p.longitud || null,
+         p.modalidad || (p.ubicacion && (p.ubicacion.toLowerCase().includes('remoto') || p.ubicacion.toLowerCase().includes('virtual')) ? 'remoto' : 'presencial')]
       );
 
       // Categoría
@@ -304,6 +317,11 @@ async function seed() {
           [p.id, desc]
         );
       }
+    } else {
+      await db.run(
+        `UPDATE projects SET latitud = COALESCE(latitud, $1), longitud = COALESCE(longitud, $2) WHERE id=$3`,
+        [p.latitud || null, p.longitud || null, p.id]
+      );
     }
   }
   console.log('  ✅ Proyectos (12)');

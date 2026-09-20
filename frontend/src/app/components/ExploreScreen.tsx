@@ -1,46 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
-import {
-  Search, SlidersHorizontal, MapPin, Leaf, Utensils,
-  BookOpen, PawPrint, Heart, Building2, Check, X,
-  Clock, Sparkles, ArrowRight
-} from 'lucide-react';
+import { Search, SlidersHorizontal, MapPin, X, Laptop } from 'lucide-react';
 import { api, Project } from '../../lib/api';
-
-interface CategoryItem {
-  id: string;
-  name: string;
-  icon: typeof Leaf;
-  iconBg: string;
-  iconColor: string;
-}
-
-const POPULAR_CATEGORIES: CategoryItem[] = [
-  { id: 'medio_ambiente', name: 'Medio Ambiente', icon: Leaf,       iconBg: 'bg-emerald-500', iconColor: 'text-white' },
-  { id: 'alimentacion',   name: 'Alimentación',   icon: Utensils,   iconBg: 'bg-amber-600',   iconColor: 'text-white' },
-  { id: 'educacion',      name: 'Educación',      icon: BookOpen,   iconBg: 'bg-blue-600',    iconColor: 'text-white' },
-  { id: 'animales',       name: 'Animales',       icon: PawPrint,   iconBg: 'bg-purple-600',  iconColor: 'text-white' },
-  { id: 'salud',          name: 'Salud',          icon: Heart,      iconBg: 'bg-rose-500',    iconColor: 'text-white' },
-  { id: 'construccion',   name: 'Construcción',   icon: Building2,  iconBg: 'bg-amber-700',   iconColor: 'text-white' },
-];
-
-const ROW_1_CHIPS = [
-  { id: 'cerca',       label: 'Cerca de mí' },
-  { id: 'esta_semana', label: 'Esta semana' },
-  { id: 'gratis',      label: 'Gratis' },
-  { id: 'remoto',      label: 'Remoto' },
-];
-
-const ROW_2_CHIPS = [
-  'Todos',
-  'Fugaces',
-  'Sostenidos',
-  'Medio Ambiente',
-  'Alimentación',
-  'Educación',
-  'Animales',
-  'Salud',
-];
+import { ProjectMap } from './ProjectMap';
+import { FilterModal, FilterState, DEFAULT_FILTERS, filterProjects } from './FilterModal';
 
 export function ExploreScreen() {
   const navigate = useNavigate();
@@ -50,9 +13,21 @@ export function ExploreScreen() {
 
   // Filtros
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeChip1, setActiveChip1] = useState<string | null>(null);
-  const [activeTypeOrCat, setActiveTypeOrCat] = useState<string>('Todos');
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [showAllFeatured, setShowAllFeatured] = useState(false);
+
+  // Cantidad de filtros activos
+  const activeFiltersCount = useMemo(() => {
+    return (
+      filters.categories.length +
+      (filters.type !== 'all' ? 1 : 0) +
+      (filters.modality !== 'all' ? 1 : 0) +
+      (filters.cost !== 'all' ? 1 : 0)
+    );
+  }, [filters]);
+
+  const hasActiveFilters = searchQuery.trim() !== '' || activeFiltersCount > 0;
 
   // Cargar proyectos al montar
   useEffect(() => {
@@ -70,75 +45,21 @@ export function ExploreScreen() {
     loadData();
   }, []);
 
-  // Conteo de proyectos por categoría
-  const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    POPULAR_CATEGORIES.forEach(c => {
-      // Si la categoría no existe en la base de datos o tiene 0, dar un número representativo basado en datos reales o un default amigable
-      const matching = allProjects.filter(p =>
-        p.category?.toLowerCase() === c.name.toLowerCase() ||
-        (c.name === 'Construcción' && p.category?.toLowerCase() === 'tecnología')
-      ).length;
-      counts[c.name] = matching > 0 ? matching : (c.name === 'Educación' ? 15 : c.name === 'Salud' ? 10 : c.name === 'Construcción' ? 4 : matching);
-    });
-    return counts;
-  }, [allProjects]);
-
-  // Filtrado de proyectos
+  // Filtrado de proyectos en memoria
   const filteredProjects = useMemo(() => {
-    return allProjects.filter(p => {
-      // Búsqueda por texto (título, descripción, categoría, ubicación, ONG)
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchesTitle = p.title?.toLowerCase().includes(q);
-        const matchesDesc = p.description?.toLowerCase().includes(q);
-        const matchesCat = p.category?.toLowerCase().includes(q);
-        const matchesLoc = p.location?.toLowerCase().includes(q);
-        const matchesNgo = p.ngo_name?.toLowerCase().includes(q);
-        if (!matchesTitle && !matchesDesc && !matchesCat && !matchesLoc && !matchesNgo) {
-          return false;
-        }
-      }
-
-      // Filtro de Fila 1 (Cerca de mí, Esta semana, Gratis, Remoto)
-      if (activeChip1 === 'gratis') {
-        if (p.cost_per_person && p.cost_per_person > 0) return false;
-      } else if (activeChip1 === 'remoto') {
-        const loc = p.location?.toLowerCase() || '';
-        if (!loc.includes('remoto') && !loc.includes('virtual') && !loc.includes('online')) {
-          // Si no es explícitamente remoto, dejamos los que no exigen presencia física
-        }
-      } else if (activeChip1 === 'cerca') {
-        const loc = p.location?.toLowerCase() || '';
-        if (!loc.includes('córdoba') && !loc.includes('cordoba')) return false;
-      }
-
-      // Filtro de Fila 2 (Todos, Fugaces, Sostenidos, o Categoría)
-      if (activeTypeOrCat === 'Fugaces') {
-        if (p.type !== 'fugaz') return false;
-      } else if (activeTypeOrCat === 'Sostenidos') {
-        if (p.type !== 'sostenido') return false;
-      } else if (activeTypeOrCat !== 'Todos') {
-        if (p.category?.toLowerCase() !== activeTypeOrCat.toLowerCase()) return false;
-      }
-
-      return true;
-    });
-  }, [allProjects, searchQuery, activeChip1, activeTypeOrCat]);
-
-  const hasActiveFilters = searchQuery.trim() !== '' || activeChip1 !== null || activeTypeOrCat !== 'Todos';
-
-  // Manejar clic en categoría de la grilla
-  const handleCategoryClick = (catName: string) => {
-    setActiveTypeOrCat(catName);
-    // Scroll suave a resultados
-    window.scrollTo({ top: 380, behavior: 'smooth' });
-  };
+    return filterProjects(allProjects, searchQuery, filters);
+  }, [allProjects, searchQuery, filters]);
 
   const handleResetFilters = () => {
     setSearchQuery('');
-    setActiveChip1(null);
-    setActiveTypeOrCat('Todos');
+    setFilters(DEFAULT_FILTERS);
+  };
+
+  const removeCategory = (cat: string) => {
+    setFilters(prev => ({
+      ...prev,
+      categories: prev.categories.filter(c => c !== cat),
+    }));
   };
 
   return (
@@ -150,149 +71,123 @@ export function ExploreScreen() {
           <h1 className="text-2xl font-black text-gray-900 tracking-tight">
             Explorar
           </h1>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Descubre oportunidades de voluntariado en Córdoba
+          </p>
         </div>
 
-        {/* ── 2. Barra de Búsqueda y Botón de Filtros ──────────────────── */}
-        <div className="flex items-center gap-2.5">
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar por ubicación, categoría..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-gray-100/90 hover:bg-gray-100 focus:bg-white rounded-2xl text-sm font-medium placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 transition-all border border-transparent focus:border-emerald-600"
-            />
-            {searchQuery && (
+        {/* ── 2. Search Bar + Filter Button ────────────────────────────── */}
+        <div>
+          <div className="flex gap-2.5">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Buscar por título, ONG, ubicación..."
+                className="w-full pl-11 pr-10 py-3 bg-gray-100 hover:bg-gray-150 focus:bg-white rounded-2xl text-sm text-gray-900 placeholder-gray-400 border border-transparent focus:border-emerald-500/40 focus:ring-2 focus:ring-emerald-500/10 transition-all outline-none"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={() => setIsFilterModalOpen(true)}
+              className={`relative w-11 h-11 rounded-2xl flex items-center justify-center transition-all shadow-sm flex-shrink-0 active:scale-95 cursor-pointer ${
+                activeFiltersCount > 0
+                  ? 'bg-[#1E3A2F] text-emerald-300 ring-2 ring-emerald-600/30'
+                  : 'bg-[#1E3A2F] hover:bg-[#152921] text-white'
+              }`}
+              title="Abrir filtros de búsqueda"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              {activeFiltersCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-white text-[10px] font-extrabold flex items-center justify-center shadow-xs">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Pastillas de Filtros Activos (solo si hay filtros aplicados) */}
+          {activeFiltersCount > 0 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-2 mt-1">
+              {filters.categories.map(cat => (
+                <span
+                  key={cat}
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0 animate-in fade-in duration-150"
+                >
+                  <span>{cat}</span>
+                  <button
+                    onClick={() => removeCategory(cat)}
+                    className="hover:bg-emerald-200/60 rounded-full p-0.5 cursor-pointer"
+                    title={`Quitar filtro ${cat}`}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+
+              {filters.type !== 'all' && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0 animate-in fade-in duration-150">
+                  <span>{filters.type === 'fugaz' ? 'Fugaz' : 'Sostenido'}</span>
+                  <button
+                    onClick={() => setFilters(prev => ({ ...prev, type: 'all' }))}
+                    className="hover:bg-emerald-200/60 rounded-full p-0.5 cursor-pointer"
+                    title="Quitar filtro de tipo"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
+              {filters.modality !== 'all' && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0 animate-in fade-in duration-150">
+                  <span>{filters.modality === 'remoto' ? 'Remoto' : 'Presencial'}</span>
+                  <button
+                    onClick={() => setFilters(prev => ({ ...prev, modality: 'all' }))}
+                    className="hover:bg-emerald-200/60 rounded-full p-0.5 cursor-pointer"
+                    title="Quitar filtro de modalidad"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
+              {filters.cost !== 'all' && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0 animate-in fade-in duration-150">
+                  <span>{filters.cost === 'gratis' ? 'Gratis' : 'Con aporte'}</span>
+                  <button
+                    onClick={() => setFilters(prev => ({ ...prev, cost: 'all' }))}
+                    className="hover:bg-emerald-200/60 rounded-full p-0.5 cursor-pointer"
+                    title="Quitar filtro de costo"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
               <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                onClick={handleResetFilters}
+                className="text-xs font-bold text-gray-500 hover:text-gray-800 underline px-1.5 shrink-0 cursor-pointer"
               >
-                <X className="w-3.5 h-3.5" />
+                Limpiar todo
               </button>
-            )}
-          </div>
-
-          <button
-            onClick={() => {
-              // Alternar filtro de orden o toggle rápido
-              setActiveChip1(prev => (prev === 'cerca' ? null : 'cerca'));
-            }}
-            className="w-11 h-11 rounded-2xl bg-[#1E3A2F] hover:bg-[#152921] text-white flex items-center justify-center transition-all shadow-sm flex-shrink-0 active:scale-95"
-            title="Filtrar voluntariados"
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-          </button>
+            </div>
+          )}
         </div>
 
-        {/* ── 3. Quick Filter Chips (2 filas según Figma) ─────────────── */}
-        <div className="space-y-2.5">
-          {/* Fila 1: Filtros de conveniencia */}
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide py-0.5">
-            {ROW_1_CHIPS.map(chip => {
-              const active = activeChip1 === chip.id;
-              return (
-                <button
-                  key={chip.id}
-                  onClick={() => setActiveChip1(active ? null : chip.id)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                    active
-                      ? 'bg-[#1E3A2F] text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {chip.label}
-                </button>
-              );
-            })}
-          </div>
+        {/* ── 3. Mapa Interactivo de Voluntariados ────────────── */}
+        <ProjectMap projects={filteredProjects} />
 
-          {/* Fila 2: Todos, Tipos y Categorías */}
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide py-0.5">
-            {ROW_2_CHIPS.map(chip => {
-              const active = activeTypeOrCat === chip;
-              return (
-                <button
-                  key={chip}
-                  onClick={() => setActiveTypeOrCat(chip)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                    active
-                      ? 'bg-[#1E3A2F] text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {chip}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ── 4. Banner de Mapa / Ubicación (Estilo Figma) ────────────── */}
-        <div className="relative rounded-3xl overflow-hidden bg-gradient-to-b from-[#e7f5ee] to-[#eaf2fc] p-8 border border-emerald-100/40 shadow-sm flex flex-col items-center justify-center min-h-[160px]">
-          {/* Elementos decorativos de fondo que simulan calles suaves de mapa */}
-          <div className="absolute inset-0 opacity-20 pointer-events-none">
-            <div className="absolute top-4 left-8 w-40 h-1 bg-white rounded-full rotate-12" />
-            <div className="absolute bottom-6 right-12 w-48 h-1.5 bg-white rounded-full -rotate-6" />
-            <div className="absolute top-1/2 left-1/3 w-32 h-1 bg-white rounded-full 45" />
-          </div>
-
-          {/* Pin central */}
-          <div className="relative z-10 w-12 h-12 rounded-full bg-white/90 shadow-md border border-white flex items-center justify-center text-gray-400 mb-4 animate-bounce duration-1000">
-            <MapPin className="w-6 h-6 text-gray-400 fill-gray-100" />
-          </div>
-
-          {/* Pastilla inferior con conteo dinámico */}
-          <div className="relative z-10 bg-white/95 backdrop-blur-sm px-5 py-2 rounded-full shadow-sm border border-gray-100/60 text-xs text-gray-700 text-center">
-            <span className="font-black text-gray-900">
-              {filteredProjects.length} proyectos
-            </span>{' '}
-            encontrados en tu área
-          </div>
-        </div>
-
-        {/* ── 5. Categorías Populares (Grilla 2 Columnas según Figma) ─── */}
-        <div className="space-y-3.5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-black text-gray-900 tracking-tight">
-              Categorías Populares
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            {POPULAR_CATEGORIES.map(cat => {
-              const Icon = cat.icon;
-              const count = categoryCounts[cat.name] || 0;
-              const isSelected = activeTypeOrCat.toLowerCase() === cat.name.toLowerCase();
-
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => handleCategoryClick(cat.name)}
-                  className={`bg-white rounded-2xl p-4 shadow-sm border text-left transition-all hover:shadow-md active:scale-[0.98] flex flex-col justify-between h-[120px] ${
-                    isSelected
-                      ? 'border-emerald-600 ring-2 ring-emerald-600/20'
-                      : 'border-gray-100 hover:border-emerald-200'
-                  }`}
-                >
-                  <div className={`w-11 h-11 rounded-2xl ${cat.iconBg} ${cat.iconColor} flex items-center justify-center shadow-sm`}>
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-sm text-gray-900 leading-tight">
-                      {cat.name}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {count} proyectos
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ── 6. Proyectos Destacados (Lista Horizontal según Figma) ──── */}
+        {/* ── 4. Proyectos Destacados / Encontrados ─────────────── */}
         <div className="space-y-3.5 pt-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -309,14 +204,14 @@ export function ExploreScreen() {
             {hasActiveFilters ? (
               <button
                 onClick={handleResetFilters}
-                className="text-xs font-bold text-emerald-700 hover:text-emerald-800"
+                className="text-xs font-bold text-emerald-700 hover:text-emerald-800 cursor-pointer"
               >
                 Limpiar filtros
               </button>
             ) : (
               <button
                 onClick={() => setShowAllFeatured(!showAllFeatured)}
-                className="text-xs font-semibold text-emerald-800 hover:text-emerald-900"
+                className="text-xs font-semibold text-emerald-800 hover:text-emerald-900 cursor-pointer"
               >
                 {showAllFeatured ? 'Ver menos' : 'Ver todos'}
               </button>
@@ -342,7 +237,7 @@ export function ExploreScreen() {
               <p className="text-xs text-gray-400">Probá seleccionando otra categoría o limpiando la búsqueda.</p>
               <button
                 onClick={handleResetFilters}
-                className="mt-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-sm"
+                className="mt-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer"
               >
                 Ver todos los proyectos
               </button>
@@ -386,8 +281,19 @@ export function ExploreScreen() {
                     </p>
 
                     <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-1.5">
-                      <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                      <span className="truncate">{p.location || 'Córdoba, Argentina'}</span>
+                      {p.modality === 'remoto' ? (
+                        <>
+                          <Laptop className="w-3 h-3 text-violet-500 flex-shrink-0" />
+                          <span className="truncate text-violet-600 font-medium">
+                            {p.location && p.location.toLowerCase() !== 'remoto' ? `Remoto (${p.location})` : 'Remoto'}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                          <span className="truncate">{p.location || 'Córdoba, Argentina'}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -397,6 +303,17 @@ export function ExploreScreen() {
         </div>
 
       </div>
+
+      {/* ── Modal de Filtros estilo Airbnb ─────────────────────────── */}
+      <FilterModal
+        isOpen={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
+        allProjects={allProjects}
+        searchQuery={searchQuery}
+        currentFilters={filters}
+        onApply={newFilters => setFilters(newFilters)}
+        onReset={() => setFilters(DEFAULT_FILTERS)}
+      />
     </div>
   );
 }

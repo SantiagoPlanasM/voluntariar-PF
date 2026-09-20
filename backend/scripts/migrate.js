@@ -134,6 +134,9 @@ async function migrate() {
       horas_semanales     INTEGER CHECK(horas_semanales IS NULL OR horas_semanales > 0),
       duracion            TEXT,
       followers           INTEGER DEFAULT 0 CHECK(followers >= 0),
+      latitud             REAL,
+      longitud            REAL,
+      modalidad           TEXT DEFAULT 'presencial',
       created_at          ${NOW},
       updated_at          ${NOW}
     )`,
@@ -376,6 +379,11 @@ async function migrate() {
     `TEXT NOT NULL DEFAULT 'propuesto' CHECK(estado IN ('propuesto','aceptado','rechazado'))`);
   await addColumnIfNotExists('empresa_voluntariados', 'mensaje', 'TEXT');
   await addColumnIfNotExists('empresa_voluntariados', 'updated_at', NOW);
+
+  // Agregadas 2026-09 para geolocalización y modalidad de voluntariados:
+  await addColumnIfNotExists('projects', 'latitud', 'REAL');
+  await addColumnIfNotExists('projects', 'longitud', 'REAL');
+  await addColumnIfNotExists('projects', 'modalidad', "TEXT DEFAULT 'presencial'");
 
   // ── Índices ───────────────────────────────────────────────────────────────
   console.log('\n🔍 Creando índices...');

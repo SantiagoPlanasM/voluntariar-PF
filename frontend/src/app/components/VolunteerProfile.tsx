@@ -240,7 +240,7 @@ export function VolunteerProfile() {
               <Building2 className="w-4 h-4 text-emerald-600" />
               <span>Mis ONGs seguidas ({myNgos.length})</span>
             </h2>
-            <Link to="/explore" className="text-xs text-emerald-600 font-semibold">Descubrir más →</Link>
+            <Link to="/explore" className="text-xs text-emerald-600 font-semibold">Explorar más →</Link>
           </div>
 
           {myNgos.length === 0 ? (

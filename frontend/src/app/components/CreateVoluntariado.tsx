@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import {
   ArrowLeft, ArrowRight, Plus, X, Loader2, Check, AlertCircle,
-  Zap, Sprout, MapPin, Users, DollarSign, ClipboardList,
+  Zap, Sprout, MapPin, Users, DollarSign, ClipboardList, Laptop, Globe,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 
@@ -21,7 +21,7 @@ const SUGGESTED_REQS  = ['Ropa cómoda', 'Disponibilidad fines de semana', 'Mayo
 
 const FIELD_LABELS: Record<string, string> = {
   title: 'Título', description: 'Descripción', location: 'Ubicación',
-  duration: 'Duración', hours_per_week: 'Horas por semana', volunteers_needed: 'Voluntarios',
+  modality: 'Modalidad', duration: 'Duración', hours_per_week: 'Horas por semana', volunteers_needed: 'Voluntarios',
 };
 
 export function CreateVoluntariado() {
@@ -33,6 +33,7 @@ export function CreateVoluntariado() {
   const [form, setForm] = useState({
     title: '', description: '', full_description: '',
     category: 'Medio Ambiente', location: '',
+    modality: 'presencial' as 'presencial' | 'remoto' | 'hibrido',
     type: 'fugaz' as 'fugaz' | 'sostenido',
     duration: '', hours_per_week: '',
     volunteers_needed: '', funding_goal: '', cost_per_person: '',
@@ -74,8 +75,8 @@ export function CreateVoluntariado() {
         e.description = 'Mínimo 10 caracteres';
     }
     if (s === 2) {
-      if (!form.location.trim())
-        e.location = 'Obligatorio. Podés poner "Remoto"';
+      if (form.modality !== 'remoto' && !form.location.trim())
+        e.location = 'Obligatorio. Indicá la dirección o sede del voluntariado';
       if (form.type === 'fugaz' && !form.duration.trim())
         e.duration = 'Indicá la duración del evento';
       if (form.type === 'sostenido') {
@@ -125,7 +126,8 @@ export function CreateVoluntariado() {
         description: form.description.trim(),
         full_description: form.full_description.trim() || undefined,
         category: form.category,
-        location: form.location.trim(),
+        location: form.modality === 'remoto' && !form.location.trim() ? 'Remoto' : form.location.trim(),
+        modality: form.modality,
         type: form.type,
         duration: form.type === 'fugaz' ? form.duration.trim() : undefined,
         hours_per_week: form.type === 'sostenido' ? parseInt(form.hours_per_week) : undefined,
@@ -282,13 +284,81 @@ export function CreateVoluntariado() {
                 </div>
               </div>
 
-              <div id="field-location">
-                <label className={lbl}>Ubicación *</label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input className={inp('location') + ' pl-9'} placeholder="Ej: Parque Sarmiento, Córdoba — o escribí Remoto"
-                    value={form.location} onChange={e => set('location', e.target.value)} />
+              {/* Modalidad */}
+              <div>
+                <label className={lbl}>Modalidad del voluntariado *</label>
+                <div className="grid grid-cols-3 gap-2.5 mt-1">
+                  {([
+                    { val: 'presencial', label: 'Presencial', icon: MapPin, desc: 'En sede física' },
+                    { val: 'remoto',     label: 'Remoto',     icon: Laptop, desc: '100% online' },
+                    { val: 'hibrido',    label: 'Híbrido',    icon: Globe,  desc: 'Virtual y presencial' },
+                  ] as const).map(({ val, label, icon: Icon, desc }) => {
+                    const selected = form.modality === val;
+                    return (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => {
+                          set('modality', val);
+                          if (val === 'remoto') {
+                            if (!form.location.trim() || form.location.toLowerCase() !== 'remoto') {
+                              set('location', 'Remoto');
+                            }
+                          } else if (val === 'presencial') {
+                            if (form.location.toLowerCase() === 'remoto') {
+                              set('location', '');
+                            }
+                          }
+                        }}
+                        className={`p-3 sm:p-3.5 rounded-xl border-2 text-left transition-all flex flex-col justify-between ${
+                          selected
+                            ? 'border-blue-600 bg-blue-50/70 text-blue-900 shadow-sm'
+                            : 'border-gray-200 bg-white hover:border-gray-300 text-gray-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                            selected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            <Icon className="w-3.5 h-3.5" />
+                          </div>
+                          <span className="text-xs sm:text-sm font-bold">{label}</span>
+                        </div>
+                        <p className="text-[11px] text-gray-500 leading-tight hidden sm:block">{desc}</p>
+                      </button>
+                    );
+                  })}
                 </div>
+              </div>
+
+              <div id="field-location">
+                <label className={lbl}>
+                  {form.modality === 'remoto' ? 'Plataforma o medio digital' : 'Ubicación *'}
+                </label>
+                <div className="relative">
+                  {form.modality === 'remoto' ? (
+                    <Laptop className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  ) : (
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  )}
+                  <input
+                    className={inp('location') + ' pl-9'}
+                    placeholder={
+                      form.modality === 'remoto'
+                        ? 'Ej: Google Meet, Zoom, Slack (o podés dejar Remoto)'
+                        : form.modality === 'hibrido'
+                        ? 'Ej: Parque Sarmiento y Google Meet'
+                        : 'Ej: Parque Sarmiento, Córdoba'
+                    }
+                    value={form.location}
+                    onChange={e => set('location', e.target.value)}
+                  />
+                </div>
+                {form.modality === 'remoto' ? (
+                  <p className={hint}>Los voluntarios participarán 100% de manera online.</p>
+                ) : form.modality === 'hibrido' ? (
+                  <p className={hint}>Indicá el punto de encuentro físico y la plataforma virtual.</p>
+                ) : null}
                 {err('location')}
               </div>
 
@@ -451,7 +521,15 @@ export function CreateVoluntariado() {
                   ) : (
                     <span className="flex items-center gap-1"><Sprout className="w-3.5 h-3.5 text-emerald-600" /> Sostenido</span>
                   )}
-                  <span>· {form.category} · {form.location || '—'}</span>
+                  <span>
+                    · {form.category} · {
+                      form.modality === 'remoto'
+                        ? '💻 Remoto'
+                        : form.modality === 'hibrido'
+                        ? `🌐 Híbrido (${form.location || 'Online + Sede'})`
+                        : (form.location || '—')
+                    }
+                  </span>
                 </p>
                 <p>{form.volunteers_needed ? `${form.volunteers_needed} voluntarios` : '—'} · {roles.length} roles · {requirements.length} requisitos</p>
               </div>

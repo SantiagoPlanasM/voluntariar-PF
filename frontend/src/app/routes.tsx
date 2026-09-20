@@ -30,6 +30,7 @@ export const router = createBrowserRouter([
       { index: true,             Component: PublicFeed },
       { path: 'feed',            Component: MainFeed },
       { path: 'project/:id',     Component: ProjectDetails },
+      { path: 'projects/:id',    Component: ProjectDetails },
       { path: 'profile',         Component: VolunteerProfile },
       { path: 'explore',         Component: ExploreScreen },
       { path: 'participation',   Component: MyParticipation },
