@@ -440,12 +440,24 @@ export function ProjectDetails() {
                       <div className="space-y-4">
                         {project.ratings.map(r => (
                           <div key={r.id} className="flex gap-3 bg-gray-50/50 p-3 rounded-xl border border-gray-100">
-                            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700 flex-shrink-0">
-                              {r.user_name[0]}
-                            </div>
+                            {r.user_id ? (
+                              <Link to={`/volunteer/${r.user_id}`} className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700 flex-shrink-0 hover:opacity-80 transition-opacity">
+                                {r.user_name[0]}
+                              </Link>
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700 flex-shrink-0">
+                                {r.user_name[0]}
+                              </div>
+                            )}
                             <div>
                               <div className="flex items-center gap-2">
-                                <p className="text-xs font-bold text-gray-800">{r.user_name}</p>
+                                {r.user_id ? (
+                                  <Link to={`/volunteer/${r.user_id}`} className="text-xs font-bold text-gray-800 hover:text-emerald-700 transition-colors">
+                                    {r.user_name}
+                                  </Link>
+                                ) : (
+                                  <p className="text-xs font-bold text-gray-800">{r.user_name}</p>
+                                )}
                                 <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">
                                   Participó
                                 </span>
@@ -470,14 +482,30 @@ export function ProjectDetails() {
                     )}
                     {project.comments.map(c => (
                       <div key={c.id} className="flex gap-2">
-                        {c.user_avatar ? (
-                          <img src={c.user_avatar} alt={c.user_name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+                        {c.user_id ? (
+                          <Link to={`/volunteer/${c.user_id}`} className="hover:opacity-80 transition-opacity flex-shrink-0">
+                            {c.user_avatar ? (
+                              <img src={c.user_avatar} alt={c.user_name} className="w-7 h-7 rounded-full object-cover" />
+                            ) : (
+                              <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600">{c.user_name[0]}</div>
+                            )}
+                          </Link>
                         ) : (
-                          <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 flex-shrink-0">{c.user_name[0]}</div>
+                          c.user_avatar ? (
+                            <img src={c.user_avatar} alt={c.user_name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+                          ) : (
+                            <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 flex-shrink-0">{c.user_name[0]}</div>
+                          )
                         )}
                         <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-3 py-2 flex-1">
                           <div className="flex items-center gap-1.5">
-                            <p className="text-xs font-bold text-gray-700">{c.user_name}</p>
+                            {c.user_id ? (
+                              <Link to={`/volunteer/${c.user_id}`} className="text-xs font-bold text-gray-700 hover:text-emerald-700 transition-colors">
+                                {c.user_name}
+                              </Link>
+                            ) : (
+                              <p className="text-xs font-bold text-gray-700">{c.user_name}</p>
+                            )}
                             {Boolean(c.is_participant) && (
                               <span className="px-1.5 py-0.5 bg-[#e4f1e0] text-[#255f24] text-[10px] font-bold rounded">
                                 Participó

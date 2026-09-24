@@ -31,6 +31,10 @@ function fmt(p) {
     duration:           p.duracion     || null,
     roles_needed:       parseJson(p.roles_json),
     requirements:       parseJson(p.requisitos_json),
+    followers:          p.followers != null ? Number(p.followers) : 0,
+    ngo_followers:      p.ngo_followers != null ? Number(p.ngo_followers) : 0,
+    avg_rating:         p.avg_rating != null && Number(p.avg_rating) > 0 ? Number(Number(p.avg_rating).toFixed(1)) : null,
+    ratings_count:      p.ratings_count != null ? Number(p.ratings_count) : 0,
   };
 }
 
@@ -53,8 +57,25 @@ function validateProject(body) {
 // ── GET /api/projects ─────────────────────────────────────────────────────
 router.get('/', optionalAuth, async (req, res) => {
   try {
-    const { category, type, status, search, modality, modalidad, limit = 20, offset = 0 } = req.query;
+    const { category, type, status, search, modality, modalidad, sort = 'featured', limit = 20, offset = 0 } = req.query;
     const modFilter = modality || modalidad;
+
+    let orderSql;
+    if (sort === 'recent') {
+      orderSql = 'p.created_at DESC';
+    } else if (sort === 'rating') {
+      orderSql = 'COALESCE(r.avg_rating, 0) DESC, COALESCE(r.ratings_count, 0) DESC, p.created_at DESC';
+    } else {
+      // sort === 'featured' (por defecto): score ponderado por estado activo, participantes, rating y followers
+      // Prioridad máxima a los seguidores del voluntariado específico (p.followers * 8) + respaldo secundario por seguidores de la ONG (n.followers * 0.005)
+      orderSql = `(
+        CASE WHEN p.status = 'active' THEN 20 ELSE 0 END
+        + (COALESCE(p.cupos_ocupados, 0) * 4)
+        + (COALESCE(r.avg_rating, 0) * (CASE WHEN COALESCE(r.ratings_count, 0) >= 4 THEN 16 WHEN COALESCE(r.ratings_count, 0) >= 2 THEN 10 WHEN COALESCE(r.ratings_count, 0) >= 1 THEN 5 ELSE 0 END))
+        + (COALESCE(p.followers, 0) * 8)
+        + (CASE WHEN COALESCE(n.followers, 0) > 0 THEN (COALESCE(n.followers, 0) * 0.005) ELSE 0 END)
+      ) DESC, p.created_at DESC`;
+    }
 
     // Roles como JSON agregado compatible con SQLite y PostgreSQL
     const rolesAgg = db.type === 'postgres'
@@ -70,13 +91,21 @@ router.get('/', optionalAuth, async (req, res) => {
         p.*,
         n.nombre    AS ngo_name,
         n.foto_perfil AS ngo_logo,
+        COALESCE(n.followers, 0) AS ngo_followers,
         c.nombre    AS category_name,
+        COALESCE(r.avg_rating, 0) AS avg_rating,
+        COALESCE(r.ratings_count, 0) AS ratings_count,
         ${rolesAgg},
         ${reqAgg}
       FROM projects p
       JOIN ngos n ON n.id = p.ngo_id
       LEFT JOIN project_categorias pc ON pc.project_id = p.id
       LEFT JOIN categorias c ON c.id = pc.categoria_id
+      LEFT JOIN (
+        SELECT project_id, AVG(rating) AS avg_rating, COUNT(*) AS ratings_count
+        FROM ratings
+        GROUP BY project_id
+      ) r ON r.project_id = p.id
       LEFT JOIN project_roles pr ON pr.project_id = p.id
       LEFT JOIN roles ro ON ro.id = pr.rol_id
       LEFT JOIN requisitos req ON req.project_id = p.id
@@ -110,8 +139,8 @@ router.get('/', optionalAuth, async (req, res) => {
       params.push(q, q, q, q, q); i += 5;
     }
 
-    sql += ` GROUP BY p.id, n.nombre, n.foto_perfil, c.nombre`;
-    sql += ` ORDER BY p.created_at DESC LIMIT $${i++} OFFSET $${i++}`;
+    sql += ` GROUP BY p.id, n.nombre, n.foto_perfil, n.followers, c.nombre, r.avg_rating, r.ratings_count`;
+    sql += ` ORDER BY ${orderSql} LIMIT $${i++} OFFSET $${i++}`;
     params.push(parseInt(limit), parseInt(offset));
 
     // SQLite no soporta JOINs con aggregation igual que PG → fallback simple
@@ -123,9 +152,17 @@ router.get('/', optionalAuth, async (req, res) => {
       // SQLite: query simple sin agregación, roles y requisitos se cargan aparte
       let simpleSql = `
         SELECT p.*, n.nombre AS ngo_name, n.foto_perfil AS ngo_logo,
-               '[]' AS roles_json, '[]' AS requisitos_json, NULL AS category_name
+               COALESCE(n.followers, 0) AS ngo_followers,
+               '[]' AS roles_json, '[]' AS requisitos_json, NULL AS category_name,
+               COALESCE(r.avg_rating, 0) AS avg_rating,
+               COALESCE(r.ratings_count, 0) AS ratings_count
         FROM projects p
         JOIN ngos n ON n.id = p.ngo_id
+        LEFT JOIN (
+          SELECT project_id, AVG(rating) AS avg_rating, COUNT(*) AS ratings_count
+          FROM ratings
+          GROUP BY project_id
+        ) r ON r.project_id = p.id
         WHERE 1=1
       `;
       const simpleParams = [];
@@ -151,7 +188,7 @@ router.get('/', optionalAuth, async (req, res) => {
         simpleSql += ` AND (p.titulo LIKE $${si} OR p.descripcion LIKE $${si+1} OR n.nombre LIKE $${si+2} OR p.ubicacion LIKE $${si+3})`;
         simpleParams.push(q, q, q, q); si += 4;
       }
-      simpleSql += ` ORDER BY p.created_at DESC LIMIT $${si++} OFFSET $${si++}`;
+      simpleSql += ` ORDER BY ${orderSql} LIMIT $${si++} OFFSET $${si++}`;
       simpleParams.push(parseInt(limit), parseInt(offset));
       rows = await db.all(simpleSql, simpleParams);
 
@@ -189,47 +226,63 @@ router.get('/', optionalAuth, async (req, res) => {
 });
 
 // ── GET /api/projects/recommended ─────────────────────────────────────────
-// Recomendación basada en reglas (sin ML/IA), usando datos que ya existen en
-// la plataforma: categorías de proyectos a los que el voluntario ya se
-// inscribió, su ubicación de perfil, y señales simples de urgencia/novedad.
+// Recomendación basada en reglas (sin ML/IA), usando 8 señales disponibles
+// en la plataforma para un scoring de 0-100 puntos explicable y portable.
+//
+// Señales: afinidad temática (30pts), match de habilidades (20pts),
+// afinidad con ONG (15pts), actividad social (15pts), proximidad
+// geográfica (10pts), urgencia de cupos (8pts), novedad (7pts),
+// popularidad/rating (5pts), momentum (5pts).
 //
 // IMPORTANTE: esta ruta tiene que estar declarada ANTES de GET /:id — si
 // fuera después, Express interpretaría "recommended" como si fuera el
 // parámetro :id y esta ruta nunca se alcanzaría.
+
+// Mapping de habilidades de voluntario → roles de proyecto compatibles
+const SKILL_TO_ROLE = {
+  'programación':       ['Programador'],
+  'fotografía':         ['Fotógrafo'],
+  'enseñanza':          ['Educador'],
+  'cocina':             ['Cocinero'],
+  'conducción':         ['Conductor'],
+  'primeros auxilios':  ['Médico / Enfermero'],
+  'comunicación':       ['Comunicador'],
+  'redes sociales':     ['Comunicador'],
+  'electricidad':       ['Técnico'],
+  'carpintería':        ['Técnico'],
+  'diseño gráfico':     ['Comunicador'],
+  'administración':     ['Coordinador'],
+  'idiomas':            ['Educador'],
+};
+
 router.get('/recommended', requireAuth, requireRole('volunteer'), async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 10, 30);
 
-    // 1) Historial del voluntario: en qué categorías ya mostró interés
-    //    (contamos cualquier inscripción, no solo las aprobadas — inscribirse
-    //    ya es una señal de interés, independientemente del resultado).
+    // ── 1) Historial del voluntario: categorías de interés ────────────
     const myEnrolledProjectIds = await db.all(
       'SELECT project_id FROM enrollments WHERE user_id=$1',
       [req.user.id]
     );
     const enrolledIds = myEnrolledProjectIds.map(r => r.project_id);
 
-    const categoryFreq = {}; // categoria_id -> cuántos proyectos inscriptos la tienen
+    const categoryFreq = {};
     if (enrolledIds.length) {
-      const placeholders = enrolledIds.map((_, i) => `$${i + 1}`).join(',');
+      const ph = enrolledIds.map((_, i) => `$${i + 1}`).join(',');
       const catRows = await db.all(
-        `SELECT categoria_id FROM project_categorias WHERE project_id IN (${placeholders})`,
+        `SELECT categoria_id FROM project_categorias WHERE project_id IN (${ph})`,
         enrolledIds
       );
       for (const { categoria_id } of catRows) {
         categoryFreq[categoria_id] = (categoryFreq[categoria_id] || 0) + 1;
       }
     }
-    const hasHistory = Object.keys(categoryFreq).length > 0;
 
-    // 2) Ubicación del perfil del voluntario (si la cargó). OJO: se lee de
-    //    users.location, no de voluntarios.ubicacion — esa segunda columna
-    //    existe en el esquema pero ningún endpoint la actualiza hoy
-    //    (VolunteerProfile.tsx / PUT /api/auth/me solo tocan users.location).
+    // ── 2) Ubicación del voluntario ───────────────────────────────────
     const userRow = await db.get('SELECT location FROM users WHERE id=$1', [req.user.id]);
     const myLocation = userRow?.location?.trim().toLowerCase() || null;
 
-    // 2b) ONGs seguidas directamente y ONGs de proyectos seguidos
+    // ── 3) ONGs seguidas (directas + indirectas vía project_follows) ──
     const [followedNgos, followedProjectNgos] = await Promise.all([
       db.all('SELECT ngo_id FROM ngo_follows WHERE user_id=$1', [req.user.id]),
       db.all(
@@ -239,16 +292,40 @@ router.get('/recommended', requireAuth, requireRole('volunteer'), async (req, re
         [req.user.id]
       ),
     ]);
+    const followedNgoSet = new Set(followedNgos.map(r => r.ngo_id));
     const interestedNgoIds = new Set([
-      ...followedNgos.map(r => r.ngo_id),
+      ...followedNgoSet,
       ...followedProjectNgos.map(r => r.ngo_id),
     ]);
 
-    // 3) Candidatos: proyectos activos, con cupo disponible, en los que el
-    //    voluntario todavía no se inscribió. Traemos un pool razonable (100)
-    //    y rankeamos en JS — para el volumen de datos de esta plataforma es
-    //    más simple y portable (SQLite/Postgres) que tratar de expresar el
-    //    scoring completo en SQL.
+    // ── 4) Habilidades del voluntario → roles compatibles ─────────────
+    const mySkillRows = await db.all(
+      `SELECT h.nombre FROM voluntario_habilidades vh
+       JOIN habilidades h ON h.id = vh.habilidad_id
+       WHERE vh.user_id = $1`,
+      [req.user.id]
+    );
+    const myCompatibleRoles = new Set();
+    for (const { nombre } of mySkillRows) {
+      const mapped = SKILL_TO_ROLE[nombre.toLowerCase()];
+      if (mapped) mapped.forEach(r => myCompatibleRoles.add(r));
+    }
+
+    // ── 4b) Voluntarios que sigo (para señal social) ──────────────────
+    const myFollowingRows = await db.all(
+      'SELECT following_id FROM volunteer_follows WHERE follower_id=$1',
+      [req.user.id]
+    );
+    const myFollowingIds = myFollowingRows.map(r => r.following_id);
+
+    // ── 4c) Detectar historial y cold start ──────────────────────────
+    const hasHistory = Object.keys(categoryFreq).length > 0;
+    const hasFollows = interestedNgoIds.size > 0;
+    const hasSkills  = myCompatibleRoles.size > 0;
+    const hasSocial  = myFollowingIds.length > 0;
+    const isColdStart = !hasHistory && !hasFollows && !hasSkills && !hasSocial;
+
+    // ── 5) Pool de candidatos (activos, con cupo, no inscripto) ───────
     let sql = `
       SELECT p.*, n.nombre AS ngo_name, n.foto_perfil AS ngo_logo
       FROM projects p
@@ -257,84 +334,246 @@ router.get('/recommended', requireAuth, requireRole('volunteer'), async (req, re
     `;
     const params = [];
     if (enrolledIds.length) {
-      const placeholders = enrolledIds.map((_, i) => `$${i + 1}`).join(',');
-      sql += ` AND p.id NOT IN (${placeholders})`;
+      const ph = enrolledIds.map((_, i) => `$${i + 1}`).join(',');
+      sql += ` AND p.id NOT IN (${ph})`;
       params.push(...enrolledIds);
     }
     sql += ` ORDER BY p.created_at DESC LIMIT 100`;
     const candidates = await db.all(sql, params);
 
-    // 4) Categorías de cada candidato (puede haber más de una por proyecto)
+    if (!candidates.length) {
+      return res.json({ recommendations: [], based_on_history: hasHistory, is_cold_start: isColdStart });
+    }
+
+    // ── 6) Datos auxiliares en batch (categorías, roles, ratings) ──────
     const candidateIds = candidates.map(c => c.id);
-    const catsByProject = {}; // project_id -> [categoria_id, ...]
-    const catNameById = {};   // categoria_id -> nombre (para mostrar el motivo)
-    if (candidateIds.length) {
-      const placeholders = candidateIds.map((_, i) => `$${i + 1}`).join(',');
-      const rows = await db.all(
+    const ph = candidateIds.map((_, i) => `$${i + 1}`).join(',');
+
+    const [catRows, roleRows, ratingRows] = await Promise.all([
+      db.all(
         `SELECT pc.project_id, pc.categoria_id, c.nombre
          FROM project_categorias pc JOIN categorias c ON c.id = pc.categoria_id
-         WHERE pc.project_id IN (${placeholders})`,
+         WHERE pc.project_id IN (${ph})`,
         candidateIds
+      ),
+      db.all(
+        `SELECT pr.project_id, ro.nombre
+         FROM project_roles pr JOIN roles ro ON ro.id = pr.rol_id
+         WHERE pr.project_id IN (${ph})`,
+        candidateIds
+      ),
+      db.all(
+        `SELECT project_id, AVG(rating) AS avg_rating, COUNT(*) AS count
+         FROM ratings WHERE project_id IN (${ph})
+         GROUP BY project_id`,
+        candidateIds
+      ),
+    ]);
+
+    // ── 6b) Enrollments de seguidos en candidatos (señal social) ───────
+    const socialByProject = {};
+    if (myFollowingIds.length > 0) {
+      const fPh = myFollowingIds.map((_, i) => `$${i + 1}`).join(',');
+      const cPh = candidateIds.map((_, i) => `$${myFollowingIds.length + i + 1}`).join(',');
+      const socialRows = await db.all(
+        `SELECT e.project_id, e.user_id, u.name
+         FROM enrollments e
+         JOIN users u ON u.id = e.user_id
+         WHERE e.user_id IN (${fPh})
+           AND e.status = 'approved'
+           AND e.project_id IN (${cPh})`,
+        [...myFollowingIds, ...candidateIds]
       );
-      for (const r of rows) {
-        (catsByProject[r.project_id] ||= []).push(r.categoria_id);
-        catNameById[r.categoria_id] = r.nombre;
+      for (const r of socialRows) {
+        (socialByProject[r.project_id] ||= []).push(r.name);
       }
     }
 
-    // 5) Scoring — reglas simples y explicables, no una caja negra
+    const catsByProject = {};
+    const catNameById = {};
+    for (const r of catRows) {
+      (catsByProject[r.project_id] ||= []).push(r.categoria_id);
+      catNameById[r.categoria_id] = r.nombre;
+    }
+
+    const rolesByProject = {};
+    for (const r of roleRows) {
+      (rolesByProject[r.project_id] ||= []).push(r.nombre);
+    }
+
+    const ratingByProject = {};
+    for (const r of ratingRows) {
+      ratingByProject[r.project_id] = { avg: parseFloat(r.avg_rating), count: parseInt(r.count) };
+    }
+
+
+    // ── 8) Scoring: 9 señales, máximo ~115 puntos ─────────────────────
     const now = Date.now();
+
     const scored = candidates.map(p => {
       const cats = catsByProject[p.id] || [];
+      const roles = rolesByProject[p.id] || [];
+      const rating = ratingByProject[p.id] || { avg: 0, count: 0 };
       const spotsLeft = (p.cupos || 0) - (p.cupos_ocupados || 0);
-      const daysOld = (now - new Date(p.created_at.replace(' ', 'T') + 'Z').getTime()) / 86400000;
+      const fillRatio = p.cupos > 0 ? (p.cupos_ocupados / p.cupos) : 0;
+      const createdAt = p.created_at?.replace(' ', 'T');
+      const daysOld = (now - new Date(createdAt + (createdAt.includes('Z') ? '' : 'Z')).getTime()) / 86400000;
       const reasons = [];
+      const tags = [];
       let score = 0;
 
+      // ─── Señal 1: Afinidad temática (máx 30) ─────────────────────
       if (hasHistory) {
-        const bestCatMatch = cats.reduce((best, c) => Math.max(best, categoryFreq[c] || 0), 0);
-        if (bestCatMatch > 0) {
-          score += bestCatMatch * 3;
-          const matchedCat = cats.find(c => categoryFreq[c] === bestCatMatch);
+        const bestFreq = cats.reduce((best, c) => Math.max(best, categoryFreq[c] || 0), 0);
+        if (bestFreq >= 3) {
+          score += 30;
+        } else if (bestFreq === 2) {
+          score += 22;
+        } else if (bestFreq === 1) {
+          score += 15;
+        }
+        if (bestFreq > 0) {
+          const matchedCat = cats.find(c => categoryFreq[c] === bestFreq);
           reasons.push(`Coincide con tu interés en "${catNameById[matchedCat] || 'esta categoría'}"`);
+          tags.push(`💚 ${catNameById[matchedCat]}`);
         }
       }
 
-      if (myLocation && p.ubicacion?.trim().toLowerCase() === myLocation) {
-        score += 2;
-        reasons.push(`Cerca tuyo, en ${p.ubicacion}`);
+      // ─── Señal 2: Match de habilidades (máx 20) ──────────────────
+      if (hasSkills && roles.length > 0) {
+        const matchedRoles = roles.filter(r => myCompatibleRoles.has(r));
+        if (matchedRoles.length >= 2) {
+          score += 20;
+          reasons.push(`Busca tus habilidades: ${matchedRoles.join(', ')}`);
+          tags.push('🎯 Match de habilidades');
+        } else if (matchedRoles.length === 1) {
+          score += 14;
+          reasons.push(`Busca tu habilidad: ${matchedRoles[0]}`);
+          tags.push('🎯 Match de habilidades');
+        }
       }
 
-      if (daysOld < 7) {
-        score += hasHistory ? 1 : 2; // sin historial, la novedad pesa más
+      // ─── Señal 3: Afinidad con ONG (máx 15) ──────────────────────
+      if (followedNgoSet.has(p.ngo_id)) {
+        score += 15;
+        reasons.push(`De ${p.ngo_name}, una ONG que seguís`);
+        tags.push(`❤️ ${p.ngo_name}`);
+      } else if (interestedNgoIds.has(p.ngo_id)) {
+        score += 10;
+        reasons.push(`De ${p.ngo_name}, que te podría interesar`);
+      }
+
+      // ─── Señal 4: Proximidad geográfica (máx 10) ─────────────────
+      if (myLocation) {
+        const projLoc = p.ubicacion?.trim().toLowerCase() || '';
+        const isRemote = p.modalidad === 'remoto' || projLoc.includes('remoto') || projLoc.includes('virtual');
+        if (projLoc === myLocation) {
+          score += 10;
+          reasons.push(`En tu zona: ${p.ubicacion}`);
+          tags.push('📍 Cerca tuyo');
+        } else if (myLocation.split(',')[0] && projLoc.includes(myLocation.split(',')[0].trim())) {
+          score += 6;
+          reasons.push(`Cerca tuyo, en ${p.ubicacion}`);
+        } else if (isRemote) {
+          score += 4;
+          reasons.push('Disponible en remoto');
+          tags.push('💻 Remoto');
+        }
+      }
+
+      // ─── Señal 5: Urgencia de cupos (máx 8) ──────────────────────
+      const urgencyMultiplier = isColdStart ? 2 : 1;
+      if (fillRatio >= 0.90) {
+        score += 8 * urgencyMultiplier;
+        reasons.push(`¡Últimos ${spotsLeft} cupo${spotsLeft === 1 ? '' : 's'}!`);
+        tags.push('🔥 Últimos cupos');
+      } else if (fillRatio >= 0.75) {
+        score += 5 * urgencyMultiplier;
+        reasons.push('Cupos limitados');
+        tags.push('⏳ Cupos limitados');
+      } else if (fillRatio >= 0.50) {
+        score += 2 * urgencyMultiplier;
+      }
+
+      // ─── Señal 6: Novedad (máx 7) ────────────────────────────────
+      const noveltyMultiplier = isColdStart ? 2 : 1;
+      if (daysOld <= 3) {
+        score += 7 * noveltyMultiplier;
+        reasons.push('Recién publicado');
+        tags.push('✨ Nuevo');
+      } else if (daysOld <= 7) {
+        score += 5 * noveltyMultiplier;
         reasons.push('Publicado hace poco');
+        tags.push('🆕 Reciente');
+      } else if (daysOld <= 14) {
+        score += 2 * noveltyMultiplier;
       }
 
-      if (spotsLeft > 0 && spotsLeft <= 3) {
-        score += 1;
-        reasons.push(`Últimos ${spotsLeft} cupo${spotsLeft === 1 ? '' : 's'}`);
+      // ─── Señal 7: Popularidad por rating (máx 5) ─────────────────
+      const ratingMultiplier = isColdStart ? 3 : 1;
+      if (rating.avg >= 4.5 && rating.count >= 3) {
+        score += 5 * ratingMultiplier;
+        reasons.push(`⭐ ${rating.avg.toFixed(1)}/5 (${rating.count} reseñas)`);
+        tags.push('⭐ Bien valorado');
+      } else if (rating.avg >= 4.0 && rating.count >= 2) {
+        score += 3 * ratingMultiplier;
+        reasons.push(`⭐ ${rating.avg.toFixed(1)}/5 (${rating.count} reseñas)`);
+      } else if (rating.avg >= 3.5 && rating.count >= 1) {
+        score += 1 * ratingMultiplier;
       }
 
-      if (reasons.length === 0) reasons.push('Podría interesarte');
-
-      // Boost si el proyecto es de una ONG que sigue o de la cual sigue algún voluntariado
-      if (interestedNgoIds.has(p.ngo_id)) {
+      // ─── Señal 8: Momentum / followers (máx 5) ───────────────────
+      const followers = p.followers || 0;
+      if (followers >= 20) {
+        score += 5;
+        reasons.push(`${followers} personas siguen este proyecto`);
+        tags.push('🚀 Popular');
+      } else if (followers >= 10) {
         score += 3;
-        reasons.unshift(`De una ONG que seguís o te interesa (${p.ngo_name})`);
+        reasons.push(`${followers} seguidores`);
+      } else if (followers >= 5) {
+        score += 1;
       }
 
-      return { project: p, score, reasons };
+      // ─── Señal 9: Actividad social / contactos que participan (máx 15) ─
+      const socialNames = socialByProject[p.id] || [];
+      if (socialNames.length >= 3) {
+        const socialMultiplier = isColdStart ? 1.5 : 1;
+        score += Math.round(15 * socialMultiplier);
+        reasons.push(`${socialNames.length} personas que seguís participan acá`);
+        tags.push('👥 Tus contactos participan');
+      } else if (socialNames.length === 2) {
+        const socialMultiplier = isColdStart ? 1.5 : 1;
+        score += Math.round(10 * socialMultiplier);
+        reasons.push(`${socialNames[0]} y ${socialNames[1]} participan acá`);
+        tags.push('👥 Tus contactos participan');
+      } else if (socialNames.length === 1) {
+        const socialMultiplier = isColdStart ? 1.5 : 1;
+        score += Math.round(6 * socialMultiplier);
+        reasons.push(`${socialNames[0]} participa acá`);
+        tags.push('👥 Un contacto participa');
+      }
+
+      // ─── Fallback ────────────────────────────────────────────────
+      if (reasons.length === 0) {
+        reasons.push('Podría interesarte');
+        if (isColdStart) tags.push('🌟 Destacado');
+      }
+
+      return { project: p, score, reasons, tags };
     });
 
+    // ── 9) Ordenar y limitar ──────────────────────────────────────────
     scored.sort((a, b) => b.score - a.score || new Date(b.project.created_at) - new Date(a.project.created_at));
 
-    const top = scored.slice(0, limit).map(({ project, score, reasons }) => ({
+    const top = scored.slice(0, limit).map(({ project, score, reasons, tags }) => ({
       ...fmt({ ...project, category_name: catNameById[(catsByProject[project.id] || [])[0]] || '' }),
       recommendation_score: score,
       recommendation_reasons: reasons,
+      recommendation_tags: tags,
     }));
 
-    res.json({ recommendations: top, based_on_history: hasHistory });
+    res.json({ recommendations: top, based_on_history: hasHistory, is_cold_start: isColdStart });
   } catch (err) {
     console.error('GET /projects/recommended error:', err);
     res.status(500).json({ error: 'Error al generar recomendaciones' });

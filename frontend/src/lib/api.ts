@@ -105,6 +105,8 @@ export const api = {
           method: 'PUT', body: JSON.stringify({ habilidades }),
         }),
     },
+    getProfile: (userId: string) =>
+      req<VolunteerProfileData>(`/voluntarios/${userId}`),
   },
   catalog: {
     habilidades: () => req<{ habilidades: SkillCatalogItem[] }>('/habilidades'),
@@ -142,6 +144,16 @@ export const api = {
 
     feed: (limit?: number, offset?: number) =>
       req<{ projects: FeedProject[]; total: number }>(`/follows/feed?limit=${limit || 20}&offset=${offset || 0}`),
+
+    followVolunteer: (userId: string) =>
+      req<{ following: boolean; followers: number; message: string }>(`/follows/volunteer/${userId}`, { method: 'POST' }),
+    unfollowVolunteer: (userId: string) =>
+      req<{ following: boolean; followers: number; message: string }>(`/follows/volunteer/${userId}`, { method: 'DELETE' }),
+    myFollowing: () => req<{ volunteers: VolunteerPublic[] }>('/follows/volunteer/following'),
+    myFollowers: () => req<{ volunteers: VolunteerPublic[] }>('/follows/volunteer/followers'),
+    volunteerFollowStatus: (userId: string) => req<{ following: boolean }>(`/follows/volunteer/${userId}/status`),
+    volunteerFollowers: (userId: string) => req<{ volunteers: VolunteerPublic[] }>(`/follows/volunteer/${userId}/followers`),
+    volunteerFollowing: (userId: string) => req<{ volunteers: VolunteerPublic[] }>(`/follows/volunteer/${userId}/following`),
   },
 };
 
@@ -160,10 +172,11 @@ export interface Project {
   current_volunteers: number; funding_goal: number; current_funding: number;
   cost_per_person: number; hours_per_week?: number;
   roles_needed: string[]; requirements?: string[];
-  followers: number; ngo_name?: string; ngo_logo?: string; created_at?: string;
+  followers: number; ngo_name?: string; ngo_logo?: string; ngo_followers?: number; created_at?: string;
   latitude?: number | null; longitude?: number | null;
   modality?: 'presencial' | 'remoto' | 'hibrido';
   recommendation_score?: number; recommendation_reasons?: string[];
+  avg_rating?: number | null; ratings_count?: number;
 }
 export interface FeedProject extends Project {
   avg_rating?: number;
@@ -263,4 +276,31 @@ export interface Rating {
 export interface AppNotification {
   id: string; type: string; title: string;
   body?: string; read: boolean | number; created_at: string;
+}
+
+export interface VolunteerPublic {
+  user_id: string; name: string; avatar?: string; bio?: string;
+  location?: string; nombre?: string; apellido?: string;
+  foto_perfil?: string; ubicacion?: string; followers: number;
+}
+
+export interface VolunteerProfileVolunteer {
+  id: string; name: string; avatar?: string; bio?: string;
+  location?: string; nombre?: string; apellido?: string;
+  foto_perfil?: string; banner?: string; descripcion?: string;
+  followers: number; following_count: number; created_at?: string;
+}
+
+export interface VolunteerParticipation {
+  enrollment_id: string; status: string; horas_realizadas: number;
+  project_id: string; titulo: string; project_image?: string;
+  project_status: string; ubicacion: string; tipo: string;
+  ngo_name: string; ngo_logo?: string;
+}
+
+export interface VolunteerProfileData {
+  volunteer: VolunteerProfileVolunteer;
+  habilidades: VolunteerSkill[];
+  stats: { total_enrollments: number; approved_enrollments: number; total_horas: number };
+  participaciones: VolunteerParticipation[];
 }

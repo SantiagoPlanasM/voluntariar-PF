@@ -164,4 +164,96 @@ describe('Sistema de Seguimiento y Feed Personalizado', () => {
     assert.ok(posted);
     assert.equal(posted.is_participant, 1);
   });
+
+  test('Seguimiento entre voluntarios: follow, unfollow, status y listado', async () => {
+    // Login con María y Juan
+    const mariaRes = await api('/api/auth/login', {
+      method: 'POST',
+      body: { email: 'maria@example.com', password: 'Password1' },
+    });
+    const mariaToken = mariaRes.body.token;
+    const mariaId = mariaRes.body.user.id;
+
+    const juanRes = await api('/api/auth/login', {
+      method: 'POST',
+      body: { email: 'juan@example.com', password: 'Password1' },
+    });
+    const juanToken = juanRes.body.token;
+    const juanId = juanRes.body.user.id;
+
+    // 1) En seed data, María ya sigue a Juan
+    const st1 = await api(`/api/follows/volunteer/${juanId}/status`, { token: mariaToken });
+    assert.equal(st1.status, 200);
+    assert.equal(st1.body.following, true);
+
+    // 2) María consulta a quién sigue (GET /api/follows/volunteer/following)
+    const followingRes = await api('/api/follows/volunteer/following', { token: mariaToken });
+    assert.equal(followingRes.status, 200);
+    assert.ok(followingRes.body.volunteers.some(v => v.user_id === juanId));
+
+    // 3) Juan consulta sus seguidores (GET /api/follows/volunteer/followers)
+    const followersRes = await api('/api/follows/volunteer/followers', { token: juanToken });
+    assert.equal(followersRes.status, 200);
+    assert.ok(followersRes.body.volunteers.some(v => v.user_id === mariaId));
+
+    // 4) María deja de seguir a Juan
+    const unfol = await api(`/api/follows/volunteer/${juanId}`, { token: mariaToken, method: 'DELETE' });
+    assert.equal(unfol.status, 200);
+    assert.equal(unfol.body.following, false);
+
+    const st2 = await api(`/api/follows/volunteer/${juanId}/status`, { token: mariaToken });
+    assert.equal(st2.body.following, false);
+
+    // 5) María vuelve a seguir a Juan
+    const fol = await api(`/api/follows/volunteer/${juanId}`, { token: mariaToken, method: 'POST' });
+    assert.equal(fol.status, 200);
+    assert.equal(fol.body.following, true);
+    assert.ok(fol.body.followers >= 1);
+  });
+
+  test('Validaciones de follow: no puede seguirse a sí mismo y solo voluntarios pueden seguir', async () => {
+    // 1) Voluntario intenta seguirse a sí mismo -> 400
+    const selfRes = await api(`/api/follows/volunteer/${volunteerId}`, {
+      token: volunteerToken,
+      method: 'POST',
+    });
+    assert.equal(selfRes.status, 400);
+    assert.match(selfRes.body.error, /mismo/i);
+
+    // 2) ONG intenta seguir a un voluntario -> 403
+    const ngoLogin = await api('/api/auth/login', {
+      method: 'POST',
+      body: { email: 'admin@sustentando.org', password: 'Password1' },
+    });
+    const ngoRes = await api(`/api/follows/volunteer/${volunteerId}`, {
+      token: ngoLogin.body.token,
+      method: 'POST',
+    });
+    assert.equal(ngoRes.status, 403);
+  });
+
+  test('Señal social en recomendaciones: contactos que participan en un voluntariado', async () => {
+    // María sigue a Juan (seed data). Juan tiene enrollment aprobado en proj-3 y proj-8.
+    const mariaRes = await api('/api/auth/login', {
+      method: 'POST',
+      body: { email: 'maria@example.com', password: 'Password1' },
+    });
+    const mariaToken = mariaRes.body.token;
+
+    const recs = await api('/api/projects/recommended', { token: mariaToken });
+    assert.equal(recs.status, 200);
+    assert.ok(recs.body.recommendations.length > 0);
+
+    // proj-3 o proj-8 deben tener la señal social
+    const socialProject = recs.body.recommendations.find(p => p.id === 'proj-3' || p.id === 'proj-8');
+    assert.ok(socialProject, 'proj-3 o proj-8 debe estar en recomendaciones de María');
+    assert.ok(
+      socialProject.recommendation_tags.some(t => t.includes('contacto') || t.includes('contactos')),
+      'Debe incluir tag de contacto participando'
+    );
+    assert.ok(
+      socialProject.recommendation_reasons.some(r => r.includes('participa acá')),
+      'Debe incluir razón explicando que su contacto participa acá'
+    );
+  });
 });

@@ -402,18 +402,20 @@ export function FeedPostCard({ project, onRefresh }: FeedPostCardProps) {
                       className="bg-gray-50 rounded-2xl p-3 border border-gray-100 text-xs space-y-1"
                     >
                       <div className="flex items-center gap-2">
-                        {c.user_avatar ? (
-                          <img
-                            src={c.user_avatar}
-                            alt={c.user_name}
-                            className="w-6 h-6 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-6 h-6 rounded-full bg-gray-200 text-gray-700 font-bold flex items-center justify-center text-[10px]">
-                            {c.user_name?.[0] || 'U'}
-                          </div>
-                        )}
-                        <span className="font-bold text-gray-900">{c.user_name}</span>
+                        <Link to={`/volunteer/${c.user_id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                          {c.user_avatar ? (
+                            <img
+                              src={c.user_avatar}
+                              alt={c.user_name}
+                              className="w-6 h-6 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-gray-200 text-gray-700 font-bold flex items-center justify-center text-[10px]">
+                              {c.user_name?.[0] || 'U'}
+                            </div>
+                          )}
+                          <span className="font-bold text-gray-900 hover:text-emerald-700 transition-colors">{c.user_name}</span>
+                        </Link>
                         {Boolean(c.is_participant) && (
                           <span className="px-2 py-0.5 bg-[#e4f1e0] text-[#255f24] text-[10px] font-bold rounded-md tracking-wide">
                             Participó

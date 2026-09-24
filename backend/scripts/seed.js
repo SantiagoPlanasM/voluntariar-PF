@@ -115,7 +115,7 @@ async function seed() {
       latitud: -31.4287, longitud: -64.1756,
       duracion: '2 días (sábado y domingo)', cupos: 50, cupos_ocupados: 23,
       meta_financiera: 15000, recaudado: 8500, costo: 0,
-      categoria: 'Medio Ambiente',
+      categoria: 'Medio Ambiente', followers: 38,
       roles: ['Coordinador', 'Voluntario general', 'Fotógrafo'],
       requisitos: ['Ropa cómoda y cerrada', 'Disponibilidad el fin de semana', 'Traer hidratación'],
     },
@@ -129,7 +129,7 @@ async function seed() {
       latitud: -31.4050, longitud: -64.1800,
       duracion: '1 día (8hs a 16hs)', cupos: 80, cupos_ocupados: 67,
       meta_financiera: 8000, recaudado: 5600, costo: 0,
-      categoria: 'Medio Ambiente',
+      categoria: 'Medio Ambiente', followers: 24,
       roles: ['Voluntario general', 'Comunicador'],
       requisitos: ['Ropa que pueda ensuciarse', 'Protector solar'],
     },
@@ -143,7 +143,7 @@ async function seed() {
       latitud: -31.4110, longitud: -64.1920,
       duracion: '1 día (7hs a 15hs)', cupos: 60, cupos_ocupados: 34,
       meta_financiera: 5000, recaudado: 4200, costo: 0,
-      categoria: 'Alimentación',
+      categoria: 'Alimentación', followers: 45,
       roles: ['Voluntario general', 'Conductor'],
       requisitos: ['Fuerza física para carga', 'Puntualidad'],
     },
@@ -157,7 +157,7 @@ async function seed() {
       latitud: -31.3414, longitud: -64.2505,
       duracion: '48 horas (viernes a domingo)', cupos: 40, cupos_ocupados: 28,
       meta_financiera: 20000, recaudado: 14000, costo: 0,
-      categoria: 'Tecnología',
+      categoria: 'Tecnología', followers: 31,
       roles: ['Programador', 'Técnico'],
       requisitos: ['Laptop propia', 'Disponibilidad completa'],
     },
@@ -171,7 +171,7 @@ async function seed() {
       latitud: -31.4167, longitud: -64.1833,
       duracion: '1 día (4 horas)', cupos: 30, cupos_ocupados: 12,
       meta_financiera: 3000, recaudado: 1800, costo: 0,
-      categoria: 'Medio Ambiente',
+      categoria: 'Medio Ambiente', followers: 9,
       roles: ['Voluntario general', 'Fotógrafo'],
       requisitos: ['Smartphone con batería cargada', 'Calzado cómodo'],
     },
@@ -185,7 +185,7 @@ async function seed() {
       latitud: -31.4250, longitud: -64.1480,
       duracion: '1 día (8hs a 20hs)', cupos: 35, cupos_ocupados: 20,
       meta_financiera: 18000, recaudado: 9500, costo: 0,
-      categoria: 'Alimentación',
+      categoria: 'Alimentación', followers: 18,
       roles: ['Cocinero', 'Voluntario general', 'Coordinador'],
       requisitos: ['Disponibilidad 24 de diciembre', 'Buena predisposición'],
     },
@@ -199,7 +199,7 @@ async function seed() {
       latitud: -31.4255, longitud: -64.1915,
       horas_semanales: 4, cupos: 20, cupos_ocupados: 8,
       meta_financiera: 25000, recaudado: 12000, costo: 0,
-      categoria: 'Alimentación',
+      categoria: 'Alimentación', followers: 15,
       roles: ['Educador', 'Voluntario general'],
       requisitos: ['Compromiso mínimo 3 meses', 'Disponibilidad los sábados'],
     },
@@ -213,7 +213,7 @@ async function seed() {
       latitud: -31.4200, longitud: -64.1850,
       horas_semanales: 6, cupos: 15, cupos_ocupados: 5,
       meta_financiera: 10000, recaudado: 3000, costo: 0,
-      categoria: 'Educación',
+      categoria: 'Educación', followers: 11,
       roles: ['Educador', 'Comunicador'],
       requisitos: ['Disponibilidad en horario escolar', 'Compromiso mínimo 4 meses'],
     },
@@ -227,7 +227,7 @@ async function seed() {
       latitud: -31.3700, longitud: -64.1600,
       horas_semanales: 5, cupos: 12, cupos_ocupados: 7,
       meta_financiera: 30000, recaudado: 18000, costo: 0,
-      categoria: 'Tecnología',
+      categoria: 'Tecnología', followers: 14,
       roles: ['Programador', 'Educador'],
       requisitos: ['Conocimientos de programación', 'Compromiso mínimo 6 meses'],
     },
@@ -241,7 +241,7 @@ async function seed() {
       latitud: -31.4450, longitud: -64.1950,
       horas_semanales: 4, cupos: 25, cupos_ocupados: 14,
       meta_financiera: 12000, recaudado: 7800, costo: 0,
-      categoria: 'Educación',
+      categoria: 'Educación', followers: 22,
       roles: ['Educador'],
       requisitos: ['Nivel universitario en curso o completo', 'Disponibilidad martes y jueves'],
     },
@@ -255,7 +255,7 @@ async function seed() {
       latitud: -31.4200, longitud: -64.1888,
       horas_semanales: 3, cupos: 10, cupos_ocupados: 4,
       meta_financiera: 8000, recaudado: 2000, costo: 0,
-      categoria: 'Tecnología',
+      categoria: 'Tecnología', followers: 7,
       roles: ['Técnico', 'Comunicador'],
       requisitos: ['Conocimientos de herramientas digitales', 'Compromiso 4 meses'],
     },
@@ -269,7 +269,7 @@ async function seed() {
       latitud: -31.4170, longitud: -64.1830,
       horas_semanales: 2, cupos: 50, cupos_ocupados: 22,
       meta_financiera: 40000, recaudado: 25000, costo: 0,
-      categoria: 'Medio Ambiente',
+      categoria: 'Medio Ambiente', followers: 13,
       roles: ['Técnico', 'Comunicador', 'Voluntario general'],
       requisitos: ['Acceso a internet en el hogar', 'Tener smartphone', 'Compromiso mínimo 6 meses'],
     },
@@ -281,13 +281,14 @@ async function seed() {
       await db.run(
         `INSERT INTO projects (id, ngo_id, titulo, descripcion, descripcion_full, foto_perfil,
           tipo, status, ubicacion, duracion, cupos, cupos_ocupados, meta_financiera, recaudado,
-          costo, horas_semanales, latitud, longitud, modalidad)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+          costo, horas_semanales, latitud, longitud, modalidad, followers)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
         [p.id, p.ngo_id, p.titulo, p.descripcion, p.descripcion_full, p.foto_perfil,
          p.tipo, p.status, p.ubicacion, p.duracion || null,
          p.cupos, p.cupos_ocupados, p.meta_financiera, p.recaudado, p.costo,
          p.horas_semanales || null, p.latitud || null, p.longitud || null,
-         p.modalidad || (p.ubicacion && (p.ubicacion.toLowerCase().includes('remoto') || p.ubicacion.toLowerCase().includes('virtual')) ? 'remoto' : 'presencial')]
+         p.modalidad || (p.ubicacion && (p.ubicacion.toLowerCase().includes('remoto') || p.ubicacion.toLowerCase().includes('virtual')) ? 'remoto' : 'presencial'),
+         p.followers || 0]
       );
 
       // Categoría
@@ -319,8 +320,8 @@ async function seed() {
       }
     } else {
       await db.run(
-        `UPDATE projects SET latitud = COALESCE(latitud, $1), longitud = COALESCE(longitud, $2) WHERE id=$3`,
-        [p.latitud || null, p.longitud || null, p.id]
+        `UPDATE projects SET latitud = COALESCE(latitud, $1), longitud = COALESCE(longitud, $2), followers = CASE WHEN COALESCE(followers, 0) = 0 THEN $3 ELSE followers END WHERE id=$4`,
+        [p.latitud || null, p.longitud || null, p.followers || 0, p.id]
       );
     }
   }
@@ -351,6 +352,55 @@ async function seed() {
     }
   }
   console.log('  ✅ Inscripciones');
+
+  // ── Follows entre voluntarios ─────────────────────────────────────────────
+  const volFollows = [
+    { follower_id: 'user-vol-1', following_id: 'user-vol-2' }, // María → Juan
+    { follower_id: 'user-vol-2', following_id: 'user-vol-3' }, // Juan → Lucía
+    { follower_id: 'user-vol-3', following_id: 'user-vol-1' }, // Lucía → María
+  ];
+
+  for (const f of volFollows) {
+    const exists = await db.get(
+      'SELECT 1 FROM volunteer_follows WHERE follower_id=$1 AND following_id=$2',
+      [f.follower_id, f.following_id]
+    );
+    if (!exists) {
+      await db.run(
+        'INSERT INTO volunteer_follows (follower_id, following_id) VALUES ($1,$2)',
+        [f.follower_id, f.following_id]
+      );
+      await db.run(
+        'UPDATE voluntarios SET followers = COALESCE(followers, 0) + 1 WHERE user_id = $1',
+        [f.following_id]
+      );
+    }
+  }
+  console.log('  ✅ Follows entre voluntarios');
+
+  // ── Calificaciones de prueba ───────────────────────────────────────────────
+  const sampleRatings = [
+    { project_id: 'proj-1', user_id: 'user-vol-1', rating: 5, comment: 'Excelente experiencia de reforestación en Córdoba. Muy buena organización.' },
+    { project_id: 'proj-1', user_id: 'user-vol-2', rating: 5, comment: 'Increíble grupo humano y gran impacto ecológico en la ciudad.' },
+    { project_id: 'proj-3', user_id: 'user-vol-2', rating: 5, comment: 'El taller fue muy enriquecedor para todos los participantes.' },
+    { project_id: 'proj-4', user_id: 'user-vol-3', rating: 5, comment: 'Hermosa jornada solidaria preparando viandas y meriendas.' },
+    { project_id: 'proj-7', user_id: 'user-vol-1', rating: 4, comment: 'Gran iniciativa comunitaria con la huerta orgánica de barrio Güemes.' },
+    { project_id: 'proj-8', user_id: 'user-vol-2', rating: 5, comment: 'Los chicos de las escuelas aprendieron muchísimo sobre reciclaje.' },
+  ];
+
+  for (const r of sampleRatings) {
+    const exists = await db.get(
+      'SELECT 1 FROM ratings WHERE project_id=$1 AND user_id=$2',
+      [r.project_id, r.user_id]
+    );
+    if (!exists) {
+      await db.run(
+        `INSERT INTO ratings (project_id, user_id, rating, comment) VALUES ($1,$2,$3,$4)`,
+        [r.project_id, r.user_id, r.rating, r.comment]
+      );
+    }
+  }
+  console.log('  ✅ Calificaciones (ratings)');
 
   console.log('\n✅ Seed completado');
   console.log('\n📬 Usuarios de prueba:');

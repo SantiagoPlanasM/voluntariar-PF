@@ -434,4 +434,184 @@ router.get('/feed', requireAuth, requireRole('volunteer'), async (req, res) => {
   }
 });
 
+// ── Voluntarios (follow entre voluntarios) ────────────────────────────────
+
+// POST /api/follows/volunteer/:userId — Seguir a un voluntario
+router.post('/volunteer/:userId', requireAuth, requireRole('volunteer'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (userId === req.user.id) return res.status(400).json({ error: 'No podés seguirte a vos mismo' });
+
+    const target = await db.get('SELECT id, role FROM users WHERE id = $1', [userId]);
+    if (!target || target.role !== 'volunteer') return res.status(404).json({ error: 'Voluntario no encontrado' });
+
+    const existing = await db.get(
+      'SELECT 1 FROM volunteer_follows WHERE follower_id = $1 AND following_id = $2',
+      [req.user.id, userId]
+    );
+
+    if (!existing) {
+      await db.run(
+        'INSERT INTO volunteer_follows (follower_id, following_id) VALUES ($1, $2)',
+        [req.user.id, userId]
+      );
+      await db.run(
+        'UPDATE voluntarios SET followers = COALESCE(followers, 0) + 1 WHERE user_id = $1',
+        [userId]
+      );
+
+      // Notificación in-app al voluntario seguido
+      await db.run(
+        `INSERT INTO notifications (user_id, type, title, body, data)
+         VALUES ($1,'new_follower',$2,$3,$4)`,
+        [userId,
+         'Nuevo seguidor',
+         `${req.user.name} empezó a seguirte`,
+         JSON.stringify({ follower_id: req.user.id })]
+      ).catch(() => {});
+    }
+
+    const updated = await db.get('SELECT COALESCE(followers, 0) AS followers FROM voluntarios WHERE user_id = $1', [userId]);
+    res.json({
+      following: true,
+      followers: updated?.followers || 1,
+      message: 'Ahora seguís a este voluntario'
+    });
+  } catch (err) {
+    console.error('POST /follows/volunteer error:', err);
+    res.status(500).json({ error: 'Error al seguir al voluntario' });
+  }
+});
+
+// DELETE /api/follows/volunteer/:userId — Dejar de seguir a un voluntario
+router.delete('/volunteer/:userId', requireAuth, requireRole('volunteer'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const existing = await db.get(
+      'SELECT 1 FROM volunteer_follows WHERE follower_id = $1 AND following_id = $2',
+      [req.user.id, userId]
+    );
+
+    if (existing) {
+      await db.run(
+        'DELETE FROM volunteer_follows WHERE follower_id = $1 AND following_id = $2',
+        [req.user.id, userId]
+      );
+      await db.run(
+        'UPDATE voluntarios SET followers = CASE WHEN followers > 0 THEN followers - 1 ELSE 0 END WHERE user_id = $1',
+        [userId]
+      );
+    }
+
+    const updated = await db.get('SELECT COALESCE(followers, 0) AS followers FROM voluntarios WHERE user_id = $1', [userId]);
+    res.json({
+      following: false,
+      followers: updated?.followers || 0,
+      message: 'Dejaste de seguir a este voluntario'
+    });
+  } catch (err) {
+    console.error('DELETE /follows/volunteer error:', err);
+    res.status(500).json({ error: 'Error al dejar de seguir al voluntario' });
+  }
+});
+
+// GET /api/follows/volunteer/following — Voluntarios que yo sigo
+router.get('/volunteer/following', requireAuth, requireRole('volunteer'), async (req, res) => {
+  try {
+    const rows = await db.all(
+      `SELECT u.id AS user_id, u.name, u.avatar, u.bio, u.location,
+              v.nombre, v.apellido, v.foto_perfil, v.ubicacion,
+              COALESCE(v.followers, 0) AS followers
+       FROM volunteer_follows vf
+       JOIN users u ON u.id = vf.following_id
+       LEFT JOIN voluntarios v ON v.user_id = u.id
+       WHERE vf.follower_id = $1
+       ORDER BY vf.created_at DESC`,
+      [req.user.id]
+    );
+    res.json({ volunteers: rows });
+  } catch (err) {
+    console.error('GET /follows/volunteer/following error:', err);
+    res.status(500).json({ error: 'Error al obtener seguidos' });
+  }
+});
+
+// GET /api/follows/volunteer/followers — Voluntarios que me siguen
+router.get('/volunteer/followers', requireAuth, requireRole('volunteer'), async (req, res) => {
+  try {
+    const rows = await db.all(
+      `SELECT u.id AS user_id, u.name, u.avatar, u.bio, u.location,
+              v.nombre, v.apellido, v.foto_perfil, v.ubicacion,
+              COALESCE(v.followers, 0) AS followers
+       FROM volunteer_follows vf
+       JOIN users u ON u.id = vf.follower_id
+       LEFT JOIN voluntarios v ON v.user_id = u.id
+       WHERE vf.following_id = $1
+       ORDER BY vf.created_at DESC`,
+      [req.user.id]
+    );
+    res.json({ volunteers: rows });
+  } catch (err) {
+    console.error('GET /follows/volunteer/followers error:', err);
+    res.status(500).json({ error: 'Error al obtener seguidores' });
+  }
+});
+
+// GET /api/follows/volunteer/:userId/status — ¿Sigo a este voluntario?
+router.get('/volunteer/:userId/status', optionalAuth, async (req, res) => {
+  try {
+    if (!req.user) return res.json({ following: false });
+    const follow = await db.get(
+      'SELECT 1 FROM volunteer_follows WHERE follower_id = $1 AND following_id = $2',
+      [req.user.id, req.params.userId]
+    );
+    res.json({ following: !!follow });
+  } catch (err) {
+    console.error('GET /follows/volunteer/:userId/status error:', err);
+    res.status(500).json({ error: 'Error al consultar estado' });
+  }
+});
+
+// GET /api/follows/volunteer/:userId/followers — Seguidores de un voluntario específico
+router.get('/volunteer/:userId/followers', optionalAuth, async (req, res) => {
+  try {
+    const rows = await db.all(
+      `SELECT u.id AS user_id, u.name, u.avatar, u.bio, u.location,
+              v.nombre, v.apellido, v.foto_perfil, v.ubicacion,
+              COALESCE(v.followers, 0) AS followers
+       FROM volunteer_follows vf
+       JOIN users u ON u.id = vf.follower_id
+       LEFT JOIN voluntarios v ON v.user_id = u.id
+       WHERE vf.following_id = $1
+       ORDER BY vf.created_at DESC`,
+      [req.params.userId]
+    );
+    res.json({ volunteers: rows });
+  } catch (err) {
+    console.error('GET /follows/volunteer/:userId/followers error:', err);
+    res.status(500).json({ error: 'Error al obtener seguidores' });
+  }
+});
+
+// GET /api/follows/volunteer/:userId/following — Seguidos de un voluntario específico
+router.get('/volunteer/:userId/following', optionalAuth, async (req, res) => {
+  try {
+    const rows = await db.all(
+      `SELECT u.id AS user_id, u.name, u.avatar, u.bio, u.location,
+              v.nombre, v.apellido, v.foto_perfil, v.ubicacion,
+              COALESCE(v.followers, 0) AS followers
+       FROM volunteer_follows vf
+       JOIN users u ON u.id = vf.following_id
+       LEFT JOIN voluntarios v ON v.user_id = u.id
+       WHERE vf.follower_id = $1
+       ORDER BY vf.created_at DESC`,
+      [req.params.userId]
+    );
+    res.json({ volunteers: rows });
+  } catch (err) {
+    console.error('GET /follows/volunteer/:userId/following error:', err);
+    res.status(500).json({ error: 'Error al obtener seguidos' });
+  }
+});
+
 module.exports = router;

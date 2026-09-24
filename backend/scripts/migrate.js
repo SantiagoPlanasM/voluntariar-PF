@@ -337,6 +337,15 @@ async function migrate() {
       created_at  ${NOW},
       PRIMARY KEY (user_id, project_id)
     )`,
+
+    // ── 25. Seguidores entre Voluntarios ──────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS volunteer_follows (
+      follower_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      following_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at   ${NOW},
+      PRIMARY KEY (follower_id, following_id),
+      CHECK (follower_id != following_id)
+    )`,
   ];
 
   // ── Crear tablas ──────────────────────────────────────────────────────────
@@ -385,6 +394,9 @@ async function migrate() {
   await addColumnIfNotExists('projects', 'longitud', 'REAL');
   await addColumnIfNotExists('projects', 'modalidad', "TEXT DEFAULT 'presencial'");
 
+  // Agregada 2026-09: contador de seguidores en voluntarios (mismo patrón que ngos.followers)
+  await addColumnIfNotExists('voluntarios', 'followers', 'INTEGER DEFAULT 0');
+
   // ── Índices ───────────────────────────────────────────────────────────────
   console.log('\n🔍 Creando índices...');
   const indexes = [
@@ -423,6 +435,9 @@ async function migrate() {
     `CREATE INDEX IF NOT EXISTS idx_empleados_ngo      ON empleados(ngo_id)`,
     // Patrocinios (Empresa × Proyecto)
     `CREATE INDEX IF NOT EXISTS idx_empresa_vol_estado ON empresa_voluntariados(estado)`,
+    // Seguidores entre Voluntarios
+    `CREATE INDEX IF NOT EXISTS idx_vol_follows_follower  ON volunteer_follows(follower_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_vol_follows_following ON volunteer_follows(following_id)`,
   ];
 
   for (const idx of indexes) {

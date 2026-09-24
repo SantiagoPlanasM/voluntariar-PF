@@ -79,5 +79,88 @@ router.put('/me/habilidades', requireAuth, requireRole('volunteer'), async (req,
     res.status(500).json({ error: 'Error al guardar habilidades' });
   }
 });
+// ── GET /api/voluntarios/:userId — Perfil público de un voluntario ─────────
+router.get('/:userId', async (req, res) => {
+  try {
+    const user = await db.get(
+      `SELECT u.id, u.name, u.email, u.role, u.avatar, u.bio, u.location, u.created_at,
+              v.nombre, v.apellido, v.descripcion, v.foto_perfil, v.banner,
+              v.ubicacion, COALESCE(v.followers, 0) AS followers
+       FROM users u
+       LEFT JOIN voluntarios v ON v.user_id = u.id
+       WHERE u.id = $1 AND u.role = 'volunteer'`,
+      [req.params.userId]
+    );
+    if (!user) return res.status(404).json({ error: 'Voluntario no encontrado' });
+
+    // Habilidades
+    const habilidades = await db.all(
+      `SELECT h.id, h.nombre, h.descripcion, vh.nivel
+       FROM voluntario_habilidades vh
+       JOIN habilidades h ON h.id = vh.habilidad_id
+       WHERE vh.user_id = $1
+       ORDER BY h.nombre`,
+      [req.params.userId]
+    );
+
+    // Stats de participación
+    const enrollmentStats = await db.get(
+      `SELECT COUNT(*) AS total,
+              SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS approved,
+              SUM(CASE WHEN status = 'approved' THEN horas_realizadas ELSE 0 END) AS total_horas
+       FROM enrollments WHERE user_id = $1`,
+      [req.params.userId]
+    );
+
+    // Voluntariados en los que participó (aprobados)
+    const participaciones = await db.all(
+      `SELECT e.id AS enrollment_id, e.status, e.horas_realizadas,
+              p.id AS project_id, p.titulo, p.foto_perfil AS project_image,
+              p.status AS project_status, p.ubicacion, p.tipo,
+              n.nombre AS ngo_name, n.foto_perfil AS ngo_logo
+       FROM enrollments e
+       JOIN projects p ON p.id = e.project_id
+       JOIN ngos n ON n.id = p.ngo_id
+       WHERE e.user_id = $1 AND e.status = 'approved'
+       ORDER BY e.created_at DESC
+       LIMIT 20`,
+      [req.params.userId]
+    );
+
+    // Counts de seguidores/seguidos
+    const followingCount = await db.get(
+      'SELECT COUNT(*) AS count FROM volunteer_follows WHERE follower_id = $1',
+      [req.params.userId]
+    );
+
+    res.json({
+      volunteer: {
+        id: user.id,
+        name: user.name,
+        avatar: user.avatar,
+        bio: user.bio,
+        location: user.location || user.ubicacion,
+        nombre: user.nombre,
+        apellido: user.apellido,
+        foto_perfil: user.foto_perfil,
+        banner: user.banner,
+        descripcion: user.descripcion,
+        followers: user.followers,
+        following_count: followingCount?.count || 0,
+        created_at: user.created_at,
+      },
+      habilidades,
+      stats: {
+        total_enrollments: enrollmentStats?.total || 0,
+        approved_enrollments: enrollmentStats?.approved || 0,
+        total_horas: enrollmentStats?.total_horas || 0,
+      },
+      participaciones,
+    });
+  } catch (err) {
+    console.error('GET /voluntarios/:userId error:', err);
+    res.status(500).json({ error: 'Error al obtener perfil del voluntario' });
+  }
+});
 
 module.exports = router;
