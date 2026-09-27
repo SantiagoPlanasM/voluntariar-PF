@@ -41,61 +41,82 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 | Ruta | Componente | Layout | Rol requerido (solo backend) |
 |---|---|---|---|
 | `/` | `PublicFeed` | `Root` | Público (redirige si ya hay sesión) |
-| `/feed` | `MainFeed` | `Root` | volunteer/company (sin guarda real en frontend) |
-| `/explore` | `ExploreScreen` | `Root` | cualquiera logueado |
-| `/project/:id` | `ProjectDetails` | `Root` | público (con `optionalAuth`) |
+| `/feed` | `MainFeed` | `Root` | volunteer (feed de lo que sigue, vía `/api/follows/feed`) |
+| `/explore` | `ExploreScreen` | `Root` | cualquiera logueado (búsqueda, filtros, mapa) |
+| `/project/:id` (alias `/projects/:id`) | `ProjectDetails` | `Root` | público (con `optionalAuth`) |
 | `/participation` | `MyParticipation` | `Root` | volunteer |
 | `/notifications` | `NotificationsScreen` | `Root` | cualquiera logueado |
 | `/messages` | `MessagesScreen` | `Root` | cualquiera logueado |
 | `/messages/:userId` | `ChatThread` | `Root` | cualquiera logueado |
 | `/profile` | `VolunteerProfile` | `Root` | volunteer |
+| `/volunteer/:id` | `VolunteerPublicProfile` | `Root` | público |
 | `/ngo/:id` | `NGOPublicProfile` | `Root` | público |
+| `/company/:id` | `CompanyPublicProfile` | `Root` | público |
 | `/ngo/dashboard` | `NGODashboard` | `NGOLayout` | ngo |
 | `/ngo/create` | `CreateVoluntariado` | `NGOLayout` | ngo (sin guarda en frontend) |
 | `/ngo/dashboard/project/:id` | `NGOProjectDetail` | `NGOLayout` | ngo |
 | `/ngo/profile` | `NGOOwnProfile` | `NGOLayout` | ngo |
+| `/ngo/patrocinios` | `NGOPatrocinios` | `NGOLayout` | ngo |
 | `/ngo/empleados/:id` | `NGOEmpleados` | `NGOLayout` | ngo |
 | `/ngo/kpis/:projectId` | `NGOKPIs` | `NGOLayout` | ngo |
 | `/ngo/messages` | `MessagesScreen` | `NGOLayout` | ngo |
 | `/ngo/messages/:userId` | `ChatThread` | `NGOLayout` | ngo |
+| `/company/profile` | `CompanyOwnProfile` | `CompanyLayout` | company |
+| `/company/messages` | `MessagesScreen` | `CompanyLayout` | company |
+| `/company/messages/:userId` | `ChatThread` | `CompanyLayout` | company |
 
 `OnboardingScreen.tsx` existe como archivo pero **no está registrado en `routes.tsx`** — código muerto/no alcanzable.
 
-## 4. Todos los componentes
+## 4. Todos los componentes (38, sin contar `*.test.tsx`)
 
 ### Layouts / navegación
-- `Root.tsx` — layout del lado "voluntario/público": `<Outlet/>` + `<BottomNav/>` + `<AuthModal/>`.
-- `NGOLayout.tsx` — layout del lado "ONG": `<NGOSidebarNav/>` (desktop) + `<NGOBottomNav/>` (mobile) + `<Outlet/>` + `<AuthModal/>`.
+- `Root.tsx` — layout del lado "voluntario/público": `<Outlet/>` + `<BottomNav/>` + `<AuthModal/>` + `<ChatbotWidget/>`.
+- `NGOLayout.tsx` — layout del lado "ONG": `<NGOSidebarNav/>` (desktop) + `<NGOBottomNav/>` (mobile) + `<Outlet/>` + `<AuthModal/>` + `<ChatbotWidget/>`.
+- `CompanyLayout.tsx` — layout del lado "Empresa", mismo patrón que `NGOLayout` (`CompanySidebarNav`/`CompanyBottomNav`).
 - `BottomNav.tsx` — navegación inferior mobile del lado voluntario.
 - `NGOBottomNav.tsx` / `NGOSidebarNav.tsx` — navegación del lado ONG (mobile y desktop respectivamente).
-- `AuthModal.tsx` — modal de login/registro, controlado por estado global de `AuthContext` (`isAuthModalOpen`, `openAuthModal(mode)`). Único punto de entrada de autenticación en toda la app (no hay páginas `/login` o `/register` dedicadas).
+- `CompanyBottomNav.tsx` / `CompanySidebarNav.tsx` — navegación del lado Empresa.
+- `AuthModal.tsx` — modal de login/registro, controlado por estado global de `AuthContext` (`isAuthModalOpen`, `openAuthModal(mode)`). Único punto de entrada de autenticación en toda la app (no hay páginas `/login` o `/register` dedicadas). Redirige según rol al loguearse: `ngo`→`/ngo/dashboard`, `company`→`/company/profile`, `volunteer`→ se queda donde está.
+- `ChatbotWidget.tsx` — botón flotante + panel del Chatbot FAQ, montado en los tres layouts.
 
 ### Pantallas — lado voluntario
 - `PublicFeed.tsx` — feed público sin login, con CTA a registro; redirige automáticamente si detecta sesión activa.
-- `MainFeed.tsx` — feed autenticado, filtros por tipo/ubicación/categoría.
-- `ExploreScreen.tsx` — búsqueda/exploración de proyectos con filtros más amplios.
-- `ProjectDetails.tsx` — detalle de un proyecto: info completa, botón de inscripción, comentarios, calificación (si ya participó). Reimplementa la blacklist de palabras del backend para validar comentarios en el cliente antes de enviarlos.
-- `ProjectCard.tsx` — tarjeta reutilizada en feeds; incluye el modal de inscripción rápida (envía `{project_id, message}` — ver bug de nomenclatura en `PROJECT_ANALYSIS.md`).
-- `MyParticipation.tsx` — historial de inscripciones del voluntario logueado, con estado (pendiente/aprobada/rechazada) y horas acumuladas.
-- `VolunteerProfile.tsx` — perfil propio editable, incluyendo selección de habilidades (chips desde el catálogo `api.catalog.habilidades()` + nivel por habilidad, guardado vía `api.voluntarios.habilidades.update`). Usa `api.auth.me()` para leer el perfil (ya no hace `fetch` directo — corregido junto con el bug B7 de `PROJECT_ANALYSIS.md §17`).
+- `MainFeed.tsx` — feed autenticado, arma la lista desde `/api/follows/feed` (lo que el voluntario sigue), no desde el catálogo completo.
+- `ExploreScreen.tsx` — búsqueda, filtros (`FilterModal.tsx`) y mapa (`ProjectMap.tsx`) del catálogo completo de proyectos.
+- `ProjectMap.tsx` — mapa con Leaflet (gratis, sin API key), pines custom con `L.divIcon`.
+- `FilterModal.tsx` — modal de filtros (categoría, tipo, modalidad, costo) + función pura `filterProjects()` exportada, con tests.
+- `ProjectDetails.tsx` — detalle de un proyecto: info completa, botón de inscripción, comentarios (distinguen si el autor participó, `is_participant`), calificación (solo si `my_enrollment_status === 'approved'`, vía `ReviewsModal.tsx`). Reimplementa la blacklist de palabras del backend para validar comentarios en el cliente antes de enviarlos.
+- `ProjectCard.tsx` — tarjeta reutilizada en feeds; incluye el modal de inscripción rápida.
+- `FeedPostCard.tsx` — tarjeta de post para el feed vertical (like, comentar, inscribirse, calificar vía `ReviewsModal.tsx`).
+- `FeedSidebar.tsx` — sidebar de escritorio del feed, puramente presentacional (recibe todo por props).
+- `MyParticipation.tsx` — historial de inscripciones del voluntario logueado, con estado (pendiente/aprobada/rechazada) y horas acumuladas. Usa el modal de reseña viejo (`ReviewModal.tsx`, ver nota más abajo).
+- `VolunteerProfile.tsx` — perfil propio editable, incluyendo selección de habilidades (chips desde el catálogo `api.catalog.habilidades()` + nivel por habilidad, guardado vía `api.voluntarios.habilidades.update`).
+- `VolunteerPublicProfile.tsx` — perfil público de otro voluntario, con follow/unfollow.
 - `NotificationsScreen.tsx` — lista de notificaciones, marcar como leídas.
 - `OnboardingScreen.tsx` — **no enrutado**, código muerto.
 
+**Nota — dos componentes de reseña que hacen lo mismo:** `ReviewModal.tsx` (105 líneas, usado por `MyParticipation.tsx`) y `ReviewsModal.tsx` (310 líneas, más completo, usado por `FeedPostCard.tsx` y `ProjectDetails.tsx`) califican un proyecto de forma casi idéntica pero son dos archivos independientes — probablemente `ReviewsModal.tsx` es la versión más nueva y debería reemplazar a la otra, pero nadie migró `MyParticipation.tsx` todavía. Candidato a consolidar.
+
 ### Pantallas — lado ONG
-- `NGODashboard.tsx` — lista de proyectos propios + resumen de inscripciones pendientes por proyecto (hace una request por proyecto — patrón N+1).
-- `CreateVoluntariado.tsx` — formulario de alta/edición de proyecto (mismo componente sirve para crear y editar, diferenciado por `projectId` en query string). Reimplementa validaciones de fecha/cupos/duración ya presentes en el backend.
+- `NGODashboard.tsx` — lista de proyectos propios + resumen de inscripciones pendientes por proyecto (una sola llamada agregada a `GET /api/ngos/me`, el N+1 que tenía antes ya se resolvió).
+- `CreateVoluntariado.tsx` — formulario de alta/edición de proyecto (mismo componente sirve para crear y editar, diferenciado por `projectId` en query string). Pide modalidad (presencial/remoto/híbrido) y, según la modalidad, ubicación física y/o plataforma digital. Reimplementa validaciones de fecha/cupos/duración ya presentes en el backend.
 - `NGOProjectDetail.tsx` — detalle de proyecto desde la óptica de la ONG: lista de inscriptos, aprobar/rechazar, cargar horas.
-- `NGOOwnProfile.tsx` — perfil de la ONG editable (nombre, descripción, misión, ubicación, categoría — con el bug de `category` nunca poblado, ver `BACKEND_CONTEXT.md §10`).
+- `NGOOwnProfile.tsx` — perfil de la ONG editable (nombre, descripción, misión, ubicación, categoría).
 - `NGOPublicProfile.tsx` — vista pública del perfil de una ONG (accesible sin login desde `/ngo/:id`), lista sus proyectos activos.
-- `NGOEmpleados.tsx` — gestión de empleados/miembros del equipo de la ONG. **No usa `api.ts`** — `fetch` directo con token manual desde `localStorage`.
-- `NGOKPIs.tsx` — CRUD completo (alta/edición/borrado) de indicadores de impacto por proyecto, con resumen visual. Usa `api.projects.kpis.*` (corregido — ver `PROJECT_ANALYSIS.md §13`, antes hacía `fetch` directo).
+- `NGOPatrocinios.tsx` — propuestas de patrocinio de empresas sobre los proyectos propios: pendientes (aceptar/rechazar) e historial.
+- `NGOEmpleados.tsx` — gestión de empleados/miembros del equipo de la ONG. **No usa `api.ts`** — `fetch` directo con token manual desde `localStorage` (`api.ts` no tiene un namespace `empleados` todavía).
+- `NGOKPIs.tsx` — CRUD completo (alta/edición/borrado) de indicadores de impacto por proyecto, con resumen visual. Usa `api.projects.kpis.*`.
+
+### Pantallas — lado Empresa
+- `CompanyOwnProfile.tsx` — perfil propio editable + lista de patrocinios propios (proponer, ver estado, retirar uno pendiente).
+- `CompanyPublicProfile.tsx` — vista pública del perfil de una Empresa, accesible sin login desde `/company/:id`.
 
 ### Chat
-- `MessagesScreen.tsx` — lista de conversaciones (compartido entre voluntario y ONG, ver `PROJECT_ANALYSIS.md §18`).
+- `MessagesScreen.tsx` — lista de conversaciones (compartido entre voluntario, ONG y empresa).
 - `ChatThread.tsx` — hilo de una conversación puntual: historial, envío (WS con fallback a REST), marcado automático de leído al abrir.
 
 ### Otros
-- `ReviewModal.tsx` — modal de calificación/reseña que un voluntario deja sobre un proyecto ya finalizado.
+- `ReviewModal.tsx` / `ReviewsModal.tsx` — ver nota de duplicación arriba.
 
 ## 5. Hooks
 
@@ -103,7 +124,7 @@ No hay hooks custom (no existe `useX.ts` fuera de `useAuth` exportado por `AuthC
 
 ## 6. Contexts
 
-Dos contexts: `AuthContext` (`lib/AuthContext.tsx`) y `ChatContext` (`lib/ChatContext.tsx`, agregado con la feature de chat — ver `PROJECT_ANALYSIS.md §18`).
+Dos contexts: `AuthContext` (`lib/AuthContext.tsx`) y `ChatContext` (`lib/ChatContext.tsx`).
 
 ```ts
 interface AuthContextValue {
@@ -162,26 +183,32 @@ async function request(path, options) {
 
 export const api = {
   auth: { register, login, me, updateMe },
-  projects: { list, get, create, update, remove, comment, rate, kpis... },
+  projects: { list, get, create, update, remove, comment, rate, kpis, recommended... },
   enrollments: { enroll, byProject, byVolunteer, approve, reject, logHours },
-  ngos: { list, get, me, updateMe, employees... },
+  ngos: { list, get, me, updateMe, employees, patrocinios: { list, decide }... },
+  empresas: { me, get, update, patrocinios: { list, propose, withdraw } },
+  follows: { ngo, project, volunteer, feed... },
+  faqs: { list, ask },
   notifications: { list, markRead },
 };
 ```
 
-Todos los tipos de dominio (`User`, `Project`, `NGO`, `Enrollment`, `Notification`, etc.) están definidos como `interface` en este mismo archivo — no hay un módulo `types/` separado.
+Todos los tipos de dominio (`User`, `Project`, `NGO`, `Empresa`, `Enrollment`, `Notification`, `Faq`, `Patrocinio`, etc.) están definidos como `interface` en este mismo archivo — no hay un módulo `types/` separado.
 
-**Componentes que rompen este patrón** (fetch directo, no vía `api.ts`): `NGOEmpleados.tsx`. *(`NGOKPIs.tsx` fue migrado a `api.ts` — ver `PROJECT_ANALYSIS.md §13`.)*
+**Componentes que rompen este patrón** (fetch directo, no vía `api.ts`): `NGOEmpleados.tsx`.
 
 ## 8. Modelos TypeScript (resumen — ver `api.ts` para el detalle campo por campo)
 
 | Interface | Corresponde a |
 |---|---|
 | `User` | fila de `users` (id, name, email, role, created_at) |
-| `Project` | proyecto formateado por `fmt()` del backend — incluye `roles: string[]`, `requirements: string[]`, `category?: string`, `my_enrollment?: Enrollment` |
-| `NGO` | ONG formateada por `fmtNgo()` — incluye `category?: string` (**nunca poblado**, ver `BACKEND_CONTEXT.md §10**) |
+| `Project` | proyecto formateado por `fmt()` del backend — incluye `roles: string[]`, `requirements: string[]`, `category?: string`, `latitude?/longitude?`, `modality?`, `my_enrollment?: Enrollment` |
+| `NGO` | ONG formateada por `fmtNgo()` — incluye `category?: string` |
+| `Empresa` | Empresa formateada por `fmtEmpresa()` — incluye `category?/industry?` |
 | `Enrollment` | inscripción: `id, project_id, volunteer_id, status, message?, hours_logged, created_at` |
 | `Notification` | `id, user_id, type, content, read, created_at` |
+| `Faq` | `id, categoria?, pregunta, respuesta` |
+| `Patrocinio` | propuesta de patrocinio Empresa↔Proyecto: `empresa_id, project_id, estado, mensaje?, aporte, ...` |
 
 ## 9. Flujo de navegación (detalle por rol)
 
@@ -189,12 +216,16 @@ Todos los tipos de dominio (`User`, `Project`, `NGO`, `Enrollment`, `Notificatio
 flowchart TD
     Start["Visitante anónimo"] --> PF["/ (PublicFeed)"]
     PF -->|Registrarse/Entrar| Modal["AuthModal"]
-    Modal -->|role=volunteer o company| MF["/feed"]
+    Modal -->|role=volunteer| MF["/feed"]
     Modal -->|role=ngo| ND["/ngo/dashboard"]
+    Modal -->|role=company| CP["/company/profile"]
 
     MF --> PD["/project/:id"]
-    PD -->|Inscribirse| EnrollModal["Modal de inscripción<br/>(en ProjectCard/ProjectDetails)"]
+    MF --> EX["/explore (buscar/filtrar/mapa)"]
+    PD -->|Inscribirse| EnrollModal["Modal de inscripción"]
     PD -->|ver ONG| NPP["/ngo/:id (público)"]
+    PD -->|ver Empresa| CPP["/company/:id (público)"]
+    PD -->|ver voluntario| VPP["/volunteer/:id (público)"]
 
     ND --> CV["/ngo/create"]
     ND --> NPD["/ngo/dashboard/project/:id"]
@@ -202,6 +233,9 @@ flowchart TD
     NPD -->|cargar horas| NPD
     ND --> NKPI["/ngo/kpis/:projectId"]
     ND --> NEmp["/ngo/empleados/:id"]
+    ND --> NPat["/ngo/patrocinios"]
+
+    CP -->|proponer patrocinio| ND
 ```
 
 ## 10. Flujo de autenticación (frontend)
@@ -209,7 +243,7 @@ flowchart TD
 1. Usuario abre `AuthModal` (login o registro) desde cualquier pantalla.
 2. Al submit, `AuthContext.login()`/`register()` llama a `api.auth.*`.
 3. Éxito → `localStorage.setItem('v_token', ...)`, `setUser(...)`, `closeAuthModal()`.
-4. Componentes como `PublicFeed` observan `user` vía `useAuth()` y redirigen automáticamente con `navigate()` en un `useEffect` cuando detectan sesión (`user.role === 'ngo' ? '/ngo/dashboard' : '/feed'`) — nótese que `company` cae en la misma rama que `volunteer` porque no hay ruta propia para empresas.
+4. Componentes como `AuthModal` observan `user` vía `useAuth()` y redirigen automáticamente con `navigate()` en un `useEffect` cuando detectan sesión: `ngo`→`/ngo/dashboard`, `company`→`/company/profile`, `volunteer` se queda donde está (normalmente `/`, que ya muestra el feed público).
 5. Error → el modal muestra `err.message` (el string ya viene en español desde el backend).
 
 No hay persistencia de "a dónde volver" tras el login — siempre redirige a la home del rol, perdiendo el contexto de si el usuario estaba intentando inscribirse a un proyecto específico.
@@ -240,19 +274,21 @@ Limitado a `AuthContext`. No hay estado global de UI (temas, filtros persistente
 ## 15. Problemas detectados
 
 1. **`OnboardingScreen.tsx` no está enrutado** — código muerto, o una ruta que falta agregar (ambigüedad a resolver con el dueño del proyecto antes de borrar el archivo).
-2. ~~**`NGOKPIs.tsx` y `NGOEmpleados.tsx` evitan `api.ts`**~~ — **`NGOKPIs.tsx` corregido** (migrado a `api.projects.kpis.*`, ver `PROJECT_ANALYSIS.md §13`). `NGOEmpleados.tsx` sigue pendiente.
-3. **`ProjectCard.tsx` envía `message` al backend, que espera `mensaje`** → el mensaje del voluntario a la ONG se pierde silenciosamente (no hay error, el campo simplemente no se persiste).
-4. **Sin guardas de rol/ruta en el frontend**: cualquier usuario (incluso sin sesión) puede navegar a `/ngo/create` o `/ngo/dashboard` y ver la UI (los `fetch` internos fallarán con 401/403 del backend y se mostrará un error, pero la experiencia no es una redirección limpia).
-5. **N+1 requests en `NGODashboard`**: una llamada a `enrollments.byProject` por cada proyecto listado, en vez de un endpoint agregado.
+2. **`NGOEmpleados.tsx` evita `api.ts`** — sigue pendiente (ver §4/§7).
+3. **Dos componentes de reseña que hacen lo mismo** (`ReviewModal.tsx` vs `ReviewsModal.tsx`) — ver nota en §4. Candidato a consolidar antes de que alguien edite uno pensando que corrige los dos.
+4. **Sin guardas de rol/ruta en el frontend**: cualquier usuario (incluso sin sesión) puede navegar a `/ngo/*` o `/company/*` y ver la UI (los `fetch` internos fallarán con 401/403 del backend y se mostrará un error, pero la experiencia no es una redirección limpia).
+5. **Sin paginación real en `ExploreScreen.tsx`**: pide el catálogo completo con un `limit` alto fijo (`200`) en vez de "cargar más"/scroll infinito — funciona hoy, pero no escala indefinidamente si el catálogo de proyectos crece mucho. Ver `PROJECT_ANALYSIS.md §29` bug 4.
 6. **Validaciones duplicadas** (regex de email/password/nombre en `AuthModal.tsx`, blacklist de palabras en `ProjectDetails.tsx`) que deben mantenerse manualmente sincronizadas con el backend.
 7. **Sin manejo centralizado de expiración de sesión** — un 401 en medio de la navegación no redirige consistentemente al login en todas las pantallas.
-8. **`ngo.category` nunca se puebla** en `NGOOwnProfile` (ver causa raíz en `BACKEND_CONTEXT.md §10`) — el selector de categoría en el formulario de edición de perfil de ONG parece "no guardar" desde la perspectiva del usuario.
+8. **Sin tests automatizados** para varios de los componentes más grandes y recientes: `ProjectMap.tsx`, `FeedPostCard.tsx`, `ReviewsModal.tsx`, `VolunteerPublicProfile.tsx`, `FeedSidebar.tsx`, `ExploreScreen.tsx`, `CreateVoluntariado.tsx` — se revisaron a mano (ver `PROJECT_ANALYSIS.md §29`) pero no tienen red de seguridad automática.
 
 ## 16. Posibles mejoras
 
 - Extraer un hook `useApi()`/`useFetch()` genérico (loading/error/data) para eliminar la repetición de los tres `useState` en cada pantalla.
-- Agregar un componente `<ProtectedRoute role="ngo">` que envuelva las rutas de `NGOLayout` y redirija limpiamente si el rol no coincide, en vez de depender solo del rechazo del backend.
+- Agregar un componente `<ProtectedRoute role="ngo">` (y equivalente para `company`) que envuelva las rutas de `NGOLayout`/`CompanyLayout` y redirija limpiamente si el rol no coincide, en vez de depender solo del rechazo del backend.
 - Crear una pequeña librería de componentes UI compartidos (`Button`, `Input`, `Card`, `Spinner`, `ErrorBanner`) para reducir la duplicación de clases Tailwind.
-- Migrar `NGOEmpleados.tsx` a `api.ts` (`NGOKPIs.tsx` ya fue migrado).
-- Agregar un `ErrorBoundary` de React a nivel de cada layout (`Root`, `NGOLayout`) para evitar pantallas en blanco ante errores no capturados.
+- Migrar `NGOEmpleados.tsx` a `api.ts` (agregar el namespace `empleados` que falta).
+- Consolidar `ReviewModal.tsx` y `ReviewsModal.tsx` en un solo componente.
+- Agregar un `ErrorBoundary` de React a nivel de cada layout (`Root`, `NGOLayout`, `CompanyLayout`) para evitar pantallas en blanco ante errores no capturados.
 - Registrar o eliminar `OnboardingScreen.tsx` según la intención real del equipo.
+- Sumar tests para los componentes grandes listados en el problema 8.

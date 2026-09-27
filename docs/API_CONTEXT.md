@@ -43,8 +43,36 @@
 | GET | `/api/ngos/:id/dashboard` | Sí | ngo (dueño) | `routes/ngos.js` |
 | GET | `/api/ngos/:id/empleados` | Sí | ngo (dueño) | `routes/ngos.js` |
 | POST | `/api/ngos/:id/empleados` | Sí | ngo (dueño) | `routes/ngos.js` |
+| GET | `/api/ngos/me/patrocinios` | Sí | ngo | `routes/ngos.js` |
+| PATCH | `/api/ngos/me/patrocinios/:empresaId/:projectId` | Sí | ngo | `routes/ngos.js` |
+| GET | `/api/empresas` | No | — | `routes/empresas.js` |
+| GET | `/api/empresas/me` | Sí | company | `routes/empresas.js` |
+| GET | `/api/empresas/:id` | No | — | `routes/empresas.js` |
+| PUT | `/api/empresas/me` | Sí | company | `routes/empresas.js` |
+| GET | `/api/empresas/me/patrocinios` | Sí | company | `routes/empresas.js` |
+| POST | `/api/empresas/me/patrocinios` | Sí | company | `routes/empresas.js` |
+| DELETE | `/api/empresas/me/patrocinios/:projectId` | Sí | company | `routes/empresas.js` |
+| GET | `/api/follows/ngo` | Sí | volunteer | `routes/follows.js` |
+| POST | `/api/follows/ngo/:ngoId` | Sí | volunteer | `routes/follows.js` |
+| DELETE | `/api/follows/ngo/:ngoId` | Sí | volunteer | `routes/follows.js` |
+| GET | `/api/follows/ngo/:ngoId/status` | Opcional | — | `routes/follows.js` |
+| GET | `/api/follows/project` | Sí | volunteer | `routes/follows.js` |
+| POST | `/api/follows/project/:projectId` | Sí | volunteer | `routes/follows.js` |
+| DELETE | `/api/follows/project/:projectId` | Sí | volunteer | `routes/follows.js` |
+| GET | `/api/follows/project/:projectId/status` | Opcional | — | `routes/follows.js` |
+| GET | `/api/follows/volunteer/following` | Sí | cualquiera | `routes/follows.js` |
+| GET | `/api/follows/volunteer/followers` | Sí | cualquiera | `routes/follows.js` |
+| POST | `/api/follows/volunteer/:userId` | Sí | volunteer | `routes/follows.js` |
+| DELETE | `/api/follows/volunteer/:userId` | Sí | volunteer | `routes/follows.js` |
+| GET | `/api/follows/volunteer/:userId/status` | No | — | `routes/follows.js` |
+| GET | `/api/follows/volunteer/:userId/followers` | No | — | `routes/follows.js` |
+| GET | `/api/follows/volunteer/:userId/following` | No | — | `routes/follows.js` |
+| GET | `/api/follows/feed` | Sí | volunteer | `routes/follows.js` |
+| GET | `/api/faqs` | Opcional | — | `routes/faqs.js` |
+| POST | `/api/faqs/ask` | Opcional | — | `routes/faqs.js` |
 | GET | `/api/voluntarios/me/habilidades` | Sí | volunteer | `routes/voluntarios.js` |
 | PUT | `/api/voluntarios/me/habilidades` | Sí | volunteer | `routes/voluntarios.js` |
+| GET | `/api/voluntarios/:userId` | No | — | `routes/voluntarios.js` |
 | GET | `/api/messages/conversations` | Sí | cualquiera | `routes/messages.js` |
 | GET | `/api/messages/thread/:userId` | Sí | cualquiera | `routes/messages.js` |
 | POST | `/api/messages` | Sí | cualquiera | `routes/messages.js` |
@@ -54,7 +82,7 @@
 | PATCH | `/api/notifications/:id/read` | Sí | dueño de la notificación | `routes/notifications.js` |
 | PATCH | `/api/notifications/read-all` | Sí | cualquiera (propio usuario) | `routes/notifications.js` |
 
-**IMPORTANTE — orden de definición en `routes/projects.js`:** las rutas de `/comments`, `/ratings` y `/kpis` (líneas 358-475) están definidas **después** de `module.exports = router` (línea ~403). Funciona porque `module.exports` referencia el mismo objeto `router`, que sigue mutándose tras la asignación — pero es una señal de organización de código a corregir (ver `BACKEND_CONTEXT.md §10`).
+**Sobre el orden de definición en `projects.js`, `ngos.js` y `empresas.js`:** varias rutas (y helpers como `fmt`, `hasBadWord`) están definidas **después** de `module.exports = router`. Funciona porque `module.exports` referencia el mismo objeto `router`, que sigue mutándose tras la asignación — es el patrón deliberado del proyecto para exportar helpers reutilizables entre routers sin crear un módulo `lib/` aparte (ver `BACKEND_CONTEXT.md §10`).
 
 ---
 
@@ -85,18 +113,29 @@
 ## Projects (`routes/projects.js`)
 
 ### `GET /api/projects` — Auth opcional
-- **Query params:** `search`, `tipo` (`fugaz`/`sostenido`), `ubicacion`, `categoria` (uno o varios ids), `status` (default `active`), `ngo_id`, `page`, `limit`.
+- **Query params:** `search`, `type`/`tipo` (`fugaz`/`sostenido`), `category`/`categoria` (uno o varios ids), `status` (default `active`), `ngo_id`, `modality`/`modalidad` (`presencial`/`remoto`/`hibrido` — agregado por el usuario 2026-09), `sort` (`featured` default, también `rating`, `recent`), `page`, `limit`, `offset`.
+- **⚠️ `limit` default es 20** si no se pasa explícito. Cualquier pantalla que necesite "todos los proyectos" para filtrar/buscar/mapear del lado del cliente (como hace `ExploreScreen.tsx`) **tiene que pasar un `limit` alto a propósito**, o los resultados quedan truncados en silencio — así se manifestó un bug real (`PROJECT_ANALYSIS.md §29`, ya arreglado ahí, pero la causa de fondo — sin paginación real — sigue en pie).
 - **Comportamiento:** filtra dinámicamente según los params presentes. **Bifurca implementación según motor de DB** (ver `BACKEND_CONTEXT.md §2`, §10.6):
   - Postgres: una sola query con `json_agg` para traer roles/requisitos/categoría agregados.
   - SQLite: query base + **loop de queries adicionales por fila** (N+1) para roles, requisitos y categoría — usando la traducción de `translatePg()`.
-- **Respuesta 200:** `{ projects: Project[], total, page, limit }`, cada `Project` pasado por `fmt()`.
+- **Respuesta 200:** `{ projects: Project[], total, page, limit }`, cada `Project` pasado por `fmt()` (incluye `latitude`/`longitude`/`modality`, agregados por el usuario 2026-09).
 - Si hay usuario autenticado (`optionalAuth`), cada proyecto incluye `my_enrollment` si el usuario ya está inscripto.
 
 ### `GET /api/projects/recommended` — Auth, role `volunteer`
 - **Query params:** `limit` (default 10, máx. 30).
-- **Comportamiento:** ranking basado en reglas (sin ML/IA) — afinidad de categoría con el historial de inscripciones del voluntario (×3 por coincidencia), ubicación (`users.location`) igual a la del proyecto (+2), publicado hace menos de 7 días (+1 o +2 según haya o no historial), últimos ≤3 cupos (+1). Excluye proyectos donde el voluntario ya está inscripto (en cualquier estado) y proyectos sin cupo/no activos. Con historial vacío ("cold start"), el ranking cae a novedad + urgencia + ubicación.
+- **Comportamiento (reescrito por el usuario 2026-09 — bastante más rico que un ranking simple):** scoring por 9 señales independientes, cada una suma puntos y agrega un `tag`/`reason` visible en la UI si aplica:
+  1. Afinidad de categoría con el historial de inscripciones.
+  2. Match de habilidades del voluntario contra los roles buscados del proyecto.
+  3. ONG seguida por el voluntario (`ngo_follows`).
+  4. Cercanía geográfica (`users.location` vs `ubicacion` del proyecto) o modalidad remota.
+  5. Cupos limitados / últimos cupos.
+  6. Recencia de publicación.
+  7. Rating promedio del proyecto.
+  8. Popularidad (`project_follows` del proyecto).
+  9. Señal social: contactos que el voluntario sigue (`volunteer_follows`) y que están inscriptos/aprobados en ese proyecto.
+  - Con historial vacío ("cold start"), cae a señales 4-8 (sin las que dependen de historial de inscripción/habilidades).
 - **IMPORTANTE — orden de rutas:** esta ruta está declarada antes de `GET /:id` en `projects.js`. Si se moviera después, Express interpretaría `recommended` como el parámetro `:id` y la ruta dejaría de ser alcanzable — cualquier ruta nueva de `projects.js` sin parámetro debe declararse antes de `/:id`.
-- **Respuesta 200:** `{ recommendations: Project[], based_on_history: boolean }`, cada `Project` con dos campos extra: `recommendation_score` (número) y `recommendation_reasons` (array de strings en español, para mostrar en la UI por qué se sugiere).
+- **Respuesta 200:** `{ recommendations: Project[], is_cold_start: boolean }`, cada `Project` con `recommendation_score` (número), `recommendation_reasons` (array de strings) y `recommendation_tags` (array de strings cortos con emoji, para chips en la UI).
 - **Errores:** `401` sin token, `403` si el rol no es `volunteer`.
 
 ### `GET /api/projects/:id` — Auth opcional
@@ -121,11 +160,13 @@
 
 ### `POST /api/projects/:id/comments` — Auth (cualquier rol)
 - **Body:** `{ comment }`. Pasa por `hasBadWord()`.
-- **Respuesta 201:** `{ comment }` (incluye datos del autor vía JOIN a `users`).
+- **Respuesta 201:** `{ comment }` (incluye datos del autor vía JOIN a `users`, más `is_participant: boolean` — agregado por el usuario 2026-09, para que el frontend distinga si quien comenta participó del proyecto o no).
+- **Ojo en el frontend:** `api.ts` tipa esta respuesta como `{ comment: AppComment }` — si se toca este endpoint, no usar `Comment` a secas como tipo (es el tipo global del DOM, no el propio; ya pasó una vez, ver `PROJECT_ANALYSIS.md §29`).
 
 ### `POST /api/projects/:id/ratings` — Auth (cualquier rol)
 - **Body:** `{ rating (1-5), comment? }`.
-- **Restricción:** `UNIQUE(user_id, project_id)` en la tabla — si el usuario ya calificó, el `INSERT` falla y el endpoint responde `400`/`409` según motor (no hay upsert explícito, ni un endpoint `PUT` para editar una calificación existente).
+- **Restricción agregada por el usuario (2026-09):** solo puede calificar quien tenga una `enrollment` con `status='approved'` en ese proyecto — `403` si no. Antes cualquier usuario logueado podía calificar sin haber participado.
+- **Comportamiento:** hace upsert real (`UPDATE` si ya existe una calificación de ese usuario para ese proyecto, `INSERT` si no) — ya no es "calificar una sola vez sin poder editar".
 - **Respuesta 201:** `{ rating }`.
 
 ### `GET /api/projects/:id/kpis` — Público
@@ -281,6 +322,33 @@
 
 ---
 
+## Follows y Feed personalizado (`routes/follows.js`)
+
+> Agregado por el usuario (2026-09), documentado retroactivamente tras la revisión de código (ver `PROJECT_ANALYSIS.md §28`). Cubre 3 tipos de "seguir": Voluntario→ONG (`ngo_follows`), Voluntario→Proyecto (`project_follows`) y Voluntario→Voluntario (`volunteer_follows`, tabla nueva). Todo bajo `/api/follows`.
+
+**Importante para cualquier endpoint nuevo que devuelva proyectos:** este router **reusa `fmt` exportado desde `routes/projects.js`** (`const { fmt: fmtProject } = require('./projects')`) — no mantener una copia propia del formateador acá ni en ningún router nuevo. Una copia duplicada ya se desincronizó una vez (le faltaban `latitude`/`longitude`/`modality`) y causó un bug real, arreglado en `PROJECT_ANALYSIS.md §29`.
+
+### ONG (`ngo_follows`)
+- `POST /ngo/:ngoId` / `DELETE /ngo/:ngoId` — seguir/dejar de seguir (auth, `volunteer`).
+- `GET /ngo` — mis ONGs seguidas (auth, `volunteer`).
+- `GET /ngo/:ngoId/status` — ¿la sigo? (público, `optionalAuth`).
+
+### Proyecto (`project_follows`)
+- `POST /project/:projectId` / `DELETE /project/:projectId` — seguir/dejar de seguir (auth, `volunteer`).
+- `GET /project` — mis proyectos seguidos (auth, `volunteer`).
+- `GET /project/:projectId/status` — ¿lo sigo? (público, `optionalAuth`).
+
+### Voluntario (`volunteer_follows`)
+- `POST /volunteer/:userId` / `DELETE /volunteer/:userId` — seguir/dejar de seguir a otro voluntario (auth, `volunteer`; no se puede auto-seguir, CHECK en DB).
+- `GET /volunteer/following` / `GET /volunteer/followers` — mis seguidos/seguidores (auth).
+- `GET /volunteer/:userId/status` — ¿lo sigo? (público).
+- `GET /volunteer/:userId/followers` / `GET /volunteer/:userId/following` — listas públicas de otro usuario.
+
+### Feed
+- `GET /feed` (auth, `volunteer`) — proyectos de las ONGs/proyectos seguidos, con `my_enrollment_status` resuelto por proyecto (batched, sin N+1) y formateados con el mismo `fmt` de `/api/projects` (incluye `latitude`/`longitude`/`modality`).
+
+---
+
 ## Voluntarios (`routes/voluntarios.js`)
 
 ### `GET /api/voluntarios/me/habilidades` — Auth, role `volunteer`
@@ -292,6 +360,10 @@
 - **Validación:** máximo 20 habilidades, cada `habilidad_id` debe existir en el catálogo (`habilidades`), `nivel` debe ser uno de los tres valores válidos.
 - **Respuesta 200:** `{ habilidades: [...] }` (el conjunto ya actualizado, mismo formato que el `GET`).
 - **Errores:** `400` (formato inválido, habilidad inexistente, nivel inválido), `403` si el usuario no es `volunteer`.
+
+### `GET /api/voluntarios/:userId` — Público
+- Agregado por el usuario (2026-09). Perfil público de un voluntario: datos básicos + `followers`/`following_count` + últimas participaciones (`LIMIT 20`). Sin auth requerida.
+- Nota: mezcla campos en inglés (`name`, `avatar`, `bio`, `location`) con algunos crudos en español (`nombre`, `apellido`, `descripcion`) en la misma respuesta — no es un bug, pero al tocar este endpoint conviene normalizar del todo a inglés en vez de sumar más campos híbridos.
 
 ---
 
@@ -359,7 +431,7 @@ Chat 1 a 1 básico. El historial y el envío tienen doble vía: REST (siempre di
 
 ## Endpoints ausentes (funcionalidad de esquema sin API)
 
-Las tablas `donaciones`, `reuniones`, `ngo_follows` y `project_follows` **existen en el esquema de base de datos pero no tienen ningún endpoint que las lea o escriba**. Cualquier tarea futura que mencione "donaciones", "reuniones/videollamadas" o "seguir una ONG/proyecto" requiere **construir la API desde cero**, no modificar una existente. *(`voluntario_habilidades` dejó de estar en esta lista — ya tiene API completa, ver sección "Voluntarios" arriba y `PROJECT_ANALYSIS.md §17`. El perfil de `empresas` tampoco — ver sección "Empresas" arriba. `empresa_voluntariados` tampoco — ver sección "Patrocinio" arriba y `PROJECT_ANALYSIS.md §26`.)*
+Las tablas `donaciones` y `reuniones` **existen en el esquema de base de datos pero no tienen ningún endpoint que las lea o escriba**. Cualquier tarea futura que mencione "donaciones" o "reuniones/videollamadas" requiere **construir la API desde cero**, no modificar una existente. *(`voluntario_habilidades` dejó de estar en esta lista — ya tiene API completa, ver sección "Voluntarios" arriba y `PROJECT_ANALYSIS.md §17`. El perfil de `empresas` tampoco — ver sección "Empresas" arriba. `empresa_voluntariados` tampoco — ver sección "Patrocinio" arriba y `PROJECT_ANALYSIS.md §26`. `ngo_follows`/`project_follows`/`volunteer_follows` tampoco — ya tienen API completa, ver sección "Follows y Feed personalizado" arriba y `PROJECT_ANALYSIS.md §28`.)*
 
 ## Endpoints duplicados o inconsistentes detectados
 

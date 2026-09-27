@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Sparkles, Zap, Calendar, Laptop, MapPin, DollarSign, Check } from 'lucide-react';
+import { X, Sparkles, Zap, Calendar, Laptop, MapPin, DollarSign, Check, Globe } from 'lucide-react';
 import { Project } from '../../lib/api';
 import { CATEGORY_COLORS } from './ProjectMap';
 
 export interface FilterState {
   categories: string[];
   type: 'all' | 'fugaz' | 'sostenido';
-  modality: 'all' | 'presencial' | 'remoto';
+  modality: 'all' | 'presencial' | 'remoto' | 'hibrido';
   cost: 'all' | 'gratis' | 'pago';
 }
 
@@ -53,15 +53,16 @@ export function filterProjects(projects: Project[], searchQuery: string, filters
     if (filters.type === 'fugaz' && p.type !== 'fugaz') return false;
     if (filters.type === 'sostenido' && p.type !== 'sostenido') return false;
 
-    // 4. Modalidad
-    if (filters.modality === 'remoto') {
+    // 4. Modalidad — usa el campo real (`modality`) que ya manda el backend
+    // en vez de re-adivinar por texto en la ubicación. El heurístico viejo
+    // fallaba con ubicaciones remotas del tipo "Zoom"/"Google Meet" (sin la
+    // palabra "remoto") y no contemplaba "híbrido" como opción de filtro.
+    // El fallback por texto queda solo por si algún proyecto viejo llegara
+    // sin `modality` seteado (no debería pasar, el backend siempre lo completa).
+    if (filters.modality !== 'all') {
       const loc = (p.location || '').toLowerCase();
-      const isRemoto = loc.includes('remoto') || loc.includes('virtual') || loc.includes('online');
-      if (!isRemoto) return false;
-    } else if (filters.modality === 'presencial') {
-      const loc = (p.location || '').toLowerCase();
-      const isStrictRemoto = loc.includes('remoto') && !loc.includes('córdoba') && !loc.includes('cordoba');
-      if (isStrictRemoto) return false;
+      const modality = p.modality || (loc.includes('remoto') || loc.includes('virtual') || loc.includes('online') ? 'remoto' : 'presencial');
+      if (modality !== filters.modality) return false;
     }
 
     // 5. Costo
@@ -269,11 +270,12 @@ export function FilterModal({
             <label className="font-bold text-gray-900 text-sm block mb-1">
               Modalidad de Participación
             </label>
-            <div className="grid grid-cols-3 gap-2.5 mt-2">
+            <div className="grid grid-cols-2 gap-2.5 mt-2">
               {[
                 { id: 'all', label: 'Cualquiera', icon: Sparkles },
                 { id: 'presencial', label: 'Presencial', icon: MapPin },
                 { id: 'remoto', label: 'Remoto', icon: Laptop },
+                { id: 'hibrido', label: 'Híbrido', icon: Globe },
               ].map(opt => {
                 const isSelected = draft.modality === opt.id;
                 const Icon = opt.icon;

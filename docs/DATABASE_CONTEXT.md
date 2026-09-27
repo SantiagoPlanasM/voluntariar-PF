@@ -13,7 +13,7 @@
 
 Todas las claves primarias son `TEXT` (UUID v4-like), no enteros autoincrementales.
 
-## 1. Todas las tablas (24)
+## 1. Todas las tablas (28)
 
 | # | Tabla | Propósito |
 |---|---|---|
@@ -43,6 +43,8 @@ Todas las claves primarias son `TEXT` (UUID v4-like), no enteros autoincremental
 | 24 | `project_follows` | N:M — Usuario sigue Proyecto |
 | 25 | `messages` | Mensajes del chat 1 a 1 (remitente, destinatario, cuerpo, leído) |
 | 26 | `empresa_categorias` | N:M — Empresa ↔ Categoría (agregada 2026-09, ver `PROJECT_ANALYSIS.md §24`) |
+| 27 | `faqs` | Catálogo del Chatbot FAQ (agregada 2026-09, ver `PROJECT_ANALYSIS.md §27`) |
+| 28 | `volunteer_follows` | N:M — Voluntario sigue a otro Voluntario (agregada por el usuario, ver `PROJECT_ANALYSIS.md §28`) |
 
 ## 2. Detalle de columnas por tabla
 
@@ -108,6 +110,8 @@ id · ngo_id (FK→ngos, CASCADE) · nombre · apellido · email · foto_perfil 
 | costo | REAL | DEFAULT 0, CHECK ≥ 0 |
 | horas_semanales | INTEGER | CHECK NULL o > 0 (solo aplica si `tipo='sostenido'`, validado en la app, no en el CHECK) |
 | duracion | TEXT | (solo aplica si `tipo='fugaz'`, validado en la app) |
+| latitud, longitud | REAL | Agregadas por el usuario (2026-09) vía `ALTER TABLE`, para el mapa (`ProjectMap.tsx`). El API las expone como `latitude`/`longitude` (ver `fmt()` en `routes/projects.js`) |
+| modalidad | TEXT | Agregada por el usuario (2026-09), DEFAULT `presencial`, valores usados: `presencial`/`remoto`/`hibrido`. El API la expone como `modality`. **Ojo:** el frontend debe leer siempre este campo tal cual — no re-inferir la modalidad por texto en `ubicacion` (bug real encontrado y arreglado, ver `PROJECT_ANALYSIS.md §29`) |
 | followers | INTEGER | DEFAULT 0, CHECK ≥ 0 |
 | created_at / updated_at | TIMESTAMP | |
 
@@ -167,6 +171,7 @@ id · sender_id (NOT NULL FK→users CASCADE) · receiver_id (NOT NULL FK→user
 | `empresa_voluntariados` | (empresa_id, project_id) | `aporte` (REAL, DEFAULT 0, CHECK ≥ 0), `estado` (CHECK IN `propuesto`,`aceptado`,`rechazado`, default `propuesto` — agregada 2026-09 vía `ALTER TABLE`, ver `PROJECT_ANALYSIS.md §26`), `mensaje`, `created_at`, `updated_at` |
 | `ngo_follows` | (user_id, ngo_id) | `created_at` |
 | `project_follows` | (user_id, project_id) | `created_at` |
+| `volunteer_follows` | (follower_id, following_id) | `created_at`, CHECK `follower_id != following_id` (no autoseguirse) |
 
 Todas con `ON DELETE CASCADE` en ambas FKs.
 
@@ -185,6 +190,7 @@ erDiagram
     users ||--o{ ngo_follows : "sigue ONG"
     users ||--o{ project_follows : "sigue proyecto"
     users ||--o{ voluntario_habilidades : "tiene"
+    users ||--o{ volunteer_follows : "sigue a otro voluntario"
 
     ngos ||--o{ projects : "publica"
     ngos ||--o{ empleados : "emplea"
@@ -193,6 +199,7 @@ erDiagram
     ngos ||--o{ donaciones : "recibe (opcional)"
 
     empresas ||--o{ empresa_voluntariados : "patrocina"
+    empresas ||--o{ empresa_categorias : "clasificada en"
 
     projects ||--o{ enrollments : "recibe"
     projects ||--o{ requisitos : "requiere"
@@ -208,6 +215,7 @@ erDiagram
 
     categorias ||--o{ ngo_categorias : ""
     categorias ||--o{ project_categorias : ""
+    categorias ||--o{ empresa_categorias : ""
     roles ||--o{ project_roles : ""
     habilidades ||--o{ voluntario_habilidades : ""
     empleados ||--o{ reuniones : "coordina (opcional)"

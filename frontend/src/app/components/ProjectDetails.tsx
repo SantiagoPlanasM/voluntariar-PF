@@ -304,7 +304,7 @@ export function ProjectDetails() {
             </div>
 
             {/* Roles */}
-            {project.roles_needed?.length > 0 && (
+            {project.roles_needed && project.roles_needed.length > 0 && (
               <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                 <div className="flex items-center gap-2 mb-3">
                   <Briefcase className="w-4 h-4 text-emerald-600" />
@@ -356,7 +356,7 @@ export function ProjectDetails() {
                 {tab === 'details' && (
                   <div className="space-y-4">
                     <p className="text-sm text-gray-600 leading-relaxed">{project.full_description || project.description}</p>
-                    {project.requirements?.length > 0 && (
+                    {project.requirements && project.requirements.length > 0 && (
                       <>
                         <h4 className="font-bold text-sm text-gray-900">Requisitos</h4>
                         <ul className="space-y-1.5">

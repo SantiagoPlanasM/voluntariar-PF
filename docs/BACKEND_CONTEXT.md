@@ -17,16 +17,19 @@ backend/
 │   ├── middleware/auth.js  # requireAuth, optionalAuth, requireRole, signToken
 │   └── routes/
 │       ├── auth.js         # /api/auth/*
-│       ├── projects.js     # /api/projects/*  (incluye comments, ratings, kpis)
+│       ├── projects.js     # /api/projects/*  (incluye comments, ratings, kpis, recomendaciones)
 │       ├── enrollments.js  # /api/enrollments/*
-│       ├── ngos.js         # /api/ngos/*      (incluye empleados)
-│       ├── voluntarios.js  # /api/voluntarios/* (habilidades del voluntario)
+│       ├── ngos.js         # /api/ngos/*      (incluye empleados, patrocinios lado ONG)
+│       ├── empresas.js     # /api/empresas/*  (perfil, patrocinios lado Empresa)
+│       ├── follows.js      # /api/follows/*   (seguir ONG/proyecto/voluntario, feed)
+│       ├── voluntarios.js  # /api/voluntarios/* (habilidades, perfil público)
+│       ├── faqs.js         # /api/faqs/*      (Chatbot FAQ, sin IA)
 │       ├── messages.js     # /api/messages/*   (chat 1 a 1, REST)
 │       └── notifications.js# /api/notifications/*
 │   └── ws/
 │       └── index.js        # servidor de WebSocket (chat en tiempo real), colgado del mismo puerto HTTP
 └── scripts/
-    ├── migrate.js          # DDL: 24 tablas, 18 índices, datos base (categorías/roles/habilidades)
+    ├── migrate.js          # DDL: 28 tablas, 20+ índices, datos base (categorías/roles/habilidades/FAQs)
     └── seed.js              # datos de demo idempotentes
 ```
 
@@ -117,10 +120,9 @@ Esto acopla la autorización a la consulta de datos (si el recurso no pertenece 
 
 Como el esquema de base de datos está en español (`titulo`, `descripcion`, `ubicacion`, `cupos`...) y el frontend espera inglés (`title`, `description`, `location`, `volunteers_needed`...), cada ruta que devuelve un recurso "de dominio" pasa la fila cruda por una función formateadora local:
 
-- `projects.js::fmt(p)` — mapea proyecto DB → proyecto API, además parsea `roles_json`/`requisitos_json` (strings JSON) a arrays reales con `parseJson()`.
-- `ngos.js::fmtNgo(n)` — mapea ONG DB → ONG API (`nombre→name`, `foto_perfil→logo`, `banner→cover_image`, `descripcion→description`, `mision→mission`, `ubicacion→location`).
-
-**Ninguna función de formateo re-mapea `categoria_nombre` → `category`** — ver `API_CONTEXT.md` y `PROJECT_ANALYSIS.md` para el impacto de esto.
+- `projects.js::fmt(p)` — mapea proyecto DB → proyecto API, además parsea `roles_json`/`requisitos_json` (strings JSON) a arrays reales con `parseJson()`. Incluye `latitude`/`longitude`/`modality` (agregados 2026-09). **Exportado** (`module.exports.fmt = fmt`) para que otros routers que devuelven proyectos lo reusen en vez de copiarlo — lo importan `follows.js` y `ngos.js` (ver §10, ítem sobre duplicación ya corregida dos veces).
+- `ngos.js::fmtNgo(n)` — mapea ONG DB → ONG API (`nombre→name`, `foto_perfil→logo`, `banner→cover_image`, `descripcion→description`, `mision→mission`, `ubicacion→location`, `categoria_nombre→category`).
+- `empresas.js::fmtEmpresa(e)` — mismo patrón para Empresa (`nombre→name`, `industria→industry`, `categoria_nombre→category`, etc.).
 
 ## 7. Helpers y validaciones
 
@@ -129,8 +131,9 @@ Como el esquema de base de datos está en español (`titulo`, `descripcion`, `ub
 | `validateEmail/validateName/validatePassword` | `routes/auth.js` | Regex idénticas (copiadas) a las de `frontend/AuthModal.tsx` |
 | `validateProject(body)` | `routes/projects.js` | Valida título, descripción, ubicación, duración (si `fugaz`), horas semanales (si `sostenido`), cupos |
 | `parseJson(val)` | `routes/projects.js` | `JSON.parse` con try/catch que devuelve `[]` en error |
-| `hasBadWord(text)` / `BLACKLIST` | `routes/projects.js` | Lista fija de ~11 palabras ofensivas en español; se reutiliza (copiada, no importada) en `frontend/ProjectDetails.tsx` |
-| `fmt(p)` / `fmtNgo(n)` | `routes/projects.js`, `routes/ngos.js` | Formateo español→inglés de campos (ver §6) |
+| `hasBadWord(text)` / `BLACKLIST` | `routes/projects.js` | Lista fija de ~11 palabras ofensivas en español; se reutiliza (copiada, no importada — no se puede compartir módulo JS entre backend y frontend) en `frontend/ProjectDetails.tsx`. También exportado (`module.exports.hasBadWord`) para tests. |
+| `fmt(p)` | `routes/projects.js` (exportado, reusado por `follows.js` y `ngos.js`) | Formateo español→inglés de un proyecto (ver §6) |
+| `fmtNgo(n)` / `fmtEmpresa(e)` | `routes/ngos.js`, `routes/empresas.js` | Formateo español→inglés de ONG/Empresa (ver §6) |
 
 No existe una carpeta `src/helpers/` ni `src/utils/` — todo helper vive inline en el archivo de ruta que lo usa, lo que produce duplicación entre `projects.js` y el frontend.
 
@@ -151,13 +154,15 @@ No existe una carpeta `src/helpers/` ni `src/utils/` — todo helper vive inline
 | Proyecto: costo por persona | `costo` | `cost_per_person` |
 | Proyecto: horas por semana | `horas_semanales` | `hours_per_week` |
 | Proyecto: duración | `duracion` | `duration` |
+| Proyecto: latitud/longitud | `latitud`, `longitud` | `latitude`, `longitude` (agregados 2026-09) |
+| Proyecto: modalidad | `modalidad` | `modality` (`presencial`/`remoto`/`hibrido`, agregado 2026-09) |
 | ONG: nombre | `nombre` | `name` |
 | ONG: logo | `foto_perfil` | `logo` |
 | ONG: portada | `banner` | `cover_image` |
 | ONG: descripción | `descripcion` | `description` |
 | ONG: misión | `mision` | `mission` |
 | ONG: ubicación | `ubicacion` | `location` |
-| Inscripción: mensaje del voluntario | `mensaje` | `message` **(el frontend envía `message`, el backend lee `mensaje` — bug, ver `PROJECT_ANALYSIS.md`)** |
+| Inscripción: mensaje del voluntario | `mensaje` | `message` |
 
 Cualquier campo nuevo que se agregue a una tabla debe:
 1. Agregarse al `CREATE TABLE` en `migrate.js`.
@@ -180,12 +185,14 @@ Esto significa que **fallos en la creación de notificaciones son silenciosos** 
 
 ## 10. Problemas detectados (resumen técnico — ver `PROJECT_ANALYSIS.md` para el análisis priorizado)
 
-1. **`projects.js` y `ngos.js` definen rutas después de `module.exports = router`** (líneas 403+ en `projects.js`, y el comentario huérfano al final de `ngos.js` que referencia rutas de KPIs que en realidad están en `projects.js`). Funciona porque `module.exports` apunta al mismo objeto `router` que se sigue mutando, pero es un patrón confuso y frágil ante refactors.
+1. **`projects.js`, `ngos.js` y `empresas.js` definen algunas rutas/exports después de `module.exports = router`.** Funciona porque `module.exports` apunta al mismo objeto `router` que se sigue mutando. Empezó como un patrón confuso (`projects.js` tenía rutas después del export, y `ngos.js` tenía ~~un comentario huérfano que referenciaba rutas de KPIs que en realidad estaban en `projects.js`~~ — ese comentario ya no existe, se limpió al agregar los endpoints de patrocinio), pero pasó a ser el patrón deliberado del proyecto para exportar helpers reutilizables entre routers (`fmt`, `hasBadWord`, `validateProject`) sin crear un módulo `lib/` aparte.
 2. ~~**Inconsistencia `message` vs `mensaje`** en el flujo de inscripción~~ — **Corregido.** El backend ahora acepta `message` en `POST /api/enrollments` y expone `mensaje AS message` en todas las lecturas (`GET /my`, `GET /project/:projectId`), manteniendo la columna DB en español. Ver `PROJECT_ANALYSIS.md §13`.
 3. ~~**`GET /ngos/:id` y `GET /ngos/me` no hacen JOIN con `ngo_categorias`/`categorias`**~~ — **Corregido.** Ambas rutas ahora traen `categoria_nombre` igual que `GET /ngos`, `fmtNgo()` la mapea a `category`, y `PUT /ngos/me` persiste el cambio de categoría en `ngo_categorias`. Ver `PROJECT_ANALYSIS.md §13`. (Nota: `GET /ngos/:id/dashboard` sigue sin este JOIN — no se usa para mostrar categoría en ninguna pantalla actual.)
 4. **Dependencias declaradas sin uso:** `multer` (no hay upload de archivos) y `uuid` (los IDs se generan en SQL, no en JS).
 5. **Falta de índice en columnas usadas para búsqueda por `LIKE`** (`projects.titulo`, `projects.descripcion`, `ngos.nombre`) — los índices existentes cubren `ngo_id`, `status`, `tipo`, `ubicacion`, pero las búsquedas de texto libre en `GET /projects?search=` hacen table scan.
 6. **La rama SQLite de `GET /projects` no filtra por múltiples categorías via agregación** de la misma forma que Postgres — usa un subquery `IN` distinto, y hace **N+1 queries** (una por fila devuelta) para enriquecer roles/requisitos/categoría, mientras que Postgres lo resuelve en una sola query con `json_agg`. Este es el único endpoint con dos implementaciones tan divergentes.
+7. ~~**`follows.js` tenía su propia copia de `fmt()`, desincronizada** (sin `latitude`/`longitude`/`modality`)~~ — **Corregido** (2026-09): ahora importa `fmt` desde `projects.js`. Mismo problema y mismo fix se repitió en `ngos.js` (`GET /me` devolvía proyectos crudos sin pasar por `fmt()`). Ver `PROJECT_ANALYSIS.md §29`.
+8. **`GET /api/projects` no tiene paginación real** — el `limit` default es 20 sin tope superior configurado; cualquier consumidor que necesite el catálogo completo debe pasar un `limit` explícito alto, lo cual es un parche, no una solución (falta "cargar más"/scroll infinito real). Causó un bug real en el frontend, ver `PROJECT_ANALYSIS.md §29` bug 4.
 
 ## 11. Posibles mejoras
 

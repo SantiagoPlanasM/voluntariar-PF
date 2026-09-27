@@ -256,4 +256,37 @@ describe('Sistema de Seguimiento y Feed Personalizado', () => {
       'Debe incluir razón explicando que su contacto participa acá'
     );
   });
+
+  // Regresión: bug encontrado en revisión manual (2026-09) — el feed
+  // calculaba mal my_enrollment_status para el ÚLTIMO proyecto seguido por
+  // un placeholder $N reusado sin offset (ver docs/PROJECT_ANALYSIS.md).
+  // Además, /follows/feed tenía su propio fmtProject duplicado y
+  // desactualizado, sin latitude/longitude/modality.
+  test('El feed calcula bien el estado de inscripción para TODOS los proyectos seguidos, incluido el último', async () => {
+    const mariaRes = await api('/api/auth/login', {
+      method: 'POST',
+      body: { email: 'maria@example.com', password: 'Password1' },
+    });
+    const mariaToken = mariaRes.body.token;
+
+    // María (seed) está aprobada en proj-1 y proj-7, ambos de ngo-1 —
+    // proj-7 es el último de la lista, que es justo el caso que fallaba.
+    await api('/api/follows/ngo/ngo-1', { token: mariaToken, method: 'POST' });
+
+    const feed = await api('/api/follows/feed', { token: mariaToken });
+    assert.equal(feed.status, 200);
+
+    const proj1 = feed.body.projects.find(p => p.id === 'proj-1');
+    const proj7 = feed.body.projects.find(p => p.id === 'proj-7');
+    assert.ok(proj1, 'proj-1 debe estar en el feed');
+    assert.ok(proj7, 'proj-7 debe estar en el feed');
+    assert.equal(proj1.my_enrollment_status, 'approved');
+    assert.equal(proj7.my_enrollment_status, 'approved', 'proj-7 (el último) también debe figurar como aprobado');
+
+    // latitude/longitude/modality deben venir traducidos (no solo
+    // latitud/longitud crudos) — mismo fmtProject que /api/projects.
+    assert.ok(proj1.latitude != null, 'latitude debe venir mapeada en el feed');
+    assert.ok(proj1.longitude != null, 'longitude debe venir mapeada en el feed');
+    assert.ok(proj1.modality, 'modality debe venir mapeada en el feed');
+  });
 });

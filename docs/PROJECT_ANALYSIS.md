@@ -594,3 +594,108 @@ Se confirmó que el problema real era la ausencia de endpoints `requireRole('com
 - Se descartaron las bases de datos y procesos de prueba al terminar.
 
 **Próximo paso sugerido:** Dashboard de Empresa con KPIs (roadmap punto 6), o Sistema de Multimedia (roadmap punto 2), que es prerrequisito de Gestión de CV.
+
+## 28. Feature (agregada por el usuario, documentada retroactivamente): Sistema de Seguimiento, Feed vertical, Mapa y Explorar
+
+**Contexto:** entre las entregas de este documento (hasta §27) y la siguiente, el usuario trabajó directamente sobre el código (fuera de esta conversación) y agregó un conjunto grande de funcionalidad nueva, en 3 commits: *"implementacion de usuario empresas, Patrocinio y chat bot basico"* (el trabajo de §24-27 ya incorporado), *"Cambios: sistema de seguimineto, feed vertical, post de voluntariados, explorar"* y *"Mapa funcionando"*. Esta sección documenta esa entrega — nunca se había escrito en `docs/` hasta ahora.
+
+### Qué se agregó — Backend
+- **Tabla nueva** `volunteer_follows` (voluntario ↔ voluntario, CHECK anti-auto-seguimiento) — además, `ngo_follows`/`project_follows` (que ya existían en el esquema sin API) pasaron a tener API completa.
+- **`routes/follows.js` (nuevo, ~620 líneas):** todos los endpoints de seguir/dejar de seguir (ONG, proyecto, voluntario) + `GET /api/follows/feed`, el feed personalizado de proyectos de lo que el usuario sigue. Ver el detalle completo de endpoints en `API_CONTEXT.md`.
+- **`projects.js` — 3 columnas nuevas** (`latitud`, `longitud`, `modalidad`) agregadas vía `ALTER TABLE` con el mismo patrón `addColumnIfNotExists` que ya se había enseñado en este documento — el usuario replicó bien la convención.
+- **Motor de recomendaciones reescrito** de 4 señales a 9 (ver `API_CONTEXT.md` para el detalle) — mucho más rico, incluye señal social (contactos que participan) y popularidad.
+- **Filtro `modality`/`sort` nuevo** en `GET /api/projects`.
+- **Restricción nueva:** solo puede calificar (`ratings`) quien tenga una inscripción `approved` en el proyecto.
+- **`comments` ahora incluye `is_participant`** para que el frontend distinga comentarios de gente que participó vs. curiosos.
+- **`voluntarios.js`:** nuevo `GET /:userId`, perfil público de voluntario.
+
+### Qué se agregó — Frontend
+- **`ExploreScreen.tsx` reescrita** (793 líneas): búsqueda, filtros y mapa en una sola pantalla.
+- **`ProjectMap.tsx` (nuevo, 852 líneas):** mapa con Leaflet (gratis, sin API key), pines custom con `L.divIcon` (evita el bug clásico de íconos rotos de Leaflet con bundlers).
+- **`FilterModal.tsx` (nuevo):** modal de filtros + función pura `filterProjects()` exportada (ahora con tests, ver §29).
+- **`FeedPostCard.tsx` (nuevo, 520 líneas):** tarjeta de post para el feed vertical (like, comentar, inscribirse, calificar).
+- **`FeedSidebar.tsx` (nuevo):** sidebar de escritorio del feed, puramente presentacional.
+- **`ReviewsModal.tsx` (nuevo):** modal de calificaciones.
+- **`VolunteerPublicProfile.tsx` (nuevo):** perfil público de voluntario, con follow/unfollow.
+- **`CreateVoluntariado.tsx`:** ahora pide modalidad (presencial/remoto/híbrido) y, según la modalidad, ubicación física y/o "plataforma o medio digital".
+- **`MainFeed.tsx`:** ahora arma el feed a partir de `/api/follows/feed` en vez de listar todos los proyectos.
+
+### Cómo se validó
+No había verificación en `docs/` de este trabajo (por eso esta sección es retroactiva). En la revisión de §29 se corrió la suite completa (backend y frontend) contra este código y se probó en vivo cada endpoint nuevo — ver el detalle ahí.
+
+---
+
+## 29. Revisión de código del usuario (§28) — 5 bugs encontrados y arreglados + limpieza de deuda menor
+
+**Contexto:** a pedido del usuario ("hice cambios front y back, que te parecen?"), se hizo una revisión completa y manual de todo el diff de §28 — no solo lectura de código: se corrió el backend y el frontend reales (con el mismo shim de `node:sqlite` de siempre, por la limitación de este entorno para compilar `better-sqlite3`), se corrieron ambas suites de tests, se corrió `tsc --noEmit` real (con `@types/react` instalados, no vienen por defecto en este sandbox) y se reprodujeron los bugs con datos reales antes de arreglar nada.
+
+### Los 5 bugs encontrados (todos arreglados)
+
+1. **`follows.js`, `GET /feed` — estado de inscripción mal calculado para el último proyecto seguido.** La query de `my_enrollment_status` reusaba una variable `ph` (placeholders `$1..$N`) pensada para un array de solo `ids`, pero le anteponía `req.user.id` sin correr la numeración — el resultado real era que el primer placeholder de la cláusula `IN` terminaba bindeado dos veces a `user.id` y el último id de la lista quedaba sin bindear (`remapParams` en `db/sqlTranslate.js` reusa el valor de un placeholder repetido, no lo detecta como error). **Reproducido con datos reales:** María (seed) aprobada en `proj-1` y `proj-7` (ambos de la misma ONG) — el feed mostraba `approved` solo para `proj-1`. **Fix:** placeholders con offset propio (`$i+2`) para la query que antepone `user.id`.
+
+2. **`follows.js` — `fmtProject` copiado y desincronizado de `projects.js`.** El router tenía su propia copia de la función de formateo, sin los mapeos de `latitude`/`longitude`/`modality` que sí tiene la de `projects.js`. **Reproducido:** mismo proyecto, `latitude: -31.42` por `/api/projects/:id`, `latitude: null` por `/api/follows/feed`. **Fix de fondo, no parche:** se exportó `fmt` desde `projects.js` (`module.exports.fmt = fmt`) y `follows.js` ahora lo importa (`const { fmt: fmtProject } = require('./projects')`) en vez de mantener una copia. Mismo patrón se usó después para arreglar el bug de `ngos.js` (ítem "deuda menor" más abajo) — cualquier router nuevo que devuelva proyectos debe hacer lo mismo.
+
+3. **`api.ts` — tipo `Comment` en vez de `AppComment`.** `comment: (id, comment) => req<{ comment: Comment }>(...)` usaba el tipo global del DOM (`Comment`, de `lib.dom.d.ts`) por no importar el propio. No rompía en runtime (JS no valida tipos) pero anulaba el chequeo de tipos ahí y causaba un error real de `tsc`. **Fix:** `AppComment`.
+
+4. **`ExploreScreen.tsx` + `projects.js` — búsqueda/mapa truncados a 20 proyectos.** `ExploreScreen.tsx` pedía `api.projects.list({ sort: 'featured' })` sin `limit`, y el backend por defecto usa `limit=20`. Como el filtrado es 100% client-side sobre esa lista ya fija, cualquier proyecto más allá del #20 nunca aparecía. **Reproducido:** se sembraron 15 proyectos extra (27 en total) y se confirmó que la llamada exacta de la pantalla devolvía 20. **Fix pragmático:** `limit: '200'` explícito, documentado en el código como interino — lo prolijo a mediano plazo es paginar de verdad.
+
+5. **`FilterModal.tsx` — el filtro de modalidad ignoraba el campo `modality` real.** Reinventaba la detección de "remoto" buscando texto (`"remoto"`/`"virtual"`/`"online"`) en `location`, en vez de usar `p.modality` (que el backend ya manda). Un proyecto remoto con ubicación "Zoom" o "Google Meet" — **justo lo que el placeholder de `CreateVoluntariado.tsx` invita a poner** ("Ej: Google Meet, Zoom, Slack") — quedaba invisible al filtrar por "Remoto". Tampoco existía "Híbrido" como opción de filtro, pese a que `CreateVoluntariado.tsx` sí lo permite crear. **Fix:** `filterProjects()` ahora compara `p.modality` directo (con el heurístico de texto viejo solo como fallback si `modality` viniera vacío, no debería pasar nunca). Se agregó "Híbrido" como cuarta opción en el modal, y se corrigió también el chip de filtro activo en `ExploreScreen.tsx` (mostraba "Presencial" para un filtro "Híbrido" recién agregado — bug de un paso, causado por el propio fix, encontrado y corregido en el momento).
+
+### Verificación de los fixes
+- Cada bug se reprodujo primero con datos reales (curl contra servidor real, no solo lectura de código) y se re-verificó después del fix con el mismo escenario exacto.
+- **Test de regresión agregado en `follows.test.js`** para el bug 1+2 — y se probó que el test realmente detecta el bug: se revirtió el fix a propósito, se corrió la suite y el test falló con el mismo síntoma reproducido a mano (`proj-7... null !== 'approved'`); se restauró el fix y volvió a pasar.
+- **4 tests nuevos en `FilterModal.test.tsx`** (no existía cobertura) para el bug 5: caso "Zoom" sin la palabra remoto, caso presencial, caso híbrido, caso sin filtro.
+- Suite de backend: 79 → **80/80** tests. Suite de frontend: 30 → **34/34** tests. `tsc --noEmit` y `vite build` limpios en ambos.
+
+### Deuda menor encontrada durante la revisión, arreglada después a pedido del usuario
+1. **`GET /api/ngos/me` devolvía proyectos crudos** (`SELECT * FROM projects`, sin pasar por `fmt()`) — el frontend lo parchaba con `p.title ?? p.titulo` en `NGODashboard.tsx` en vez de arreglarse en el origen. **Fix de fondo:** `ngos.js` ahora también importa `fmt` de `projects.js` (mismo patrón que el bug 2) y formatea `projects` antes de responder. Se sacó el parche `?? p.titulo` del frontend, ya innecesario.
+2. **Badge de modalidad en las tarjetas de `ExploreScreen.tsx`** no distinguía "Híbrido" de "Presencial" (cosmético, no rompía nada). Se agregó el tercer caso.
+3. **`project.requirements?.length > 0` y `project.roles_needed?.length > 0`** en `ProjectDetails.tsx` generaban un warning real de `tsc` por narrowing (`undefined > 0` es válido en runtime pero TS no lo entiende) — cambiado a `project.requirements && project.requirements.length > 0` (mismo comportamiento, sin el warning).
+
+### Lo que quedó fuera, a propósito
+- No se tocó la paginación real de `GET /api/projects` — el `limit: '200'` en `ExploreScreen.tsx` es un parche que funciona hoy pero no escala indefinidamente; si el catálogo de proyectos crece mucho, esto va a volver a aparecer.
+- `voluntarios.js` `GET /:userId` sigue devolviendo una mezcla de campos en inglés y en español (ver nota en `API_CONTEXT.md`) — no es un bug, pero es candidato a normalizar si se vuelve a tocar ese endpoint.
+- El chatbot con IA (embeddings locales vs. Groq) quedó como decisión pendiente, sin implementar.
+
+## 30. Decisiones de producto que destrababan features del roadmap
+
+Cuatro decisiones que estaban bloqueando explícitamente el arranque de features del roadmap (`BACKEND_ROADMAP_ANALYSIS.md`) quedaron resueltas:
+
+1. **Multimedia (Feed, CV, banners de proyecto): Cloudinary**, no S3. Motivo: el free tier de Cloudinary es permanente (no un trial de 12 meses como el de AWS), incluye transformación/resize de imágenes sin infraestructura extra (Sharp/Lambda), y la integración es más simple para el volumen de este proyecto. Ver detalle técnico completo (schema de `media`, endpoints, `multer`) en `BACKEND_ROADMAP_ANALYSIS.md §1.1`.
+
+2. **"Empleados" de empresa: usuario real vinculado**, no un registro administrativo aparte. Un "voluntario de empresa" es un usuario `role=volunteer` común, asociado a una empresa vía una tabla `empresa_voluntarios (empresa_id, user_id, cargo)` — reusa todo lo que ya existe (`users`, `voluntarios`, `enrollments`) en vez de duplicar el concepto de "empleado" que ya existe para ONG. Ver diseño completo en `BACKEND_ROADMAP_ANALYSIS.md §2.4`.
+
+3. **Privacidad del CV: restringida.** Una ONG solo puede ver el CV de un voluntario si existe una `enrollment` con `status='approved'` entre ambos — no cualquier ONG logueada. Aplica al endpoint `GET /voluntarios/:userId/perfil-completo` diseñado en `BACKEND_ROADMAP_ANALYSIS.md §1.3` (agregar el filtro `EXISTS (...)` que ahí queda solo señalado como pendiente de decisión).
+
+4. **Pagos: Stripe, en modo test — no Mercado Pago.** Decisión tomada explícitamente sabiendo que **no va a salir del caso de prueba** (no hay intención de procesar pagos reales ni de producción). Se prefirió Stripe sobre Mercado Pago por: SDK y documentación en inglés más pulidos y con más comunidad, verificación de firma de webhook resuelta con un helper directo (`stripe.webhooks.constructEvent`, más turnkey que lo que requiere MP), y por ser la referencia más reconocible como "estándar de industria" para una presentación de tesis. **Importante:** el diseño de Sistema de Pagos que quedó escrito en `BACKEND_ROADMAP_ANALYSIS.md §1.4` está armado para Mercado Pago (Checkout Pro, `preferences.create`, `external_reference`) — sirve como referencia conceptual (flujo de `donaciones` con `external_id`/`external_status`, la advertencia de transacciones atómicas antes de tocar `recaudado`), pero **la implementación concreta de endpoints y SDK debe rehacerse para Stripe** (Stripe Checkout Session en vez de `preferences.create`, `stripe.webhooks.constructEvent` en vez de validar el `topic`/`id` a mano). Como queda en modo test, la moneda de la demo va a ser la que se configure en el Checkout de Stripe (típicamente USD), no ARS — es una decisión narrativa para la demo, no técnica.
+
+## 31. Limpieza y consistencia de la documentación (`docs/`)
+
+**Contexto:** a pedido del usuario, se revisaron los 7 archivos de `docs/` en busca de inconsistencias, contradicciones y contenido desactualizado antes de un handoff a un chat nuevo (los 3 docs "vivos" — `API_CONTEXT.md`, `DATABASE_CONTEXT.md`, `PROJECT_ANALYSIS.md` — se venían manteniendo al día en esta conversación, pero `PROJECT_CONTEXT.md`, `BACKEND_CONTEXT.md`, `FRONTEND_CONTEXT.md` y `AI_RULES.md` no se habían tocado desde el análisis inicial de agosto).
+
+### Contradicciones directas encontradas (el mismo hecho descripto de dos formas distintas en el mismo o distinto archivo)
+- `BACKEND_CONTEXT.md §6` decía que `categoria_nombre` "nunca se mapea a `category`", mientras que `§10` del mismo archivo decía que **eso ya estaba corregido**.
+- `BACKEND_CONTEXT.md §8` listaba el bug `message`/`mensaje` como vigente, cuando `§10` (mismo archivo) ya lo marcaba corregido.
+- `FRONTEND_CONTEXT.md` describía el rol `company` como "sin pantallas, redirige a `/feed`" — falso desde que se construyó el módulo de Empresas (§24-25).
+- `FRONTEND_CONTEXT.md` describía un patrón N+1 en `NGODashboard.tsx` como vigente — ya resuelto (§21, "Optimización 3").
+- `FRONTEND_CONTEXT.md` describía `NGOKPIs.tsx` como uno de los componentes que "evitan `api.ts`" — ya corregido (§13); solo `NGOEmpleados.tsx` sigue así.
+
+### Contenido faltante (nunca documentado, no por error sino por no haberse escrito nunca)
+- `API_CONTEXT.md`: el índice de endpoints no tenía ninguna fila de `empresas.js`, `follows.js` ni `faqs.js` — un tercio de los endpoints reales del backend no aparecían ahí.
+- `DATABASE_CONTEXT.md`: faltaban las tablas `faqs` y `volunteer_follows` en la lista numerada y en el diagrama ER.
+- `FRONTEND_CONTEXT.md`: faltaban por completo las rutas y componentes de Empresa, Explorar, Mapa, Filtros, Feed vertical y Perfil público de voluntario en la tabla de rutas y el diagrama de navegación.
+- `PROJECT_CONTEXT.md`: el diagrama de arquitectura y el árbol de archivos tenían conteos viejos (24 tablas/18 índices, 22 componentes) y no mencionaban ninguno de los routers/componentes nuevos.
+
+### Hallazgo nuevo durante esta limpieza (no un bug de código, una duplicación de componentes)
+Existen **dos componentes de reseña que hacen lo mismo**: `ReviewModal.tsx` (105 líneas, más viejo, usado por `MyParticipation.tsx`) y `ReviewsModal.tsx` (310 líneas, más completo, usado por `FeedPostCard.tsx` y `ProjectDetails.tsx`). Ninguno reemplazó al otro — quedaron los dos. No se tocó el código (esto fue una revisión de documentación, no de código), pero queda anotado como candidato a consolidar en `FRONTEND_CONTEXT.md §15`.
+
+### Qué se hizo
+- Se reescribieron las partes desactualizadas de `PROJECT_CONTEXT.md`, `BACKEND_CONTEXT.md` y `FRONTEND_CONTEXT.md` (diagramas, tablas de rutas, árboles de archivo, conteos) para reflejar el estado real del código, verificado contra el código fuente en cada caso (no se asumió nada de memoria de la conversación).
+- Se actualizaron 3 reglas de `AI_RULES.md` que usaban bugs ya corregidos como ejemplo vigente (reglas 4, 10, 16) y una que quedó obsoleta porque ya existe una solución mejor a lo que pedía hacer a mano (regla 12, sobre `ALTER TABLE` — ahora referencia el helper `addColumnIfNotExists`).
+- Se completó el índice de `API_CONTEXT.md` con las ~30 filas que faltaban.
+- Se agregaron las tablas y relaciones faltantes al diagrama ER de `DATABASE_CONTEXT.md`.
+- Se verificó el conteo real de tablas contando `CREATE TABLE IF NOT EXISTS` en `migrate.js` (28, no una cifra de memoria) y se confirmó que coincide exactamente con la lista numerada del documento.
+- Se validó que ninguno de los 7 archivos quedó con Markdown roto (bloques de código sin cerrar) tras las ediciones.
+
+### Qué no se tocó (a propósito)
+No se modificó ningún archivo de código en esta tarea — es exclusivamente una limpieza de documentación. La duplicación de `ReviewModal.tsx`/`ReviewsModal.tsx` y los demás ítems de deuda técnica mencionados quedan para una tarea aparte si el usuario decide abordarlos.

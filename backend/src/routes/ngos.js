@@ -4,6 +4,9 @@ const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { sendEmail } = require('../lib/email');
 const { sponsorDecisionEmail } = require('../lib/emailTemplates');
+// Mismo formateador que /api/projects, para no devolver filas crudas
+// (titulo/foto_perfil/etc.) en el listado de proyectos de la propia ONG.
+const { fmt: fmtProject } = require('./projects');
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
@@ -100,7 +103,7 @@ router.get('/me', requireAuth, requireRole('ngo'), async (req, res) => {
       pending_enrollments: pendingEnrollments.length,
     };
 
-    res.json({ ngo: fmtNgo(ngo), projects, stats, pending_enrollments: pendingEnrollments });
+    res.json({ ngo: fmtNgo(ngo), projects: projects.map(fmtProject), stats, pending_enrollments: pendingEnrollments });
   } catch (err) {
     console.error('GET /ngos/me error:', err);
     res.status(500).json({ error: 'Error al obtener perfil' });

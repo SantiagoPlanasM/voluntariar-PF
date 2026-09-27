@@ -39,7 +39,7 @@ export function NGODashboard() {
   };
 
   const filtered = projects.filter(
-    p => (p.title ?? p.titulo ?? "")
+    p => (p.title ?? "")
         .toLowerCase()
         .includes(search.toLowerCase().trim())
   );

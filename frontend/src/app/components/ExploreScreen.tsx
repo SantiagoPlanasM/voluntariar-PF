@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { Search, SlidersHorizontal, MapPin, X, Laptop, Sparkles, ChevronRight, ChevronLeft, Star, Users, Heart } from 'lucide-react';
+import { Search, SlidersHorizontal, MapPin, X, Laptop, Sparkles, ChevronRight, ChevronLeft, Star, Users, Heart, Globe } from 'lucide-react';
 import { api, Project } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { ProjectMap } from './ProjectMap';
@@ -116,7 +116,11 @@ export function ExploreScreen() {
     const loadData = async () => {
       setLoading(true);
       try {
-        const res = await api.projects.list({ sort: 'featured' });
+        // limit explícito: sin esto, el backend usa su default (20) y el
+        // buscador/mapa de Explorar queda mudo apenas la plataforma supera
+        // los 20 proyectos activos (bug confirmado con 27 proyectos de prueba).
+        // Fix pragmático — lo prolijo a mediano plazo es paginar de verdad.
+        const res = await api.projects.list({ sort: 'featured', limit: '200' });
         setAllProjects(res.projects || []);
       } catch (err) {
         console.error('Error loading projects in ExploreScreen:', err);
@@ -256,7 +260,7 @@ export function ExploreScreen() {
 
               {filters.modality !== 'all' && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0 animate-in fade-in duration-150">
-                  <span>{filters.modality === 'remoto' ? 'Remoto' : 'Presencial'}</span>
+                  <span>{filters.modality === 'remoto' ? 'Remoto' : filters.modality === 'hibrido' ? 'Híbrido' : 'Presencial'}</span>
                   <button
                     onClick={() => setFilters(prev => ({ ...prev, modality: 'all' }))}
                     className="hover:bg-emerald-200/60 rounded-full p-0.5 cursor-pointer"
@@ -698,6 +702,13 @@ export function ExploreScreen() {
                             <Laptop className="w-3 h-3 text-violet-500 flex-shrink-0" />
                             <span className="truncate text-violet-600 font-medium">
                               {p.location && p.location.toLowerCase() !== 'remoto' ? `Remoto (${p.location})` : 'Remoto'}
+                            </span>
+                          </>
+                        ) : p.modality === 'hibrido' ? (
+                          <>
+                            <Globe className="w-3 h-3 text-amber-500 flex-shrink-0" />
+                            <span className="truncate text-amber-600 font-medium">
+                              {p.location ? `Híbrido (${p.location})` : 'Híbrido'}
                             </span>
                           </>
                         ) : (

@@ -2,32 +2,14 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth, optionalAuth, requireRole } = require('../middleware/auth');
+// Reusa el mismo formateador de proyecto que projects.js (exportado ahí
+// justamente para esto) en vez de mantener una copia acá — la copia anterior
+// se había desincronizado y no traía latitude/longitude/modality.
+const { fmt: fmtProject } = require('./projects');
 
 const router = express.Router();
 
 const parseJson = (val) => { try { return JSON.parse(val || '[]'); } catch { return []; } };
-
-function fmtProject(p) {
-  return {
-    ...p,
-    title:              p.titulo,
-    description:        p.descripcion,
-    full_description:   p.descripcion_full,
-    image:              p.foto_perfil,
-    category:           p.category_name || p.categoria || '',
-    location:           p.ubicacion,
-    type:               p.tipo,
-    volunteers_needed:  p.cupos        || 0,
-    current_volunteers: p.cupos_ocupados || 0,
-    funding_goal:       p.meta_financiera || 0,
-    current_funding:    p.recaudado    || 0,
-    cost_per_person:    p.costo        || 0,
-    hours_per_week:     p.horas_semanales || null,
-    duration:           p.duracion     || null,
-    roles_needed:       Array.isArray(p.roles_json) ? p.roles_json : parseJson(p.roles_json),
-    requirements:       Array.isArray(p.requisitos_json) ? p.requisitos_json : parseJson(p.requisitos_json),
-  };
-}
 
 function fmtNgo(n) {
   return {
@@ -355,10 +337,17 @@ router.get('/feed', requireAuth, requireRole('volunteer'), async (req, res) => {
            ORDER BY c.created_at DESC`,
           ids
         ),
-        db.all(
-          `SELECT project_id, status FROM enrollments WHERE user_id = $1 AND project_id IN (${ph})`,
-          [req.user.id, ...ids]
-        ),
+        (() => {
+          // ph está pensado para params=[...ids] (placeholders $1..$N); acá el
+          // array de params antepone req.user.id, así que hace falta una
+          // numeración propia offseteada en +1 — reusar `ph` tal cual pisaría
+          // el $1 del user_id con el primer id y dejaría el último id sin bindear.
+          const userPh = ids.map((_, i) => `$${i + 2}`).join(',');
+          return db.all(
+            `SELECT project_id, status FROM enrollments WHERE user_id = $1 AND project_id IN (${userPh})`,
+            [req.user.id, ...ids]
+          );
+        })(),
       ]);
 
       const rolesByProject = {}, reqsByProject = {}, catByProject = {};

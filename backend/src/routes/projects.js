@@ -859,6 +859,11 @@ module.exports = router;
 // que insertMessage en routes/messages.js).
 module.exports.validateProject = validateProject;
 module.exports.hasBadWord = hasBadWord;
+// fmt (title/description/latitude/longitude/modality, etc.) también se
+// exporta para que otros routers que devuelven proyectos (ej. follows.js)
+// reusen la misma función en vez de mantener una copia — evita que las dos
+// queden desincronizadas cuando se agrega un campo nuevo acá.
+module.exports.fmt = fmt;
 
 // ── GET /api/projects/:id/kpis ────────────────────────────────────────────
 router.get('/:id/kpis', async (req, res) => {

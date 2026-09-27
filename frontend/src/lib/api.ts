@@ -50,7 +50,7 @@ export const api = {
     delete: (id: string) =>
       req<{ message: string }>(`/projects/${id}`, { method: 'DELETE' }),
     comment: (id: string, comment: string) =>
-      req<{ comment: Comment }>(`/projects/${id}/comments`, { method: 'POST', body: JSON.stringify({ comment }) }),
+      req<{ comment: AppComment }>(`/projects/${id}/comments`, { method: 'POST', body: JSON.stringify({ comment }) }),
     rate: (id: string, rating: number, comment?: string) =>
       req<{ message: string }>(`/projects/${id}/ratings`, { method: 'POST', body: JSON.stringify({ rating, comment }) }),
     kpis: {

@@ -8,7 +8,7 @@
 
 - **Voluntarios** que buscan participar en proyectos sociales.
 - **ONGs** que publican esos proyectos y gestionan inscripciones.
-- **Empresas** que, conceptualmente, patrocinan voluntariados corporativos (RSE) — este rol existe en el modelo de datos y en el registro, pero **no tiene pantallas propias implementadas** (ver §7 y `PROJECT_ANALYSIS.md`).
+- **Empresas** que patrocinan voluntariados corporativos (RSE): siguen proyectos de una ONG, proponen patrocinios, y tienen su propio panel (perfil, patrocinios, mensajes) — ver §5 y `PROJECT_ANALYSIS.md §24-26`.
 
 El feed público (`/`) permite a cualquier visitante no autenticado explorar proyectos activos antes de crear una cuenta.
 
@@ -35,7 +35,9 @@ Monorepo con dos paquetes npm independientes (`frontend/`, `backend/`) más un `
 │  CORS → express.json()         │
 │  Middleware JWT (auth.js)      │
 │  Rutas: /api/auth /projects    │
-│  /enrollments /ngos /notifications │
+│  /enrollments /ngos /empresas  │
+│  /follows /faqs /voluntarios   │
+│  /notifications /messages      │
 │  /categorias /roles /habilidades │
 └───────────────┬────────────────┘
                 │ SQL (adaptador dual)
@@ -44,7 +46,7 @@ Monorepo con dos paquetes npm independientes (`frontend/`, `backend/`) más un `
 │  Base de datos                 │
 │  SQLite (local, better-sqlite3)│
 │  PostgreSQL (prod, Render)     │
-│  24 tablas · 18 índices        │
+│  28 tablas · 20+ índices       │
 └──────────────────────────────┘
 ```
 
@@ -89,9 +91,9 @@ No usa: ORM (todo es SQL crudo con parámetros posicionales `$1, $2...`), sistem
 
 | Rol (`users.role`) | Descripción | Pantallas dedicadas |
 |---|---|---|
-| `volunteer` | Explora proyectos, se inscribe, ve su historial y horas, comenta, califica | Sí (feed, explorar, participaciones, perfil, notificaciones) |
-| `ngo` | Publica y gestiona proyectos, aprueba/rechaza inscripciones, gestiona empleados y KPIs | Sí (dashboard, crear, detalle de proyecto, perfil, empleados, KPIs) |
-| `company` | Pensado para patrocinar voluntariados (RSE) | **No** — se registra y hace login, pero es redirigido al feed de voluntario (`/feed`); no hay dashboard de empresa, ni endpoints que usen `empresa_voluntariados` desde el frontend |
+| `volunteer` | Explora proyectos, se inscribe, ve su historial y horas, comenta, califica, sigue ONGs/proyectos/otros voluntarios | Sí (feed, explorar con mapa, participaciones, perfil propio y público, notificaciones, mensajes) |
+| `ngo` | Publica y gestiona proyectos, aprueba/rechaza inscripciones, gestiona empleados, KPIs y propuestas de patrocinio | Sí (dashboard, crear, detalle de proyecto, perfil, empleados, KPIs, patrocinios, mensajes) |
+| `company` | Patrocina voluntariados (RSE) | Sí (perfil propio y público, proponer/retirar patrocinios, mensajes) — layout propio en `/company/*`, redirige ahí después del login |
 
 El rol se fija en el registro y es inmutable desde la UI (no hay endpoint de cambio de rol).
 
@@ -100,32 +102,40 @@ El rol se fija en el registro y es inmutable desde la UI (no hay endpoint de cam
 ```mermaid
 flowchart TD
     A["/ (PublicFeed)<br/>sin login"] -->|"Entrar / Registrarme<br/>(AuthModal)"| B{Login OK}
-    B -->|role=volunteer| C["/feed (MainFeed)"]
-    B -->|role=company| C
+    B -->|role=volunteer| C["/feed (MainFeed)<br/>feed de lo que sigo"]
     B -->|role=ngo| D["/ngo/dashboard"]
+    B -->|role=company| E["/company/profile"]
 
     C --> C1["/project/:id<br/>ProjectDetails"]
-    C --> C2["/explore<br/>ExploreScreen"]
+    C --> C2["/explore<br/>ExploreScreen (buscar/filtrar/mapa)"]
     C --> C3["/participation<br/>MyParticipation"]
     C --> C4["/notifications"]
     C --> C5["/profile<br/>VolunteerProfile"]
-    C1 --> C6["/ngo/:id<br/>NGOPublicProfile (público)"]
+    C --> C6["/messages<br/>+ /messages/:userId"]
+    C1 --> C7["/ngo/:id<br/>NGOPublicProfile (público)"]
+    C1 --> C8["/company/:id<br/>CompanyPublicProfile (público)"]
+    C1 --> C9["/volunteer/:id<br/>VolunteerPublicProfile (público)"]
 
     D --> D1["/ngo/create<br/>CreateVoluntariado"]
     D --> D2["/ngo/dashboard/project/:id<br/>NGOProjectDetail"]
     D --> D3["/ngo/profile<br/>NGOOwnProfile"]
-    D --> D4["/ngo/empleados/:id<br/>NGOEmpleados"]
-    D --> D5["/ngo/kpis/:projectId<br/>NGOKPIs"]
+    D --> D4["/ngo/patrocinios<br/>NGOPatrocinios"]
+    D --> D5["/ngo/empleados/:id<br/>NGOEmpleados"]
+    D --> D6["/ngo/kpis/:projectId<br/>NGOKPIs"]
+    D --> D7["/ngo/messages<br/>+ /ngo/messages/:userId"]
+
+    E --> E1["/company/profile<br/>CompanyOwnProfile<br/>(editar perfil + proponer/retirar patrocinios)"]
+    E --> E2["/company/messages<br/>+ /company/messages/:userId"]
 ```
 
-Hay **dos layouts raíz** (`Root.tsx` para `/` y `NGOLayout.tsx` para `/ngo/*`), cada uno con su propia navegación (bottom nav en mobile, sidebar en desktop) y su propio `<AuthModal/>` montado.
+Hay **tres layouts raíz** (`Root.tsx` para `/`, `NGOLayout.tsx` para `/ngo/*` y `CompanyLayout.tsx` para `/company/*`), cada uno con su propia navegación (bottom nav en mobile, sidebar en desktop) y su propio `<AuthModal/>` y `<ChatbotWidget/>` montados.
 
 `OnboardingScreen.tsx` es un componente de login/registro alternativo **que existe en el código pero no está registrado en `routes.tsx`** — no es alcanzable navegando la app (ver `PROJECT_ANALYSIS.md`).
 
 ## 7. Cómo interactúan frontend y backend
 
 - El frontend llama a la API vía `src/lib/api.ts`, un cliente `fetch` centralizado que añade automáticamente el header `Authorization: Bearer <token>` si hay sesión (token guardado en `localStorage` bajo la clave `v_token`).
-- **Excepción importante:** tres componentes (`NGOKPIs.tsx`, `NGOEmpleados.tsx`) **no usan `api.ts`** — hacen `fetch()` directo a `import.meta.env.VITE_API_URL`, leyendo el token de `localStorage` por su cuenta. Esto duplica lógica y significa que cualquier cambio futuro al cliente HTTP (p. ej. manejo de errores, refresh de token) no cubre estos dos módulos automáticamente.
+- **Excepción:** `NGOEmpleados.tsx` **no usa `api.ts`** para sus 2 llamadas a `/ngos/:id/empleados` — hace `fetch()` directo a `import.meta.env.VITE_API_URL`, leyendo el token de `localStorage` por su cuenta (pese a que sí importa `api` de `lib/api.ts`, no lo usa para esto — `api.ts` no tiene un namespace `empleados`). Esto duplica lógica y significa que cualquier cambio futuro al cliente HTTP (p. ej. manejo de errores, refresh de token) no cubre este módulo automáticamente. *(Corregido parcialmente: `NGOKPIs.tsx`, que antes tenía el mismo problema, ya usa `api.ts` correctamente.)*
 - El backend responde siempre JSON. Los errores se devuelven como `{ error: "mensaje en español" }` con el código HTTP correspondiente; el cliente los relanza como `Error(data.error)` y cada componente los muestra en su propio estado local (no hay un manejador de errores global en el frontend).
 - No hay renovación de token ni interceptor de 401: si el JWT expira, la próxima request falla y el componente que la hizo debe manejarlo manualmente (algunos lo hacen — `NGODashboard` redirige a `/` si detecta "Token"/"autenticado" en el mensaje de error —, la mayoría no).
 
@@ -142,19 +152,24 @@ voluntariar-v2/
 │   │   ├── middleware/auth.js # requireAuth, optionalAuth, requireRole, signToken
 │   │   └── routes/
 │   │       ├── auth.js       # register, login, me (GET/PUT)
-│   │       ├── projects.js   # CRUD proyectos, comments, ratings, kpis
+│   │       ├── projects.js   # CRUD proyectos, comments, ratings, kpis, recomendaciones
 │   │       ├── enrollments.js # inscripciones, aprobación, horas
-│   │       ├── ngos.js       # perfil ONG, dashboard, empleados
+│   │       ├── ngos.js       # perfil ONG, dashboard, empleados, patrocinios (lado ONG)
+│   │       ├── empresas.js   # perfil Empresa, patrocinios (lado Empresa)
+│   │       ├── follows.js    # seguir ONG/proyecto/voluntario, feed personalizado
+│   │       ├── voluntarios.js # habilidades del voluntario, perfil público
+│   │       ├── faqs.js       # catálogo + matching del Chatbot FAQ
+│   │       ├── messages.js   # chat 1 a 1 (REST)
 │   │       └── notifications.js
 │   ├── scripts/
-│   │   ├── migrate.js        # DDL completo (24 tablas + 18 índices + datos base)
-│   │   └── seed.js           # Datos de demo (usuarios, ONGs, 12 proyectos)
+│   │   ├── migrate.js        # DDL completo (28 tablas + 20+ índices + datos base)
+│   │   └── seed.js           # Datos de demo (usuarios, ONGs, empresa, 12+ proyectos, follows)
 │   └── data/voluntariar.sqlite # DB local (generada, no versionar en git real)
 └── frontend/
     └── src/
         ├── app/
-        │   ├── routes.tsx    # Definición de rutas (createBrowserRouter)
-        │   └── components/   # 22 componentes, todos "screen-level" o cercanos
+        │   ├── routes.tsx    # Definición de rutas (createBrowserRouter, 3 layouts raíz)
+        │   └── components/   # 38 componentes, todos "screen-level" o cercanos
         ├── lib/
         │   ├── api.ts        # Cliente HTTP + todos los tipos TS del dominio
         │   └── AuthContext.tsx # Estado global de sesión (React Context)
@@ -175,7 +190,7 @@ No hay separación entre "componentes de presentación" y "componentes contenedo
 
 - **SQLite en local, Postgres en producción** con un único adaptador que traduce sintaxis sobre la marcha (no dos codebases separados). Ahorra fricción para levantar el proyecto localmente sin instalar Postgres, a costa de una capa de traducción regex que es una fuente de bugs sutiles (ver `BACKEND_CONTEXT.md §2` y `PROJECT_ANALYSIS.md`).
 - **JWT sin refresh token:** sesiones de 7 días (`JWT_EXPIRES_IN`), sin blacklist ni rotación. Cerrar sesión es puramente client-side (se borra el token de `localStorage`); el token sigue siendo válido en el servidor hasta que expira.
-- **Sin ORM:** todas las queries son SQL crudo escrito a mano. Da control total sobre el SQL pero significa que no hay validación de esquema en tiempo de desarrollo ni migraciones incrementales versionadas — el "esquema" vive enteramente en `migrate.js`, que además funciona por `CREATE TABLE IF NOT EXISTS` (agregar una columna a una tabla existente requiere una migración manual nueva, no solo editar el `CREATE TABLE`).
+- **Sin ORM:** todas las queries son SQL crudo escrito a mano. Da control total sobre el SQL pero significa que no hay validación de esquema en tiempo de desarrollo ni migraciones incrementales versionadas — el "esquema" vive enteramente en `migrate.js`. Las tablas nuevas se agregan con `CREATE TABLE IF NOT EXISTS`; las columnas nuevas sobre una tabla existente usan un helper `addColumnIfNotExists(tabla, columna, definición)` (agregado 2026-09, ver `PROJECT_ANALYSIS.md §29`) que chequea si la columna ya existe (vía `PRAGMA table_info` / `information_schema`, portable entre motores) antes de correr el `ALTER TABLE` — permite correr `migrate.js` las veces que sea sin romper.
 - **Requisitos/roles de proyecto normalizados en tablas propias** (`requisitos`, `roles`, `project_roles`) en vez de columnas JSON — explícitamente mencionado en un comentario del código (`REQUISITOS — tabla normalizada (reemplaza JSON)`), pero el propio backend expone estos datos al frontend serializados como JSON string (`roles_json`, `requisitos_json`) que luego se parsean de nuevo con `JSON.parse` — un patrón híbrido.
 - **Feed público sin autenticación** (`optionalAuth`) para permitir SEO/descubrimiento sin registro, con CTA para registrarse al querer inscribirse.
 
@@ -203,16 +218,17 @@ Ver diagrama de secuencia completo en `BACKEND_CONTEXT.md §4`.
 
 ## 14. Riesgos técnicos (resumen — detalle en `PROJECT_ANALYSIS.md`)
 
-- Inconsistencia de nombre de campo entre frontend y backend en el flujo de inscripción (`message` vs `mensaje`) que hace que el mensaje del voluntario a la ONG **nunca se guarde**.
+- **`JWT_SECRET` con fallback inseguro** en `middleware/auth.js` — arrastrado desde el análisis inicial del proyecto, nunca resuelto. Con Empresas y Patrocinio manejando datos más sensibles, dejó de ser un riesgo puramente cosmético.
+- **Sin paginación real en `GET /api/projects`** — cualquier pantalla que necesite "todos los proyectos" (como `ExploreScreen.tsx`) tiene que pasar un `limit` explícito alto a mano, o los resultados quedan truncados en silencio al default de 20 (bug real encontrado y arreglado así, ver `PROJECT_ANALYSIS.md §29` bug 4 — pero la causa de fondo, la falta de paginación, sigue sin resolver).
+- **Riesgo de duplicación de helpers de formateo entre routers** — ya pasó dos veces (`follows.js` y `ngos.js` con copias desincronizadas de `fmtProject`, ver `PROJECT_ANALYSIS.md §29`). Se resolvió exportando `fmt` desde `projects.js`, pero cualquier router nuevo que devuelva proyectos tiene que acordarse de importarlo, no copiarlo.
 - Lógica de negocio y validaciones duplicadas en frontend y backend (regex de email/nombre/password, blacklist de palabras) sin una fuente única de verdad — mantenerlas sincronizadas es manual.
-- Componentes (`NGOKPIs`, `NGOEmpleados`) que evitan el cliente `api.ts` y reimplementan fetch + auth header a mano.
-- Falta de guardas de rol en el frontend para las rutas `/ngo/*` — cualquier usuario autenticado (o no autenticado) puede navegar a esas URLs; solo el backend rechaza las acciones.
+- `NGOEmpleados.tsx` evita el cliente `api.ts` y reimplementa fetch + auth header a mano (ver §7).
+- Falta de guardas de rol en el frontend para las rutas `/ngo/*` y `/company/*` — cualquier usuario autenticado (o no autenticado) puede navegar a esas URLs; solo el backend rechaza las acciones.
 - Dependencia de un plan gratuito de Render con expiración de base de datos a los 90 días y "sleep" tras 15 minutos de inactividad — aceptable para una demo académica, no para producción real.
 
 ## 15. Deuda técnica encontrada (resumen — detalle en `PROJECT_ANALYSIS.md`)
 
-- Rutas registradas *después* de `module.exports` en `projects.js` y `ngos.js` (funciona por mutación de referencia, pero es una señal de organización descuidada / posible copy-paste tardío).
-- Dependencias no usadas (`multer`, `uuid`) en el backend.
+- Rutas registradas *después* de `module.exports` en `projects.js`, `ngos.js` y `empresas.js` — funciona por mutación de referencia. Empezó como una señal de organización descuidada, pero pasó a ser el patrón deliberado del proyecto para exportar helpers reutilizables entre routers (`fmt`, `validateProject`, `hasBadWord`) sin crear un módulo aparte — ver `PROJECT_ANALYSIS.md §29`.
+- Dependencias no usadas (`multer`, `uuid`) en el backend — se van a empezar a usar cuando se implemente Multimedia (decisión de proveedor ya tomada: Cloudinary, ver `PROJECT_ANALYSIS.md §30`).
 - Un componente completo (`OnboardingScreen.tsx`) que no está enrutado.
-- Patrón N+1 de requests en `NGODashboard` (una llamada a `enrollments/project/:id` por cada proyecto de la ONG).
-- Doble definición de la blacklist de palabras prohibidas (idéntica) en `backend/src/routes/projects.js` y `frontend/src/app/components/ProjectDetails.tsx`.
+- Doble definición de la blacklist de palabras prohibidas (idéntica) en `backend/src/routes/projects.js` y `frontend/src/app/components/ProjectDetails.tsx` — inherente a que frontend y backend son runtimes separados (no se puede compartir el módulo JS directamente), pero sigue siendo un lugar donde hay que acordarse de actualizar dos veces.
