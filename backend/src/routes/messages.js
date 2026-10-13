@@ -2,6 +2,8 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { randomUUID } = require('node:crypto');
+const { toMillis } = require('../lib/time');
 
 const router = express.Router();
 
@@ -21,9 +23,14 @@ async function insertMessage(senderId, receiverId, body) {
   const receiver = await db.get('SELECT id FROM users WHERE id=$1', [receiverId]);
   if (!receiver) throw new Error('Destinatario no encontrado');
 
+  // id propio, y se relee ESA fila. Antes se hacía "WHERE sender/receiver ORDER BY created_at DESC
+  // LIMIT 1": en SQLite created_at tiene resolución de 1 s, y dos mensajes seguidos del mismo
+  // remitente al mismo destinatario empataban y se devolvía el anterior — que además se le empujaba
+  // al destinatario por WebSocket (PROJECT_ANALYSIS §40).
+  const id = randomUUID();
   await db.run(
-    'INSERT INTO messages (sender_id, receiver_id, body) VALUES ($1,$2,$3)',
-    [senderId, receiverId, trimmed]
+    'INSERT INTO messages (id, sender_id, receiver_id, body) VALUES ($1,$2,$3,$4)',
+    [id, senderId, receiverId, trimmed]
   );
 
   return db.get(
@@ -31,9 +38,8 @@ async function insertMessage(senderId, receiverId, body) {
             u.name AS sender_name, u.avatar AS sender_avatar
      FROM messages m
      JOIN users u ON u.id = m.sender_id
-     WHERE m.sender_id=$1 AND m.receiver_id=$2
-     ORDER BY m.created_at DESC LIMIT 1`,
-    [senderId, receiverId]
+     WHERE m.id=$1`,
+    [id]
   );
 }
 
@@ -104,7 +110,8 @@ router.get('/conversations', requireAuth, async (req, res) => {
       })
       .filter(Boolean);
 
-    conversations.sort((a, b) => (b.last_at || '').localeCompare(a.last_at || ''));
+    // last_at es string en SQLite y Date en Postgres (Date no tiene localeCompare): vía toMillis().
+    conversations.sort((a, b) => (toMillis(b.last_at) ?? 0) - (toMillis(a.last_at) ?? 0));
     res.json({ conversations });
   } catch (err) {
     console.error('GET /messages/conversations error:', err);

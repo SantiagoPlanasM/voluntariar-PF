@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { api, VolunteerProfileData, VolunteerPublic, VolunteerSkill } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
+import { MomentsGrid } from './MomentsGrid';
 
 const NIVEL_LABELS: Record<string, string> = { basico: 'Básico', intermedio: 'Intermedio', avanzado: 'Avanzado' };
 
@@ -254,6 +255,14 @@ export function VolunteerPublicProfile() {
             </div>
           )}
         </div>
+
+        {/* Momentos */}
+        {id && (
+          <section aria-label="Momentos">
+            <h2 className="font-bold text-gray-900 text-sm mb-3">Momentos</h2>
+            <MomentsGrid filters={{ user_id: id }} />
+          </section>
+        )}
       </div>
 
       {/* Modal de seguidores/seguidos (Instagram style) */}

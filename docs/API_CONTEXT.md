@@ -5,6 +5,8 @@
 > Formato de fecha: ISO 8601 (`TIMESTAMPTZ`/`DATETIME`).
 > "Auth" = requiere header `Authorization: Bearer <jwt>`. "Auth opcional" = el endpoint funciona sin token pero personaliza la respuesta si hay uno válido.
 
+> **Convención de altas (`PROJECT_ANALYSIS.md §40`):** los endpoints que crean una fila y la devuelven (`POST` de proyectos, empleados, comentarios, KPIs y mensajes) generan el id con `crypto.randomUUID()` y releen **esa** fila por id. Nunca "la última por `created_at`": en SQLite `created_at` tiene resolución de 1 segundo y dos altas dentro del mismo segundo empatan.
+
 ## Índice de endpoints
 
 | Método | Ruta | Auth | Roles | Archivo |
@@ -49,6 +51,7 @@
 | GET | `/api/empresas/me` | Sí | company | `routes/empresas.js` |
 | GET | `/api/empresas/:id` | No | — | `routes/empresas.js` |
 | PUT | `/api/empresas/me` | Sí | company | `routes/empresas.js` |
+| GET | `/api/empresas/me/dashboard` | Sí | company | `routes/empresas.js` |
 | GET | `/api/empresas/me/patrocinios` | Sí | company | `routes/empresas.js` |
 | POST | `/api/empresas/me/patrocinios` | Sí | company | `routes/empresas.js` |
 | DELETE | `/api/empresas/me/patrocinios/:projectId` | Sí | company | `routes/empresas.js` |
@@ -68,6 +71,13 @@
 | GET | `/api/follows/volunteer/:userId/followers` | No | — | `routes/follows.js` |
 | GET | `/api/follows/volunteer/:userId/following` | No | — | `routes/follows.js` |
 | GET | `/api/follows/feed` | Sí | volunteer | `routes/follows.js` |
+| GET | `/api/posts/eligible-projects` | Sí | volunteer, ngo | `routes/posts.js` |
+| POST | `/api/posts` | Sí | volunteer, ngo | `routes/posts.js` |
+| GET | `/api/posts` | Opcional | — | `routes/posts.js` |
+| GET | `/api/posts/:id` | Opcional | — | `routes/posts.js` |
+| POST | `/api/posts/:id/like` | Sí | cualquiera | `routes/posts.js` |
+| DELETE | `/api/posts/:id/like` | Sí | cualquiera | `routes/posts.js` |
+| DELETE | `/api/posts/:id` | Sí | autor o ONG dueña del proyecto | `routes/posts.js` |
 | GET | `/api/faqs` | Opcional | — | `routes/faqs.js` |
 | POST | `/api/faqs/ask` | Opcional | — | `routes/faqs.js` |
 | GET | `/api/voluntarios/me/habilidades` | Sí | volunteer | `routes/voluntarios.js` |
@@ -148,10 +158,12 @@
 - **Efecto:** `INSERT` en `projects` (mapeando `volunteers_needed → cupos` internamente), luego `INSERT` en `requisitos`, `project_roles`, `project_categorias` para cada elemento de los arrays recibidos.
 - **Respuesta 201:** `{ project }`.
 - **Errores:** `400` validación / palabra prohibida, `403` si el usuario no tiene perfil de ONG asociado.
+- **Id propio (`PROJECT_ANALYSIS.md §40`):** el handler genera el id con `crypto.randomUUID()`, lo usa en el `INSERT`, para releer la fila y para asociar categoría/roles/requisitos. *(Antes buscaba "el último proyecto de la ONG" por `created_at`: en SQLite, con resolución de 1 s, dos altas de la misma ONG en el mismo segundo empataban, devolvía el más viejo y le enganchaba las asociaciones.)*
 
 ### `PUT /api/projects/:id` — Auth, role `ngo` (dueño)
 - Verifica `ngo_id` de la sesión contra el `ngo_id` del proyecto (join implícito vía `WHERE id=$1 AND ngo_id=$2`).
 - **Body:** mismos campos que create (en inglés: `title`, `description`, `full_description`, `image`, `location`, `type`, `duration`, `volunteers_needed`, `funding_goal`, `cost_per_person`, `hours_per_week`, `status`), todos opcionales (actualización parcial). *(Corregido — tenía el mismo bug que `POST /`, leía `cupos` en vez de `volunteers_needed`. Ver `PROJECT_ANALYSIS.md §13`, bug B5.)*
+- **Capacidad (`PROJECT_ANALYSIS.md §40`):** `volunteers_needed` **omitido o `null` conserva la capacidad actual** (antes se pisaba con `0`); un valor explícito debe ser un entero ≥ 1 (**400** `"Los cupos deben ser un número positivo"`, igual que al crear; antes un negativo violaba el `CHECK(cupos >= 0)` y devolvía 500). **No se puede bajar por debajo de las inscripciones aprobadas**: **400** `"No podés bajar la capacidad a N: ya hay M voluntarios aprobados."`. La condición va dentro del propio `UPDATE` (`... AND cupos_ocupados <= $9`), así que es atómica frente a aprobaciones concurrentes. **No es una actualización parcial real**: el resto de los campos omitidos no se conserva (p. ej. `status` omitido vuelve a `'active'`); no se verificó qué hace cada uno. Ninguna pantalla del frontend usa hoy este endpoint.
 - **Respuesta 200:** `{ project }`. **Errores:** `404` si el proyecto no existe o no pertenece a la ONG del usuario (no distingue "no existe" de "no es tuyo", por diseño).
 
 ### `DELETE /api/projects/:id` — Auth, role `ngo` (dueño)
@@ -201,12 +213,15 @@
 
 ### `PATCH /api/enrollments/:id` — Auth, role `ngo` (dueño del proyecto de la inscripción)
 - **Body:** `{ status: 'approved'|'rejected' }`.
-- **Efecto:** actualiza `status`; si pasa a `approved`, incrementa `projects.cupos_ocupados` en 1 (verificando que no exceda `cupos`); notificación fire-and-forget al voluntario.
-- **Respuesta 200:** `{ enrollment }`.
+- **Efecto:** en **una transacción** actualiza `status` y ajusta `projects.cupos_ocupados` (+1 al pasar a `approved`, −1 —sin bajar de 0— al pasar de `approved` a `rejected`). Después del COMMIT, notificación y email fire-and-forget al voluntario.
+- **Concurrencia (2026-09, `PROJECT_ANALYSIS.md §34`):** el `UPDATE` es un compare-and-swap sobre el estado leído, así que doble click / reintentos no suman el cupo dos veces. **Idempotente:** pedir el estado que la inscripción ya tiene devuelve 200 sin cambiar nada y **sin** notificación ni email duplicados (antes cada re-aprobación mandaba otro email).
+- **Capacidad (`PROJECT_ANALYSIS.md §39`):** aprobar impone `cupos_ocupados <= cupos`. El `UPDATE` que suma el cupo es condicional (`... WHERE id=$1 AND cupos_ocupados < cupos`); si no afecta ninguna fila se hace **ROLLBACK de toda la transacción** (la inscripción sigue en su estado anterior) y se responde **409**. Atómico también bajo concurrencia en Postgres. Aplica a `pending→approved` y también a `rejected→approved`; **no** aplica al no-op de re-aprobar algo ya aprobado (200). Es la misma regla y el mismo mensaje que ya usa el alta (`POST /api/enrollments`).
+- **Respuesta 200:** `{ message }` (`"Inscripción aprobada"` / `"Inscripción rechazada"`). **409** si otro request cambió el estado a algo distinto entre la lectura y la escritura (`"La inscripción cambió mientras la revisabas..."`), o si al aprobar ya no quedan cupos (`"El proyecto no tiene cupos disponibles"`).
 
 ### `DELETE /api/enrollments/:id` — Auth (el propio voluntario dueño de la inscripción)
-- Cancela/borra la inscripción. Si estaba `approved`, decrementa `cupos_ocupados`.
-- **Respuesta 200:** `{ success: true }`.
+- Cancela/borra la inscripción. Si estaba `approved`, decrementa `cupos_ocupados` (sin bajar de 0). Borrado y decremento en **una transacción**; el `DELETE` exige que el estado siga siendo el leído (compare-and-swap).
+- **Concurrencia:** varias cancelaciones simultáneas del mismo registro → una sola responde 200 y decrementa; las demás **404** (antes todas respondían 200 y cada una restaba un cupo).
+- **Respuesta 200:** `{ message: 'Inscripción cancelada' }`. **404** si ya no existe. **409** si el estado cambió justo antes de borrar.
 
 ### `PATCH /api/enrollments/:id/horas` — Auth, role `ngo` (dueño del proyecto)
 - **Decisión de diseño (ver `PROJECT_ANALYSIS.md §21-22`):** originalmente el código dejaba que el propio voluntario auto-reportara sus horas (con la documentación de esta misma sección diciendo lo contrario) y no tenía ninguna UI que lo usara. Se decidió que las horas queden **verificadas por la ONG dueña del proyecto**, no auto-reportadas — patrón estándar en plataformas de voluntariado, y más confiable para las estadísticas del proyecto.
@@ -274,7 +289,32 @@
 - `category` es el nombre de una categoría existente (ej. `"Tecnología"`) — mismo patrón "borrar e insertar" que `ngo_categorias`.
 - **Respuesta 200:** `{ empresa }` (incluye `category` actualizada).
 
-**Todavía sin API**: dashboard agregado de empresa con KPIs, gestión de voluntarios propios (roadmap puntos 6/8). El patrocinio (`empresa_voluntariados`) sí tiene API completa — ver más abajo.
+### `GET /api/empresas/me/dashboard` — Auth, role `company`
+> Agregado 2026-09 (`BACKEND_ROADMAP_ANALYSIS.md §2.3`, `PROJECT_ANALYSIS.md §33`). Una sola llamada, 4 queries fijas (1 de empresa + 3 en paralelo) sin importar cuántos proyectos patrocine — sin N+1.
+
+- **Respuesta 200:**
+  ```json
+  {
+    "stats":  { "sponsored_projects": 2, "pending_proposals": 1, "rejected_proposals": 0 },
+    "impact": { "total_hours": 15, "volunteers_reached": 1 },
+    "projects": [{
+      "project_id": "proj-1", "title": "...", "image": null, "project_status": "active",
+      "volunteers_needed": 50, "current_volunteers": 23,
+      "ngo_id": "ngo-1", "ngo_name": "...", "ngo_logo": null,
+      "sponsorship_status": "aceptado", "decided_at": "...",
+      "hours_logged": 10, "volunteers_count": 1
+    }]
+  }
+  ```
+- **Semántica de cada número (importante para no malinterpretarlos):**
+  - `stats.*`: conteos por estado de `empresa_voluntariados`. **Solo `aceptado` cuenta como "patrocinado"** — una propuesta pendiente no infla el KPI.
+  - `impact.*`: impacto **del proyecto patrocinado** (todas las horas `horas_realizadas` de inscripciones `approved`, no solo las de personas de la empresa), limitado a proyectos con patrocinio `aceptado`. `volunteers_reached` cuenta **personas distintas** (`COUNT(DISTINCT user_id)`): quien participa en dos proyectos patrocinados cuenta una vez, aunque aparezca en el `volunteers_count` de ambos.
+  - `projects[]`: todos los estados (pendiente/aceptado/rechazado), más reciente primero. `hours_logged`/`volunteers_count` son del proyecto; el frontend solo los muestra si `sponsorship_status === 'aceptado'`. `sponsorship_status` usa los mismos valores que `Patrocinio.estado`.
+- **No incluye `aporte_total`**: `empresa_voluntariados.aporte` no lo escribe ningún endpoint ni pantalla (siempre vale el default `0`), así que ese KPI sería un cero permanente. Sumarlo cuando exista una forma real de cargarlo (o cuando Pagos lo derive de una donación completada).
+- **Todos los números salen normalizados con `Number()`**: en Postgres `SUM`/`COUNT` llegan como string (el adaptador no configura parsers de tipos de `pg`); ver `AI_RULES.md` regla 13.
+- **Errores:** `401` sin token, `403` si el rol no es `company`, `404` si no tiene perfil de empresa.
+
+**Todavía sin API**: gestión de voluntarios propios de la empresa (`BACKEND_ROADMAP_ANALYSIS.md §2.4`). El patrocinio (`empresa_voluntariados`) sí tiene API completa — ver más abajo.
 
 ---
 
@@ -348,6 +388,47 @@
 - `GET /feed` (auth, `volunteer`) — proyectos de las ONGs/proyectos seguidos, con `my_enrollment_status` resuelto por proyecto (batched, sin N+1) y formateados con el mismo `fmt` de `/api/projects` (incluye `latitude`/`longitude`/`modality`).
 
 ---
+
+## Publicaciones — "Momentos" (`routes/posts.js`)
+> Agregado 2026-10 (`PROJECT_ANALYSIS.md §43`). Fotos de los voluntariados en los que se participó, estilo Instagram. Las fotos viven en Cloudinary (`lib/storage.js`); la base guarda solo URL, `public_id`, orden y medidas.
+
+**Forma de una publicación** (todas las respuestas; claves exactas, verificadas por tests):
+```json
+{
+  "id": "…", "caption": "Un día increíble" ,
+  "created_at": "2026-10-04T12:30:45.000Z",
+  "author":  { "id": "…", "name": "María García", "avatar": "https://…", "role": "volunteer" },
+  "project": { "id": "proj-1", "title": "Reforestación Urbana" },
+  "photos": [{ "id": "…", "url": "…/upload/f_auto,q_auto,w_1080,c_limit/…", "thumb_url": "…/upload/f_auto,q_auto,w_480,h_480,c_fill,g_auto/…", "width": 1600, "height": 1200 }],
+  "likes_count": 3, "liked_by_me": false, "can_delete": false
+}
+```
+`created_at` sale **siempre en ISO 8601 UTC** (en SQLite la base devuelve un string sin zona y en Postgres un `Date`: se normaliza). `url` es la foto optimizada para el feed y `thumb_url` una miniatura cuadrada; el `public_id` de Cloudinary **no se expone**. **`can_delete`** lo calcula el servidor según quién mira, con la misma regla que `DELETE /api/posts/:id` (el autor, o la ONG dueña del proyecto); es siempre un booleano (`false` sin sesión). El cliente no puede deducirlo solo: del post conoce el id del usuario autor, pero no quién es la ONG dueña del proyecto.
+
+### `GET /api/posts/eligible-projects` — Auth, role `volunteer` o `ngo`
+- **Respuesta 200:** `{ projects: [{ id, title }] }`. Un voluntario: proyectos con inscripción **aprobada** (una pendiente no cuenta). Una ONG: sus propios proyectos. Es lo que alimenta el selector del compositor.
+- **Errores:** `401`; `403` si el rol es `company`.
+
+### `POST /api/posts` — Auth, role `volunteer` o `ngo`; `multipart/form-data`
+- **Campos:** `project_id` (obligatorio), `caption` (opcional, ≤ 500 caracteres, filtro de lenguaje inapropiado), `photos` (1 a 5 archivos JPEG/PNG/WebP, ≤ 8 MB c/u).
+- **Quién puede publicar:** un voluntario con inscripción **aprobada** en ese proyecto (también cuando ya terminó), o la **ONG dueña**. Una empresa, una ONG ajena, una inscripción pendiente o sin inscripción → `403`.
+- **Orden de las validaciones (deliberado):** sesión y rol → ¿Cloudinary configurado? (`503`) → lectura del formulario (`413` si una foto pesa más de 8 MB; `400` si hay más de 5 o un tipo no permitido) → campos (`400`) → el proyecto existe (`404`) → permiso (`403`) → límite de frecuencia (`429`: más de 10 publicaciones en la última hora por usuario) → **cabecera real de cada archivo** (`400`; el `mimetype` lo declara el cliente y no se confía en él) → recién ahí se sube. Todo se valida **antes** de subir, para no gastar cuota de Cloudinary en pedidos inválidos.
+- **Subida y atomicidad:** las fotos se suben en paralelo; si alguna falla se **borran las que sí se subieron** y se responde `502` (sin detalles internos). El post y sus fotos se guardan en una sola transacción **después** de las llamadas externas; si esa transacción falla también se limpia lo subido.
+- **Respuesta 201:** `{ post }`.
+
+### `GET /api/posts` — Auth opcional
+- **Query:** `project_id`, `user_id` (filtros; sirven para la galería de un proyecto y la grilla de un perfil), `limit` (default 12, máx. 30; inválido → default), `offset` (default 0; inválido → 0).
+- **Respuesta 200:** `{ posts: [...], has_more }`. Más nuevas primero (desempate por id). Paginación por `limit/offset`: si entran publicaciones nuevas mientras se pagina pueden correrse las páginas; el cliente debe deduplicar por `id`. `liked_by_me` es `false` sin sesión. Tres consultas por página (no una por publicación).
+
+### `GET /api/posts/:id` — Auth opcional
+- **Respuesta 200:** `{ post }`. `404` si no existe.
+
+### `POST /api/posts/:id/like` y `DELETE /api/posts/:id/like` — Auth (cualquier rol)
+- **Respuesta 200:** `{ liked: true|false, likes_count }`. **Idempotentes**: repetir el like (doble click, pedidos simultáneos) no suma ni falla; quitar uno que no existe no deja el contador en negativo. `404` si el post no existe.
+
+### `DELETE /api/posts/:id` — Auth
+- **Quién:** el autor, o la **ONG dueña del proyecto** (moderación: puede borrar cualquier publicación de él). Otro voluntario, una ONG ajena o una empresa → `403`.
+- **Efecto:** borra post, fotos y likes en una transacción; **después del COMMIT** y sin esperar, borra los archivos de Cloudinary (mejor esfuerzo: si falla, el post se borra igual y se loguea). **Respuesta 200:** `{ message }`.
 
 ## Voluntarios (`routes/voluntarios.js`)
 

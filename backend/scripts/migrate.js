@@ -346,6 +346,39 @@ async function migrate() {
       PRIMARY KEY (follower_id, following_id),
       CHECK (follower_id != following_id)
     )`,
+
+    // ── 26. Publicaciones ("Momentos") ────────────────────────────────────
+    // Fotos que suben quienes participaron de un voluntariado (o la ONG dueña), estilo Instagram.
+    // FK reales con CASCADE (no la tabla `media` polimórfica del roadmap): al borrar un post, un
+    // proyecto o un usuario no quedan fotos ni likes huérfanos. Ver PROJECT_ANALYSIS.md §43.
+    `CREATE TABLE IF NOT EXISTS posts (
+      id          ${UUID_PK},
+      user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      caption     TEXT,
+      created_at  ${NOW}
+    )`,
+
+    // ── 27. Fotos de una publicación ──────────────────────────────────────
+    // provider_id = public_id de Cloudinary (para poder borrar el archivo); NO se expone por la API.
+    `CREATE TABLE IF NOT EXISTS post_media (
+      id          ${UUID_PK},
+      post_id     TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+      url         TEXT NOT NULL,
+      provider_id TEXT NOT NULL,
+      position    INTEGER NOT NULL DEFAULT 0,
+      width       INTEGER,
+      height      INTEGER,
+      created_at  ${NOW}
+    )`,
+
+    // ── 28. Likes de publicaciones ────────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS post_likes (
+      post_id     TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+      user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at  ${NOW},
+      PRIMARY KEY (post_id, user_id)
+    )`,
   ];
 
   // ── Crear tablas ──────────────────────────────────────────────────────────
@@ -438,6 +471,12 @@ async function migrate() {
     // Seguidores entre Voluntarios
     `CREATE INDEX IF NOT EXISTS idx_vol_follows_follower  ON volunteer_follows(follower_id)`,
     `CREATE INDEX IF NOT EXISTS idx_vol_follows_following ON volunteer_follows(following_id)`,
+    // Publicaciones
+    `CREATE INDEX IF NOT EXISTS idx_posts_created         ON posts(created_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_posts_project         ON posts(project_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_posts_user            ON posts(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_post_media_post       ON post_media(post_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_post_likes_user       ON post_likes(user_id)`,
   ];
 
   for (const idx of indexes) {

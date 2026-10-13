@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router';
-import { Building2, LogOut, Heart, MessageCircle, Search } from 'lucide-react';
+import { Building2, LayoutDashboard, LogOut, Heart, MessageCircle, Search } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useChat } from '../../lib/ChatContext';
 
@@ -11,6 +11,7 @@ export function CompanySidebarNav() {
   const navigate         = useNavigate();
 
   const links = [
+    { to: '/company/dashboard', icon: LayoutDashboard, label: 'Panel' },
     { to: '/company/profile',  icon: Building2,     label: 'Mi Empresa' },
     { to: '/explore',          icon: Search,        label: 'Explorar' },
     { to: '/company/messages', icon: MessageCircle, label: 'Mensajes', badge: unreadTotal },

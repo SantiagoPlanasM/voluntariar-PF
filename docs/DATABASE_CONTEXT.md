@@ -13,7 +13,9 @@
 
 Todas las claves primarias son `TEXT` (UUID v4-like), no enteros autoincrementales.
 
-## 1. Todas las tablas (28)
+> **⚠️ `created_at` en SQLite tiene resolución de 1 segundo** (`datetime('now')`; en Postgres, microsegundos). Dos filas creadas dentro del mismo segundo **empatan**: `ORDER BY created_at DESC LIMIT 1` devuelve cualquiera de las dos (en la práctica la de menor `rowid`, o sea la más vieja). No usar `created_at` para identificar una fila recién insertada (usar su id) ni asumir un orden estricto entre filas del mismo segundo. Ver `PROJECT_ANALYSIS.md §40`.
+
+## 1. Todas las tablas (31)
 
 | # | Tabla | Propósito |
 |---|---|---|
@@ -45,6 +47,9 @@ Todas las claves primarias son `TEXT` (UUID v4-like), no enteros autoincremental
 | 26 | `empresa_categorias` | N:M — Empresa ↔ Categoría (agregada 2026-09, ver `PROJECT_ANALYSIS.md §24`) |
 | 27 | `faqs` | Catálogo del Chatbot FAQ (agregada 2026-09, ver `PROJECT_ANALYSIS.md §27`) |
 | 28 | `volunteer_follows` | N:M — Voluntario sigue a otro Voluntario (agregada por el usuario, ver `PROJECT_ANALYSIS.md §28`) |
+| 29 | `posts` | Publicaciones ("Momentos"): fotos de un voluntariado, de quien participó o de la ONG dueña (`PROJECT_ANALYSIS.md §43`) |
+| 30 | `post_media` | Fotos de una publicación (URL + public_id de Cloudinary + orden) |
+| 31 | `post_likes` | Likes de publicaciones (PK compuesta `(post_id, user_id)`) |
 
 ## 2. Detalle de columnas por tabla
 
@@ -160,6 +165,15 @@ id · user_id (NOT NULL FK→users CASCADE) · type (NOT NULL) · title (NOT NUL
 ### `messages`
 id · sender_id (NOT NULL FK→users CASCADE) · receiver_id (NOT NULL FK→users CASCADE) · body (NOT NULL) · read (BOOLEAN/INTEGER, default false/0) · created_at. Sin `UNIQUE` — un mismo par de usuarios puede tener cualquier cantidad de mensajes. Índices en `sender_id`, `receiver_id` y `created_at` (este último para ordenar el historial y la lista de conversaciones).
 
+### `posts`
+id · user_id (NOT NULL FK→users CASCADE) · project_id (NOT NULL FK→projects CASCADE) · caption (TEXT, opcional; el límite de 500 caracteres se valida en la API, no en la base) · created_at. Quién puede insertar (inscripción **aprobada** en el proyecto, o la ONG dueña) y el límite de 10 por hora y usuario se imponen en `routes/posts.js`, no con constraints.
+
+### `post_media`
+id · post_id (NOT NULL FK→posts CASCADE) · url (NOT NULL; URL base de Cloudinary, **sin** transformaciones: la API le agrega `f_auto,q_auto,...` al responder) · provider_id (NOT NULL; `public_id` de Cloudinary, necesario para borrar el archivo; **nunca se expone por la API**) · position (INTEGER NOT NULL default 0; orden en el carrusel) · width · height · created_at.
+
+### `post_likes`
+post_id (NOT NULL FK→posts CASCADE) · user_id (NOT NULL FK→users CASCADE) · created_at · **PK `(post_id, user_id)`**: un usuario no puede dar dos likes al mismo post (la API usa `ON CONFLICT DO NOTHING`, así que repetir el like es idempotente).
+
 ### Tablas intermedias N:M (18–24)
 
 | Tabla | PK compuesta | Columnas extra |
@@ -191,6 +205,11 @@ erDiagram
     users ||--o{ project_follows : "sigue proyecto"
     users ||--o{ voluntario_habilidades : "tiene"
     users ||--o{ volunteer_follows : "sigue a otro voluntario"
+    users ||--o{ posts : publica
+    projects ||--o{ posts : "tiene publicaciones"
+    posts ||--o{ post_media : "tiene fotos"
+    posts ||--o{ post_likes : "recibe"
+    users ||--o{ post_likes : da
 
     ngos ||--o{ projects : "publica"
     ngos ||--o{ empleados : "emplea"
@@ -273,10 +292,11 @@ Todas las tablas "principales" (1–17) usan `id TEXT PRIMARY KEY` generado por 
 | `reuniones.user_id → users.id` / `.project_id → projects.id` | CASCADE |
 | `comments.*`, `ratings.*`, `notifications.user_id` | CASCADE |
 | todas las tablas N:M (18–24, 26) | CASCADE en ambos lados |
+| `posts.*`, `post_media.*`, `post_likes.*` | CASCADE: borrar un usuario, un proyecto o un post elimina sus publicaciones, fotos y likes (los archivos en Cloudinary NO se borran solos al borrar un usuario/proyecto: solo al borrar el post por la API) |
 
 Borrar un `user` en cascada elimina: su perfil de ONG/empresa/voluntario, todos sus proyectos (si es ONG, en cascada también borra inscripciones/comentarios/ratings/kpis/requisitos de esos proyectos), sus inscripciones, comentarios, ratings, notificaciones, seguimientos. Es un borrado destructivo total sin soft-delete.
 
-## 6. Índices (17)
+## 6. Índices (22 de 31; el listado completo está en `scripts/migrate.js`)
 
 | Índice | Tabla(columna) | Propósito |
 |---|---|---|
@@ -298,6 +318,11 @@ Borrar un `user` en cascada elimina: su perfil de ONG/empresa/voluntario, todos 
 | `idx_reuniones_project` | reuniones(project_id) | reuniones de un proyecto |
 | `idx_reuniones_user` | reuniones(user_id) | reuniones de un usuario |
 | `idx_empleados_ngo` | empleados(ngo_id) | empleados de una ONG |
+| `idx_posts_created` | posts(created_at) | feed de publicaciones por fecha |
+| `idx_posts_project` | posts(project_id) | galería de un proyecto |
+| `idx_posts_user` | posts(user_id) | publicaciones de un usuario / límite de frecuencia |
+| `idx_post_media_post` | post_media(post_id) | fotos de una publicación |
+| `idx_post_likes_user` | post_likes(user_id) | "me gusta" de un usuario (la PK ya cubre `post_id`) |
 
 **No hay índices sobre columnas de texto libre usadas en búsquedas `LIKE`/`ILIKE`** (`projects.titulo`, `projects.descripcion`, `ngos.nombre`) — ver `PROJECT_ANALYSIS.md` para el impacto de rendimiento.
 

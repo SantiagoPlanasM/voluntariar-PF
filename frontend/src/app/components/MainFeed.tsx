@@ -3,6 +3,7 @@ import { LogOut, Bell, Users, Compass, ArrowRight } from 'lucide-react';
 import { api, Project, FeedProject, NGO } from '../../lib/api';
 import { FeedPostCard } from './FeedPostCard';
 import { FeedSidebar } from './FeedSidebar';
+import { FeedTabs } from './FeedTabs';
 import { useAuth } from '../../lib/AuthContext';
 import { useNavigate, Link, useLocation } from 'react-router';
 
@@ -123,6 +124,9 @@ export function MainFeed() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex justify-center gap-8 items-start">
         {/* Columna Principal: Feed de Posts */}
         <div className="w-full max-w-xl flex-1 min-w-0">
+          <div className="mb-4">
+            <FeedTabs active="projects" projectsHref="/feed" momentsHref="/momentos" />
+          </div>
           {loadingFollowing ? (
             <div className="space-y-6">
               {[1, 2].map(i => (

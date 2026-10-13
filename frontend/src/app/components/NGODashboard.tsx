@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router';
-import { Plus, Search, Users, Sprout, ChevronRight, CheckCircle, Clock, XCircle, Loader2 } from 'lucide-react';
+import { Plus, Search, Users, Sprout, ChevronRight, CheckCircle, Clock, XCircle, Loader2, Camera } from 'lucide-react';
 import { api, Project, EnrollmentWithVolunteer, NGO, NGOStats } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 
@@ -62,6 +62,10 @@ export function NGODashboard() {
               <button onClick={() => ngo && navigate(`/ngo/empleados/${ngo.id}`)}
                 className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-xs font-semibold hover:bg-gray-50 transition-colors">
                 <Users className="w-3.5 h-3.5"/>Equipo
+              </button>
+              <button onClick={() => navigate('/ngo/momentos')}
+                className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-xs font-semibold hover:bg-gray-50 transition-colors">
+                <Camera className="w-3.5 h-3.5"/>Momentos
               </button>
               <button onClick={() => navigate('/ngo/create')}
                 className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-700 transition-colors flex-shrink-0">

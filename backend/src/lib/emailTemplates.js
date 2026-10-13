@@ -120,4 +120,5 @@ function sponsorDecisionEmail({ empresaName, projectTitle, ngoName, accepted, ap
 module.exports = {
   newEnrollmentEmail, enrollmentApprovedEmail, enrollmentRejectedEmail,
   sponsorProposalEmail, sponsorDecisionEmail,
+  esc, // lo reusa lib/email.js para el aviso del modo prueba
 };

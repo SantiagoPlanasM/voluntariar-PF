@@ -19,10 +19,10 @@ function translatePg(sql) {
     // Timestamps
     .replace(/CURRENT_TIMESTAMP/gi, "datetime('now')")
     // Funciones de string case-insensitive
-    .replace(/\bILIKE\b/gi, 'LIKE')
-    // Conflict handling
-    .replace(/\bON CONFLICT\s+DO NOTHING\b/gi, 'OR IGNORE')
-    .replace(/\bON CONFLICT\s*\([^)]+\)\s*DO NOTHING\b/gi, 'OR IGNORE');
+    .replace(/\bILIKE\b/gi, 'LIKE');
+  // `ON CONFLICT [(cols)] DO NOTHING` NO se traduce: SQLite ≥ 3.24 lo entiende igual que Postgres. Antes se
+  // reescribía como `OR IGNORE` en el mismo lugar, que da SQL inválido (`INSERT ... VALUES (...) OR IGNORE`).
+  // Ver test/unit/sqlTranslate.test.js y PROJECT_ANALYSIS.md §43.
 }
 
 // Reemplaza cada $N por ? (placeholder posicional de SQLite) y devuelve un

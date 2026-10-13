@@ -13,7 +13,9 @@ backend/
 │   ├── db/index.js         # adaptador dual SQLite/Postgres — único punto de acceso a datos
 │   ├── lib/
 │   │   ├── email.js          # cliente mínimo de Resend (fetch nativo, sin SDK)
-│   │   └── emailTemplates.js # plantillas HTML de los emails transaccionales
+│   │   ├── emailTemplates.js # plantillas HTML de los emails transaccionales
+│   │   ├── storage.js        # fotos en Cloudinary por REST (subida/borrado firmados, tipo real de imagen, URLs optimizadas)
+│   │   └── time.js           # toMillis(): timestamps string (SQLite) o Date (Postgres) → ms
 │   ├── middleware/auth.js  # requireAuth, optionalAuth, requireRole, signToken
 │   └── routes/
 │       ├── auth.js         # /api/auth/*
@@ -22,6 +24,7 @@ backend/
 │       ├── ngos.js         # /api/ngos/*      (incluye empleados, patrocinios lado ONG)
 │       ├── empresas.js     # /api/empresas/*  (perfil, patrocinios lado Empresa)
 │       ├── follows.js      # /api/follows/*   (seguir ONG/proyecto/voluntario, feed)
+│       ├── posts.js        # /api/posts/*     ("Momentos": fotos de voluntariados, likes, moderación)
 │       ├── voluntarios.js  # /api/voluntarios/* (habilidades, perfil público)
 │       ├── faqs.js         # /api/faqs/*      (Chatbot FAQ, sin IA)
 │       ├── messages.js     # /api/messages/*   (chat 1 a 1, REST)
@@ -43,7 +46,7 @@ Pieza central de la arquitectura. Decide en el arranque:
 const USE_POSTGRES = process.env.USE_POSTGRES === 'true' || !!process.env.DATABASE_URL;
 ```
 
-Expone la misma interfaz (`query`, `run`, `get`, `all`, `type`) sin importar el motor subyacente, para que las rutas puedan escribirse una sola vez.
+Expone la misma interfaz (`query`, `run`, `get`, `all`, `transaction`, `type`) sin importar el motor subyacente, para que las rutas puedan escribirse una sola vez.
 
 ### Rama PostgreSQL
 - Usa `pg.Pool`, con `ssl: { rejectUnauthorized: false }` cuando hay `DATABASE_URL` (típico de Render).
@@ -59,10 +62,63 @@ Expone la misma interfaz (`query`, `run`, `get`, `all`, `type`) sin importar el 
 flowchart LR
     ENV["USE_POSTGRES / DATABASE_URL"] -->|true| PG["Pool de pg<br/>SQL Postgres nativo"]
     ENV -->|false| SL["better-sqlite3<br/>+ translatePg()<br/>WAL + foreign_keys ON"]
-    PG --> IFACE["interfaz común:<br/>query / run / get / all"]
+    PG --> IFACE["interfaz común:<br/>query / run / get / all / transaction"]
     SL --> IFACE
     IFACE --> ROUTES["routes/*.js"]
 ```
+
+### Transacciones — `db.transaction(async (tx) => { ... })`
+> Agregado 2026-09 (`PROJECT_ANALYSIS.md §34`). Antes el adaptador no tenía transacciones.
+
+```js
+const outcome = await db.transaction(async (tx) => {
+  const swap = await tx.run('UPDATE enrollments SET status=$1 WHERE id=$2 AND status=$3', [new, id, old]);
+  if (swap.changes === 0) return 'stale';
+  await tx.run('UPDATE projects SET cupos_ocupados = cupos_ocupados + 1 WHERE id=$1', [pid]);
+  return 'applied';
+});
+// emails / notificaciones / Stripe: acá, DESPUÉS del COMMIT
+```
+COMMIT si el callback termina; ROLLBACK y se relanza el mismo error si lanza. Devuelve lo que retorne el callback. `tx` tiene `query/run/get/all` con la misma forma que `db`.
+
+- **Postgres:** toma un cliente del pool y hace `BEGIN/COMMIT/ROLLBACK` sobre ese mismo cliente; si el `ROLLBACK` falla, el cliente se descarta del pool. Nivel de aislamiento: `READ COMMITTED` (default). **Las transacciones corren en paralelo**: por sí solas no evitan que dos requests lean el mismo valor viejo. Para eso: `UPDATE ... SET n = n + 1` atómico o compare-and-swap (`UPDATE ... WHERE status = $viejo` y mirar `changes`). Es el patrón de `enrollments.js`.
+- **SQLite:** `better-sqlite3.transaction(fn)` **no sirve** (es síncrono: con un callback `async` haría commit antes de terminar). Se usa `BEGIN`/`COMMIT` a mano. Como hay **una sola conexión**, las transacciones hacen cola y las queries de otras requests **esperan** a que la abierta termine (si no, caerían adentro y se perderían con un ROLLBACK).
+- **Reglas que el adaptador hace cumplir con un error (en ambos motores):** usar `tx.*` y nunca `db.*` dentro del callback (en Postgres `db.*` usa otra conexión y quedaría fuera de la transacción; en SQLite quedaría adentro — divergencia que pasaba los tests y rompía producción); no anidar `db.transaction`; no usar `tx` después de que terminó.
+- **Reglas que son solo convención:** nada de I/O externo adentro (mantiene la transacción abierta y en SQLite frena a todo el servidor); no envolver `tx.*` en `.catch(() => {})` (una query fallida aborta la transacción entera de Postgres) — lo "best effort" va fuera.
+
+### Diferencias de tipos entre motores (trampas conocidas)
+| Dato | SQLite | Postgres | Qué hacer |
+|---|---|---|---|
+| `SUM` / `COUNT` / `AVG` | número | **string** (bigint/numeric) | `Number()` en el endpoint (`PROJECT_ANALYSIS.md §33`) |
+| Columnas de fecha (`created_at`, etc.; todas son `TIMESTAMPTZ`) | string `'YYYY-MM-DD HH:MM:SS'` (UTC, sin zona) | objeto **`Date`** | `toMillis()` de `src/lib/time.js`; nunca `.replace` / `.localeCompare` (`§35`) |
+
+Ambas diferencias devolvían 500 solo en producción (Render) y pasaban todos los tests en SQLite. Por eso existe `npm run test:pg`.
+
+### Fotos (Cloudinary) y publicaciones
+`lib/storage.js` habla con la **API REST de Cloudinary con `fetch` nativo**, sin el SDK oficial (mismo criterio que `email.js`: no sumar dependencia ni superficie de `npm audit` por un POST firmado). Firma: parámetros ordenados alfabéticamente (sin `file`, `cloud_name`, `resource_type`, `api_key`) + `api_secret` + SHA-1; `test/unit/storage.test.js` la verifica contra el **vector de prueba oficial** de la documentación de Cloudinary. El secreto solo firma: nunca viaja ni se loguea.
+
+| Variable | Efecto |
+|---|---|
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Las tres hacen falta. Sin ellas, `POST /api/posts` responde `503` (el resto de la API sigue funcionando) y el arranque muestra `Fotos: sin configurar`. |
+| `CLOUDINARY_FOLDER` | Opcional. Vacío = sin carpeta (la subida mínima documentada, más robusta frente a los modos de carpetas de Cloudinary). |
+
+`routes/posts.js` llama a `storage.uploadImage(...)`/`storage.deleteImage(...)` **accediendo a la propiedad en cada llamada** (no desestructurado), para que los tests puedan reemplazarlas sin tocar Cloudinary. Las fotos pasan por `multer` con `memoryStorage` (quedan en memoria solo durante el request, máx. 5 × 8 MB; no se escribe nada en el disco). Reglas del módulo en `AI_RULES.md` regla 24.
+
+### Emails (Resend) y modo prueba
+`lib/email.js` manda por la API de Resend con `fetch` nativo; nunca lanza ni bloquea la respuesta HTTP (fire-and-forget). Eventos que mandan email: nueva inscripción (a la ONG), aprobación y rechazo de inscripción (al voluntario), propuesta de patrocinio (a la ONG) y su respuesta (a la empresa). La configuración se **lee en cada envío** (no al cargar el módulo).
+
+| Variable | Efecto |
+|---|---|
+| `RESEND_API_KEY` | Sin ella, los emails se omiten (se loguea, no rompe). `test/integration/helpers.js` la fija en `''` dentro de `setupTestServer()` **a propósito**: ningún test debe mandar mails reales aunque tu `.env` tenga una key. |
+| `EMAIL_FROM` | Remitente. Default `VoluntariAR <onboarding@resend.dev>` (dominio de pruebas de Resend). |
+| `EMAIL_REDIRECT_TO` | **Modo prueba.** Redirige TODO a esa casilla; el destinatario original queda en el asunto (`[para: x@y.com] ...`) y en un aviso al principio del cuerpo (escapado). **Falla cerrado**: si no parece un email, no se manda nada. Vacío = desactivado. |
+
+**Por qué existe:** con `onboarding@resend.dev`, Resend solo entrega al email con el que te registraste en su panel; los usuarios del seed tienen direcciones inventadas y Resend responde `403 Testing domain restriction`. Con `EMAIL_REDIRECT_TO=<tu email de Resend>` todo te llega a vos. Para que cada usuario reciba lo suyo hace falta **verificar un dominio propio** en https://resend.com/domains, definir `EMAIL_FROM` con una dirección de ese dominio y dejar `EMAIL_REDIRECT_TO` vacío.
+
+`describeEmailConfig()` agrega una línea `Email:` al log de arranque (sin la API key) que dice en qué modo está, y advierte si la redirección está activa con `NODE_ENV=production`. Ante ese 403, el log explica **qué hacer** (una vez por proceso) en vez de volcar solo el JSON de Resend.
+
+### Tests contra los dos motores
+`npm test` corre todo contra SQLite. `npm run test:pg` corre **la misma suite** contra un Postgres real (`scripts/run-tests-pg.js`; funciona en Windows, sin dependencias extra). Variables: `TEST_PG_HOST`, `TEST_PG_PORT`, `TEST_PG_DB` (default `voluntariar_test`, hay que crearla), `TEST_PG_USER`, `TEST_PG_PASSWORD`. Cada archivo de test crea su propio schema `test_<pid>_<rand>` y lo borra al terminar; **nunca toca `public`** e **ignora `DATABASE_URL`** a propósito. Hay bugs que solo se ven en Postgres (agregados que llegan como string, carreras entre conexiones, `Date` en vez de string): SQLite no los detecta.
 
 **Implicación práctica para cualquier cambio futuro:** cualquier query nueva que use funciones agregadas de JSON, `RETURNING`, o sintaxis avanzada de Postgres debe implementarse dos veces (rama Postgres y rama SQLite) o probarse contra ambos motores. `GET /api/projects` ya hace esto (ver `API_CONTEXT.md`).
 
@@ -188,7 +244,7 @@ Esto significa que **fallos en la creación de notificaciones son silenciosos** 
 1. **`projects.js`, `ngos.js` y `empresas.js` definen algunas rutas/exports después de `module.exports = router`.** Funciona porque `module.exports` apunta al mismo objeto `router` que se sigue mutando. Empezó como un patrón confuso (`projects.js` tenía rutas después del export, y `ngos.js` tenía ~~un comentario huérfano que referenciaba rutas de KPIs que en realidad estaban en `projects.js`~~ — ese comentario ya no existe, se limpió al agregar los endpoints de patrocinio), pero pasó a ser el patrón deliberado del proyecto para exportar helpers reutilizables entre routers (`fmt`, `hasBadWord`, `validateProject`) sin crear un módulo `lib/` aparte.
 2. ~~**Inconsistencia `message` vs `mensaje`** en el flujo de inscripción~~ — **Corregido.** El backend ahora acepta `message` en `POST /api/enrollments` y expone `mensaje AS message` en todas las lecturas (`GET /my`, `GET /project/:projectId`), manteniendo la columna DB en español. Ver `PROJECT_ANALYSIS.md §13`.
 3. ~~**`GET /ngos/:id` y `GET /ngos/me` no hacen JOIN con `ngo_categorias`/`categorias`**~~ — **Corregido.** Ambas rutas ahora traen `categoria_nombre` igual que `GET /ngos`, `fmtNgo()` la mapea a `category`, y `PUT /ngos/me` persiste el cambio de categoría en `ngo_categorias`. Ver `PROJECT_ANALYSIS.md §13`. (Nota: `GET /ngos/:id/dashboard` sigue sin este JOIN — no se usa para mostrar categoría en ninguna pantalla actual.)
-4. **Dependencias declaradas sin uso:** `multer` (no hay upload de archivos) y `uuid` (los IDs se generan en SQL, no en JS).
+4. **`multer` declarado sin uso** (no hay upload de archivos todavía; está en 2.x, ver `PROJECT_ANALYSIS.md §37`). `uuid` se eliminó: los IDs tienen `DEFAULT` en SQL, y los endpoints que devuelven la fila recién creada generan el id en el código con `crypto.randomUUID()` (nativo, mismo formato UUID v4; `PROJECT_ANALYSIS.md §40`).
 5. **Falta de índice en columnas usadas para búsqueda por `LIKE`** (`projects.titulo`, `projects.descripcion`, `ngos.nombre`) — los índices existentes cubren `ngo_id`, `status`, `tipo`, `ubicacion`, pero las búsquedas de texto libre en `GET /projects?search=` hacen table scan.
 6. **La rama SQLite de `GET /projects` no filtra por múltiples categorías via agregación** de la misma forma que Postgres — usa un subquery `IN` distinto, y hace **N+1 queries** (una por fila devuelta) para enriquecer roles/requisitos/categoría, mientras que Postgres lo resuelve en una sola query con `json_agg`. Este es el único endpoint con dos implementaciones tan divergentes.
 7. ~~**`follows.js` tenía su propia copia de `fmt()`, desincronizada** (sin `latitude`/`longitude`/`modality`)~~ — **Corregido** (2026-09): ahora importa `fmt` desde `projects.js`. Mismo problema y mismo fix se repitió en `ngos.js` (`GET /me` devolvía proyectos crudos sin pasar por `fmt()`). Ver `PROJECT_ANALYSIS.md §29`.

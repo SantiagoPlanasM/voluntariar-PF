@@ -4,6 +4,8 @@ const express = require('express');
 const cors    = require('cors');
 const http    = require('http');
 const { initWebSocket } = require('./ws');
+const { describeEmailConfig } = require('./lib/email');
+const { describeStorageConfig } = require('./lib/storage');
 
 const app = express();
 
@@ -39,6 +41,7 @@ app.use('/api/notifications',  require('./routes/notifications'));
 app.use('/api/voluntarios',    require('./routes/voluntarios'));
 app.use('/api/messages',       require('./routes/messages'));
 app.use('/api/follows',        require('./routes/follows'));
+app.use('/api/posts',          require('./routes/posts'));
 
 // ── Rutas de catálogos (solo GET, datos base) ─────────────────────────────
 const db = require('./db');
@@ -84,7 +87,9 @@ server.listen(PORT, () => {
   console.log(`\n🚀 Voluntariar API → http://localhost:${PORT}`);
   console.log(`   WebSocket (chat) → ws://localhost:${PORT}/ws`);
   console.log(`   Entorno: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`   DB:      ${process.env.USE_POSTGRES === 'true' ? 'PostgreSQL' : 'SQLite'}\n`);
+  console.log(`   DB:      ${process.env.USE_POSTGRES === 'true' ? 'PostgreSQL' : 'SQLite'}`);
+  console.log(`   Email:   ${describeEmailConfig()}`);
+  console.log(`   Fotos:   ${describeStorageConfig()}\n`);
 });
 
 module.exports = app;

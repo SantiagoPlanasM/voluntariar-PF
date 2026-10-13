@@ -25,6 +25,20 @@ async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
+// Subida multipart (fotos). NO fija Content-Type a propósito: el navegador lo pone él, con el "boundary"
+// del multipart. `req()` fuerza application/json, y con eso el servidor nunca vería los archivos.
+async function upload<T>(path: string, form: FormData): Promise<T> {
+  const token = getToken();
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  const data = await res.json().catch(() => ({}));   // un 502 de un proxy puede no ser JSON
+  if (!res.ok) throw new Error(data.error || 'Error del servidor');
+  return data;
+}
+
 export const api = {
   auth: {
     register: (b: { name: string; email: string; password: string; role: string }) =>
@@ -89,6 +103,7 @@ export const api = {
     me: () => req<{ empresa: Empresa }>('/empresas/me'),
     get: (id: string) => req<{ empresa: Empresa }>(`/empresas/${id}`),
     update: (b: Partial<Empresa>) => req<{ empresa: Empresa }>('/empresas/me', { method: 'PUT', body: JSON.stringify(b) }),
+    dashboard: () => req<CompanyDashboard>('/empresas/me/dashboard'),
     patrocinios: {
       list: () => req<{ patrocinios: Patrocinio[] }>('/empresas/me/patrocinios'),
       propose: (project_id: string, mensaje?: string) =>
@@ -127,6 +142,22 @@ export const api = {
     ask: (question: string, categoria?: string) =>
       req<AskFaqResponse>('/faqs/ask', { method: 'POST', body: JSON.stringify({ question, categoria }) }),
   },
+  // Momentos: publicaciones con fotos de voluntariados (backend: routes/posts.js, PROJECT_ANALYSIS §43)
+  posts: {
+    list: (p: { project_id?: string; user_id?: string; limit?: number; offset?: number } = {}) => {
+      const q = new URLSearchParams();
+      for (const [k, v] of Object.entries(p)) if (v !== undefined && v !== null && v !== '') q.set(k, String(v));
+      const qs = q.toString();
+      return req<PostsPage>(`/posts${qs ? `?${qs}` : ''}`);
+    },
+    get: (id: string) => req<{ post: Post }>(`/posts/${id}`),
+    eligibleProjects: () => req<{ projects: EligibleProject[] }>('/posts/eligible-projects'),
+    create: (form: FormData) => upload<{ post: Post }>('/posts', form),
+    like: (id: string) => req<{ liked: boolean; likes_count: number }>(`/posts/${id}/like`, { method: 'POST' }),
+    unlike: (id: string) => req<{ liked: boolean; likes_count: number }>(`/posts/${id}/like`, { method: 'DELETE' }),
+    remove: (id: string) => req<{ message: string }>(`/posts/${id}`, { method: 'DELETE' }),
+  },
+
   follows: {
     followNgo: (ngoId: string) =>
       req<{ following: boolean; followers: number; message: string }>(`/follows/ngo/${ngoId}`, { method: 'POST' }),
@@ -258,6 +289,35 @@ export interface Patrocinio {
   ngo_id?: string; ngo_name?: string; ngo_logo?: string;
   // Presentes cuando lo devuelve GET /api/ngos/me/patrocinios (vista ONG)
   empresa_name?: string; empresa_logo?: string; empresa_industry?: string;
+}
+// Momentos (publicaciones con fotos). `created_at` es siempre ISO 8601 UTC; `can_delete` lo calcula el
+// servidor según quién mira (el autor, o la ONG dueña del proyecto).
+export interface PostPhoto { id: string; url: string; thumb_url: string; width: number | null; height: number | null }
+export interface Post {
+  id: string; caption: string | null; created_at: string;
+  author: { id: string; name: string; avatar: string | null; role: 'volunteer' | 'ngo' };
+  project: { id: string; title: string };
+  photos: PostPhoto[]; likes_count: number; liked_by_me: boolean; can_delete: boolean;
+}
+export interface PostsPage { posts: Post[]; has_more: boolean }
+export interface EligibleProject { id: string; title: string }
+
+// GET /api/empresas/me/dashboard — KPIs de patrocinio de la empresa (backend: routes/empresas.js).
+// `impact` mide el impacto de los PROYECTOS con patrocinio aceptado, no de personas de la empresa.
+export interface CompanyDashboardProject {
+  project_id: string; title: string; image: string | null; project_status: string;
+  volunteers_needed: number; current_volunteers: number;
+  ngo_id: string; ngo_name: string; ngo_logo: string | null;
+  // Mismos valores que Patrocinio['estado']
+  sponsorship_status: Patrocinio['estado'];
+  decided_at: string;
+  // Horas verificadas y voluntarios aprobados del proyecto (se muestran solo si está aceptado)
+  hours_logged: number; volunteers_count: number;
+}
+export interface CompanyDashboard {
+  stats: { sponsored_projects: number; pending_proposals: number; rejected_proposals: number };
+  impact: { total_hours: number; volunteers_reached: number };
+  projects: CompanyDashboardProject[];
 }
 export interface NGOStats {
   total_projects: number; active_projects: number;

@@ -1,5 +1,6 @@
 // src/routes/ngos.js
 const express = require('express');
+const { randomUUID } = require('node:crypto');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { sendEmail } = require('../lib/email');
@@ -319,16 +320,16 @@ router.post('/:id/empleados', requireAuth, requireRole('ngo'), async (req, res) 
     if (!nombre?.trim() || !apellido?.trim() || !email?.trim())
       return res.status(400).json({ error: 'Nombre, apellido y email son requeridos' });
 
+    // id propio (ver POST /api/projects): antes se releía "el último empleado de la ONG" por
+    // created_at, que en SQLite empata si se crean dos en el mismo segundo.
+    const empleadoId = randomUUID();
     await db.run(
-      `INSERT INTO empleados (ngo_id, nombre, apellido, email, rol, foto_perfil)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
-      [req.params.id, nombre.trim(), apellido.trim(), email.trim().toLowerCase(), rol, foto_perfil || null]
+      `INSERT INTO empleados (id, ngo_id, nombre, apellido, email, rol, foto_perfil)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [empleadoId, req.params.id, nombre.trim(), apellido.trim(), email.trim().toLowerCase(), rol, foto_perfil || null]
     );
 
-    const empleado = await db.get(
-      'SELECT * FROM empleados WHERE ngo_id=$1 ORDER BY created_at DESC LIMIT 1',
-      [req.params.id]
-    );
+    const empleado = await db.get('SELECT * FROM empleados WHERE id=$1', [empleadoId]);
     res.status(201).json({ empleado });
   } catch (err) {
     res.status(500).json({ error: 'Error al crear empleado' });

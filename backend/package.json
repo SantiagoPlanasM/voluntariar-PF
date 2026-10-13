@@ -4,12 +4,13 @@
   "description": "API REST para Voluntariar - Red Social Solidaria",
   "main": "src/index.js",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "nodemon src/index.js",
+    "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "test": "node --test",
+    "test:pg": "node scripts/run-tests-pg.js",
     "db:migrate": "node scripts/migrate.js",
     "db:seed": "node scripts/seed.js",
     "db:reset": "node scripts/migrate.js && node scripts/seed.js"
@@ -21,12 +22,8 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^1.4.5-lts.1",
+    "multer": "^2.4.0",
     "pg": "^8.12.0",
-    "uuid": "^10.0.0",
     "ws": "^8.18.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.4"
   }
 }

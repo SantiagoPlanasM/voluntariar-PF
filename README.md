@@ -16,6 +16,7 @@
 8. [Endpoints de la API](#endpoints-de-la-api)
 9. [Base de datos](#base-de-datos)
 10. [Validaciones](#validaciones)
+11. [Documentación técnica](#documentación-técnica)
 
 ---
 
@@ -26,14 +27,15 @@ VoluntariAR es una plataforma web que permite:
 - **Voluntarios**: explorar proyectos sociales, inscribirse y hacer seguimiento de sus participaciones
 - **ONGs**: publicar proyectos, gestionar inscripciones, aprobar/rechazar voluntarios y ver estadísticas
 - **Empresas**: patrocinar voluntariados (RSE)
+- **Momentos**: voluntarios y ONGs comparten fotos de las jornadas (estilo Instagram, con "me gusta"); cualquier persona puede verlas
 - **Feed público**: cualquier persona puede ver los proyectos sin registrarse
 
 ### Roles del sistema
 
 | Rol | Acceso |
 |-----|--------|
-| `volunteer` | Feed, búsqueda, inscripciones, perfil, horas realizadas |
-| `ngo` | Dashboard, crear/editar proyectos, gestionar voluntarios, empleados |
+| `volunteer` | Feed, búsqueda, inscripciones, perfil, horas realizadas, publicar Momentos (con inscripción aprobada) |
+| `ngo` | Dashboard, crear/editar proyectos, gestionar voluntarios, empleados, publicar y moderar Momentos de sus proyectos |
 | `company` | Registro y patrocinio de voluntariados |
 
 ---
@@ -52,7 +54,7 @@ VoluntariAR es una plataforma web que permite:
 ### Backend
 | Tecnología | Uso |
 |------------|-----|
-| Node.js ≥ 18 | Runtime |
+| Node.js ≥ 22.12 | Runtime (lo exige `better-sqlite3@13`; el test runner del frontend, Vitest 5, pide ≥ 22.12) |
 | Express 4 | Framework HTTP |
 | JWT (jsonwebtoken) | Autenticación |
 | bcryptjs | Hash de contraseñas |
@@ -91,7 +93,7 @@ El adaptador en `backend/src/db/index.js` cambia automáticamente según `USE_PO
 │   Base de datos                 │
 │   SQLite (local)                │
 │   PostgreSQL (producción)       │
-│   24 tablas + 18 índices        │
+│   31 tablas + 31 índices        │
 └─────────────────────────────────┘
 ```
 
@@ -111,7 +113,10 @@ voluntariar-v2/
 │   │   │   └── routes.tsx        ← Definición de rutas
 │   │   ├── lib/
 │   │   │   ├── api.ts            ← Cliente HTTP centralizado + tipos
-│   │   │   └── AuthContext.tsx   ← Estado global de sesión
+│   │   │   ├── AuthContext.tsx   ← Estado global de sesión
+│   │   │   ├── ChatContext.tsx   ← Chat en tiempo real (WebSocket)
+│   │   │   ├── format.ts         ← Fechas ("hace 5 min"), recorte de textos
+│   │   │   └── imageCompress.ts  ← Compresión de fotos en el navegador (Momentos)
 │   │   └── styles/               ← CSS global + Tailwind
 │   ├── .env.example
 │   └── package.json
@@ -122,14 +127,25 @@ voluntariar-v2/
     │   │   └── index.js          ← Adaptador SQLite / PostgreSQL
     │   ├── middleware/
     │   │   └── auth.js           ← JWT verify + requireRole
+    │   ├── lib/
+    │   │   ├── email.js          ← Envío de emails (Resend) + modo prueba
+    │   │   ├── emailTemplates.js
+    │   │   ├── storage.js        ← Fotos en Cloudinary (subida/borrado firmados)
+    │   │   └── time.js           ← Fechas iguales en SQLite y PostgreSQL
     │   └── routes/
     │       ├── auth.js           ← Registro, login, perfil
     │       ├── projects.js       ← CRUD proyectos + búsqueda
     │       ├── enrollments.js    ← Inscripciones + horas
     │       ├── ngos.js           ← Perfiles ONG + dashboard + empleados
-    │       └── notifications.js
+    │       ├── empresas.js       ← Perfiles de empresa + patrocinios + dashboard
+    │       ├── voluntarios.js    ← Perfil de voluntario + habilidades
+    │       ├── follows.js        ← Seguir ONGs/proyectos + feed
+    │       ├── messages.js       ← Chat (REST + WebSocket)
+    │       ├── notifications.js
+    │       ├── faqs.js           ← Chatbot de preguntas frecuentes
+    │       └── posts.js          ← Momentos: fotos, "me gusta", moderación
     ├── scripts/
-    │   ├── migrate.js            ← Crea las 24 tablas + índices + datos base
+    │   ├── migrate.js            ← Crea las 31 tablas + índices + datos base
     │   └── seed.js               ← 12 proyectos y usuarios de prueba
     ├── .env.example
     └── package.json
@@ -140,7 +156,7 @@ voluntariar-v2/
 ## Correr en local
 
 ### Requisitos
-- Node.js ≥ 18
+- Node.js ≥ 22.12 (con Node 20 o anterior, `better-sqlite3@13` directamente no funciona: el proceso se cae con `Segmentation fault`)
 - npm
 
 ### Paso 1 — Clonar
@@ -155,13 +171,16 @@ cd voluntariar-mvp
 ```bash
 cd backend
 
-# Instalar dependencias
+# Instalar dependencias (no hace falta ningún flag).
+# backend/.npmrc evita que npm intente compilar better-sqlite3 con node-gyp (pide Python +
+# herramientas de C++ y, si faltan, aborta toda la instalación). El paquete ya trae sus
+# binarios compilados. Si ves errores de `node-gyp` o "Python", revisá que exista backend/.npmrc.
 npm install
 
 # Configurar entorno (en local no hay que cambiar nada)
 cp .env.example .env
 
-# Crear las 24 tablas + índices + categorías/roles/habilidades base
+# Crear las 31 tablas + índices + categorías/roles/habilidades base
 npm run db:migrate
 
 # Insertar 12 proyectos y usuarios de prueba
@@ -214,9 +233,19 @@ Debe responder: `{"status":"ok","timestamp":"..."}`
 npm run db:migrate   # Crear/actualizar tablas e índices
 npm run db:seed      # Insertar datos de prueba (no duplica)
 npm run db:reset     # Recrear todo desde cero
-npm run dev          # Desarrollo con hot-reload
+npm run dev          # Desarrollo con hot-reload (node --watch: reinicia al guardar un módulo)
 npm start            # Producción
+npm test             # Tests del backend contra SQLite
+npm run test:pg      # Los mismos tests contra PostgreSQL real (variables TEST_PG_*, base `voluntariar_test`)
 ```
+
+### Tests
+
+```bash
+cd backend  && npm test && npm run test:pg   # 255 tests, en SQLite y en PostgreSQL
+cd frontend && npm test                      # 249 tests (Vitest)
+```
+*(Cifras al 2026-10-13; el historial y lo que NO se pudo verificar está en `docs/PROJECT_ANALYSIS.md`.)*
 
 ---
 
@@ -282,6 +311,14 @@ En `voluntariar` (frontend) → Environment:
 | `JWT_SECRET` | cualquier string | string largo y seguro |
 | `JWT_EXPIRES_IN` | `7d` | `7d` |
 | `CORS_ORIGINS` | `http://localhost:5173` | URL del frontend en Render |
+| `APP_URL` | `http://localhost:5173` | URL pública del frontend (links de los emails) |
+| `RESEND_API_KEY` | vacía (los emails se omiten) | API key de Resend |
+| `EMAIL_FROM` | opcional | Remitente (default: dominio de pruebas de Resend) |
+| `EMAIL_REDIRECT_TO` | opcional | Modo prueba: manda TODOS los emails a esa casilla |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | vacías (Momentos responde 503 al publicar) | Las tres, de la cuenta de Cloudinary |
+| `CLOUDINARY_FOLDER` | opcional | Carpeta de las fotos (vacío = sin carpeta) |
+
+> **En Render** estas variables hay que cargarlas a mano en el panel del servicio (Environment): `render.yaml` hoy solo declara `NODE_ENV`, `USE_POSTGRES`, `DATABASE_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN` y `CORS_ORIGINS`. Sin `CLOUDINARY_*` publicar un Momento responde 503; sin `RESEND_API_KEY` los emails se omiten.
 
 ### Frontend (`frontend/.env`)
 
@@ -341,6 +378,18 @@ En `voluntariar` (frontend) → Environment:
 | `GET` | `/api/roles` | ❌ | Lista de roles disponibles |
 | `GET` | `/api/habilidades` | ❌ | Lista de habilidades |
 
+### Momentos (fotos de voluntariados)
+| Método | Ruta | Auth | Descripción |
+|--------|------|------|-------------|
+| `GET` | `/api/posts` | opcional | Lista paginada (`limit`/`offset`; filtros `project_id`, `user_id`) |
+| `GET` | `/api/posts/:id` | opcional | Una publicación |
+| `GET` | `/api/posts/eligible-projects` | volunteer/ngo | Proyectos en los que se puede publicar |
+| `POST` | `/api/posts` | volunteer/ngo | Publicar (multipart: `project_id`, `caption`, hasta 5 `photos`) |
+| `POST` / `DELETE` | `/api/posts/:id/like` | ✅ | Dar / quitar "me gusta" |
+| `DELETE` | `/api/posts/:id` | ✅ | Borrar (el autor o la ONG dueña del proyecto) |
+
+> La lista completa y las formas exactas de las respuestas están en `docs/API_CONTEXT.md` (este README resume solo los grupos principales).
+
 ### Sistema
 | Método | Ruta | Descripción |
 |--------|------|-------------|
@@ -350,7 +399,7 @@ En `voluntariar` (frontend) → Environment:
 
 ## Base de datos
 
-### Tablas principales (24 en total)
+### Tablas principales (31 en total; detalle completo en `docs/DATABASE_CONTEXT.md`)
 
 ```
 users               id · name · email · password · role (CHECK)
@@ -373,6 +422,9 @@ reuniones           id · empleado_id · user_id · project_id · estado (CHECK)
 comments            id · project_id · user_id · comment
 ratings             id · project_id · user_id · rating (CHECK 1-5)
 notifications       id · user_id · type · title · read
+posts               id · user_id → users · project_id → projects · caption · created_at   (Momentos)
+post_media          id · post_id → posts · url · provider_id (Cloudinary) · position
+post_likes          post_id → posts · user_id → users   (PK compuesta: un me gusta por persona)
 
 Tablas N:M:
 ngo_categorias          · project_categorias
@@ -380,7 +432,7 @@ project_roles           · voluntario_habilidades
 empresa_voluntariados   · ngo_follows · project_follows
 ```
 
-### Índices (18)
+### Índices
 
 Todos los campos de búsqueda frecuente tienen índice:
 `enrollments(user_id)`, `enrollments(project_id)`, `enrollments(status)`,
@@ -412,3 +464,21 @@ Todas las validaciones corren en **frontend y backend**:
 ## Licencia
 
 Proyecto académico — Universidad Católica de Córdoba
+
+---
+
+## Documentación técnica
+
+La carpeta [`docs/`](docs/) contiene el detalle de cada parte del proyecto:
+
+| Archivo | Contenido |
+|---|---|
+| [`PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) | Visión general, flujos y rutas del sistema |
+| [`BACKEND_CONTEXT.md`](docs/BACKEND_CONTEXT.md) | Backend: estructura, variables de entorno, emails, fotos |
+| [`DATABASE_CONTEXT.md`](docs/DATABASE_CONTEXT.md) | Las 31 tablas, columnas, restricciones e índices |
+| [`API_CONTEXT.md`](docs/API_CONTEXT.md) | Todos los endpoints y la forma exacta de sus respuestas |
+| [`FRONTEND_CONTEXT.md`](docs/FRONTEND_CONTEXT.md) | Rutas, componentes y reglas del frontend (incluye Momentos) |
+| [`AI_RULES.md`](docs/AI_RULES.md) | Reglas de trabajo del proyecto |
+| [`BACKEND_ROADMAP_ANALYSIS.md`](docs/BACKEND_ROADMAP_ANALYSIS.md) | Análisis de lo que falta del roadmap |
+| [`PROJECT_ANALYSIS.md`](docs/PROJECT_ANALYSIS.md) | Historial de decisiones, bugs, errores propios y **lo que no se pudo verificar** |
+

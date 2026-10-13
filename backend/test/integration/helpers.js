@@ -7,20 +7,85 @@
 //
 // Requiere que SQLITE_PATH (agregado en src/db/index.js específicamente
 // para esto) sea respetado por el adaptador de base de datos.
+//
+// MODO POSTGRES (TEST_DB=postgres, o `npm run test:pg`): corre EXACTAMENTE los
+// mismos tests contra un Postgres real. Existe porque hay bugs que SQLite no
+// puede reproducir (agregados que llegan como string, carreras entre
+// conexiones — ver PROJECT_ANALYSIS.md §33/§34). Seguridad:
+//   - Cada archivo de test crea su PROPIO schema (test_<pid>_<rand>) y lo
+//     borra al terminar. Nunca se toca `public` ni ningún otro dato.
+//   - Se ignora DATABASE_URL a propósito: un test jamás debe poder apuntar a
+//     la base de producción que tengas en tu .env.
+//   - La conexión sale de TEST_PG_HOST / TEST_PG_PORT / TEST_PG_DB /
+//     TEST_PG_USER / TEST_PG_PASSWORD (defaults: localhost, 5432,
+//     voluntariar_test, postgres, ''), no de las DB_* de desarrollo.
 
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const { execFileSync } = require('child_process');
 
-async function setupTestServer({ seed = false } = {}) {
+const USE_PG_TESTS = process.env.TEST_DB === 'postgres';
+
+const pgConfig = () => ({
+  host:     process.env.TEST_PG_HOST     || 'localhost',
+  port:     parseInt(process.env.TEST_PG_PORT || '5432'),
+  database: process.env.TEST_PG_DB       || 'voluntariar_test',
+  user:     process.env.TEST_PG_USER     || 'postgres',
+  password: process.env.TEST_PG_PASSWORD || '',
+});
+
+// Configura las variables de entorno para que el adaptador (src/db) apunte a una base
+// descartable del motor elegido. Devuelve lo necesario para limpiarla después.
+async function configureTestDb() {
   const dbPath = path.join(
     os.tmpdir(),
     `voluntariar-test-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.sqlite`
   );
+  const schema = `test_${process.pid}_${Math.random().toString(36).slice(2, 8)}`;
 
-  process.env.SQLITE_PATH   = dbPath;
-  process.env.USE_POSTGRES  = 'false';
+  if (USE_PG_TESTS) {
+    const cfg = pgConfig();
+    delete process.env.DATABASE_URL;               // ver nota de seguridad arriba
+    process.env.USE_POSTGRES = 'true';
+    process.env.DB_HOST = cfg.host;   process.env.DB_PORT = String(cfg.port);
+    process.env.DB_NAME = cfg.database; process.env.DB_USER = cfg.user;
+    process.env.DB_PASSWORD = cfg.password;
+    const { Pool } = require('pg');
+    const admin = new Pool(cfg);
+    try { await admin.query(`CREATE SCHEMA ${schema}`); } finally { await admin.end(); }
+    process.env.PGOPTIONS = `-c search_path=${schema}`; // lo heredan migrate/seed y el server
+  } else {
+    process.env.SQLITE_PATH  = dbPath;
+    process.env.USE_POSTGRES = 'false';
+  }
+  return { dbPath, schema };
+}
+
+// Cierra el pool (Postgres), borra el schema propio / el archivo SQLite.
+async function cleanupTestDb({ dbPath, schema }) {
+  if (USE_PG_TESTS) {
+    try {
+      const { Pool } = require('pg');
+      await require('../../src/db').pool.end();
+      const admin = new Pool(pgConfig());
+      try { await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`); } finally { await admin.end(); }
+    } catch (e) { console.error('cleanup PG falló:', e.message); }
+  } else {
+    try { fs.unlinkSync(dbPath); } catch {}
+  }
+}
+
+// Solo el adaptador, sin servidor HTTP: para tests unitarios de src/db.
+async function setupTestDb() {
+  const handle = await configureTestDb();
+  const db = require('../../src/db');
+  return { db, engine: USE_PG_TESTS ? 'postgres' : 'sqlite', close: () => cleanupTestDb(handle) };
+}
+
+async function setupTestServer({ seed = false } = {}) {
+  const handle = await configureTestDb();
+
   process.env.JWT_SECRET    = 'test_secret_no_usar_en_produccion';
   process.env.PORT          = '0'; // puerto libre asignado por el SO
   process.env.NODE_ENV      = 'test';
@@ -49,10 +114,11 @@ async function setupTestServer({ seed = false } = {}) {
 
   return {
     baseUrl: `http://localhost:${port}`,
+    engine: USE_PG_TESTS ? 'postgres' : 'sqlite',
     close: () => new Promise(resolve => {
-      server.close(() => { try { fs.unlinkSync(dbPath); } catch {} resolve(); });
+      server.close(async () => { await cleanupTestDb(handle); resolve(); });
     }),
   };
 }
 
-module.exports = { setupTestServer };
+module.exports = { setupTestServer, setupTestDb };

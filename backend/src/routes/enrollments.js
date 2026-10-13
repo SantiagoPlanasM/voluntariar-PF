@@ -7,6 +7,15 @@ const { newEnrollmentEmail, enrollmentApprovedEmail, enrollmentRejectedEmail } =
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
+// Libera un cupo sin dejar el contador en negativo (CASE WHEN: compatible SQLite y PG).
+const RELEASE_SLOT_SQL = `UPDATE projects SET cupos_ocupados =
+          CASE WHEN cupos_ocupados > 0 THEN cupos_ocupados - 1 ELSE 0 END
+         WHERE id=$1`;
+
+// Se lanza DENTRO de una transacción para forzar el ROLLBACK cuando ya no quedan cupos
+// (un simple `return` haría COMMIT del cambio de estado de la inscripción).
+class NoCapacityError extends Error {}
+
 const router = express.Router();
 
 // ── POST /api/enrollments ─────────────────────────────────────────────────
@@ -157,25 +166,56 @@ router.patch('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
     if (!enrollment) return res.status(404).json({ error: 'Inscripción no encontrada o sin permiso' });
 
     const oldStatus = enrollment.status;
+    const doneMessage = `Inscripción ${status === 'approved' ? 'aprobada' : 'rechazada'}`;
 
-    await db.run(
-      'UPDATE enrollments SET status=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2',
-      [status, req.params.id]
-    );
+    // Idempotente: pedir el estado que ya tiene no cambia nada — ni el cupo, ni
+    // notificación/email duplicados (antes cada re-aprobación mandaba otro email).
+    if (oldStatus === status) return res.json({ message: doneMessage });
 
-    // Actualizar cupos_ocupados con CASE WHEN para evitar negativos (compatible SQLite y PG)
-    if (status === 'approved' && oldStatus !== 'approved') {
-      await db.run(
-        'UPDATE projects SET cupos_ocupados = cupos_ocupados + 1 WHERE id=$1',
-        [enrollment.project_id]
+    // Estado + cupo en UNA transacción (antes eran queries sueltas: una falla a
+    // mitad dejaba el contador desincronizado). El UPDATE es un compare-and-swap:
+    // solo aplica si el estado sigue siendo el que leímos arriba. Sin esto, dos
+    // requests concurrentes (doble click, reintento) leen el mismo `oldStatus` y
+    // suman/restan el cupo dos veces — bug propio de Postgres (pool de conexiones).
+    // Notificaciones y emails van DESPUÉS del COMMIT: son "best effort" y una query
+    // fallida dentro de una transacción de Postgres la aborta entera.
+    const outcome = await db.transaction(async (tx) => {
+      const swap = await tx.run(
+        'UPDATE enrollments SET status=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2 AND status=$3',
+        [status, req.params.id, oldStatus]
       );
-    } else if (status === 'rejected' && oldStatus === 'approved') {
-      await db.run(
-        `UPDATE projects SET cupos_ocupados =
-          CASE WHEN cupos_ocupados > 0 THEN cupos_ocupados - 1 ELSE 0 END
-         WHERE id=$1`,
-        [enrollment.project_id]
-      );
+      if (swap.changes === 0) return 'stale';
+
+      if (status === 'approved' && oldStatus !== 'approved') {
+        // Cupo condicional y atómico: solo suma si todavía queda lugar. Impone la invariante
+        // cupos_ocupados <= cupos (AI_RULES regla 20), que antes no se verificaba al aprobar:
+        // el alta ya devolvía 409 con el proyecto lleno, pero como `cupos_ocupados` cuenta solo
+        // aprobadas, podían acumularse pendientes y la ONG las aprobaba por encima del tope.
+        // Sin leer-y-después-escribir: en Postgres, dos aprobaciones simultáneas con un solo
+        // cupo libre se serializan sobre la fila del proyecto y la segunda ve 0 filas afectadas.
+        const slot = await tx.run(
+          'UPDATE projects SET cupos_ocupados = cupos_ocupados + 1 WHERE id=$1 AND cupos_ocupados < cupos',
+          [enrollment.project_id]
+        );
+        if (slot.changes === 0) throw new NoCapacityError(); // → ROLLBACK: la inscripción sigue pendiente
+      } else if (status === 'rejected' && oldStatus === 'approved') {
+        await tx.run(RELEASE_SLOT_SQL, [enrollment.project_id]);
+      }
+      return 'applied';
+    }).catch((err) => {
+      if (err instanceof NoCapacityError) return 'full';
+      throw err;
+    });
+
+    if (outcome === 'full') {
+      return res.status(409).json({ error: 'El proyecto no tiene cupos disponibles' });
+    }
+
+    if (outcome === 'stale') {
+      // Otro request cambió el estado entre mi lectura y mi UPDATE.
+      const current = await db.get('SELECT status FROM enrollments WHERE id=$1', [req.params.id]);
+      if (current?.status === status) return res.json({ message: doneMessage }); // ya lo aplicó otro: nada que hacer
+      return res.status(409).json({ error: 'La inscripción cambió mientras la revisabas. Actualizá la pantalla e intentá de nuevo.' });
     }
 
     // Notificar al voluntario
@@ -202,7 +242,7 @@ router.patch('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
     });
     sendEmail({ to: enrollment.volunteer_email, subject, html }).catch(() => {});
 
-    res.json({ message: `Inscripción ${status === 'approved' ? 'aprobada' : 'rechazada'}` });
+    res.json({ message: doneMessage });
   } catch (err) {
     console.error('PATCH /enrollments/:id error:', err);
     res.status(500).json({ error: 'Error al actualizar inscripción' });
@@ -218,17 +258,25 @@ router.delete('/:id', requireAuth, async (req, res) => {
     );
     if (!enrollment) return res.status(404).json({ error: 'Inscripción no encontrada' });
 
-    await db.run('DELETE FROM enrollments WHERE id=$1', [req.params.id]);
-
-    // Decrementar cupos si estaba aprobada
-    if (enrollment.status === 'approved') {
-      await db.run(
-        `UPDATE projects SET cupos_ocupados =
-          CASE WHEN cupos_ocupados > 0 THEN cupos_ocupados - 1 ELSE 0 END
-         WHERE id=$1`,
-        [enrollment.project_id]
+    // Borrar + liberar el cupo en UNA transacción. El DELETE exige que el estado siga
+    // siendo el leído arriba: si cambió (p. ej. la ONG la aprobó justo ahora) el
+    // decremento sería incorrecto; y si ya no existe (doble click), no se decrementa
+    // de nuevo — antes cada request repetido restaba un cupo de más.
+    const outcome = await db.transaction(async (tx) => {
+      const del = await tx.run(
+        'DELETE FROM enrollments WHERE id=$1 AND user_id=$2 AND status=$3',
+        [req.params.id, req.user.id, enrollment.status]
       );
-    }
+      if (del.changes === 0) {
+        const still = await tx.get('SELECT 1 AS x FROM enrollments WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id]);
+        return still ? 'stale' : 'gone';
+      }
+      if (enrollment.status === 'approved') await tx.run(RELEASE_SLOT_SQL, [enrollment.project_id]);
+      return 'deleted';
+    });
+
+    if (outcome === 'gone') return res.status(404).json({ error: 'Inscripción no encontrada' });
+    if (outcome === 'stale') return res.status(409).json({ error: 'La inscripción cambió mientras la cancelabas. Actualizá la pantalla e intentá de nuevo.' });
 
     res.json({ message: 'Inscripción cancelada' });
   } catch (err) {

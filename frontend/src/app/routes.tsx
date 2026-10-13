@@ -13,6 +13,7 @@ import { CreateVoluntariado } from './components/CreateVoluntariado';
 import { NGOOwnProfile } from './components/NGOOwnProfile';
 import { NGOPatrocinios } from './components/NGOPatrocinios';
 import { CompanyOwnProfile } from './components/CompanyOwnProfile';
+import { CompanyDashboard } from './components/CompanyDashboard';
 import { CompanyPublicProfile } from './components/CompanyPublicProfile';
 import { ExploreScreen } from './components/ExploreScreen';
 import { MyParticipation } from './components/MyParticipation';
@@ -22,6 +23,8 @@ import { NGOEmpleados } from './components/NGOEmpleados';
 import { NGOKPIs } from './components/NGOKPIs';
 import { MessagesScreen } from './components/MessagesScreen';
 import { ChatThread } from './components/ChatThread';
+import { MomentsPage } from './components/MomentsPage';
+import { NGOMoments } from './components/NGOMoments';
 
 export const router = createBrowserRouter([
   {
@@ -36,6 +39,7 @@ export const router = createBrowserRouter([
       { path: 'explore',         Component: ExploreScreen },
       { path: 'participation',   Component: MyParticipation },
       { path: 'notifications',   Component: NotificationsScreen },
+      { path: 'momentos',        Component: MomentsPage },
       { path: 'messages',        Component: MessagesScreen },
       { path: 'messages/:userId', Component: ChatThread },
       { path: 'ngo/:id',         Component: NGOPublicProfile },
@@ -53,6 +57,7 @@ export const router = createBrowserRouter([
       { path: 'create',                           Component: CreateVoluntariado },
       { path: 'profile',                          Component: NGOOwnProfile },
       { path: 'patrocinios',                      Component: NGOPatrocinios },
+      { path: 'momentos',                         Component: NGOMoments },
       { path: 'empleados/:id',                    Component: NGOEmpleados },
       { path: 'kpis/:projectId',                  Component: NGOKPIs },
       { path: 'messages',                         Component: MessagesScreen },
@@ -64,6 +69,7 @@ export const router = createBrowserRouter([
     Component: CompanyLayout,
     children: [
       { index: true,               Component: CompanyOwnProfile },
+      { path: 'dashboard',         Component: CompanyDashboard },
       { path: 'profile',           Component: CompanyOwnProfile },
       { path: 'messages',          Component: MessagesScreen },
       { path: 'messages/:userId',  Component: ChatThread },

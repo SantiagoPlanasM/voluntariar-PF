@@ -25,16 +25,20 @@ frontend/src/
 ├── main.tsx                  # bootstrap: StrictMode + AuthProvider + RouterProvider
 ├── app/
 │   ├── routes.tsx             # todas las rutas (createBrowserRouter)
-│   └── components/            # 22 archivos .tsx — screens + layouts + widgets
+│   └── components/            # 47 archivos .tsx (sin tests) — screens + layouts + widgets
 ├── lib/
-│   ├── api.ts                 # cliente HTTP centralizado + TODOS los tipos TS de dominio
-│   └── AuthContext.tsx        # sesión global (Context + Provider + hook useAuth)
+│   ├── api.ts                 # cliente HTTP centralizado + TODOS los tipos TS de dominio (incluye api.posts y el helper de subida multipart)
+│   ├── AuthContext.tsx        # sesión global (Context + Provider + hook useAuth)
+│   ├── ChatContext.tsx        # chat en tiempo real (WebSocket)
+│   ├── format.ts              # timeAgo/parseBackendDate (acepta ISO 8601 y el formato viejo sin zona), truncateText ("ver más"), userMessage (errores para el usuario) y otros formatos
+│   ├── sponsorship.ts         # etiquetas y colores de los estados de un patrocinio
+│   └── imageCompress.ts       # compresión de fotos en el navegador antes de subirlas (Momentos)
 └── styles/
     ├── globals.css             # Tailwind + tema custom (design tokens) + fuentes
     └── (assets, fonts)
 ```
 
-No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo vive en `lib/` (2 archivos) y `app/components/` (plano, sin subcarpetas por dominio).
+No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo vive en `lib/` (6 archivos) y `app/components/` (plano, sin subcarpetas por dominio).
 
 ## 3. Todas las páginas (rutas)
 
@@ -46,6 +50,7 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 | `/project/:id` (alias `/projects/:id`) | `ProjectDetails` | `Root` | público (con `optionalAuth`) |
 | `/participation` | `MyParticipation` | `Root` | volunteer |
 | `/notifications` | `NotificationsScreen` | `Root` | cualquiera logueado |
+| `/momentos` | `MomentsPage` | `Root` | público (una ONG logueada es redirigida a `/ngo/momentos`) |
 | `/messages` | `MessagesScreen` | `Root` | cualquiera logueado |
 | `/messages/:userId` | `ChatThread` | `Root` | cualquiera logueado |
 | `/profile` | `VolunteerProfile` | `Root` | volunteer |
@@ -57,17 +62,19 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 | `/ngo/dashboard/project/:id` | `NGOProjectDetail` | `NGOLayout` | ngo |
 | `/ngo/profile` | `NGOOwnProfile` | `NGOLayout` | ngo |
 | `/ngo/patrocinios` | `NGOPatrocinios` | `NGOLayout` | ngo |
+| `/ngo/momentos` | `NGOMoments` | `NGOLayout` | ngo (sin guarda en frontend) |
 | `/ngo/empleados/:id` | `NGOEmpleados` | `NGOLayout` | ngo |
 | `/ngo/kpis/:projectId` | `NGOKPIs` | `NGOLayout` | ngo |
 | `/ngo/messages` | `MessagesScreen` | `NGOLayout` | ngo |
 | `/ngo/messages/:userId` | `ChatThread` | `NGOLayout` | ngo |
+| `/company/dashboard` | `CompanyDashboard` | `CompanyLayout` | company |
 | `/company/profile` | `CompanyOwnProfile` | `CompanyLayout` | company |
 | `/company/messages` | `MessagesScreen` | `CompanyLayout` | company |
 | `/company/messages/:userId` | `ChatThread` | `CompanyLayout` | company |
 
 `OnboardingScreen.tsx` existe como archivo pero **no está registrado en `routes.tsx`** — código muerto/no alcanzable.
 
-## 4. Todos los componentes (38, sin contar `*.test.tsx`)
+## 4. Todos los componentes (47, sin contar `*.test.tsx`)
 
 ### Layouts / navegación
 - `Root.tsx` — layout del lado "voluntario/público": `<Outlet/>` + `<BottomNav/>` + `<AuthModal/>` + `<ChatbotWidget/>`.
@@ -108,8 +115,19 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 - `NGOKPIs.tsx` — CRUD completo (alta/edición/borrado) de indicadores de impacto por proyecto, con resumen visual. Usa `api.projects.kpis.*`.
 
 ### Pantallas — lado Empresa
+- `CompanyDashboard.tsx` — panel de impacto: 4 KPIs (proyectos patrocinados, propuestas pendientes con contador de rechazadas, horas de voluntariado, voluntarios alcanzados) + lista de proyectos con badge de estado. Horas/voluntarios/cupos solo se muestran en patrocinios `aceptado`. Estado de error con "Reintentar". Usa `api.empresas.dashboard()` y los mapas de `lib/sponsorship.ts`. **No** es la ruta de aterrizaje tras el login (eso sigue siendo `/company/profile`, ver `AuthModal.tsx`).
 - `CompanyOwnProfile.tsx` — perfil propio editable + lista de patrocinios propios (proponer, ver estado, retirar uno pendiente).
 - `CompanyPublicProfile.tsx` — vista pública del perfil de una Empresa, accesible sin login desde `/company/:id`.
+
+### Momentos (publicaciones con fotos) — ver la sección "Momentos" al final
+- `MomentsPage.tsx` — `/momentos`: título + `FeedTabs` + `MomentsFeed`. Pública; al visitante le ofrece ingresar; a una ONG la redirige a `/ngo/momentos`; espera a que termine la verificación de sesión (`initializing`) para no parpadear.
+- `NGOMoments.tsx` — `/ngo/momentos`, dentro del panel de la ONG (sin pestañas).
+- `MomentsFeed.tsx` — lista paginada (carga, vacío, error, "Ver más"), botón "Compartir un momento" y alta/borrado en la lista. Acepta `filters` (`project_id`/`user_id`) para las galerías de la Etapa 3.
+- `PostCard.tsx` — una publicación: autor, proyecto, carrusel, me gusta optimista con rollback, borrar según `can_delete`, texto con "ver más".
+- `PhotoCarousel.tsx` — carrusel (botones, flechas del teclado, deslizar con el dedo).
+- `PostComposer.tsx` — modal para publicar (proyecto, hasta 5 fotos con vista previa, texto de hasta 500, compresión, aviso de fotos propias).
+- `FeedTabs.tsx` — pestañas "Proyectos | Momentos" (son enlaces, no estado).
+- `MomentsGrid.tsx` — grilla de miniaturas (`thumb_url`, 3 columnas, 9 por página) filtrada por `project_id` o `user_id`; al tocar una se abre la publicación completa (`PostCard`) en un modal. Misma paginación y recarga que `MomentsFeed`. Se usa en `ProjectDetails` (galería del proyecto) y `VolunteerPublicProfile` (por id de *usuario*).
 
 ### Chat
 - `MessagesScreen.tsx` — lista de conversaciones (compartido entre voluntario, ONG y empresa).
@@ -186,7 +204,7 @@ export const api = {
   projects: { list, get, create, update, remove, comment, rate, kpis, recommended... },
   enrollments: { enroll, byProject, byVolunteer, approve, reject, logHours },
   ngos: { list, get, me, updateMe, employees, patrocinios: { list, decide }... },
-  empresas: { me, get, update, patrocinios: { list, propose, withdraw } },
+  empresas: { me, get, update, dashboard, patrocinios: { list, propose, withdraw } },
   follows: { ngo, project, volunteer, feed... },
   faqs: { list, ask },
   notifications: { list, markRead },
@@ -209,6 +227,7 @@ Todos los tipos de dominio (`User`, `Project`, `NGO`, `Empresa`, `Enrollment`, `
 | `Notification` | `id, user_id, type, content, read, created_at` |
 | `Faq` | `id, categoria?, pregunta, respuesta` |
 | `Patrocinio` | propuesta de patrocinio Empresa↔Proyecto: `empresa_id, project_id, estado, mensaje?, aporte, ...` |
+| `CompanyDashboard` | respuesta de `GET /api/empresas/me/dashboard`: `stats`, `impact`, `projects: CompanyDashboardProject[]` (claves en inglés; `sponsorship_status` reusa los valores de `Patrocinio['estado']`) |
 
 ## 9. Flujo de navegación (detalle por rol)
 
@@ -292,3 +311,26 @@ Limitado a `AuthContext`. No hay estado global de UI (temas, filtros persistente
 - Agregar un `ErrorBoundary` de React a nivel de cada layout (`Root`, `NGOLayout`, `CompanyLayout`) para evitar pantallas en blanco ante errores no capturados.
 - Registrar o eliminar `OnboardingScreen.tsx` según la intención real del equipo.
 - Sumar tests para los componentes grandes listados en el problema 8.
+
+## Momentos (publicaciones con fotos) — estado del frontend
+> **Etapas 2 y 3 completas** (`PROJECT_ANALYSIS.md §43`, `§46`, `§47` y `§48`). Queda verificar una subida real a Cloudinary.
+
+**Cómo se llega:** voluntarios y visitantes, con la pestaña **Momentos** de `FeedTabs` (en `MainFeed` y en `PublicFeed`) → `/momentos`. La ONG **no** tiene pestañas: entra por "Momentos" en su barra lateral (escritorio) o por el botón "Momentos" del header de `NGODashboard` (celular) → `/ngo/momentos`. **No se agregó un ítem a las barras inferiores** (la del voluntario ya tiene 5, la de la ONG también). Hoy, en `/momentos`, ningún ítem de la barra del voluntario queda resaltado (el de "Inicio" solo se marca en `/feed`).
+
+**Piezas:**
+- **`api.posts`** (`lib/api.ts`): `list`, `get`, `eligibleProjects`, `create`, `like`, `unlike`, `remove` y los tipos `Post`, `PostPhoto`, `PostsPage`, `EligibleProject`. `create` usa un helper aparte (`upload`) que **no fija `Content-Type`**: `req()` fuerza `application/json` y con eso el servidor nunca recibiría los archivos del multipart.
+- **`lib/imageCompress.ts`**: `compressImage(file)` reduce a 1600 px, recodifica como JPEG (0,82), fondo blanco para PNG transparentes, no toca fotos chicas y livianas, y falla con mensajes para el usuario. Los límites (tipos y 8 MB) deben coincidir con `backend/src/routes/posts.js`.
+- **`lib/format.ts`**: `timeAgo` (acepta ISO y formato viejo), `truncateText(texto, max, maxLines)` ("ver más": corta por caracteres y por líneas, en límite de palabra) y `userMessage(err, respaldo)` (muestra el mensaje del servidor, que viene en español, salvo un `TypeError` de red, que se reemplaza).
+- **Componentes:** ver la lista en la sección 4.
+
+**Reglas de comportamiento que importan (cada una tiene su test):**
+- **`can_delete` manda el servidor.** `PostCard` muestra el botón de borrar solo si `post.can_delete`; el cliente no deduce nada (conoce el id del autor, no quién es la ONG dueña). Comparar `user.id === author.id` se usa **solo** para elegir el texto de la confirmación.
+- **`post.author.id` es el id del *usuario*.** Solo los voluntarios tienen perfil público (`/volunteer/:id`); el nombre de una ONG no se enlaza.
+- **Me gusta optimista:** cambia la pantalla al instante, se ajusta al número del servidor y, si falla, se revierte y avisa. Con un pedido en vuelo se ignoran los toques nuevos. Sin sesión abre el modal de ingreso y no llama a la API.
+- **Paginación (`MomentsFeed`):** `offset` = lo que el servidor *devolvió* (no lo que se muestra); se deduplica por id; borrar una publicación del feed resta 1 al offset y publicar una suma 1; una publicación nueva que no corresponde al filtro (otro proyecto/autor) no se agrega; una respuesta vieja que llega tarde (cambio de filtro) se descarta.
+- **El feed recarga cuando cambia el *id* del usuario** (no su objeto): `liked_by_me` y `can_delete` los calcula el servidor según quién mira, y un visitante puede iniciar sesión desde el modal sin salir de la pantalla.
+- **Compositor:** tope de 5 fotos y de 500 caracteres; la compresión corre al publicar y, si una foto falla, no se sube nada y se conserva el formulario; tras publicar el botón queda bloqueado hasta que `MomentsFeed` cierra el modal (evita publicar dos veces); pregunta antes de descartar si hay fotos o texto.
+
+**Etapa 3:** `ProjectDetails` y `VolunteerPublicProfile` muestran `MomentsGrid`; `NGOProjectDetail` muestra `MomentsFeed` del proyecto **sin compositor** (`showComposer={false}`), y el botón de borrar le aparece en cualquier publicación porque el servidor manda `can_delete`. Límite: el modal de `MomentsGrid` guarda una copia de la publicación; si se da me gusta dentro del modal y se cierra y reabre, la tarjeta muestra el estado anterior hasta recargar (por lectura del código; sin test).
+
+**Verificado por Matías en local (`PROJECT_ANALYSIS.md §49`):** la subida real a Cloudinary. **Sin verificar:** cómo se ve todo (Tailwind), el deslizar con el dedo en un celular real, el foco/teclado del modal (no hay *focus trap*) y todo lo anterior en producción (Render).

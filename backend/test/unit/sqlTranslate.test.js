@@ -62,9 +62,40 @@ describe('translatePg', () => {
     assert.equal(translatePg("WHERE nombre ILIKE '%x%'"), "WHERE nombre LIKE '%x%'");
   });
 
-  test('traduce ON CONFLICT DO NOTHING', () => {
-    const out = translatePg("INSERT INTO t VALUES (1) ON CONFLICT DO NOTHING");
-    assert.match(out, /OR IGNORE/);
+  // Antes esta regla reescribía `ON CONFLICT DO NOTHING` como el texto `OR IGNORE` EN EL MISMO LUGAR, lo que
+  // da `INSERT INTO t ... VALUES (...) OR IGNORE`: SQL inválido en SQLite. El test viejo solo comparaba el texto
+  // de la sustitución, así que nunca lo detectó (y ninguna ruta usaba la cláusula). SQLite ≥ 3.24 entiende
+  // `ON CONFLICT DO NOTHING` de forma nativa, con o sin columnas de conflicto: no hace falta traducirla.
+  // Por eso este test EJECUTA el SQL traducido contra una SQLite real en vez de mirar el texto.
+  describe('ON CONFLICT DO NOTHING', () => {
+    const Database = require('better-sqlite3');
+
+    const withTable = () => {
+      const db = new Database(':memory:');
+      db.exec('CREATE TABLE likes (post_id TEXT, user_id TEXT, PRIMARY KEY (post_id, user_id))');
+      return db;
+    };
+
+    test('sin objetivo: el duplicado se ignora y la fila nueva entra (SQL traducido, ejecutado de verdad)', () => {
+      const db = withTable();
+      const sql = translatePg('INSERT INTO likes (post_id, user_id) VALUES (?, ?) ON CONFLICT DO NOTHING');
+      assert.equal(db.prepare(sql).run('p1', 'u1').changes, 1);
+      assert.equal(db.prepare(sql).run('p1', 'u1').changes, 0, 'el duplicado no debe fallar ni insertar');
+      assert.equal(db.prepare(sql).run('p1', 'u2').changes, 1);
+      assert.equal(db.prepare('SELECT COUNT(*) AS n FROM likes').get().n, 2);
+    });
+
+    test('con objetivo de conflicto: también funciona', () => {
+      const db = withTable();
+      const sql = translatePg('INSERT INTO likes (post_id, user_id) VALUES (?, ?) ON CONFLICT (post_id, user_id) DO NOTHING');
+      assert.equal(db.prepare(sql).run('p1', 'u1').changes, 1);
+      assert.equal(db.prepare(sql).run('p1', 'u1').changes, 0);
+    });
+
+    test('translatePg no modifica la cláusula (es sintaxis válida en los dos motores)', () => {
+      const sql = 'INSERT INTO t (a) VALUES (1) ON CONFLICT DO NOTHING';
+      assert.equal(translatePg(sql), sql);
+    });
   });
 
   test('no toca los placeholders $N (eso lo hace remapParams)', () => {

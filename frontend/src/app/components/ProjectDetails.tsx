@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { api, ProjectDetail } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
+import { MomentsGrid } from './MomentsGrid';
 
 type Tab = 'details' | 'ratings' | 'comments';
 const BLACKLIST = ['pelotudo','boludo','idiota','imbecil','mierda','puto','puta','hdp','concha','forro','tarado'];
@@ -539,6 +540,14 @@ export function ProjectDetails() {
                 )}
               </div>
             </div>
+
+            {/* Momentos: fotos que compartieron los voluntarios de este proyecto */}
+            {id && (
+              <section aria-label="Momentos del proyecto" className="mt-6">
+                <h2 className="font-bold text-gray-900 text-base mb-3">Momentos</h2>
+                <MomentsGrid filters={{ project_id: id }} />
+              </section>
+            )}
           </div>
 
           {/* ── SIDEBAR: solo desktop ─────────────────────────── */}

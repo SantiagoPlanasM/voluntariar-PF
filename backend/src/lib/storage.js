@@ -1,0 +1,158 @@
+// src/lib/storage.js
+//
+// Almacenamiento de fotos en Cloudinary (https://cloudinary.com) usando su API REST con fetch nativo,
+// sin el SDK oficial: mismo criterio que lib/email.js (no sumar una dependencia ni superficie de
+// `npm audit` para hacer un POST firmado).
+//
+// Configuración (variables de entorno, leídas en cada llamada):
+//   CLOUDINARY_CLOUD_NAME   — nombre de la nube (aparece en el Dashboard de Cloudinary).
+//   CLOUDINARY_API_KEY      — API key.
+//   CLOUDINARY_API_SECRET   — API secret. NUNCA se manda en un request ni se loguea; solo firma.
+//   CLOUDINARY_FOLDER       — (opcional) carpeta donde se guardan las fotos. Vacío = sin carpeta, que es la
+//                             subida mínima documentada y la más robusta frente a los modos de carpetas
+//                             de Cloudinary.
+//
+// Firma: https://cloudinary.com/documentation/authentication_signatures — se ordenan alfabéticamente los
+// parámetros que se mandan (excepto file, cloud_name, resource_type y api_key), se unen como k=v con "&",
+// se les pega el api_secret SIN separador y se aplica SHA-1 en hexadecimal. test/unit/storage.test.js
+// verifica la implementación contra el vector de prueba oficial de esa página.
+//
+// Los routes llaman a `storage.uploadImage(...)` / `storage.deleteImage(...)` accediendo a la propiedad
+// en cada llamada (no desestructurado): así los tests pueden reemplazarlas sin tocar Cloudinary.
+
+const crypto = require('node:crypto');
+
+const API = 'https://api.cloudinary.com/v1_1';
+const TIMEOUT_MS = 20000;
+const UNSIGNED_FIELDS = new Set(['file', 'cloud_name', 'resource_type', 'api_key']);
+
+class StorageError extends Error {
+  constructor(message, { status = null, code = null } = {}) {
+    super(message);
+    this.name = 'StorageError';
+    this.status = status;
+    this.code = code;
+  }
+}
+
+function getConfig() {
+  const clean = (v) => (v || '').trim();
+  return {
+    cloudName: clean(process.env.CLOUDINARY_CLOUD_NAME),
+    apiKey: clean(process.env.CLOUDINARY_API_KEY),
+    apiSecret: clean(process.env.CLOUDINARY_API_SECRET),
+    folder: clean(process.env.CLOUDINARY_FOLDER),
+  };
+}
+
+function isConfigured() {
+  const c = getConfig();
+  return Boolean(c.cloudName && c.apiKey && c.apiSecret);
+}
+
+/** Firma de un request a la API de Cloudinary. Ver el encabezado del archivo. */
+function signParams(params, apiSecret) {
+  const toSign = Object.keys(params)
+    .filter((k) => !UNSIGNED_FIELDS.has(k) && params[k] !== undefined && params[k] !== null && params[k] !== '')
+    .sort()
+    .map((k) => `${k}=${params[k]}`)
+    .join('&');
+  return crypto.createHash('sha1').update(toSign + apiSecret).digest('hex');
+}
+
+/**
+ * Tipo REAL de la imagen según su cabecera ('jpeg' | 'png' | 'webp'), o null si no es una de ellas.
+ * El `mimetype` que declara el cliente no sirve para decidir: lo escribe quien sube el archivo.
+ */
+function detectImageType(buf) {
+  if (!Buffer.isBuffer(buf)) return null;
+  // Cada formato necesita un largo mínimo distinto para poder leer su cabecera (JPEG 3, PNG 8, WebP 12).
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpeg';
+  if (buf.length >= 8 && buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'png';
+  if (buf.length >= 12 && buf.toString('latin1', 0, 4) === 'RIFF' && buf.toString('latin1', 8, 12) === 'WEBP') return 'webp';
+  return null;
+}
+
+// URL optimizada: se inserta la transformación justo después de /image/upload/. Si la URL no es de
+// Cloudinary (o no es un string) se devuelve tal cual.
+const MARKER = '/image/upload/';
+function transformUrl(url, transformation) {
+  if (typeof url !== 'string' || !url.includes('res.cloudinary.com')) return url;
+  const i = url.indexOf(MARKER);
+  if (i === -1) return url;
+  return url.slice(0, i + MARKER.length) + transformation + '/' + url.slice(i + MARKER.length);
+}
+const feedUrl = (url) => transformUrl(url, 'f_auto,q_auto,w_1080,c_limit');
+const thumbUrl = (url) => transformUrl(url, 'f_auto,q_auto,w_480,h_480,c_fill,g_auto');
+
+async function post(path, form, cfg) {
+  let res;
+  try {
+    res = await fetch(`${API}/${cfg.cloudName}${path}`, { method: 'POST', body: form, signal: AbortSignal.timeout(TIMEOUT_MS) });
+  } catch (err) {
+    throw new StorageError(`error de red con Cloudinary: ${err.message}`, { code: 'network' });
+  }
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const msg = data?.error?.message || `HTTP ${res.status}`;
+    if (res.status === 401 || /signature/i.test(msg)) {
+      console.error('[storage] Cloudinary rechazó las credenciales o la firma. Revisá CLOUDINARY_CLOUD_NAME, '
+        + 'CLOUDINARY_API_KEY y CLOUDINARY_API_SECRET (que sean los del mismo Dashboard, sin espacios ni comillas).');
+    }
+    throw new StorageError(`Cloudinary respondió ${res.status}: ${msg}`, { status: res.status, code: 'http' });
+  }
+  return data;
+}
+
+/** Sube una imagen. Devuelve { url, publicId, width, height, bytes } o lanza StorageError. */
+async function uploadImage(buffer) {
+  const cfg = getConfig();
+  if (!isConfigured()) throw new StorageError('Cloudinary no está configurado', { code: 'not_configured' });
+
+  const timestamp = Math.floor(Date.now() / 1000);
+  const signed = { timestamp, folder: cfg.folder || undefined };
+  const type = detectImageType(buffer);
+
+  const form = new FormData();
+  form.append('file', new Blob([buffer], { type: type ? `image/${type}` : 'application/octet-stream' }), 'photo');
+  form.append('api_key', cfg.apiKey);
+  form.append('timestamp', String(timestamp));
+  if (cfg.folder) form.append('folder', cfg.folder);
+  form.append('signature', signParams(signed, cfg.apiSecret));
+
+  const data = await post('/image/upload', form, cfg);
+  if (!data?.secure_url || !data?.public_id) {
+    throw new StorageError('Cloudinary devolvió una respuesta inesperada (sin url o public_id)', { code: 'bad_response' });
+  }
+  return { url: data.secure_url, publicId: data.public_id, width: data.width ?? null, height: data.height ?? null, bytes: data.bytes ?? null };
+}
+
+/** Borra una imagen por su public_id. Borrar algo que ya no existe cuenta como éxito. */
+async function deleteImage(publicId) {
+  const cfg = getConfig();
+  if (!isConfigured()) throw new StorageError('Cloudinary no está configurado', { code: 'not_configured' });
+
+  const timestamp = Math.floor(Date.now() / 1000);
+  const form = new FormData();
+  form.append('public_id', publicId);
+  form.append('api_key', cfg.apiKey);
+  form.append('timestamp', String(timestamp));
+  form.append('signature', signParams({ public_id: publicId, timestamp }, cfg.apiSecret));
+
+  const data = await post('/image/destroy', form, cfg);
+  if (data?.result === 'ok' || data?.result === 'not found') return true;
+  throw new StorageError(`Cloudinary no pudo borrar la imagen (result: ${data?.result})`, { code: 'bad_response' });
+}
+
+/** Una línea para el log de arranque. Nunca incluye la key ni el secreto. */
+function describeStorageConfig() {
+  const { cloudName } = getConfig();
+  return isConfigured()
+    ? `Cloudinary (${cloudName})`
+    : 'sin configurar (faltan variables CLOUDINARY_*): no se pueden subir fotos';
+}
+
+module.exports = {
+  StorageError, isConfigured, signParams, detectImageType,
+  feedUrl, thumbUrl, uploadImage, deleteImage, describeStorageConfig,
+};

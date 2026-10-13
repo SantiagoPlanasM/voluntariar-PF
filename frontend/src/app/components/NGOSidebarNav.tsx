@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router';
-import { LayoutDashboard, Plus, User, LogOut, Heart, MessageCircle, Handshake } from 'lucide-react';
+import { LayoutDashboard, Plus, User, LogOut, Heart, MessageCircle, Handshake, Camera } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useChat } from '../../lib/ChatContext';
 
@@ -13,6 +13,7 @@ export function NGOSidebarNav() {
     { to: '/ngo/dashboard',    icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/ngo/create',       icon: Plus,            label: 'Nuevo Voluntariado' },
     { to: '/ngo/patrocinios',  icon: Handshake,       label: 'Patrocinios' },
+    { to: '/ngo/momentos',     icon: Camera,          label: 'Momentos' },
     { to: '/ngo/messages',     icon: MessageCircle,   label: 'Mensajes', badge: unreadTotal },
     { to: '/ngo/profile',      icon: User,            label: 'Mi ONG' },
   ];

@@ -2,6 +2,8 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth, optionalAuth, requireRole } = require('../middleware/auth');
+const { randomUUID } = require('node:crypto');
+const { toMillis } = require('../lib/time');
 
 const router = express.Router();
 
@@ -416,8 +418,10 @@ router.get('/recommended', requireAuth, requireRole('volunteer'), async (req, re
       const rating = ratingByProject[p.id] || { avg: 0, count: 0 };
       const spotsLeft = (p.cupos || 0) - (p.cupos_ocupados || 0);
       const fillRatio = p.cupos > 0 ? (p.cupos_ocupados / p.cupos) : 0;
-      const createdAt = p.created_at?.replace(' ', 'T');
-      const daysOld = (now - new Date(createdAt + (createdAt.includes('Z') ? '' : 'Z')).getTime()) / 86400000;
+      // created_at es string en SQLite y Date en Postgres: siempre vía toMillis() (src/lib/time.js).
+      // Sin fecha válida → Infinity: simplemente no recibe el bonus de "reciente", en vez de romper.
+      const createdMs = toMillis(p.created_at);
+      const daysOld = createdMs === null ? Infinity : (now - createdMs) / 86400000;
       const reasons = [];
       const tags = [];
       let score = 0;
@@ -564,7 +568,7 @@ router.get('/recommended', requireAuth, requireRole('volunteer'), async (req, re
     });
 
     // ── 9) Ordenar y limitar ──────────────────────────────────────────
-    scored.sort((a, b) => b.score - a.score || new Date(b.project.created_at) - new Date(a.project.created_at));
+    scored.sort((a, b) => b.score - a.score || (toMillis(b.project.created_at) ?? 0) - (toMillis(a.project.created_at) ?? 0));
 
     const top = scored.slice(0, limit).map(({ project, score, reasons, tags }) => ({
       ...fmt({ ...project, category_name: catNameById[(catsByProject[project.id] || [])[0]] || '' }),
@@ -675,13 +679,20 @@ router.post('/', requireAuth, requireRole('ngo'), async (req, res) => {
     const lat = latitude != null ? parseFloat(latitude) : (latitud != null ? parseFloat(latitud) : null);
     const lng = longitude != null ? parseFloat(longitude) : (longitud != null ? parseFloat(longitud) : null);
 
+    // El id se genera acá (UUID v4: mismo formato que el default de la base en ambos motores) y se
+    // usa para releer la fila y para todas las asociaciones. Antes se hacía el INSERT y después
+    // "SELECT ... WHERE ngo_id=$1 ORDER BY created_at DESC LIMIT 1": en SQLite created_at tiene
+    // resolución de 1 segundo, así que dos altas de la misma ONG en el mismo segundo empataban,
+    // devolvía el proyecto más viejo y le enganchaba categoría/roles/requisitos (PROJECT_ANALYSIS §40).
+    const projectId = randomUUID();
+
     // Insertar proyecto
     await db.run(
-      `INSERT INTO projects (ngo_id, titulo, descripcion, descripcion_full, foto_perfil,
+      `INSERT INTO projects (id, ngo_id, titulo, descripcion, descripcion_full, foto_perfil,
         tipo, status, ubicacion, duracion, cupos, cupos_ocupados,
         meta_financiera, recaudado, costo, horas_semanales, latitud, longitud, modalidad)
-       VALUES ($1,$2,$3,$4,$5,$6,'active',$7,$8,$9,0,$10,0,$11,$12,$13,$14,$15)`,
-      [ngo.id, title.trim(), description.trim(), full_description?.trim() || null,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'active',$8,$9,$10,0,$11,0,$12,$13,$14,$15,$16)`,
+      [projectId, ngo.id, title.trim(), description.trim(), full_description?.trim() || null,
        image || null, type || 'fugaz', location.trim(), duration?.trim() || null,
        parseInt(volunteers_needed) || 0, parseFloat(funding_goal) || 0,
        parseFloat(cost_per_person) || 0,
@@ -689,9 +700,7 @@ router.post('/', requireAuth, requireRole('ngo'), async (req, res) => {
        lat, lng, mod]
     );
 
-    const newProject = await db.get(
-      'SELECT * FROM projects WHERE ngo_id=$1 ORDER BY created_at DESC LIMIT 1', [ngo.id]
-    );
+    const newProject = await db.get('SELECT * FROM projects WHERE id=$1', [projectId]);
 
     // Categoría
     if (category) {
@@ -758,18 +767,42 @@ router.put('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
     const mod = modality || modalidad || project.modalidad ||
               (location && (location.toLowerCase().includes('remoto') || location.toLowerCase().includes('virtual')) ? 'remoto' : 'presencial');
 
-    await db.run(
+    // Capacidad: si el cliente omite `volunteers_needed` (o manda null) se CONSERVA la actual; antes
+    // `parseInt(undefined) || 0` la pisaba con 0. Un valor explícito debe ser un entero >= 1, igual
+    // que al crear (antes un negativo violaba el CHECK(cupos >= 0) y devolvía 500).
+    let newCupos = project.cupos;
+    if (volunteers_needed !== undefined && volunteers_needed !== null) {
+      newCupos = Number.parseInt(volunteers_needed, 10);
+      if (Number.isNaN(newCupos) || newCupos < 1)
+        return res.status(400).json({ error: 'Los cupos deben ser un número positivo' });
+    }
+
+    // `AND cupos_ocupados <= $9`: no se puede bajar la capacidad por debajo de las inscripciones ya
+    // aprobadas (AI_RULES regla 20). La condición va en el propio UPDATE (no en una lectura previa)
+    // para que sea atómica: en Postgres una aprobación concurrente se serializa sobre esta misma
+    // fila, y el UPDATE re-evalúa la condición con el contador ya actualizado.
+    const upd = await db.run(
       `UPDATE projects SET titulo=$1, descripcion=$2, descripcion_full=$3, foto_perfil=$4,
        ubicacion=$5, tipo=$6, status=$7, duracion=$8, cupos=$9, meta_financiera=$10,
-       costo=$11, horas_semanales=$12, latitud=$13, longitud=$14, modalidad=$15, updated_at=CURRENT_TIMESTAMP WHERE id=$16`,
+       costo=$11, horas_semanales=$12, latitud=$13, longitud=$14, modalidad=$15, updated_at=CURRENT_TIMESTAMP
+       WHERE id=$16 AND cupos_ocupados <= $9`,
       [title?.trim(), description?.trim(), full_description?.trim() || null, image || null,
        location?.trim(), type, status || 'active', duration?.trim() || null,
-       parseInt(volunteers_needed) || 0, parseFloat(funding_goal) || 0,
+       newCupos, parseFloat(funding_goal) || 0,
        parseFloat(cost_per_person) || 0,
        type === 'sostenido' ? parseInt(hours_per_week) : null,
        lat, lng, mod,
        req.params.id]
     );
+
+    if (upd.changes === 0) {
+      // O el proyecto desapareció, o la nueva capacidad quedaría por debajo de las aprobadas.
+      const fresh = await db.get('SELECT cupos_ocupados FROM projects WHERE id=$1', [req.params.id]);
+      if (!fresh) return res.status(404).json({ error: 'Proyecto no encontrado o sin permiso' });
+      return res.status(400).json({
+        error: `No podés bajar la capacidad a ${newCupos}: ya hay ${fresh.cupos_ocupados} voluntarios aprobados.`,
+      });
+    }
 
     const updated = await db.get('SELECT * FROM projects WHERE id=$1', [req.params.id]);
     updated.roles_json = JSON.stringify(req.body.roles_needed || []);
@@ -805,9 +838,12 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
     if (hasBadWord(comment))
       return res.status(400).json({ error: 'El comentario contiene palabras no permitidas' });
 
+    // id propio: ver POST / (PROJECT_ANALYSIS §40). Antes se releía "el último comentario de este
+    // usuario en este proyecto" por created_at, que en SQLite empata dentro del mismo segundo.
+    const commentId = randomUUID();
     await db.run(
-      `INSERT INTO comments (project_id, user_id, comment) VALUES ($1,$2,$3)`,
-      [req.params.id, req.user.id, comment.trim()]
+      `INSERT INTO comments (id, project_id, user_id, comment) VALUES ($1,$2,$3,$4)`,
+      [commentId, req.params.id, req.user.id, comment.trim()]
     );
     const saved = await db.get(
       `SELECT c.*, u.name AS user_name, u.avatar AS user_avatar,
@@ -815,8 +851,8 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
        FROM comments c
        JOIN users u ON u.id = c.user_id
        LEFT JOIN enrollments e ON e.user_id = c.user_id AND e.project_id = c.project_id AND e.status = 'approved'
-       WHERE c.project_id=$1 AND c.user_id=$2 ORDER BY c.created_at DESC LIMIT 1`,
-      [req.params.id, req.user.id]
+       WHERE c.id=$1`,
+      [commentId]
     );
     res.status(201).json({ comment: saved });
   } catch (err) { res.status(500).json({ error: 'Error al comentar' }); }
@@ -886,18 +922,17 @@ router.post('/:id/kpis', requireAuth, requireRole('ngo'), async (req, res) => {
     const { nombre, descripcion, valor, tipo_valor = 'numero', unidad, fecha } = req.body;
     if (!nombre?.trim()) return res.status(400).json({ error: 'El nombre del KPI es obligatorio' });
 
+    // id propio: ver POST / (PROJECT_ANALYSIS §40).
+    const kpiId = randomUUID();
     await db.run(
-      `INSERT INTO kpis (project_id, nombre, descripcion, valor, tipo_valor, unidad, fecha)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [req.params.id, nombre.trim(), descripcion?.trim() || null,
+      `INSERT INTO kpis (id, project_id, nombre, descripcion, valor, tipo_valor, unidad, fecha)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [kpiId, req.params.id, nombre.trim(), descripcion?.trim() || null,
        valor !== undefined ? parseFloat(valor) : null,
        tipo_valor, unidad?.trim() || null, fecha || null]
     );
 
-    const kpi = await db.get(
-      'SELECT * FROM kpis WHERE project_id=$1 ORDER BY created_at DESC LIMIT 1',
-      [req.params.id]
-    );
+    const kpi = await db.get('SELECT * FROM kpis WHERE id=$1', [kpiId]);
     res.status(201).json({ kpi });
   } catch (err) {
     console.error('POST /kpis error:', err);

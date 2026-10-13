@@ -2,6 +2,7 @@ import { useParams, useNavigate, Link } from 'react-router';
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Users, CheckCircle, Clock, XCircle, Loader2, DollarSign, BarChart2, MessageCircle, Clock3, Save } from 'lucide-react';
 import { api, Project, EnrollmentWithVolunteer } from '../../lib/api';
+import { MomentsFeed } from './MomentsFeed';
 
 export function NGOProjectDetail() {
   const { projectId } = useParams();
@@ -176,6 +177,14 @@ export function NGOProjectDetail() {
             </div>
           )}
         </div>
+
+        {/* Momentos del proyecto: la ONG dueña puede borrar cualquiera (el servidor manda `can_delete`) */}
+        {projectId && (
+          <section aria-label="Momentos del proyecto" className="space-y-3">
+            <h2 className="font-bold text-gray-900 text-sm">Momentos del proyecto</h2>
+            <MomentsFeed filters={{ project_id: projectId }} showComposer={false} />
+          </section>
+        )}
       </div>
     </div>
   );

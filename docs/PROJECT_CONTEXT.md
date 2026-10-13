@@ -46,7 +46,7 @@ Monorepo con dos paquetes npm independientes (`frontend/`, `backend/`) más un `
 │  Base de datos                 │
 │  SQLite (local, better-sqlite3)│
 │  PostgreSQL (prod, Render)     │
-│  28 tablas · 20+ índices       │
+│  31 tablas · 20+ índices       │
 └──────────────────────────────┘
 ```
 
@@ -69,16 +69,15 @@ No usa: gestor de estado global (Redux/Zustand — todo vive en `AuthContext` + 
 ### Backend
 | Tecnología | Versión | Uso |
 |---|---|---|
-| Node.js | ≥18 (`engines` en package.json) | Runtime |
+| Node.js | ≥22 (`engines` en package.json; lo exige `better-sqlite3@13`) | Runtime |
 | Express | 4.19 | Framework HTTP |
 | jsonwebtoken | 9.0 | Autenticación JWT |
 | bcryptjs | 2.4 | Hash de contraseñas |
-| better-sqlite3 | 9.6 | Driver SQLite síncrono (local) |
+| better-sqlite3 | 13.0.3 | Driver SQLite síncrono (local). Trae binarios precompilados; `backend/.npmrc` (`ignore-scripts=true`) evita que npm intente compilarlo (ver `PROJECT_ANALYSIS.md §36` y `§38`) |
 | pg | 8.12 | Driver PostgreSQL (producción) |
 | cors | 2.8 | CORS configurable por `CORS_ORIGINS` |
-| multer | 1.4 | Dependencia declarada pero **no usada en ninguna ruta** (ver `PROJECT_ANALYSIS.md`) |
-| uuid | 10.0 | Dependencia declarada pero **no usada** — los IDs se generan con SQL (`gen_random_uuid()` / `randomblob`), no con la librería `uuid` de Node |
-| nodemon | 3.1 | Dev only, hot-reload |
+| multer | 2.4 | Dependencia declarada pero **no usada en ninguna ruta todavía** (se usará con Multimedia; se subió de 1.x, que estaba deprecada con vulnerabilidades — `PROJECT_ANALYSIS.md §37`) |
+| `node --watch` | incluido en Node ≥ 22 | Hot-reload en desarrollo (`npm run dev`). Reemplazó a `nodemon` (`PROJECT_ANALYSIS.md §41`); el backend ya no tiene devDependencies |
 
 No usa: ORM (todo es SQL crudo con parámetros posicionales `$1, $2...`), sistema de migraciones versionado (un único script `migrate.js` idempotente con `CREATE TABLE IF NOT EXISTS`), tests, linter.
 
@@ -93,7 +92,7 @@ No usa: ORM (todo es SQL crudo con parámetros posicionales `$1, $2...`), sistem
 |---|---|---|
 | `volunteer` | Explora proyectos, se inscribe, ve su historial y horas, comenta, califica, sigue ONGs/proyectos/otros voluntarios | Sí (feed, explorar con mapa, participaciones, perfil propio y público, notificaciones, mensajes) |
 | `ngo` | Publica y gestiona proyectos, aprueba/rechaza inscripciones, gestiona empleados, KPIs y propuestas de patrocinio | Sí (dashboard, crear, detalle de proyecto, perfil, empleados, KPIs, patrocinios, mensajes) |
-| `company` | Patrocina voluntariados (RSE) | Sí (perfil propio y público, proponer/retirar patrocinios, mensajes) — layout propio en `/company/*`, redirige ahí después del login |
+| `company` | Patrocina voluntariados (RSE) | Sí (perfil propio y público, panel de KPIs de patrocinio, proponer/retirar patrocinios, mensajes) — layout propio en `/company/*`, redirige ahí después del login |
 
 El rol se fija en el registro y es inmutable desde la UI (no hay endpoint de cambio de rol).
 
@@ -112,6 +111,7 @@ flowchart TD
     C --> C4["/notifications"]
     C --> C5["/profile<br/>VolunteerProfile"]
     C --> C6["/messages<br/>+ /messages/:userId"]
+    C --> C10["/momentos<br/>MomentsPage (pestaña del feed, pública)"]
     C1 --> C7["/ngo/:id<br/>NGOPublicProfile (público)"]
     C1 --> C8["/company/:id<br/>CompanyPublicProfile (público)"]
     C1 --> C9["/volunteer/:id<br/>VolunteerPublicProfile (público)"]
@@ -122,9 +122,11 @@ flowchart TD
     D --> D4["/ngo/patrocinios<br/>NGOPatrocinios"]
     D --> D5["/ngo/empleados/:id<br/>NGOEmpleados"]
     D --> D6["/ngo/kpis/:projectId<br/>NGOKPIs"]
+    D --> D8["/ngo/momentos<br/>NGOMoments"]
     D --> D7["/ngo/messages<br/>+ /ngo/messages/:userId"]
 
     E --> E1["/company/profile<br/>CompanyOwnProfile<br/>(editar perfil + proponer/retirar patrocinios)"]
+    E --> E3["/company/dashboard<br/>CompanyDashboard<br/>(KPIs de patrocinio e impacto)"]
     E --> E2["/company/messages<br/>+ /company/messages/:userId"]
 ```
 
@@ -162,14 +164,14 @@ voluntariar-v2/
 │   │       ├── messages.js   # chat 1 a 1 (REST)
 │   │       └── notifications.js
 │   ├── scripts/
-│   │   ├── migrate.js        # DDL completo (28 tablas + 20+ índices + datos base)
+│   │   ├── migrate.js        # DDL completo (31 tablas + 20+ índices + datos base)
 │   │   └── seed.js           # Datos de demo (usuarios, ONGs, empresa, 12+ proyectos, follows)
 │   └── data/voluntariar.sqlite # DB local (generada, no versionar en git real)
 └── frontend/
     └── src/
         ├── app/
         │   ├── routes.tsx    # Definición de rutas (createBrowserRouter, 3 layouts raíz)
-        │   └── components/   # 38 componentes, todos "screen-level" o cercanos
+        │   └── components/   # 47 componentes, todos "screen-level" o cercanos
         ├── lib/
         │   ├── api.ts        # Cliente HTTP + todos los tipos TS del dominio
         │   └── AuthContext.tsx # Estado global de sesión (React Context)
@@ -197,7 +199,7 @@ No hay separación entre "componentes de presentación" y "componentes contenedo
 ## 11. Dependencias importantes a tener en cuenta
 
 - `frontend/vite.config.ts` incluye un plugin custom `figmaAssetResolver` y un comentario explícito ("required for Make, even if Tailwind is not being actively used") que indica que el frontend fue generado/scaffoldeado con una herramienta de diseño-a-código (probablemente Figma Make). Esto explica el estilo muy uniforme de Tailwind inline y la ausencia de componentes reutilizables abstraídos.
-- `backend/package.json` declara `multer` y `uuid` como dependencias pero ninguna ruta las importa — no hay upload de archivos implementado (los campos de imagen del proyecto/perfil se llenan con URLs externas, p. ej. avatares generados por `dicebear.com`).
+- `backend/package.json` declara `multer` como dependencia pero ninguna ruta la importa (`uuid` se eliminó por no usarse) — no hay upload de archivos implementado (los campos de imagen del proyecto/perfil se llenan con URLs externas, p. ej. avatares generados por `dicebear.com`).
 
 ## 12. Flujo de autenticación
 
@@ -229,6 +231,6 @@ Ver diagrama de secuencia completo en `BACKEND_CONTEXT.md §4`.
 ## 15. Deuda técnica encontrada (resumen — detalle en `PROJECT_ANALYSIS.md`)
 
 - Rutas registradas *después* de `module.exports` en `projects.js`, `ngos.js` y `empresas.js` — funciona por mutación de referencia. Empezó como una señal de organización descuidada, pero pasó a ser el patrón deliberado del proyecto para exportar helpers reutilizables entre routers (`fmt`, `validateProject`, `hasBadWord`) sin crear un módulo aparte — ver `PROJECT_ANALYSIS.md §29`.
-- Dependencias no usadas (`multer`, `uuid`) en el backend — se van a empezar a usar cuando se implemente Multimedia (decisión de proveedor ya tomada: Cloudinary, ver `PROJECT_ANALYSIS.md §30`).
+- ~~`multer` declarado y sin usar~~ — **resuelto**: ya lo usa `routes/posts.js` para las fotos de Momentos (Cloudinary, ver `PROJECT_ANALYSIS.md §43`).
 - Un componente completo (`OnboardingScreen.tsx`) que no está enrutado.
 - Doble definición de la blacklist de palabras prohibidas (idéntica) en `backend/src/routes/projects.js` y `frontend/src/app/components/ProjectDetails.tsx` — inherente a que frontend y backend son runtimes separados (no se puede compartir el módulo JS directamente), pero sigue siendo un lugar donde hay que acordarse de actualizar dos veces.

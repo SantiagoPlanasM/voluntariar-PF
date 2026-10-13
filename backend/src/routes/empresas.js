@@ -302,4 +302,108 @@ router.delete('/me/patrocinios/:projectId', requireAuth, requireRole('company'),
   }
 });
 
+// ── GET /api/empresas/me/dashboard ─────────────────────────────────────────
+// KPIs de patrocinio de la empresa logueada, en una sola llamada (docs/
+// BACKEND_ROADMAP_ANALYSIS.md §2.3). Cantidad fija de queries, sin importar
+// cuántos proyectos patrocine: 1 (empresa) + 3 en paralelo.
+//
+// Decisiones que se apartan del diseño original del doc (ver PROJECT_ANALYSIS.md):
+//  - Las claves van en inglés (AI_RULES regla 11) y la respuesta se arma a mano
+//    en vez de pasar por fmt() de projects.js: fmt() hace `...p`, así que con
+//    una fila parcial filtraría columnas crudas en español y fabricaría ceros
+//    engañosos (current_funding: 0) para campos que esta query no trae.
+//  - NO hay `aporte_total`: `empresa_voluntariados.aporte` no lo escribe ningún
+//    endpoint ni pantalla (siempre vale el DEFAULT 0), así que el KPI sería un
+//    cero permanente. Cuando exista una forma real de cargarlo (o Pagos), sumarlo.
+//  - Todo agregado pasa por num(): en Postgres SUM/COUNT llegan como string
+//    (bigint/numeric) y el adaptador no configura parsers de tipos, así que sin
+//    esto el frontend recibiría "3" en producción y 3 en local (SQLite).
+//  - Solo cuenta como "patrocinado" lo `aceptado`; una propuesta pendiente no
+//    infla el KPI.
+const num = (v) => Number(v) || 0;
+
+router.get('/me/dashboard', requireAuth, requireRole('company'), async (req, res) => {
+  try {
+    const empresa = await db.get('SELECT id FROM empresas WHERE user_id=$1', [req.user.id]);
+    if (!empresa) return res.status(404).json({ error: 'Perfil de empresa no encontrado' });
+
+    const [stats, rows, impact] = await Promise.all([
+      // SUM(CASE…) en vez de COUNT(*) FILTER(WHERE…): FILTER no lo traduce el adaptador SQLite.
+      // COALESCE porque SUM sobre cero filas da NULL, no 0.
+      db.get(
+        `SELECT
+           COALESCE(SUM(CASE WHEN estado='aceptado'  THEN 1 ELSE 0 END), 0) AS sponsored_projects,
+           COALESCE(SUM(CASE WHEN estado='propuesto' THEN 1 ELSE 0 END), 0) AS pending_proposals,
+           COALESCE(SUM(CASE WHEN estado='rechazado' THEN 1 ELSE 0 END), 0) AS rejected_proposals
+         FROM empresa_voluntariados WHERE empresa_id=$1`,
+        [empresa.id]
+      ),
+      // Un proyecto por fila, con sus horas/voluntarios ya agregados (LEFT JOIN a una
+      // subquery agrupada, acotada a los proyectos de esta empresa) — sin N+1.
+      db.all(
+        `SELECT ev.project_id, ev.estado, COALESCE(ev.updated_at, ev.created_at) AS decided_at,
+                p.titulo, p.foto_perfil, p.status, p.cupos, p.cupos_ocupados,
+                p.ngo_id, n.nombre AS ngo_name, n.foto_perfil AS ngo_logo,
+                COALESCE(h.horas, 0) AS horas, COALESCE(h.voluntarios, 0) AS voluntarios
+         FROM empresa_voluntariados ev
+         JOIN projects p ON p.id = ev.project_id
+         JOIN ngos n ON n.id = p.ngo_id
+         LEFT JOIN (
+           SELECT project_id, SUM(horas_realizadas) AS horas, COUNT(*) AS voluntarios
+           FROM enrollments
+           WHERE status='approved'
+             AND project_id IN (SELECT project_id FROM empresa_voluntariados WHERE empresa_id=$1)
+           GROUP BY project_id
+         ) h ON h.project_id = ev.project_id
+         WHERE ev.empresa_id=$1
+         ORDER BY COALESCE(ev.updated_at, ev.created_at) DESC`,
+        [empresa.id]
+      ),
+      // Impacto del PROYECTO patrocinado (todas sus horas aprobadas), no de personas de la
+      // empresa. Voluntarios distintos: por eso no se calcula sumando las filas de arriba
+      // (una misma persona en dos proyectos patrocinados contaría doble).
+      db.get(
+        `SELECT COALESCE(SUM(e.horas_realizadas), 0) AS total_hours,
+                COUNT(DISTINCT e.user_id)            AS volunteers_reached
+         FROM enrollments e
+         WHERE e.status='approved'
+           AND e.project_id IN (
+             SELECT project_id FROM empresa_voluntariados WHERE empresa_id=$1 AND estado='aceptado')`,
+        [empresa.id]
+      ),
+    ]);
+
+    res.json({
+      stats: {
+        sponsored_projects: num(stats?.sponsored_projects),
+        pending_proposals:  num(stats?.pending_proposals),
+        rejected_proposals: num(stats?.rejected_proposals),
+      },
+      impact: {
+        total_hours:        num(impact?.total_hours),
+        volunteers_reached: num(impact?.volunteers_reached),
+      },
+      projects: rows.map((r) => ({
+        project_id:         r.project_id,
+        title:              r.titulo,
+        image:              r.foto_perfil || null,
+        project_status:     r.status,
+        volunteers_needed:  num(r.cupos),
+        current_volunteers: num(r.cupos_ocupados),
+        ngo_id:             r.ngo_id,
+        ngo_name:           r.ngo_name,
+        ngo_logo:           r.ngo_logo || null,
+        // Mismos valores que Patrocinio.estado ('propuesto' | 'aceptado' | 'rechazado').
+        sponsorship_status: r.estado,
+        decided_at:         r.decided_at,
+        hours_logged:       num(r.horas),
+        volunteers_count:   num(r.voluntarios),
+      })),
+    });
+  } catch (err) {
+    console.error('GET /empresas/me/dashboard error:', err);
+    res.status(500).json({ error: 'Error al obtener el panel de la empresa' });
+  }
+});
+
 module.exports = router;

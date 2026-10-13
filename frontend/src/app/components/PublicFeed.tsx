@@ -3,6 +3,7 @@ import { Search, Heart, Users, MapPin, Zap, Calendar, Clock, DollarSign, Sparkle
 import { Link, useNavigate } from 'react-router';
 import { api, Project } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
+import { FeedTabs } from './FeedTabs';
 
 const CATEGORIES = [
   { name: 'Todos',           icon: Compass,    color: 'text-sky-500 hover:text-sky-600' },
@@ -176,6 +177,13 @@ export function PublicFeed() {
           </div>
         </div>
       </section>
+
+      {/* ── Pestañas Proyectos | Momentos ───────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
+        <div className="max-w-sm">
+          <FeedTabs active="projects" projectsHref="/" momentsHref="/momentos" />
+        </div>
+      </div>
 
       {/* ── Category pills ──────────────────────────────────────────── */}
       <div className="sticky top-16 z-10 bg-white border-b border-gray-100 shadow-sm">
