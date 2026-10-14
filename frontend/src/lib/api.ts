@@ -270,6 +270,8 @@ export interface Conversation {
 export interface ProjectDetail extends Project {
   comments: AppComment[]; ratings: Rating[]; kpis: KPI[];
   avg_rating: number; my_enrollment?: Enrollment | null;
+  /** true solo si quien pide es la ONG dueña (lo calcula GET /projects/:id). */
+  can_manage?: boolean;
 }
 export interface Enrollment {
   id: string; user_id: string; project_id: string;

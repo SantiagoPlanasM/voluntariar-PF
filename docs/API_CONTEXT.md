@@ -150,8 +150,8 @@
 - **Errores:** `401` sin token, `403` si el rol no es `volunteer`.
 
 ### `GET /api/projects/:id` — Auth opcional
-- **Respuesta 200:** `{ project }` con roles, requisitos, categoría, comentarios recientes, rating promedio, y (si hay sesión) `my_enrollment`.
-- **Errores:** `404` si no existe o `status='cancelled'` y el requester no es la ONG dueña.
+- **Respuesta 200:** `{ project }` con roles, requisitos, categoría, comentarios recientes, rating promedio, (si hay sesión) `my_enrollment`, y **`can_manage: boolean`**: `true` solo si quien pide es la ONG dueña (consulta aparte a `ngos`, sin exponer el `user_id` de la ONG). Lo usa `ProjectDetails` para mostrar "Ver en panel ONG" (`PROJECT_ANALYSIS.md §73`).
+- **Errores:** `404` si no existe. *(Esta doc decía también "o `status='cancelled'` y el requester no es la ONG dueña": el código no hace eso, corregido en §73.)*
 
 ### `POST /api/projects` — Auth, role `ngo`
 - **Body real (en inglés — a diferencia de otros endpoints, acá el body ya viaja con los mismos nombres que usa el frontend, no en español):** `{ title, description, full_description?, image?, category?, location, type: 'fugaz'|'sostenido', duration?(si fugaz), hours_per_week?(si sostenido), volunteers_needed, funding_goal?, cost_per_person?, roles_needed?: string[], requirements?: string[] }`

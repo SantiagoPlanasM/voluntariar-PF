@@ -1844,3 +1844,28 @@ Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/
 
 ### ⚠️ NO verificado
 - **En el navegador:** el bug es solo de SQLite (dev) y mis verificaciones corren contra Postgres. Lo cubre el test.
+
+## 73. "Ver en panel ONG" se ofrecía a cualquier ONG — REVISION F16
+
+**Contexto:** `ProjectDetails` le mostraba "Ver en panel ONG" a **cualquier** usuario con rol `ngo`, en cualquier proyecto (solo miraba `project.ngo_id`). En un proyecto ajeno el panel respondía 403 (desde §64, con un mensaje de error). El frontend no tenía cómo saber de quién era el proyecto: `User` no trae el id de la ONG y `GET /projects/:id` no lo decía.
+
+**Arreglo:**
+- **Backend** (`GET /projects/:id`): campo nuevo **`can_manage`**, `true` solo si quien pide es la ONG dueña. Se calcula con una consulta aparte (`ngos WHERE id AND user_id`) en vez de sumar `n.user_id` al SELECT, porque `fmt()` esparce todas las columnas y lo expondría.
+- **Contrato** (`api.ts`, reglas 6/7): `ProjectDetail.can_manage?: boolean`.
+- **Frontend:** `ProjectDetails` muestra el link solo con `project.can_manage`. La decisión es del backend (regla 15).
+
+### Tests (nuevos: 5)
+- `backend/test/integration/project-can-manage.test.js` (3, en los dos motores): dueña → `true`; otra ONG, voluntario, empresa y sin sesión → `false`; la respuesta no incluye el `user_id` de la ONG.
+- `frontend/src/app/components/NgoPanelLink.test.tsx` (2): con `can_manage` el link apunta a `/ngo/dashboard/project/<id>`; sin él no aparece.
+
+### Verificación
+- **Rojo → verde:** backend, los dos primeros fallaban (`can_manage` no existía). Frontend: la otra ONG **veía** el link (dos, móvil y escritorio).
+- **Mutación (4):** cualquier ONG puede, sin filtro de dueño, y el link para cualquier ONG (lo de antes): **detectados** (backend en los dos motores). Sobrevive "sin chequeo de rol": **equivalente**, porque solo los usuarios ONG tienen fila en `ngos`; el chequeo solo ahorra una consulta.
+- **Suites completas:** backend **322/322** (SQLite) y **324/324** (Postgres), las dos también con `TZ=America/Argentina/Cordoba`; frontend **314/314**; `npm run typecheck` exit 0.
+- **En el navegador (Claude in Chrome), contra Postgres** (schema descartable `verif_f16`, borrado al terminar; backend y Vite local levantados **de a uno y por ruta absoluta**, §70): como Sustentando, en `/project/proj-1` (propio) aparece "Ver en panel ONG"; en `/project/proj-2` (de Green Córdoba) ya no.
+
+### Errores de documentación encontrados
+- `API_CONTEXT.md` decía que `GET /projects/:id` responde 404 también para `status='cancelled'` si no es la dueña. **El código no lo hace** (solo 404 si no existe). Corregido.
+
+### ⚠️ NO verificado / visto
+- Para una ONG en un proyecto ajeno, la columna de acciones queda vacía (sin botón). Podría mostrar algo informativo; no lo cambié.

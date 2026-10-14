@@ -660,6 +660,12 @@ router.get('/:id', optionalAuth, async (req, res) => {
       [req.params.id]
     );
 
+    // ¿Quien pide es la ONG dueña? Lo usa ProjectDetails para ofrecer "Ver en panel ONG" solo a ella (antes se
+    // ofrecía a cualquier ONG y el panel daba 403; REVISION F16). Consulta aparte, para no sumar n.user_id
+    // al SELECT: fmt() esparce todas las columnas y lo expondría.
+    const canManage = req.user?.role === 'ngo'
+      && !!(await db.get('SELECT 1 AS ok FROM ngos WHERE id=$1 AND user_id=$2', [project.ngo_id, req.user.id]));
+
     res.json({
       project: {
         ...fmt(project),
@@ -668,6 +674,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
         kpis,
         avg_rating: Math.round(avgRating * 10) / 10,
         my_enrollment: myEnrollment,
+        can_manage: canManage,
       }
     });
   } catch (err) {

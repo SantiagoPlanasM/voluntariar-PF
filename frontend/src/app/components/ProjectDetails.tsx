@@ -150,7 +150,9 @@ export function ProjectDetails() {
       );
     }
     if (user?.role === 'ngo') {
-      if (project?.ngo_id) {
+      // Solo a la ONG dueña: antes se ofrecía a cualquier ONG y el panel de un proyecto ajeno daba 403
+      // (REVISION F16). can_manage lo calcula el backend.
+      if (project?.can_manage) {
         return (
           <Link
             to={`/ngo/dashboard/project/${project.id}`}
