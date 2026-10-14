@@ -15,7 +15,7 @@ Respondé en español rioplatense (voseo).
 - Si un pedido choca con AI_RULES, avisá antes de seguir.
 
 ## Verificación (todo tiene que dar verde)
-- Backend: `npm test` y `npm run test:pg`. Hoy: **263** en SQLite y **265** en Postgres (+2 solo de Postgres).
+- Backend: `npm test` y `npm run test:pg`. Hoy: **267** en SQLite y **269** en Postgres (+2 solo de Postgres).
   `test:pg` necesita un Postgres en `localhost:5432` (ver `TEST_PG_*` en `test/integration/helpers.js`); sirve
   `docker run --rm -d -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=voluntariar_test postgres:16`.
 - Frontend: `npm test`. Hoy: **253** tests.
@@ -46,6 +46,7 @@ Respondé en español rioplatense (voseo).
 - Respetá los saltos de línea de cada archivo: varios son CRLF (`git ls-files --eol`). No los conviertas;
   `sed -i` de Git Bash los pasa a LF: editá con `Edit` o Node.
 - `migrate.js` en Postgres: toda consulta a `information_schema` filtra por `table_schema = current_schema()`.
+- Búsquedas de texto: `ILIKE`, no `LIKE` (en Postgres `LIKE` distingue mayúsculas; `translatePg` lo traduce en SQLite).
 - Columnas BOOLEAN: comparar con `true`/`false`, nunca `1`/`0` (en Postgres `boolean = integer` da 500).
 - `ON CONFLICT DO NOTHING` funciona igual en ambos motores; `translatePg` ya no lo reescribe.
 - Formatear proyectos: importar `fmt` desde `routes/projects.js`, no copiarlo.

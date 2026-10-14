@@ -1341,3 +1341,30 @@ Ninguno detectado en este cambio.
 ### ⚠️ NO verificado
 - La hora del mensaje **recién enviado**, antes de recargar (viene de la respuesta del POST o del WebSocket): la miré solo después de recargar. Tiene el mismo formato ISO, así que debería verse igual.
 - En el celular.
+
+## 54. Búsqueda y filtro de modalidad distinguían mayúsculas en Postgres — REVISION B8
+
+**Contexto:** cuarto ítem de `docs/REVISION.md`. `GET /api/projects` filtraba con `LIKE`, que en Postgres distingue mayúsculas (en SQLite no, para ASCII). Buscar "maratón" no encontraba "Maratón Solidaria" en Postgres, y el filtro `modality` no reconocía "Remoto"/"Virtual" con mayúscula en la ubicación: un proyecto así no salía en remotos y sí en presenciales.
+
+**Arreglo** (`routes/projects.js`): `ILIKE` en las 6 líneas de búsqueda y modalidad, en **las dos ramas** para que sigan iguales (`translatePg` ya convierte `ILIKE` → `LIKE` en SQLite, incluido `NOT ILIKE`). Comentario en el código. Se sumó a las trampas de `CLAUDE.md`.
+
+### Tests (nuevos: 4, en los dos motores)
+`test/integration/projects-search.test.js`, con el seed: el título en minúsculas y en mayúsculas ASCII ("maratón", "MARAT"); la descripción ("HERRAMIENTAS DIGITALES"), el nombre de la ONG ("techsocial") y la ubicación ("galpón central", que no aparece en el título); "Remoto + visitas…" y "Virtual (Zoom)" con `modalidad='presencial'` (se cambia la columna en el test y se restaura) tienen que salir en `modality=remoto` y no en `presencial`.
+
+### Verificación
+- **Rojo → verde:** en Postgres fallaban los 3 primeros tests (`actual: []`); con el arreglo, pasan. En SQLite pasaban antes y después. El cuarto test (Virtual) se agregó después, al revisar la cobertura ocurrencia por ocurrencia: no lo vi en rojo, pero la mutación de esa línea lo pone rojo.
+- **Mutación (9 mutantes, en Postgres, script descartable):** volver a `LIKE` cada `ILIKE` de la rama Postgres, de a uno. **8 detectados; sobrevive 1, no equivalente: `c.nombre ILIKE`** (buscar por nombre de categoría). Queda sin test porque solo la rama Postgres busca por categoría (la de SQLite no), y un test de eso fallaría en SQLite. Es la diferencia entre ramas ya anotada en §52, pendiente de decisión. Los `ILIKE` de la rama SQLite son equivalentes a `LIKE` por construcción (`translatePg`).
+- **Suites completas:** SQLite **267/267** y Postgres **269/269**, las dos también con `TZ=America/Argentina/Cordoba`.
+- **En el navegador (Claude in Chrome), contra Postgres** (schema descartable `verif_b8`, borrado al terminar): en la portada, sin sesión, buscar "maratón" (con Enter: el formulario no busca mientras se escribe) mandó `GET /api/projects?search=marat%C3%B3n` → 200 y quedó una sola tarjeta, "Maratón Solidaria de Donaciones". No repetí en el navegador la prueba con el código viejo: el rojo del test en Postgres ya lo muestra.
+
+### Corrección a la revisión
+Igual que en B2, el impacto visible es menor que lo que decía `REVISION.md`: Explorar filtra en el navegador (no manda `search` ni `modality`). La búsqueda del servidor solo la usa la portada, y el filtro `modality` del servidor no lo usa ninguna pantalla.
+
+### Errores míos
+1. En B2 (§52) actualicé el "N+1" de `BACKEND_CONTEXT.md` pero no el mismo texto en `API_CONTEXT.md`; lo corregí acá.
+2. El primer test de ubicación buscaba "barrio güemes", que también está en el **título** del proyecto: no probaba la búsqueda por ubicación. Lo cambié a "galpón central" antes de la mutación.
+
+### ⚠️ NO verificado / visto y no tocado
+- **Tildes (probado en los dos motores):** ningún motor las ignora ("maraton" no encuentra "Maratón"). Arreglarlo pide `unaccent` (extensión de Postgres) o normalizar en una columna aparte: es una decisión, no la tomé.
+- **SQLite y mayúsculas no ASCII (probado):** "MARATÓN" no encuentra "Maratón" en SQLite (dev), sí en Postgres. No afecta a producción.
+- La búsqueda por categoría solo existe en Postgres (ver §52).

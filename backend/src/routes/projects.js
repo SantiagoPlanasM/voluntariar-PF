@@ -127,11 +127,13 @@ router.get('/', optionalAuth, async (req, res) => {
     if (status) {
       sql += ` AND p.status = $${i++}`; params.push(status);
     }
+    // ILIKE y no LIKE: en Postgres LIKE distingue mayúsculas ("maratón" no encontraba "Maratón" y
+    // "%remoto%" no reconocía "Remoto"). translatePg lo vuelve LIKE en SQLite, que ya no distingue (solo ASCII). REVISION B8.
     if (modFilter && modFilter !== 'all' && modFilter !== 'Todos') {
       if (modFilter === 'remoto') {
-        sql += ` AND (p.modalidad = 'remoto' OR p.ubicacion LIKE '%remoto%' OR p.ubicacion LIKE '%virtual%')`;
+        sql += ` AND (p.modalidad = 'remoto' OR p.ubicacion ILIKE '%remoto%' OR p.ubicacion ILIKE '%virtual%')`;
       } else if (modFilter === 'presencial') {
-        sql += ` AND (p.modalidad = 'presencial' AND (p.ubicacion NOT LIKE '%remoto%' AND p.ubicacion NOT LIKE '%virtual%'))`;
+        sql += ` AND (p.modalidad = 'presencial' AND (p.ubicacion NOT ILIKE '%remoto%' AND p.ubicacion NOT ILIKE '%virtual%'))`;
       } else if (modFilter === 'hibrido') {
         sql += ` AND p.modalidad = 'hibrido'`;
       }
@@ -139,7 +141,7 @@ router.get('/', optionalAuth, async (req, res) => {
     if (search && search.trim()) {
       const q = `%${search.trim()}%`;
       const si = i; const ti = i+1; const ni = i+2; const ci = i+3; const ui = i+4;
-      sql += ` AND (p.titulo LIKE $${si} OR p.descripcion LIKE $${ti} OR n.nombre LIKE $${ni} OR c.nombre LIKE $${ci} OR p.ubicacion LIKE $${ui})`;
+      sql += ` AND (p.titulo ILIKE $${si} OR p.descripcion ILIKE $${ti} OR n.nombre ILIKE $${ni} OR c.nombre ILIKE $${ci} OR p.ubicacion ILIKE $${ui})`;
       params.push(q, q, q, q, q); i += 5;
     }
 
@@ -180,16 +182,16 @@ router.get('/', optionalAuth, async (req, res) => {
       if (status)                    { simpleSql += ` AND p.status=$${si++}`; simpleParams.push(status); }
       if (modFilter && modFilter !== 'all' && modFilter !== 'Todos') {
         if (modFilter === 'remoto') {
-          simpleSql += ` AND (p.modalidad = 'remoto' OR p.ubicacion LIKE '%remoto%' OR p.ubicacion LIKE '%virtual%')`;
+          simpleSql += ` AND (p.modalidad = 'remoto' OR p.ubicacion ILIKE '%remoto%' OR p.ubicacion ILIKE '%virtual%')`;
         } else if (modFilter === 'presencial') {
-          simpleSql += ` AND (p.modalidad = 'presencial' AND (p.ubicacion NOT LIKE '%remoto%' AND p.ubicacion NOT LIKE '%virtual%'))`;
+          simpleSql += ` AND (p.modalidad = 'presencial' AND (p.ubicacion NOT ILIKE '%remoto%' AND p.ubicacion NOT ILIKE '%virtual%'))`;
         } else if (modFilter === 'hibrido') {
           simpleSql += ` AND p.modalidad = 'hibrido'`;
         }
       }
       if (search && search.trim()) {
         const q = `%${search.trim()}%`;
-        simpleSql += ` AND (p.titulo LIKE $${si} OR p.descripcion LIKE $${si+1} OR n.nombre LIKE $${si+2} OR p.ubicacion LIKE $${si+3})`;
+        simpleSql += ` AND (p.titulo ILIKE $${si} OR p.descripcion ILIKE $${si+1} OR n.nombre ILIKE $${si+2} OR p.ubicacion ILIKE $${si+3})`;
         simpleParams.push(q, q, q, q); si += 4;
       }
       simpleSql += ` ORDER BY ${orderSql} LIMIT $${si++} OFFSET $${si++}`;
