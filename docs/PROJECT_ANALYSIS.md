@@ -1745,3 +1745,23 @@ Ninguno detectado en este cambio.
 1. Afirmar "0 errores" mirando un conteo en vez de la salida cruda, sin comprobar antes que el comando era el que creía.
 2. No leer la advertencia que ya estaba en este documento.
 3. Usar `npx` para binarios del proyecto: puede bajar y ejecutar paquetes del registry sin preguntar (pasó con `vite` y con `tsc`). Ahora uso solo `node_modules/.bin/…`.
+
+## 68. TypeScript instalado en el frontend: primer chequeo de tipos real
+
+**Contexto:** §67. El usuario aprobó instalar TypeScript y borrar el paquete `tsc` que había bajado npx (borrado, igual que el `vite@8.3.4` de §66).
+
+**Qué se hizo:**
+- `devDependencies` del frontend: `typescript@^7.0.2`, `@types/react@^18.3.31`, `@types/react-dom@^18.3.7` (React 18) y `@types/node@^22.20.5` (Node ≥22).
+- Antes de instalar revisé las fechas: TypeScript 7.0.2 es del 2026-07-08 (estable desde hace tres meses) y los `@types` tienen más de dos semanas.
+- El lockfile sumó solo esos paquetes, sus dependencias (`csstype`, `undici-types`, `@types/prop-types`) y los binarios nativos de TypeScript 7, uno por plataforma (npm instala solo el de la máquina). **`npm audit`: 0 vulnerabilidades.**
+- Script nuevo: **`npm run typecheck`** (`tsc --noEmit -p .`), para no depender de `npx`. El aviso de npm sobre el `postinstall` de `esbuild` ya existía (viene con Vite).
+
+### Resultado del primer chequeo real: 18 errores, todos de configuración (ninguno de lógica)
+- **7 — tipos de Vite no declarados** (falta el `src/vite-env.d.ts` estándar con `/// <reference types="vite/client" />`): `import.meta.env` en `api.ts` y en `NGOEmpleados.tsx` (×2), y los `import` de `.css` en `main.tsx` (×3) y `ProjectMap.tsx`.
+- **10 — `process`/`global` en tests:** `format.test.ts` (×5) y `NGOKPIs.test.tsx` (×4), **los dos escritos por mí en §63**, y `test/setup.ts` (×1). `@types/node` está instalado, pero desde TypeScript 6 los `@types` ya no se incluyen solos: hay que nombrarlos en `types`.
+- **1 — `Array.prototype.at`** en `api.posts.test.ts`: `tsconfig` tiene `lib: ES2020` y `.at()` es ES2022.
+
+Los 305 tests siguen pasando: Vitest no chequea tipos.
+
+### ⚠️ Pendiente (decisión del usuario)
+Arreglarlos es configuración: el `vite-env.d.ts`, `types: ["vite/client", "node"]` y `lib` en ES2022. Sumar `node` a `types` deja ver `process` también en el código de la app; la alternativa es un `tsconfig` aparte para los tests. Corregido eso, podrían aparecer errores que hoy tapa la configuración: hay que volver a correr y mirar la salida.
