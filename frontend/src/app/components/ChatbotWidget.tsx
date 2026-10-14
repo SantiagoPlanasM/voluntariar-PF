@@ -24,6 +24,14 @@ export function ChatbotWidget() {
   const [asking, setAsking] = useState(false);
   const [suggestions, setSuggestions] = useState<Faq[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+
+  // Panel flotante, NO modal (no tapa la página): no atrapa el foco. Al abrir, el foco va al campo; Escape
+  // dentro del panel lo cierra y devuelve el foco al botón (REVISION F12).
+  const close = () => { setOpen(false); toggleRef.current?.focus(); };
+
+  useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
 
   const categoria = categoriaPorRol(user?.role);
 
@@ -61,13 +69,15 @@ export function ChatbotWidget() {
   return (
     <>
       {open && (
-        <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 w-[calc(100vw-2rem)] max-w-sm h-[28rem] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col z-50 overflow-hidden">
+        <div id="chatbot-panel" role="dialog" aria-label="Ayuda rápida"
+          onKeyDown={e => { if (e.key === 'Escape') close(); }}
+          className="fixed bottom-20 md:bottom-6 right-4 md:right-6 w-[calc(100vw-2rem)] max-w-sm h-[28rem] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col z-50 overflow-hidden">
           <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-3 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-2 text-white">
               <MessageCircleQuestion className="w-5 h-5" />
               <span className="font-bold text-sm">Ayuda rápida</span>
             </div>
-            <button onClick={() => setOpen(false)} className="text-white/80 hover:text-white">
+            <button onClick={close} className="text-white/80 hover:text-white">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -118,6 +128,7 @@ export function ChatbotWidget() {
 
           <div className="p-3 border-t border-gray-100 flex gap-2 flex-shrink-0">
             <input
+              ref={inputRef}
               value={input} onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') ask(input); }}
               placeholder="Escribí tu pregunta..."
@@ -132,7 +143,10 @@ export function ChatbotWidget() {
       )}
 
       <button
+        ref={toggleRef}
         onClick={() => setOpen(v => !v)}
+        aria-expanded={open}
+        aria-controls="chatbot-panel"
         className="fixed bottom-20 md:bottom-6 right-4 md:right-6 w-14 h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-xl flex items-center justify-center z-40 transition-colors"
         title="Ayuda rápida"
       >

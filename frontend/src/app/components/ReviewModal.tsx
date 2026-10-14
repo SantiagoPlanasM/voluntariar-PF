@@ -1,8 +1,9 @@
 // Modal para dejar reseña post-participación
 // Se usa desde MyParticipation cuando status === 'approved'
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Star, X, Loader2 } from 'lucide-react';
 import { api } from '../../lib/api';
+import { Modal } from './Modal';
 
 interface Props {
   projectId: string;
@@ -17,6 +18,7 @@ export function ReviewModal({ projectId, projectTitle, onClose, onSaved }: Props
   const [comment, setComment] = useState('');
   const [saving, setSaving]   = useState(false);
   const [err, setErr]         = useState('');
+  const titleId = useId();
 
   const handleSave = async () => {
     if (rating === 0) { setErr('Seleccioná una calificación'); return; }
@@ -31,10 +33,9 @@ export function ReviewModal({ projectId, projectTitle, onClose, onSaved }: Props
   const LABELS = ['', 'Muy malo', 'Regular', 'Bueno', 'Muy bueno', 'Excelente'];
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center"
-      onClick={onClose}>
-      <div className="bg-white w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden"
-        onClick={e => e.stopPropagation()}>
+    <Modal onClose={onClose} labelledBy={titleId}
+      overlayClassName="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center"
+      className="bg-white w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden">
 
         {/* Handle */}
         <div className="sm:hidden flex justify-center pt-3 pb-1">
@@ -44,7 +45,7 @@ export function ReviewModal({ projectId, projectTitle, onClose, onSaved }: Props
         <div className="px-6 pt-4 pb-6">
           <div className="flex items-start justify-between mb-5">
             <div>
-              <h2 className="font-bold text-lg text-gray-900">Dejar reseña</h2>
+              <h2 id={titleId} className="font-bold text-lg text-gray-900">Dejar reseña</h2>
               <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">{projectTitle}</p>
             </div>
             <button onClick={onClose}
@@ -99,7 +100,6 @@ export function ReviewModal({ projectId, projectTitle, onClose, onSaved }: Props
             Publicar reseña
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

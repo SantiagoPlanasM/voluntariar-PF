@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { X, Eye, EyeOff, Loader2, Heart, Users, Building2, Check } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useNavigate } from 'react-router';
+import { Modal } from './Modal';
 
 type Tab = 'login' | 'register';
 
@@ -130,11 +131,9 @@ export function AuthModal() {
     }`;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center"
-      onClick={closeAuthModal}>
-      <div className="bg-white w-full sm:max-w-md md:max-w-lg sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden"
-        onClick={e => e.stopPropagation()}
-        style={{ maxHeight: '95vh', overflowY: 'auto' }}>
+    <Modal onClose={closeAuthModal} label={tab === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
+      overlayClassName="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center"
+      className="bg-white w-full sm:max-w-md md:max-w-lg sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden max-h-[95vh] overflow-y-auto">
 
         {/* Handle bar */}
         <div className="sm:hidden flex justify-center pt-3 pb-1">
@@ -238,7 +237,6 @@ export function AuthModal() {
             </button>
           </p>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

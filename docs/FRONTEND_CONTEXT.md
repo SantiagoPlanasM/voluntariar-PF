@@ -25,7 +25,7 @@ frontend/src/
 ├── main.tsx                  # bootstrap: StrictMode + AuthProvider + RouterProvider
 ├── app/
 │   ├── routes.tsx             # todas las rutas (createBrowserRouter)
-│   └── components/            # 48 componentes .tsx (más sus *.test.tsx) — screens + layouts + widgets
+│   └── components/            # 49 componentes .tsx (más sus *.test.tsx) — screens + layouts + widgets
 ├── lib/
 │   ├── api.ts                 # cliente HTTP centralizado + TODOS los tipos TS de dominio (incluye api.posts y el helper de subida multipart)
 │   ├── AuthContext.tsx        # sesión global (Context + Provider + hook useAuth)
@@ -74,7 +74,7 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 
 `OnboardingScreen.tsx` existe como archivo pero **no está registrado en `routes.tsx`** — código muerto/no alcanzable.
 
-## 4. Todos los componentes (48, sin contar `*.test.tsx`)
+## 4. Todos los componentes (49, sin contar `*.test.tsx`)
 
 ### Layouts / navegación
 - `Root.tsx` — layout del lado "voluntario/público": `<Outlet/>` + `<BottomNav/>` + `<AuthModal/>` + `<ChatbotWidget/>`.
@@ -136,6 +136,7 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 ### Otros
 - `ReviewModal.tsx` / `ReviewsModal.tsx` — ver nota de duplicación arriba.
 - `LoadError.tsx` — estados de error de carga con "Reintentar"/"Volver" (`describeLoadError`); ver §12 y `PROJECT_ANALYSIS.md §64–§65`.
+- `Modal.tsx` — modal común accesible (role="dialog", Escape, foco adentro y atrapado, foco devuelto, clic afuera, scroll bloqueado); ver §13 y `PROJECT_ANALYSIS.md §79`.
 
 ## 5. Hooks
 
@@ -289,6 +290,8 @@ Limitado a `AuthContext`. No hay estado global de UI (temas, filtros persistente
 - Cada componente es un archivo `.tsx` con export nombrado (no default), nombrado igual que el archivo.
 - Sin `React.memo`, sin `useCallback`/`useMemo` — no hay optimizaciones de re-render (razonable dado el tamaño de la app).
 - Sin PropTypes ni `interface Props` compartida — cada componente define su propio `Props` inline si recibe alguna (la mayoría son "screen-level" y no reciben props, solo leen `useParams()`/`useAuth()`).
+
+- **Modales: usar `<Modal>`** (`components/Modal.tsx`), nunca un `<div className="fixed inset-0">` propio. Pasarle un nombre (`labelledBy` con el id del título, o `label`) y las clases de fondo/panel; Escape, foco y Tab ya los resuelve. Hoy lo usan `AuthModal`, `ReviewModal` y las listas de seguidores de `VolunteerProfile`/`VolunteerPublicProfile`; **todavía no** `FilterModal`, `ProjectMap`, `ReviewsModal`, `PostComposer` ni `MomentsGrid` (tienen su propio Escape, sin foco ni trap). `ChatbotWidget` no es modal (panel flotante): `role="dialog"` sin `aria-modal`, Escape y foco propios.
 
 ## 14. Convenciones de estilos
 

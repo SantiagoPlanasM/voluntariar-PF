@@ -88,3 +88,33 @@ describe('<ChatbotWidget />', () => {
     expect(api.faqs.ask).not.toHaveBeenCalled();
   });
 });
+describe('<ChatbotWidget /> accesible (REVISION F12)', () => {
+  beforeEach(() => {
+    vi.mocked(api.faqs.list).mockReset().mockResolvedValue({ faqs });
+  });
+
+  // No es modal: es un panel flotante que no tapa la página (no atrapa el foco ni lleva aria-modal).
+  test('panel con nombre, no modal; el botón indica si está abierto y el foco va al campo', async () => {
+    renderWidget();
+    const toggle = screen.getByTitle('Ayuda rápida');
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(toggle);
+
+    const panel = screen.getByRole('dialog', { name: 'Ayuda rápida' });
+    expect(panel).not.toHaveAttribute('aria-modal');
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(document.activeElement).toBe(screen.getByPlaceholderText('Escribí tu pregunta...'));
+    await waitFor(() => expect(api.faqs.list).toHaveBeenCalled());
+  });
+
+  test('Escape (con el foco en el panel) lo cierra y devuelve el foco al botón', async () => {
+    renderWidget();
+    const toggle = screen.getByTitle('Ayuda rápida');
+    fireEvent.click(toggle);
+    await waitFor(() => expect(api.faqs.list).toHaveBeenCalled());
+
+    fireEvent.keyDown(screen.getByPlaceholderText('Escribí tu pregunta...'), { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(toggle);
+  });
+});

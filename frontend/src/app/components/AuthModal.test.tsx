@@ -4,7 +4,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { AuthProvider, useAuth } from '../../lib/AuthContext';
 import { AuthModal } from './AuthModal';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router', async () => {
@@ -97,5 +97,27 @@ describe('<AuthModal /> Login Redirection', () => {
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/ngo/dashboard');
     });
+  });
+});
+// TestTrigger reabre el modal en cada render (openAuthModal no está memoizado): para probar el cierre
+// hace falta uno que lo abra una sola vez.
+function OpenOnce() {
+  const { openAuthModal } = useAuth();
+  const done = useRef(false);
+  useEffect(() => { if (!done.current) { done.current = true; openAuthModal('test', 'login'); } }, [openAuthModal]);
+  return null;
+}
+
+describe('<AuthModal /> accesible (REVISION F12)', () => {
+  test('es un diálogo con nombre según la pestaña, el foco entra y Escape lo cierra', async () => {
+    render(<MemoryRouter><AuthProvider><OpenOnce /><AuthModal /></AuthProvider></MemoryRouter>);
+    const d = await screen.findByRole('dialog', { name: 'Iniciar sesión' });
+    expect(d.contains(document.activeElement)).toBe(true);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Crear cuenta' })[0]);
+    expect(screen.getByRole('dialog', { name: 'Crear cuenta' })).toBeInTheDocument();
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 });

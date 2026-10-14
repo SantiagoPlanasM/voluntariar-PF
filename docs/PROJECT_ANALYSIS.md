@@ -2010,3 +2010,43 @@ Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/
 - **D6 en Postgres:** Docker no estaba corriendo. Por el NOT NULL debería dar el mismo 500, pero no lo corrí.
 - El 500 del PUT de KPI sin `nombre` **sigue** (es un bug de backend, no de docs): debería ser 400. No lo arreglé en este commit de solo docs; queda junto con el "PUT no parcial" (deuda conocida, regla 16).
 - No revisé el resto de cada doc línea por línea; solo los puntos D1–D7.
+
+## 79. Modales accesibles: `<Modal>` común — REVISION F12
+
+**Contexto:** los modales eran un `<div className="fixed inset-0">` con overlay: sin `role="dialog"` ni nombre, sin Escape y con el foco detrás del fondo. Con teclado se seguía tabulando la página de atrás y un lector de pantalla no anunciaba nada.
+
+**Qué se hizo:**
+- **`components/Modal.tsx` (nuevo):** `role="dialog"` + `aria-modal` + nombre (`labelledBy` o `label`); Escape escuchado en `document` (anda aunque el foco no esté adentro) y con `stopPropagation` para que no llegue a los listeners de `window` de los modales viejos; al abrir, foco al panel (o a `initialFocusRef`); Tab/Shift+Tab atrapados; al cerrar, el foco vuelve a donde estaba; clic en el fondo cierra (`closeOnOverlay`); scroll de la página bloqueado y restaurado. Con modales apilados, solo el de arriba atiende el teclado (pila a nivel de módulo).
+- **Migrados (los 4 modales que citaba la revisión):** `AuthModal` (nombre según la pestaña: "Iniciar sesión" / "Crear cuenta"), `ReviewModal` ("Dejar reseña"), y las listas "Seguidores"/"Siguiendo" de `VolunteerProfile` y `VolunteerPublicProfile`. Se mantuvieron las clases de cada uno: visualmente no cambian.
+- **`ChatbotWidget`** (el 5.º citado) **no es un modal**: es un panel flotante que no tapa la página. Ponerle `aria-modal` y atrapar el foco sería incorrecto. Se le dio `role="dialog"` con nombre "Ayuda rápida" (sin `aria-modal`), foco al campo al abrir, Escape dentro del panel cierra y devuelve el foco al botón, y el botón tiene `aria-expanded`/`aria-controls`.
+
+### Tests (nuevos: 18)
+- `Modal.test.tsx` (12): nombre por `label`/`labelledBy`, Escape con el foco afuera, clic afuera/adentro, `closeOnOverlay={false}`, foco que entra y vuelve al que abrió, `initialFocusRef`, Tab y Shift+Tab en ciclo, Tab desde la página de atrás, dos modales apilados, scroll bloqueado/restaurado, panel sin nada enfocable, Escape que no llega a `window`.
+- `ModalsA11y.test.tsx` (3): reseña y las dos listas de seguidores (diálogo con nombre, foco adentro, Escape).
+- `AuthModal.test.tsx` (+1) y `ChatbotWidget.test.tsx` (+2).
+- **Rojo → verde:** primero con un `Modal` "stub" con el patrón viejo (9 de 10 rojos por comportamiento, no por "módulo inexistente"); los de los componentes, rojos por "no hay role=dialog" / `aria-expanded`.
+
+### Verificación
+- **Frontend:** **332/332** (antes 314), también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.**
+- **Mutación (20 mutantes sobre `Modal.tsx` y `ChatbotWidget.tsx`, script descartable):** 19 muertos. **Sobrevive 1, equivalente:** poner `aria-label` también cuando hay `aria-labelledby` (por la spec de nombre accesible gana `aria-labelledby`). Dos más ("sin `stopPropagation`" y "panel sin nada enfocable") sobrevivían en la primera corrida válida; les agregué un test a cada uno y comprobé que ahora mueren.
+- **En el navegador (Claude in Chrome)**, contra una base **SQLite descartable** en el scratchpad (Docker no estaba corriendo, así que no Postgres), con la Vite local:
+  - Mi Perfil → "Siguiendo": se ve igual que antes; diálogo "Siguiendo", foco adentro, `body` con `overflow: hidden`. Con teclas reales: Tab → cerrar → "Juan Pérez" → cerrar (ciclo), Shift+Tab vuelve, Escape cierra, el foco vuelve al botón "Siguiendo" y el scroll se libera.
+  - Chatbot: al abrir, foco en "Escribí tu pregunta..."; `aria-expanded` true/false; Escape cierra y deja el foco en el botón flotante.
+  - Login (como visitante): diálogo "Iniciar sesión", Shift+Tab desde el panel va a "Registrate gratis" (último), Escape cierra y el foco vuelve a "Entrar".
+  - Mis participaciones → "Reseña": diálogo "Dejar reseña", foco adentro, Escape cierra y el foco vuelve al botón "Reseña".
+
+### Errores propios
+1. **El primer script de mutación no servía:** en Windows `execSync` usa `cmd.exe`, que no entiende `./node_modules/.bin/vitest`; cada corrida fallaba al lanzar y el script marcaba los 20 mutantes como "muertos". Lo noté porque dos muertes no tenían sentido; al probarlas a mano sobrevivían. Lo rehice llamando a `node node_modules/vitest/vitest.mjs` y **chequeando primero que el código sin mutar pase**. Lección: todo arnés de mutación arranca con la corrida base.
+2. **Un test colgado:** en `ModalsA11y.test.tsx` el mock de `useAuth` devolvía un `user` nuevo en cada render y `VolunteerProfile` tiene `useEffect([user])`: bucle infinito. Pasé a un objeto estable.
+3. **Test de AuthModal mal armado al principio:** el `TestTrigger` existente reabre el modal en cada render (`openAuthModal` no está memoizado), así que "Escape cierra" fallaba por el test. Usé un disparador que abre una sola vez.
+4. **En Chrome, una primera prueba de Tab dio mal** (el foco se fue a la página de atrás y el diálogo desapareció): la pestaña tenía módulos viejos de HMR de cuando el script de mutación modificaba `Modal.tsx`. Tras recargar, todo anduvo como se describe arriba. No es un bug de la app, pero lo anoto porque al principio parecía uno.
+5. Escribí `/participations` en vez de `/participation` (404 de la app).
+
+### ⚠️ NO verificado / pendiente
+- **Lector de pantalla real** (NVDA, VoiceOver, TalkBack): no tengo. Verifiqué los atributos y el foco, no lo que se anuncia.
+- **Táctil / móvil:** el cierre por clic afuera usa `e.target === e.currentTarget`; en pantallas chicas los modales son "bottom sheet". No lo probé en un dispositivo.
+- La lista de seguidores del **perfil público** no la abrí en Chrome (mismo código que la del perfil propio; tiene test).
+- **Quedan 5 modales sin migrar:** `FilterModal`, `ProjectMap`, `ReviewsModal`, `PostComposer`, `MomentsGrid` (tienen Escape propio, pero sin foco inicial, sin trap y sin devolver el foco; en `PostComposer` y `MomentsGrid` el Escape solo anda con el foco adentro). No estaban en F12; van aparte.
+- **Duplicación vista y no tocada:** las listas de seguidores de `VolunteerProfile` y `VolunteerPublicProfile` son casi el mismo JSX; candidato a un `FollowListModal`.
+- Botones solo-ícono sin nombre (cerrar, mostrar contraseña, etc.): es **F13**, el próximo commit.
+- El backend de la prueba tomó Resend/Cloudinary del `.env`; no hice nada que mande mails ni suba fotos.

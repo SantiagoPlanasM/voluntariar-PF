@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import {
   User, MapPin, Clock, CheckCircle, Heart, Sparkles, Loader2,
@@ -7,6 +7,7 @@ import {
 import { api, VolunteerProfileData, VolunteerPublic, VolunteerSkill } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { MomentsGrid } from './MomentsGrid';
+import { Modal } from './Modal';
 
 const NIVEL_LABELS: Record<string, string> = { basico: 'Básico', intermedio: 'Intermedio', avanzado: 'Avanzado' };
 
@@ -27,6 +28,7 @@ export function VolunteerPublicProfile() {
 
   // Modal de seguidores/seguidos
   const [listMode, setListMode] = useState<ListMode>(null);
+  const listTitleId = useId();
   const [listData, setListData] = useState<VolunteerPublic[]>([]);
   const [listLoading, setListLoading] = useState(false);
 
@@ -267,10 +269,11 @@ export function VolunteerPublicProfile() {
 
       {/* Modal de seguidores/seguidos (Instagram style) */}
       {listMode && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setListMode(null)}>
-          <div className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[70vh] flex flex-col animate-in slide-in-from-bottom" onClick={e => e.stopPropagation()}>
+        <Modal onClose={() => setListMode(null)} labelledBy={listTitleId}
+          overlayClassName="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center"
+          className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[70vh] flex flex-col animate-in slide-in-from-bottom">
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
-              <h3 className="font-bold text-gray-900">
+              <h3 id={listTitleId} className="font-bold text-gray-900">
                 {listMode === 'followers' ? 'Seguidores' : 'Siguiendo'}
               </h3>
               <button onClick={() => setListMode(null)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
@@ -319,8 +322,7 @@ export function VolunteerPublicProfile() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
