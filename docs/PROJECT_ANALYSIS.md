@@ -1596,7 +1596,7 @@ Ninguno detectado.
 ### Verificación
 - **Rojo → verde:** fallaban los 3 casos de "no cerrar la sesión" (rojo fuerte: la cerraba) y los de `status`/mensaje; los `instanceof ApiError` eran rojo débil (la clase no existía). Pasaban los controles.
 - **Mutación (11 mutantes, script descartable):** `json()` sin `catch`, `status` en 0, 502 o 504 fuera de la lista de "no disponible", ignorar el mensaje del backend, OK sin JSON que no falla, lanzar `Error` común, cerrar ante cualquier error (lo de antes), no cerrar con 404, no cerrar con 401, no usar el usuario guardado: **11 de 11 detectados**, sobre una línea base verde.
-- **TypeScript:** `tsc --noEmit` con 0 errores, antes y después.
+- **TypeScript: NO verificado** (corregido en §67: lo que reporté como "0 errores" fue un `npx tsc` que no era TypeScript).
 - **Suite del frontend:** **268/268**, también con `TZ=America/Argentina/Cordoba`.
 - **En el navegador (Claude in Chrome):** con María logueada (backend contra un schema descartable de Postgres, `verif_f4`, borrado al terminar), **apagué el backend** y recargué "Mi Perfil": sigue logueada (nombre en la barra y en el encabezado). **Contraprueba:** con el `AuthContext.tsx` anterior, la misma recarga mostró "No estás logueado". Después restauré el arreglo y volví a correr sus tests.
 
@@ -1622,7 +1622,7 @@ Ninguno detectado.
 ### Verificación
 - **Rojo → verde:** el test del componente fallaba con el bug real (no encontraba "01 de oct de 2026"). Los del helper fueron **rojo débil** (la función no existía).
 - **Mutación (6 mutantes, script descartable, línea base en verde):** volver al parseo UTC, mes corrido, sin la rama de fecha sola, sin chequeo de `NaN`, timestamp completo → `""` y el componente que vuelve a `new Date()`: **6 de 6 detectados.**
-- **TypeScript:** `tsc --noEmit` con 0 errores. **Suite del frontend:** **273/273**, también con `TZ=America/Argentina/Cordoba`.
+- **TypeScript: NO verificado** (corregido en §67: lo que reporté como "0 errores" fue un `npx tsc` que no era TypeScript). **Suite del frontend:** **273/273**, también con `TZ=America/Argentina/Cordoba`.
 - **En el navegador (Claude in Chrome), contra Postgres:** en un primer intento la extensión se desconectó antes de abrir la pantalla; lo hice después, junto con la verificación de §64 (schema descartable). Con Sustentando, en `/ngo/kpis/proj-1`, un KPI con `fecha: "2026-10-01"` se ve **"01 de oct de 2026"** y otro con `"2026-10-02"`, "02 de oct de 2026".
   - Al crear el primero con `curl` desde Git Bash, los acentos se guardaron rotos (`ef bf bd` en la base): `curl` mandó bytes que no son UTF-8. El segundo, creado con `fetch` desde Node, se ve bien ("Árboles en plantación"). **Fue la herramienta, no la app.**
 
@@ -1650,7 +1650,7 @@ Ninguno detectado.
 ### Verificación
 - **Rojo → verde:** los 8 tests de pantallas fallaban con el bug real (no aparecía nada en pantalla). Los de `LoadError` fueron rojo débil (el módulo no existía).
 - **Mutación (12 mutantes, línea base en verde, script descartable):** 404 o 4xx reintentables, texto técnico sin red, "Volver" siempre o nunca, "Reintentar" que no llama, cada una de las 4 pantallas volviendo a `navigate(-1)`, y dos pantallas sin `onRetry`: **12 de 12 detectados.**
-- **TypeScript:** 0 errores. **Suite del frontend:** **289/289**.
+- **TypeScript: NO verificado** (corregido en §67: lo que reporté como "0 errores" fue un `npx tsc` que no era TypeScript). **Suite del frontend:** **289/289**.
 - **En el navegador (Claude in Chrome), contra Postgres** (schema descartable `verif_f7`, borrado al terminar):
   - `/project/no-existe` en una pestaña nueva → "No encontramos este voluntariado" con "Ir al inicio" (sin "Volver"; antes, en blanco).
   - Con el backend **apagado**, `/ngo/ngo-1` → "No pudimos conectarnos con el servidor. Revisá tu conexión." con "Reintentar". Levanté el backend, toqué "Reintentar" y cargó el perfil de Sustentando.
@@ -1680,7 +1680,7 @@ Ninguno detectado en este cambio.
 ### Verificación
 - **Rojo → verde:** 8 de 9 fallaban con el bug real (no aparecía ningún error). El de 401 ya pasaba; es control de que el cambio no lo rompe.
 - **Mutación (15 mutantes, línea base en verde, script descartable):** volver a tragar el error en cada carga y en cada acción, volver al estado vacío, "Reintentar" que no recarga (en 4 pantallas), 401 que no redirige y cualquier error que redirige: **15 de 15 detectados.** En el primer pase faltaba el de "Reintentar" en notificaciones: el test solo miraba que el botón existiera. Agregué el chequeo de que vuelve a pedir.
-- **TypeScript:** 0 errores. **Suite del frontend:** **298/298**, también con `TZ=America/Argentina/Cordoba`. Los tests previos de `NGOPatrocinios` y `CompanyOwnProfile` siguen pasando.
+- **TypeScript: NO verificado** (corregido en §67: lo que reporté como "0 errores" fue un `npx tsc` que no era TypeScript). **Suite del frontend:** **298/298**, también con `TZ=America/Argentina/Cordoba`. Los tests previos de `NGOPatrocinios` y `CompanyOwnProfile` siguen pasando.
 - **En el navegador (Claude in Chrome), contra Postgres** (schema descartable `verif_f9`, borrado al terminar): como Sustentando, el panel cargó normal. Con el backend **apagado**:
   - `/ngo/dashboard` → "No pudimos cargar tu panel. Revisá tu conexión." con "Reintentar";
   - `/ngo/patrocinios` → "No pudimos cargar las propuestas…".
@@ -1730,3 +1730,18 @@ Ninguno detectado en este cambio.
 ### ⚠️ NO verificado
 - TypeScript (§67).
 - Con más de 500 proyectos activos, el selector manual seguiría cortado. El camino por `?proponer=` no depende de ese tope. Hace falta paginación real (deuda conocida).
+
+## 67. Corrección: el "tsc con 0 errores" de §62–§65 no fue un chequeo de tipos
+
+**Qué pasó:** en §62 (F4+F5), §63 (F2), §64 (F7) y §65 (F9) reporté "TypeScript: `tsc --noEmit` con 0 errores". **Es falso.** El frontend **no tiene `typescript` instalado**: no está en `package.json` ni en `node_modules`, y ya lo advertía este mismo documento (§ de la línea "`typescript` **no es dependencia** del frontend… Un `tsc` que 'no imprime errores' puede ser un `tsc` que no existe"). Corrí `npx tsc --noEmit -p .` y conté las líneas con `error TS`. npx no encontró TypeScript, bajó del registry el paquete **`tsc@2.0.4`** ("A deprecated release of the TypeScript compiler", otro paquete que no es TypeScript), que solo imprime *"This is not the tsc command you are looking for"*. El conteo dio 0 y lo informé como "0 errores".
+
+**Cómo lo detecté:** después del incidente de `npx vite` (§66) revisé el caché de npx (`npm-cache\_npx`) y encontré esa entrada, creada el 2026-10-14. Ejecutada a mano mostró el mensaje.
+
+**Qué se corrigió:** las cuatro secciones ahora dicen "TypeScript: NO verificado" y remiten acá. Lo que sí vale de esas secciones (tests, mutación, navegador) no cambia: Vitest transpila sin chequear tipos, así que los tests no dependen de esto.
+
+**Qué falta:** un chequeo de tipos real necesita `typescript` (y `@types/react`, `@types/react-dom`, `@types/node`), que hoy no son dependencias. Instalarlos es decisión del usuario (agrega dependencias y entra en `npm audit`). Hasta entonces, **ningún cambio de frontend está chequeado por tipos**.
+
+### Errores míos
+1. Afirmar "0 errores" mirando un conteo en vez de la salida cruda, sin comprobar antes que el comando era el que creía.
+2. No leer la advertencia que ya estaba en este documento.
+3. Usar `npx` para binarios del proyecto: puede bajar y ejecutar paquetes del registry sin preguntar (pasó con `vite` y con `tsc`). Ahora uso solo `node_modules/.bin/…`.
