@@ -24,12 +24,17 @@ export function ChatThread() {
 
   useEffect(() => {
     if (!userId) return;
+    // Si se cambia de conversación antes de que llegue la respuesta, esa respuesta (o su error) ya no es de
+    // este hilo: se descarta. Antes, si llegaba última, pisaba al hilo nuevo (REVISION F15).
+    let cancelled = false;
     setLoading(true);
+    setErr('');
     api.messages.thread(userId)
-      .then(r => { setMessages(r.messages); setOther(r.other); })
-      .catch(e => setErr(e.message))
-      .finally(() => setLoading(false));
+      .then(r => { if (!cancelled) { setMessages(r.messages); setOther(r.other); } })
+      .catch(e => { if (!cancelled) setErr(e.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     api.messages.markRead(userId).then(refreshConversations).catch(() => {});
+    return () => { cancelled = true; };
   }, [userId]);
 
   useEffect(() => {
@@ -79,7 +84,7 @@ export function ChatThread() {
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
         {loading ? (
-          <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
+          <div role="status" aria-label="Cargando mensajes" className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
         ) : messages.length === 0 ? (
           <p className="text-center text-xs text-gray-400 py-10">Todavía no hay mensajes. ¡Escribí el primero!</p>
         ) : (

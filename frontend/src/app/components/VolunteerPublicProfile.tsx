@@ -41,6 +41,9 @@ export function VolunteerPublicProfile() {
 
   useEffect(() => {
     if (!id || (user && id === user.id)) return;
+    // Al saltar a otro perfil (p. ej. desde la lista de seguidores), la respuesta del anterior se descarta:
+    // si llegaba última, mostraba el perfil viejo bajo la URL nueva (REVISION F15).
+    let cancelled = false;
     setLoading(true);
     setError('');
     Promise.all([
@@ -48,13 +51,15 @@ export function VolunteerPublicProfile() {
       user ? api.follows.volunteerFollowStatus(id) : Promise.resolve({ following: false }),
     ])
       .then(([profileData, statusData]) => {
+        if (cancelled) return;
         setData(profileData);
         setFollowing(statusData.following);
         setFollowerCount(profileData.volunteer.followers || 0);
         setFollowingCount(profileData.volunteer.following_count || 0);
       })
-      .catch(e => setError(e.message || 'Error al cargar perfil'))
-      .finally(() => setLoading(false));
+      .catch(e => { if (!cancelled) setError(e.message || 'Error al cargar perfil'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [id, user]);
 
   const handleFollow = async () => {
@@ -88,7 +93,7 @@ export function VolunteerPublicProfile() {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-gray-50 md:ml-60 flex items-center justify-center">
+    <div role="status" aria-label="Cargando perfil" className="min-h-screen bg-gray-50 md:ml-60 flex items-center justify-center">
       <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
     </div>
   );

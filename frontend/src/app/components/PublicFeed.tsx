@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Search, Heart, Users, MapPin, Zap, Calendar, Clock, DollarSign, Sparkles, ArrowRight, Compass, Leaf, Apple, BookOpen, PawPrint, HeartPulse } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { api, Project } from '../../lib/api';
@@ -53,15 +53,22 @@ export function PublicFeed() {
 
   useEffect(() => { if (!initializing && !user) load(); }, [cat]);
 
+  // Número del último pedido: load() se llama al cambiar de categoría y al buscar, y las respuestas pueden
+  // llegar en cualquier orden. Solo se aplica la del último pedido (antes una vieja podía pisar a la nueva,
+  // REVISION F15).
+  const lastRequest = useRef(0);
+
   const load = async () => {
+    const request = ++lastRequest.current;
     setLoading(true);
     try {
       const params: Record<string, string> = {};
       if (cat !== 'Todos') params.category = cat;
       if (search.trim())   params.search   = search.trim();
-      setProjects((await api.projects.list(params)).projects);
-    } catch { setProjects([]); }
-    finally { setLoading(false); }
+      const { projects } = await api.projects.list(params);
+      if (request === lastRequest.current) setProjects(projects);
+    } catch { if (request === lastRequest.current) setProjects([]); }
+    finally { if (request === lastRequest.current) setLoading(false); }
   };
 
   // Show nothing while auth is being verified to prevent flashing
@@ -215,7 +222,7 @@ export function PublicFeed() {
 
         {/* Grid: 1 col mobile → 2 col tablet → 3 col desktop */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div role="status" aria-label="Cargando proyectos" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
                 <div className="h-48 bg-gray-200" />

@@ -2141,3 +2141,37 @@ Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/
 ### ⚠️ NO verificado
 - Solo lo vi en ancho de escritorio. En el celular la fila es más angosta: el título tiene `truncate`, así que se corta con "…" si es largo, pero no lo vi.
 - El seed tiene una sola solicitud pendiente: el caso de "la misma persona en dos proyectos" está probado solo en el test.
+
+## 83. Respuestas viejas que pisaban a las nuevas — REVISION F15
+
+**Contexto:** la revisión lo dejó "a confirmar con latencia simulada" en tres pantallas. **Lo confirmé antes de tocar nada:** escribí los tests con promesas que resuelvo a mano en el orden que quiero (primero la respuesta nueva, después la vieja). Fallaron los 4:
+- **Chat** (`ChatThread`, `[userId]`): al pasar de la conversación con Ana a la de Juan, si el hilo de Ana llegaba último, el hilo de Juan mostraba los mensajes de Ana con el encabezado "Ana". Un error del hilo de Ana también aparecía en el de Juan.
+- **Feed público** (`PublicFeed`): al elegir Educación y enseguida Salud, si Educación llegaba última, con Salud seleccionada se veían los proyectos de Educación.
+- **Perfil público** (`VolunteerPublicProfile`, `[id, user]`): al saltar de un perfil a otro desde la lista de seguidores, el perfil viejo pisaba al nuevo.
+
+**Qué se hizo:**
+- `ChatThread` y `VolunteerPublicProfile`: `let cancelled = false` en el effect, `if (!cancelled)` antes de cada `set…` (en `then`, `catch` y `finally`) y `cancelled = true` en el cleanup. Es el patrón que ya usaba `PostComposer`. El chat además limpia el error al cambiar de conversación (antes un error de la anterior podía quedar).
+- `PublicFeed`: `load()` se llama desde dos effects y desde el formulario de búsqueda, así que el cleanup de un effect no alcanza. Uso un número de pedido en `useRef` y solo aplico la respuesta (o el error, o el fin de carga) del último.
+- Los tres indicadores de carga ahora tienen `role="status"` con nombre ("Cargando mensajes", "Cargando perfil", "Cargando proyectos"). Lo necesitaba el test (ver errores propios) y además un lector de pantalla ahora los anuncia.
+
+### Tests (nuevos: 10, `StaleResponses.test.tsx`)
+- Orden "nueva primero, vieja después": chat (mensajes y encabezado), error del chat, feed y perfil.
+- Orden "vieja primero mientras la nueva sigue en vuelo": se sigue viendo "cargando" y nada de lo viejo (chat, perfil, feed).
+- La vieja **falla** al final: su error no aparece (perfil) y no borra lo que se está mostrando (feed). Y el error de la conversación anterior no queda en la nueva.
+
+### Verificación
+- **Frontend: 374/374**, también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.**
+- **Mutación (13 mutantes:** cada guarda de `then`/`catch`/`finally`, cada cleanup, el reseteo del error y el incremento del número de pedido**):** en la primera corrida **sobrevivieron 6, ninguno equivalente**: el test cubría un solo orden de llegada. Agregué los otros órdenes y quedó 1. Ver errores propios. **Final: 0 sobrevivientes.**
+- **En Chrome** (SQLite descartable), solo el camino normal (**la carrera no la pude reproducir:** no tengo forma de agregar latencia a la red desde la extensión):
+  - Feed: Medio Ambiente y enseguida Alimentación → se ven los 3 de Alimentación (los mismos que devuelve la API) y ninguno de Medio Ambiente.
+  - Perfil de María → lista de seguidores → Lucía: muestra a Lucía, sin restos de María. La lista se cerró y el scroll quedó liberado.
+  - Chat de María con Juan: carga y muestra "Todavía no hay mensajes".
+
+### Errores propios
+1. **Un test que pasaba por la razón equivocada:** en el feed buscaba los esqueletos de carga por la clase `animate-pulse`, que también tiene un ícono del encabezado. El mutante "termina la carga con la respuesta vieja" sobrevivía. Pasé a `role="status"` con nombre y ahora muere. Lección: no afirmar por clases de estilo.
+2. La primera versión del test cubría un solo orden de llegada (la mutación lo mostró: 6 sobrevivientes).
+
+### ⚠️ NO verificado
+- **La carrera en un navegador real**, con latencia de verdad.
+- **El cambio de conversación dentro del chat en Chrome:** el seed no tiene conversaciones y no quise crear mensajes solo para esto. Hoy casi no se llega a ese caso desde la interfaz, porque al cambiar de conversación se vuelve a la lista (otra ruta, que desmonta el hilo).
+- **No revisé el resto de las pantallas** con el mismo patrón (`ProjectDetails`, `NGOPublicProfile`, `CompanyPublicProfile`, `ExploreScreen`, `MainFeed`…). Las que cargan por `:id` tienen el mismo riesgo si se navega de un recurso a otro sin desmontar. Quedan para revisar con este mismo test.
