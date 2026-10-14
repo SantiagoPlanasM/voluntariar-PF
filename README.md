@@ -242,7 +242,7 @@ npm run test:pg      # Los mismos tests contra PostgreSQL real (variables TEST_P
 ### Tests
 
 ```bash
-cd backend  && npm test && npm run test:pg   # 347 tests en SQLite, 349 en PostgreSQL (+2 solo de Postgres)
+cd backend  && npm test && npm run test:pg   # 369 tests en SQLite, 371 en PostgreSQL (+2 solo de Postgres)
 cd frontend && npm test                      # 314 tests (Vitest)
 cd frontend && npm run typecheck                # chequeo de tipos (TypeScript 7; 0 errores)
 ```

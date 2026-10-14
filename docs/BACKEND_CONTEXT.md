@@ -14,6 +14,7 @@ backend/
 │   ├── lib/
 │   │   ├── email.js          # cliente mínimo de Resend (fetch nativo, sin SDK)
 │   │   ├── emailTemplates.js # plantillas HTML de los emails transaccionales
+│   │   ├── inputs.js         # checkText()/firstError(): textos libres del body (tipo, vacío, largo máximo; §76)
 │   │   ├── errorHandler.js   # manejador global de errores: 400/413/415/403 con mensaje fijo en español, resto 500 genérico
 │   │   ├── storage.js        # fotos en Cloudinary por REST (subida/borrado firmados, tipo real de imagen, URLs optimizadas)
 │   │   └── time.js           # toMillis(): timestamps string (SQLite) o Date (Postgres) → ms

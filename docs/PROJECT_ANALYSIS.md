@@ -1920,3 +1920,37 @@ Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/
 - **Mutación (6, los dos motores, script descartable):** sin tope, tope `>=`, `parseFloat`, aceptar `""` y no aceptar strings: **detectados**. Sobrevive "sin `isFinite`": **equivalente**, porque el tope ya rechaza `Infinity` (`Infinity > 10000`) y `-Infinity` cae en `h < 0`. `isFinite` queda por claridad.
 - **Suites completas:** SQLite **347/347** y Postgres **349/349**, las dos también con `TZ=America/Argentina/Cordoba`.
 - Sin navegador: `NGOProjectDetail` ya valida `>= 0` antes de mandar. Un valor de más de 10000 ahora se ve con el `alert` de error de esa pantalla (que usa `alert()`, anotado en §65).
+
+## 76. Auth y perfiles: tipos, nombres vacíos y textos sin tope — REVISION B11 (rol de empleado), B12, B13
+
+**Contexto:**
+- **B13:** los validadores de `auth.js` hacían `v.trim()` sin chequear el tipo. Un login con `email: [...]` o un registro con `name: 5` daban **500**. Lo mismo pasaba en el alta de empleados (`nombre?.trim()`) y en el `name` de los perfiles de ONG y empresa.
+- **B12:** `PUT /auth/me`, `/ngos/me` y `/empresas/me` validaban el nombre con `if (name && …)`: `name: ""` se salteaba la validación y **dejaba el nombre vacío** (200).
+- Los textos libres (bio, descripción, misión, URLs…) no tenían tipo ni largo máximo: un objeto o un texto enorme se guardaban.
+- **B11:** un `rol` de empleado fuera de la lista reventaba en el `CHECK` (500).
+
+**Arreglo:**
+- **`src/lib/inputs.js`** (nuevo, regla 3): `checkText(valor, { label, max, min, required, nullable })` devuelve el error en español o `null`. `undefined` = no vino (no tocar, salvo obligatorio); `null` = borrar (salvo obligatorio); si viene tiene que ser string, no vacío si es obligatorio, y con largo entre `min` y `max`. Más `firstError(...)`.
+- **`auth.js`:** `validateEmail`/`validateName`/`validatePassword` exigen string; el login exige `email` y `password` string. `PUT /me` valida `name` si **no es `undefined`** (también `""` y `null`), lo guarda recortado, y topea `bio` 500, `location` 150 y `avatar` 1000.
+- **`ngos.js` / `empresas.js` (`PUT /me`):** `name` 2–100 (no se puede borrar), guardado recortado; `description` 2000, `mission` 1000, `location` 150, `logo`/`cover_image` 1000, `alias` 50, `founded` 20, `industry` 100, `category` 60.
+- **Empleados:** `nombre`/`apellido` obligatorios (≤ 100), `email` con `validateEmail` (importado de `auth.js`, sin copiarlo), `rol` en la lista.
+- **Topes elegidos por mí** (el frontend no tiene `maxLength`): holgados, solo para cortar abusos.
+
+### Tests (nuevos: 22)
+- `test/unit/inputs.test.js` (7): el contrato de `checkText` (`undefined`/`null`/tipo/vacío/mínimo/máximo inclusivo) y `firstError`.
+- `test/integration/profiles-input-validation.test.js` (15, en los dos motores):
+  - login con `email` array/número y `password` array → 400; registro con `name`/`email`/`password` de otro tipo → 400 y no crea el usuario;
+  - `PUT /auth/me` con `name` `""`/espacios/`null` → 400 sin cambios; `bio` objeto o de 501 y `location` de 151 → 400; válido → nombre recortado y `bio: null` la borra;
+  - ONG y empresa: `name` `""`/espacios/`null` → 400 sin cambios; `name` número, `description` array o de 2001, `mission` de 1001 → 400; válido → nombre recortado;
+  - empleados: `rol: "jefe"`, `nombre` número o vacío, `email` array o inválido, sin `apellido` → 400 sin crear nada; válido sin `rol` → 201 con `coordinador`.
+
+### Verificación
+- **Rojo → verde:** en los dos motores fallaban todos menos el alta válida de empleado (control). Revisé los motivos antes de arreglar: 500 por `.trim()`, 200 con el nombre vacío, nombres sin recortar.
+- **Mutación (16, los dos motores, script descartable):** 13 detectados en el primer pase. Sobrevivían 3 del helper (aceptar vacío, aceptar `null` siempre, `required` que no exige) porque ningún test usaba un `nombre` de empleado vacío, un `name: null` de ONG ni un empleado sin `apellido`. **No eran equivalentes**: dos terminaban en 500 y uno guardaba vacío. Agregué esos casos y el test unitario: **16 de 16.**
+- **Regresión:** revisé lo que mandan los formularios (`VolunteerProfile`, `NGOOwnProfile`, `CompanyOwnProfile`, `NGOEmpleados`): todo es texto y los roles son los mismos 4. Ninguno queda afuera.
+- **Suites completas:** SQLite **369/369** y Postgres **371/371**, las dos también con `TZ=America/Argentina/Cordoba`.
+
+### ⚠️ NO verificado / fuera de alcance
+- Sin navegador: los formularios ya mandaban texto válido; los casos nuevos solo se alcanzan llamando a la API directo.
+- `PUT /ngos/me` todavía responde con la fila cruda de `ngos` (incluye `user_id`): es REVISION B21, aparte.
+- El registro no topea el largo del email ni de la contraseña (más allá del mínimo).

@@ -115,6 +115,7 @@
 - **Errores:** `401` sin token o token inválido.
 
 ### `PUT /api/auth/me` — Auth
+- **Validación (`PROJECT_ANALYSIS.md §76`):** `name`, si viene (también `""` o `null`), pasa por `validateName` y se guarda recortado; `bio` ≤ 500, `location` ≤ 150, `avatar` ≤ 1000, todos texto o `null`. Si no → **400**.
 - **Body:** campos actualizables del perfil extendido (`bio`, `location`, `avatar`, y campos propios de la tabla de rol).
 - **Respuesta 200:** `{ user }` actualizado.
 
@@ -253,6 +254,7 @@
 - **Errores:** `404` si no existe.
 
 ### `PUT /api/ngos/me` — Auth, role `ngo`
+- **Validación (`§76`, `lib/inputs.js`):** `name` (si viene) texto de 2 a 100 caracteres sin contar espacios, guardado recortado (antes `""` se guardaba vacío); `description` ≤ 2000, `mission` ≤ 1000, `location` ≤ 150, `logo`/`cover_image` ≤ 1000, `alias` ≤ 50, `founded` ≤ 20, `category` ≤ 60, todos texto. Si no → **400** (antes un número daba 500).
 - **Body:** campos escalares de `ngos` (`nombre`, `descripcion`, `foto_perfil`, `banner`, `mision`, `ubicacion`, etc.) más `category` (nombre de categoría, ej. `"Educación"`). *(Corregido — antes no persistía la categoría; ahora busca el `id` en `categorias` por nombre y reemplaza la fila correspondiente en `ngo_categorias`. Si el nombre no matchea ninguna categoría existente, el resto del perfil se guarda igual y la categoría simplemente no cambia.)*
 - **Respuesta 200:** `{ ngo }` (incluye `category` actualizada).
 
@@ -267,6 +269,7 @@
 - **Respuesta 200:** `{ empleados: Empleado[] }`.
 
 ### `POST /api/ngos/:id/empleados` — Auth, role `ngo` (dueño)
+- **Validación (`§76`):** `nombre` y `apellido` obligatorios (texto ≤ 100), `email` con formato válido, `rol` en `coordinador`/`comunicador`/`admin`/`otro` (default `coordinador`). Si no → **400** (antes un `rol` fuera de la lista o un `nombre` no-string daban 500).
 - **Body:** `{ nombre, apellido, email, foto_perfil?, rol }`
 - **Respuesta 201:** `{ empleado }`.
 - No hay `PUT`/`DELETE` de empleados — una vez creado, un empleado no puede editarse ni eliminarse desde la API actual.
@@ -289,6 +292,7 @@
 - **Errores:** `404` si no existe.
 
 ### `PUT /api/empresas/me` — Auth, role `company`
+- **Validación (`§76`, `lib/inputs.js`):** igual que `PUT /api/ngos/me` (`name` 2–100 recortado, `description` ≤ 2000, `mission` ≤ 1000, `location` ≤ 150, `logo`/`cover_image` ≤ 1000, `industry` ≤ 100, `category` ≤ 60). Si no → **400**.
 - **Body:** `{ name?, description?, mission?, location?, logo?, cover_image?, industry?, category? }` — actualización parcial real (mismo patrón anti-B8 que `PUT /api/ngos/me`: un campo no enviado conserva su valor anterior, no se pisa con `null`).
 - `category` es el nombre de una categoría existente (ej. `"Tecnología"`) — mismo patrón "borrar e insertar" que `ngo_categorias`.
 - **Respuesta 200:** `{ empresa }` (incluye `category` actualizada).

@@ -10,6 +10,7 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { checkText, firstError } = require('../lib/inputs');
 const { sendEmail } = require('../lib/email');
 const { sponsorProposalEmail } = require('../lib/emailTemplates');
 
@@ -105,8 +106,18 @@ router.put('/me', requireAuth, requireRole('company'), async (req, res) => {
   try {
     const { name, description, mission, location, logo, cover_image, industry, category } = req.body;
 
-    if (name && name.trim().length < 2)
-      return res.status(400).json({ error: 'El nombre debe tener al menos 2 caracteres' });
+    // Tipos y largos (antes `name && name.trim()...`: "" se salteaba y un número daba 500; REVISION B12/B13).
+    const textErr = firstError(
+      checkText(name, { label: 'El nombre', min: 2, max: 100, nullable: false }),
+      checkText(description, { label: 'La descripción', max: 2000 }),
+      checkText(mission, { label: 'La misión', max: 1000 }),
+      checkText(location, { label: 'La ubicación', max: 150 }),
+      checkText(logo, { label: 'El logo', max: 1000 }),
+      checkText(cover_image, { label: 'La portada', max: 1000 }),
+      checkText(industry, { label: 'La industria', max: 100 }),
+      checkText(category, { label: 'La categoría', max: 60 }),
+    );
+    if (textErr) return res.status(400).json({ error: textErr });
 
     const empresaRow = await db.get('SELECT * FROM empresas WHERE user_id=$1', [req.user.id]);
     if (!empresaRow) return res.status(404).json({ error: 'Perfil de empresa no encontrado' });
@@ -121,7 +132,7 @@ router.put('/me', requireAuth, requireRole('company'), async (req, res) => {
          updated_at=CURRENT_TIMESTAMP
        WHERE user_id=$8`,
       [
-        name ?? empresaRow.nombre,
+        name !== undefined ? name.trim() : empresaRow.nombre,
         description !== undefined ? description : empresaRow.descripcion,
         mission !== undefined ? mission : empresaRow.mision,
         location !== undefined ? location : empresaRow.ubicacion,

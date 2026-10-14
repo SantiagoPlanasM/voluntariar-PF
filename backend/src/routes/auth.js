@@ -3,6 +3,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../db');
 const { signToken, requireAuth } = require('../middleware/auth');
+const { checkText, firstError } = require('../lib/inputs');
 
 const router = express.Router();
 
@@ -10,10 +11,11 @@ const router = express.Router();
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const NAME_RE  = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]{2,50}$/;
 
-function validateEmail(v)    { if (!v || !EMAIL_RE.test(v.trim())) return 'Email inválido'; return null; }
-function validateName(v)     { if (!v || !NAME_RE.test(v.trim()))  return 'Solo letras y espacios, mínimo 2 caracteres'; return null; }
+// `typeof v !== 'string'` primero: antes un número o un array reventaba en `.trim()` y daba 500 (REVISION B13).
+function validateEmail(v)    { if (typeof v !== 'string' || !EMAIL_RE.test(v.trim())) return 'Email inválido'; return null; }
+function validateName(v)     { if (typeof v !== 'string' || !NAME_RE.test(v.trim()))  return 'Solo letras y espacios, mínimo 2 caracteres'; return null; }
 function validatePassword(v) {
-  if (!v || v.length < 8)     return 'Mínimo 8 caracteres';
+  if (typeof v !== 'string' || v.length < 8) return 'Mínimo 8 caracteres';
   if (!/[A-Z]/.test(v))       return 'Necesita al menos una mayúscula';
   if (!/[0-9]/.test(v))       return 'Necesita al menos un número';
   return null;
@@ -90,7 +92,8 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'Email y contraseña requeridos' });
+    if (typeof email !== 'string' || typeof password !== 'string' || !email || !password)
+      return res.status(400).json({ error: 'Email y contraseña requeridos' });
 
     const emailErr = validateEmail(email);
     if (emailErr) return res.status(400).json({ error: emailErr });
@@ -145,10 +148,17 @@ router.get('/me', requireAuth, async (req, res) => {
 router.put('/me', requireAuth, async (req, res) => {
   try {
     const { name, bio, location, avatar } = req.body;
-    if (name) {
+    // `name !== undefined` (y no `if (name)`): antes "" se salteaba la validación y dejaba el nombre vacío (B12).
+    if (name !== undefined) {
       const nameErr = validateName(name);
       if (nameErr) return res.status(400).json({ error: nameErr });
     }
+    const textErr = firstError(
+      checkText(bio, { label: 'La bio', max: 500 }),
+      checkText(location, { label: 'La ubicación', max: 150 }),
+      checkText(avatar, { label: 'La foto', max: 1000 }),
+    );
+    if (textErr) return res.status(400).json({ error: textErr });
 
     const current = await db.get(
       'SELECT name, bio, location, avatar FROM users WHERE id=$1',
@@ -163,7 +173,7 @@ router.put('/me', requireAuth, async (req, res) => {
     await db.run(
       `UPDATE users SET name=$1, bio=$2, location=$3, avatar=$4, updated_at=CURRENT_TIMESTAMP WHERE id=$5`,
       [
-        name ?? current.name,
+        name !== undefined ? name.trim() : current.name,
         bio !== undefined ? bio : current.bio,
         location !== undefined ? location : current.location,
         avatar !== undefined ? avatar : current.avatar,

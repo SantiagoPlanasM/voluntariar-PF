@@ -3,6 +3,8 @@ const express = require('express');
 const { randomUUID } = require('node:crypto');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { checkText, firstError } = require('../lib/inputs');
+const { validateEmail } = require('./auth');
 const { sendEmail } = require('../lib/email');
 const { sponsorDecisionEmail } = require('../lib/emailTemplates');
 // Mismo formateador que /api/projects, para no devolver filas crudas
@@ -148,8 +150,19 @@ router.put('/me', requireAuth, requireRole('ngo'), async (req, res) => {
   try {
     const { name, description, mission, location, logo, cover_image, alias, founded, category } = req.body;
 
-    if (name && name.trim().length < 2)
-      return res.status(400).json({ error: 'El nombre debe tener al menos 2 caracteres' });
+    // Tipos y largos (antes `name && name.trim()...`: "" se salteaba y un número daba 500; REVISION B12/B13).
+    const textErr = firstError(
+      checkText(name, { label: 'El nombre', min: 2, max: 100, nullable: false }),
+      checkText(description, { label: 'La descripción', max: 2000 }),
+      checkText(mission, { label: 'La misión', max: 1000 }),
+      checkText(location, { label: 'La ubicación', max: 150 }),
+      checkText(logo, { label: 'El logo', max: 1000 }),
+      checkText(cover_image, { label: 'La portada', max: 1000 }),
+      checkText(alias, { label: 'El alias', max: 50 }),
+      checkText(founded, { label: 'El año de fundación', max: 20 }),
+      checkText(category, { label: 'La categoría', max: 60 }),
+    );
+    if (textErr) return res.status(400).json({ error: textErr });
 
     // Verificar alias único si se envía
     if (alias) {
@@ -177,7 +190,7 @@ router.put('/me', requireAuth, requireRole('ngo'), async (req, res) => {
          updated_at=CURRENT_TIMESTAMP
        WHERE user_id=$9`,
       [
-        name ?? ngoRow.nombre,
+        name !== undefined ? name.trim() : ngoRow.nombre,
         description !== undefined ? description : ngoRow.descripcion,
         mission !== undefined ? mission : ngoRow.mision,
         location !== undefined ? location : ngoRow.ubicacion,
@@ -317,8 +330,16 @@ router.post('/:id/empleados', requireAuth, requireRole('ngo'), async (req, res) 
     if (!ngo) return res.status(403).json({ error: 'Sin acceso' });
 
     const { nombre, apellido, email, rol = 'coordinador', foto_perfil } = req.body;
-    if (!nombre?.trim() || !apellido?.trim() || !email?.trim())
-      return res.status(400).json({ error: 'Nombre, apellido y email son requeridos' });
+    // Antes `nombre?.trim()` reventaba con un valor que no era string (500) y un `rol` fuera de la lista
+    // reventaba en el CHECK de la base (500). REVISION B11/B13.
+    const inputErr = firstError(
+      checkText(nombre, { label: 'El nombre', max: 100, required: true }),
+      checkText(apellido, { label: 'El apellido', max: 100, required: true }),
+      validateEmail(email),
+      checkText(foto_perfil, { label: 'La foto', max: 1000 }),
+      ['coordinador', 'comunicador', 'admin', 'otro'].includes(rol) ? null : 'Rol inválido: coordinador, comunicador, admin u otro',
+    );
+    if (inputErr) return res.status(400).json({ error: inputErr });
 
     // id propio (ver POST /api/projects): antes se releía "el último empleado de la ONG" por
     // created_at, que en SQLite empata si se crean dos en el mismo segundo.
