@@ -1319,3 +1319,25 @@ Se declararon en el servicio `voluntariar-api`: `APP_URL` (`https://voluntariar.
 ### ⚠️ NO verificado / visto y no tocado
 - **Otras diferencias entre las dos ramas, fuera de este cambio:** la de Postgres busca también por nombre de categoría (`c.nombre LIKE`) y la de SQLite no. Además, con un `LEFT JOIN` a `project_categorias` y `c.nombre` en el `GROUP BY`, un proyecto con dos categorías saldría **dos veces** en Postgres (el seed no tiene ninguno así; no lo probé). Quedan para decidir con el usuario.
 - Requisitos repetidos dentro de un mismo proyecto: el `DISTINCT` los junta en el listado y el detalle no. No pasa con el seed.
+
+## 53. Hora del chat: "Invalid Date" con timestamps de Postgres — REVISION F1
+
+**Contexto:** tercer ítem de `docs/REVISION.md`. `formatTime` (`frontend/src/lib/format.ts`), que pone la hora en cada burbuja de `ChatThread.tsx`, hacía `new Date(iso.replace(' ', 'T') + 'Z')`. En Postgres `created_at` es `Date` y la API lo manda como `"2026-10-14T01:46:36.887Z"`; con la segunda `Z` queda una fecha inválida. Es el mismo error que §46 arregló en `timeAgo`; `formatTime` había quedado afuera y su único test usaba el formato de SQLite.
+
+**Arreglo:** `formatTime` usa `parseBackendDate` (la misma de `timeAgo`) y devuelve `""` si el valor no es una fecha, en vez de mostrar "Invalid Date". Se documentó en `FRONTEND_CONTEXT.md` y en las trampas de `CLAUDE.md`: toda fecha del backend pasa por `parseBackendDate`.
+
+### Tests (nuevos: 4, `src/lib/format.test.ts`)
+ISO con `Z` y milisegundos (lo que manda Postgres), formato viejo sin zona (SQLite, se toma como UTC), offset explícito (`-03:00`) y valor inválido → `""`. La hora esperada se arma con el mismo formateador sobre `Date.UTC(...)`, así el test no depende de la zona horaria de la máquina.
+
+### Verificación
+- **Rojo → verde:** 3 fallaban (`Received: "Invalid Date"`); con el arreglo pasan los 4.
+- **Mutación (5 mutantes, script descartable, cada uno en dos zonas horarias):** sacar el chequeo de `NaN`, devolver otro texto, volver al parseo viejo (`+ 'Z'`), interpretar la hora sin zona como local y cambiar el formato de la hora. **5 de 5 detectados.**
+- **Suite del frontend:** **253/253**, también con `TZ=America/Argentina/Cordoba`; `format.test.ts` además con `TZ=Asia/Tokyo`.
+- **En el navegador (Claude in Chrome), contra Postgres** (schema descartable `verif_f1`, borrado al terminar): con la voluntaria del seed mandé un mensaje a la ONG y recargué la conversación. La API devolvió `created_at: "2026-10-14T01:46:36.887Z"` y la burbuja mostró **"10:46 p. m."** (22:46 en Córdoba = 01:46 UTC, correcto). **Contraprueba:** con el `format.ts` anterior, la misma burbuja mostró **"Invalid Date"**. Sin errores en la consola.
+
+### Errores míos
+Ninguno detectado en este cambio.
+
+### ⚠️ NO verificado
+- La hora del mensaje **recién enviado**, antes de recargar (viene de la respuesta del POST o del WebSocket): la miré solo después de recargar. Tiene el mismo formato ISO, así que debería verse igual.
+- En el celular.

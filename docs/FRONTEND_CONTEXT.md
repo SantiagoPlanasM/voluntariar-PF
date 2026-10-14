@@ -30,7 +30,7 @@ frontend/src/
 │   ├── api.ts                 # cliente HTTP centralizado + TODOS los tipos TS de dominio (incluye api.posts y el helper de subida multipart)
 │   ├── AuthContext.tsx        # sesión global (Context + Provider + hook useAuth)
 │   ├── ChatContext.tsx        # chat en tiempo real (WebSocket)
-│   ├── format.ts              # timeAgo/parseBackendDate (acepta ISO 8601 y el formato viejo sin zona), truncateText ("ver más"), userMessage (errores para el usuario) y otros formatos
+│   ├── format.ts              # timeAgo/formatTime/parseBackendDate (aceptan ISO 8601 y el formato viejo sin zona), truncateText ("ver más"), userMessage (errores para el usuario) y otros formatos
 │   ├── sponsorship.ts         # etiquetas y colores de los estados de un patrocinio
 │   └── imageCompress.ts       # compresión de fotos en el navegador antes de subirlas (Momentos)
 └── styles/
@@ -320,7 +320,7 @@ Limitado a `AuthContext`. No hay estado global de UI (temas, filtros persistente
 **Piezas:**
 - **`api.posts`** (`lib/api.ts`): `list`, `get`, `eligibleProjects`, `create`, `like`, `unlike`, `remove` y los tipos `Post`, `PostPhoto`, `PostsPage`, `EligibleProject`. `create` usa un helper aparte (`upload`) que **no fija `Content-Type`**: `req()` fuerza `application/json` y con eso el servidor nunca recibiría los archivos del multipart.
 - **`lib/imageCompress.ts`**: `compressImage(file)` reduce a 1600 px, recodifica como JPEG (0,82), fondo blanco para PNG transparentes, no toca fotos chicas y livianas, y falla con mensajes para el usuario. Los límites (tipos y 8 MB) deben coincidir con `backend/src/routes/posts.js`.
-- **`lib/format.ts`**: `timeAgo` (acepta ISO y formato viejo), `truncateText(texto, max, maxLines)` ("ver más": corta por caracteres y por líneas, en límite de palabra) y `userMessage(err, respaldo)` (muestra el mensaje del servidor, que viene en español, salvo un `TypeError` de red, que se reemplaza).
+- **`lib/format.ts`**: `timeAgo` y `formatTime` (hora del chat): las dos pasan por `parseBackendDate`, aceptan ISO (con o sin zona) y el formato viejo, y devuelven `""` si no es una fecha. Toda fecha del backend se parsea con `parseBackendDate`, nunca con `new Date(x + "Z")` (`PROJECT_ANALYSIS.md §46`, `§53`); `truncateText(texto, max, maxLines)` ("ver más": corta por caracteres y por líneas, en límite de palabra) y `userMessage(err, respaldo)` (muestra el mensaje del servidor, que viene en español, salvo un `TypeError` de red, que se reemplaza).
 - **Componentes:** ver la lista en la sección 4.
 
 **Reglas de comportamiento que importan (cada una tiene su test):**

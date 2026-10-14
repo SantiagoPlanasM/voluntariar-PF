@@ -30,9 +30,12 @@ export function timeAgo(iso: string | null | undefined): string {
   return new Date(ms).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
 }
 
-/** Hora local en formato "HH:MM" a partir de un timestamp del backend. */
+/** Hora local en formato "HH:MM" a partir de un timestamp del backend (ver parseBackendDate), o "" si no es
+ *  una fecha. (Antes le pegaba una "Z" a todo: con el ISO que llega de Postgres mostraba "Invalid Date".) */
 export function formatTime(iso: string): string {
-  return new Date(iso.replace(' ', 'T') + 'Z').toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  const ms = parseBackendDate(iso);
+  if (Number.isNaN(ms)) return '';
+  return new Date(ms).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 }
 
 /** Recorta un texto largo para mostrarlo con "ver más". Corta por cantidad de caracteres (`max`) y también

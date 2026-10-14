@@ -74,6 +74,31 @@ describe('formatTime', () => {
     const result = formatTime('2026-08-10 15:30:00');
     expect(result).toMatch(/^\d{1,2}:\d{2}/);
   });
+
+  // La hora esperada se arma con el mismo formateador sobre un instante UTC conocido: así el test no
+  // depende de la zona horaria de la máquina que lo corre.
+  const hora = (utcMs: number) =>
+    new Date(utcMs).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  const T_1530_UTC = Date.UTC(2026, 7, 10, 15, 30);
+
+  // En Postgres `created_at` llega como Date y viaja como ISO con "Z". Antes formatTime le pegaba otra "Z"
+  // ("...000ZZ") y cada burbuja del chat mostraba "Invalid Date" (REVISION.md F1).
+  test('acepta ISO 8601 con Z y milisegundos (lo que manda el chat en Postgres)', () => {
+    expect(formatTime('2026-08-10T15:30:00.000Z')).toBe(hora(T_1530_UTC));
+  });
+
+  test('el formato viejo sin zona se toma como UTC (lo que manda SQLite)', () => {
+    expect(formatTime('2026-08-10 15:30:00')).toBe(hora(T_1530_UTC));
+  });
+
+  test('respeta un offset explícito', () => {
+    expect(formatTime('2026-08-10T12:30:00-03:00')).toBe(hora(T_1530_UTC));
+  });
+
+  test('un valor que no es fecha devuelve "" en vez de "Invalid Date"', () => {
+    expect(formatTime('cualquier cosa')).toBe('');
+    expect(formatTime('')).toBe('');
+  });
 });
 
 describe('truncateText', () => {

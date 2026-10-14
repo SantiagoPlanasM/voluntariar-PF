@@ -243,7 +243,7 @@ npm run test:pg      # Los mismos tests contra PostgreSQL real (variables TEST_P
 
 ```bash
 cd backend  && npm test && npm run test:pg   # 263 tests en SQLite, 265 en PostgreSQL (+2 solo de Postgres)
-cd frontend && npm test                      # 249 tests (Vitest)
+cd frontend && npm test                      # 253 tests (Vitest)
 ```
 *(Cifras al 2026-10-13; el historial y lo que NO se pudo verificar está en `docs/PROJECT_ANALYSIS.md`.)*
 
