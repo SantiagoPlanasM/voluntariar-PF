@@ -244,7 +244,7 @@ npm run test:pg      # Los mismos tests contra PostgreSQL real (variables TEST_P
 ```bash
 cd backend  && npm test && npm run test:pg   # 319 tests en SQLite, 321 en PostgreSQL (+2 solo de Postgres)
 cd frontend && npm test                      # 305 tests (Vitest)
-cd frontend && npm run typecheck                # chequeo de tipos (TypeScript; hoy 18 errores de configuración, ver PROJECT_ANALYSIS §68)
+cd frontend && npm run typecheck                # chequeo de tipos (TypeScript 7; 0 errores)
 ```
 *(Cifras al 2026-10-13; el historial y lo que NO se pudo verificar está en `docs/PROJECT_ANALYSIS.md`.)*
 

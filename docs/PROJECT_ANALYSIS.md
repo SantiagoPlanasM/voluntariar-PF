@@ -1765,3 +1765,24 @@ Los 305 tests siguen pasando: Vitest no chequea tipos.
 
 ### ⚠️ Pendiente (decisión del usuario)
 Arreglarlos es configuración: el `vite-env.d.ts`, `types: ["vite/client", "node"]` y `lib` en ES2022. Sumar `node` a `types` deja ver `process` también en el código de la app; la alternativa es un `tsconfig` aparte para los tests. Corregido eso, podrían aparecer errores que hoy tapa la configuración: hay que volver a correr y mirar la salida.
+
+## 69. Configuración de TypeScript: de 18 errores a 0
+
+**Pedido del usuario:** la "versión simple" propuesta en §68.
+
+**Cambio** (`frontend/tsconfig.json`):
+- `"types": ["vite/client", "node"]`: declara los tipos de Vite (`import.meta.env`, `import` de `.css`) y los de Node (`process`, `global` en los tests).
+- `lib` de ES2020 a **ES2022** (`Array.prototype.at`).
+
+No hizo falta el `src/vite-env.d.ts` que había propuesto: `"vite/client"` en `types` hace lo mismo. `target` sigue en ES2020: el build lo maneja Vite y `tsc` solo chequea (`noEmit`).
+
+**Contra de la versión simple (elegida a sabiendas):** con `node` en `types`, el código de la app también "ve" `process`, `Buffer`, etc. sin que TypeScript se queje, aunque en el navegador no existen. La alternativa era un `tsconfig` aparte para los tests.
+
+### Verificación
+- `npm run typecheck`: **exit 0, salida vacía.** Leí la salida cruda.
+- **Prueba de que chequea de verdad** (por §67): un archivo temporal con `const n: number = 'texto'` y `api.projects.get(123)` dio los dos errores esperados (TS2322 y TS2345). Lo borré y volvió a 0.
+- Los 18 errores de §68 eran de configuración: con esto no apareció ninguno nuevo de los que la configuración tapaba.
+- Suite del frontend: **305/305**.
+
+### ⚠️ NO verificado
+- Que nadie use `process` en código de la app por error: TypeScript ya no lo marca (ver "contra").
