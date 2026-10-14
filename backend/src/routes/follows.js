@@ -11,6 +11,18 @@ const router = express.Router();
 
 const parseJson = (val) => { try { return JSON.parse(val || '[]'); } catch { return []; } };
 
+// Alta/baja de un follow y su contador, en una transacción. `changeSql` es un
+// INSERT ... ON CONFLICT DO NOTHING o un DELETE: el contador solo se mueve si
+// la fila cambió de verdad (changes === 1). Así dos "seguir" simultáneos no dan
+// 500 por la PK ni dos "dejar de seguir" descuentan dos veces (REVISION B15).
+// Devuelve true si hubo cambio real.
+const toggleFollow = (changeSql, params, counterSql, counterId) =>
+  db.transaction(async (tx) => {
+    const { changes } = await tx.run(changeSql, params);
+    if (changes === 1) await tx.run(counterSql, [counterId]);
+    return changes === 1;
+  });
+
 function fmtNgo(n) {
   return {
     ...n,
@@ -33,21 +45,12 @@ router.post('/ngo/:ngoId', requireAuth, requireRole('volunteer'), async (req, re
     const ngo = await db.get('SELECT id FROM ngos WHERE id = $1', [ngoId]);
     if (!ngo) return res.status(404).json({ error: 'ONG no encontrada' });
 
-    const existing = await db.get(
-      'SELECT 1 FROM ngo_follows WHERE user_id = $1 AND ngo_id = $2',
-      [req.user.id, ngoId]
+    await toggleFollow(
+      'INSERT INTO ngo_follows (user_id, ngo_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [req.user.id, ngoId],
+      'UPDATE ngos SET followers = COALESCE(followers, 0) + 1 WHERE id = $1',
+      ngoId
     );
-
-    if (!existing) {
-      await db.run(
-        'INSERT INTO ngo_follows (user_id, ngo_id) VALUES ($1, $2)',
-        [req.user.id, ngoId]
-      );
-      await db.run(
-        'UPDATE ngos SET followers = COALESCE(followers, 0) + 1 WHERE id = $1',
-        [ngoId]
-      );
-    }
 
     const updated = await db.get('SELECT followers FROM ngos WHERE id = $1', [ngoId]);
     res.json({
@@ -65,21 +68,12 @@ router.post('/ngo/:ngoId', requireAuth, requireRole('volunteer'), async (req, re
 router.delete('/ngo/:ngoId', requireAuth, requireRole('volunteer'), async (req, res) => {
   try {
     const { ngoId } = req.params;
-    const existing = await db.get(
-      'SELECT 1 FROM ngo_follows WHERE user_id = $1 AND ngo_id = $2',
-      [req.user.id, ngoId]
+    await toggleFollow(
+      'DELETE FROM ngo_follows WHERE user_id = $1 AND ngo_id = $2',
+      [req.user.id, ngoId],
+      'UPDATE ngos SET followers = CASE WHEN followers > 0 THEN followers - 1 ELSE 0 END WHERE id = $1',
+      ngoId
     );
-
-    if (existing) {
-      await db.run(
-        'DELETE FROM ngo_follows WHERE user_id = $1 AND ngo_id = $2',
-        [req.user.id, ngoId]
-      );
-      await db.run(
-        'UPDATE ngos SET followers = CASE WHEN followers > 0 THEN followers - 1 ELSE 0 END WHERE id = $1',
-        [ngoId]
-      );
-    }
 
     const updated = await db.get('SELECT followers FROM ngos WHERE id = $1', [ngoId]);
     res.json({
@@ -137,21 +131,12 @@ router.post('/project/:projectId', requireAuth, requireRole('volunteer'), async 
     const project = await db.get('SELECT id FROM projects WHERE id = $1', [projectId]);
     if (!project) return res.status(404).json({ error: 'Voluntariado no encontrado' });
 
-    const existing = await db.get(
-      'SELECT 1 FROM project_follows WHERE user_id = $1 AND project_id = $2',
-      [req.user.id, projectId]
+    await toggleFollow(
+      'INSERT INTO project_follows (user_id, project_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [req.user.id, projectId],
+      'UPDATE projects SET followers = COALESCE(followers, 0) + 1 WHERE id = $1',
+      projectId
     );
-
-    if (!existing) {
-      await db.run(
-        'INSERT INTO project_follows (user_id, project_id) VALUES ($1, $2)',
-        [req.user.id, projectId]
-      );
-      await db.run(
-        'UPDATE projects SET followers = COALESCE(followers, 0) + 1 WHERE id = $1',
-        [projectId]
-      );
-    }
 
     const updated = await db.get('SELECT followers FROM projects WHERE id = $1', [projectId]);
     res.json({
@@ -169,21 +154,12 @@ router.post('/project/:projectId', requireAuth, requireRole('volunteer'), async 
 router.delete('/project/:projectId', requireAuth, requireRole('volunteer'), async (req, res) => {
   try {
     const { projectId } = req.params;
-    const existing = await db.get(
-      'SELECT 1 FROM project_follows WHERE user_id = $1 AND project_id = $2',
-      [req.user.id, projectId]
+    await toggleFollow(
+      'DELETE FROM project_follows WHERE user_id = $1 AND project_id = $2',
+      [req.user.id, projectId],
+      'UPDATE projects SET followers = CASE WHEN followers > 0 THEN followers - 1 ELSE 0 END WHERE id = $1',
+      projectId
     );
-
-    if (existing) {
-      await db.run(
-        'DELETE FROM project_follows WHERE user_id = $1 AND project_id = $2',
-        [req.user.id, projectId]
-      );
-      await db.run(
-        'UPDATE projects SET followers = CASE WHEN followers > 0 THEN followers - 1 ELSE 0 END WHERE id = $1',
-        [projectId]
-      );
-    }
 
     const updated = await db.get('SELECT followers FROM projects WHERE id = $1', [projectId]);
     res.json({
@@ -434,22 +410,15 @@ router.post('/volunteer/:userId', requireAuth, requireRole('volunteer'), async (
     const target = await db.get('SELECT id, role FROM users WHERE id = $1', [userId]);
     if (!target || target.role !== 'volunteer') return res.status(404).json({ error: 'Voluntario no encontrado' });
 
-    const existing = await db.get(
-      'SELECT 1 FROM volunteer_follows WHERE follower_id = $1 AND following_id = $2',
-      [req.user.id, userId]
+    const followed = await toggleFollow(
+      'INSERT INTO volunteer_follows (follower_id, following_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [req.user.id, userId],
+      'UPDATE voluntarios SET followers = COALESCE(followers, 0) + 1 WHERE user_id = $1',
+      userId
     );
 
-    if (!existing) {
-      await db.run(
-        'INSERT INTO volunteer_follows (follower_id, following_id) VALUES ($1, $2)',
-        [req.user.id, userId]
-      );
-      await db.run(
-        'UPDATE voluntarios SET followers = COALESCE(followers, 0) + 1 WHERE user_id = $1',
-        [userId]
-      );
-
-      // Notificación in-app al voluntario seguido
+    if (followed) {
+      // Notificación in-app al voluntario seguido (después del COMMIT, una por follow real)
       await db.run(
         `INSERT INTO notifications (user_id, type, title, body, data)
          VALUES ($1,'new_follower',$2,$3,$4)`,
@@ -476,21 +445,12 @@ router.post('/volunteer/:userId', requireAuth, requireRole('volunteer'), async (
 router.delete('/volunteer/:userId', requireAuth, requireRole('volunteer'), async (req, res) => {
   try {
     const { userId } = req.params;
-    const existing = await db.get(
-      'SELECT 1 FROM volunteer_follows WHERE follower_id = $1 AND following_id = $2',
-      [req.user.id, userId]
+    await toggleFollow(
+      'DELETE FROM volunteer_follows WHERE follower_id = $1 AND following_id = $2',
+      [req.user.id, userId],
+      'UPDATE voluntarios SET followers = CASE WHEN followers > 0 THEN followers - 1 ELSE 0 END WHERE user_id = $1',
+      userId
     );
-
-    if (existing) {
-      await db.run(
-        'DELETE FROM volunteer_follows WHERE follower_id = $1 AND following_id = $2',
-        [req.user.id, userId]
-      );
-      await db.run(
-        'UPDATE voluntarios SET followers = CASE WHEN followers > 0 THEN followers - 1 ELSE 0 END WHERE user_id = $1',
-        [userId]
-      );
-    }
 
     const updated = await db.get('SELECT COALESCE(followers, 0) AS followers FROM voluntarios WHERE user_id = $1', [userId]);
     res.json({

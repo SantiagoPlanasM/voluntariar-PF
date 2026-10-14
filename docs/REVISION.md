@@ -1,6 +1,6 @@
 # REVISION.md — Revisión de código de VoluntariAR (2026-10-13)
 
-> **Estado (2026-10-14):** este informe se escribió sin tocar el código; después se fueron arreglando ítems en commits separados. Los arreglados tienen ✅ y la sección de `PROJECT_ANALYSIS.md` donde está el detalle (§51–§76). Las correcciones a lo que decía este informe (B2 y B8 tenían menos impacto visible del indicado) están en esas secciones.
+> **Estado (2026-10-14):** este informe se escribió sin tocar el código; después se fueron arreglando ítems en commits separados. Los arreglados tienen ✅ y la sección de `PROJECT_ANALYSIS.md` donde está el detalle (§51–§77). Las correcciones a lo que decía este informe (B2 y B8 tenían menos impacto visible del indicado) están en esas secciones.
 
 **Base revisada:** commit `0d6663a` (`main`). **Método:** tres revisiones de solo lectura en paralelo (backend, frontend, tests+docs) y una verificación propia de los hallazgos de severidad alta. No se modificó ningún archivo del proyecto; este informe es lo único nuevo.
 
@@ -39,7 +39,7 @@ Los ids (B = backend, F = frontend, T = tests, D = docs) son los de cada revisi�
 | Media | D1, D2, D5, D6 | bug (doc) | Docs que contradicen el código (multer, "no hay tests", roles de follows, KPIs) | por lectura |
 | Baja ✅ §57 | B9 | bug | `COUNT`/`SUM` sin `Number()` en `/voluntarios/:id` y `/follows/feed` | verificado en Postgres |
 | Baja (B18 ✅ §56, B10 ✅ §74, B11 ✅ §74/§76, B12 ✅ §76, B13 ✅ §76, B14 ✅ §75) | B10–B14, B18 | bug | Validaciones de entrada que terminan en 500 en vez de 400 | probado |
-| Baja | B15, B16 | bug | Carreras en follows y en la decisión de patrocinio | a confirmar |
+| Baja ✅ §77 | B15, B16 | bug | Carreras en follows y en la decisión de patrocinio | verificado en Postgres |
 | Baja | B17, B19–B21 | mejora | Registro sin transacción, WebSocket, enumeración de emails, `SELECT *` público | por lectura |
 | Baja (F8 ✅ §70, F10 ✅ §71, F11 ✅ §72, F16 ✅ §73) | F8, F10, F11, F14, F16 | bug/mejora | Inscripción rechazada se ve "Pendiente", reconexión WS infinita, etc. | por lectura |
 | Baja | F13, F15 | mejora | Botones solo-ícono sin nombre; respuestas viejas (a confirmar) | lectura / a confirmar |
@@ -256,9 +256,9 @@ Cada uno con test primero (rojo → verde), SQLite + Postgres + TZ de Córdoba s
 
 ## Qué no se revisó o no se verificó
 
-- **No verificado en Postgres:** B10 (3.5), B15, B16, el `LIMIT NaN` y el PUT de KPI sin `nombre`. B1, B2, B8 y B9 sí (servidor real + Postgres 16 en Docker, schema descartable, comparado con SQLite).
+- **No verificado en Postgres:** B10 (3.5), el `LIMIT NaN` y el PUT de KPI sin `nombre`. B1, B2, B8 y B9 sí (servidor real + Postgres 16 en Docker, schema descartable, comparado con SQLite).
 - **Nada visual ni con lector de pantalla** (no hay navegador): F7, F12, F13 y cómo se ve F1.
-- **Concurrencia real:** B15, B16, F15.
+- **Concurrencia real:** F15. (B15 y B16 se confirmaron con un test de concurrencia en Postgres y se arreglaron: §77.)
 - **Sin revisar o revisado poco:** `lib/emailTemplates.js` (escape de cada plantilla), `scripts/seed.js`; en frontend, `ProjectMap`, `FilterModal`, `FeedSidebar`, `PostComposer`, `PostCard`, `PhotoCarousel`, `MomentsGrid`, `NGOMoments`, `ReviewsModal`, las barras de navegación, `imageCompress.ts`, `sponsorship.ts`; la calidad de los asserts de los tests unitarios del backend; `docs/PROJECT_ANALYSIS.md` y `BACKEND_ROADMAP_ANALYSIS.md` contra el código; `API_CONTEXT.md` campo por campo (sí se cotejaron los 79 endpoints, que coinciden).
 - Los `.env` locales no se abrieron.
 

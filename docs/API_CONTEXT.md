@@ -349,7 +349,8 @@
 - **Body:** `{ estado: 'aceptado' | 'rechazado' }`.
 - Autorización por `JOIN` a `projects.ngo_id` en el `WHERE` (nunca se confía en los IDs de la URL sin validar dueño) → `404` si la propuesta no existe o no es de un proyecto propio.
 - `409` si la propuesta ya fue decidida antes (no se puede revertir una decisión por acá).
-- Notifica a la empresa (in-app + email).
+- **Concurrencia (`PROJECT_ANALYSIS.md §77`):** el `UPDATE` es compare-and-swap (`... AND estado='propuesto'`). Si dos decisiones llegan a la vez, solo una cambia la fila (200); la otra responde el mismo `409` y no notifica.
+- Notifica a la empresa (in-app + email), solo la decisión que ganó.
 
 ---
 
@@ -376,6 +377,8 @@
 > Agregado por el usuario (2026-09), documentado retroactivamente tras la revisión de código (ver `PROJECT_ANALYSIS.md §28`). Cubre 3 tipos de "seguir": Voluntario→ONG (`ngo_follows`), Voluntario→Proyecto (`project_follows`) y Voluntario→Voluntario (`volunteer_follows`, tabla nueva). Todo bajo `/api/follows`.
 
 **Importante para cualquier endpoint nuevo que devuelva proyectos:** este router **reusa `fmt` exportado desde `routes/projects.js`** (`const { fmt: fmtProject } = require('./projects')`) — no mantener una copia propia del formateador acá ni en ningún router nuevo. Una copia duplicada ya se desincronizó una vez (le faltaban `latitude`/`longitude`/`modality`) y causó un bug real, arreglado en `PROJECT_ANALYSIS.md §29`.
+
+**Seguir / dejar de seguir (los 3 tipos) es idempotente y seguro bajo concurrencia (`PROJECT_ANALYSIS.md §77`):** el helper `toggleFollow` hace, en una transacción, `INSERT ... ON CONFLICT DO NOTHING` (o el `DELETE`) y mueve el contador `followers` **solo si la fila cambió** (`changes === 1`). Repetir el pedido, o mandarlo varias veces a la vez, responde 200 sin tocar el contador. La notificación `new_follower` sale después del COMMIT y solo por un follow real.
 
 ### ONG (`ngo_follows`)
 - `POST /ngo/:ngoId` / `DELETE /ngo/:ngoId` — seguir/dejar de seguir (auth, `volunteer`).

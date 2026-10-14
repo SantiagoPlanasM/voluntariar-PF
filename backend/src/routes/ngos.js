@@ -431,11 +431,16 @@ router.patch('/me/patrocinios/:empresaId/:projectId', requireAuth, requireRole('
     if (patrocinio.estado !== 'propuesto')
       return res.status(409).json({ error: 'Esta propuesta ya fue decidida' });
 
-    await db.run(
+    // Compare-and-swap: solo decide quien todavía la encuentra 'propuesto'. Dos
+    // decisiones simultáneas pasan el chequeo de arriba; la segunda queda en 0
+    // filas y responde 409, sin notificar ni mandar email (REVISION B16).
+    const { changes } = await db.run(
       `UPDATE empresa_voluntariados SET estado=$1, updated_at=CURRENT_TIMESTAMP
-       WHERE empresa_id=$2 AND project_id=$3`,
+       WHERE empresa_id=$2 AND project_id=$3 AND estado='propuesto'`,
       [estado, req.params.empresaId, req.params.projectId]
     );
+    if (changes !== 1)
+      return res.status(409).json({ error: 'Esta propuesta ya fue decidida' });
 
     const ngoRow = await db.get('SELECT nombre FROM ngos WHERE id=$1', [ngo.id]);
 

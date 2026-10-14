@@ -1954,3 +1954,34 @@ Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/
 - Sin navegador: los formularios ya mandaban texto válido; los casos nuevos solo se alcanzan llamando a la API directo.
 - `PUT /ngos/me` todavía responde con la fila cruda de `ngos` (incluye `user_id`): es REVISION B21, aparte.
 - El registro no topea el largo del email ni de la contraseña (más allá del mínimo).
+
+## 77. Carreras en follows y en la decisión de patrocinio — REVISION B15 y B16
+
+**Contexto:** la revisión los dejó "a confirmar con concurrencia". El plan era escribir primero el test en `test:pg` y arreglar solo si fallaba. **Falló, de forma reproducible (3 de 3 corridas en Postgres):**
+- **B15 (follows, los 3 tipos: ONG, proyecto y voluntario):** el handler hacía `SELECT` "¿ya lo sigo?" → `INSERT` → `UPDATE followers + 1`, sueltos y fuera de transacción. Con 8 "seguir" simultáneos, varios pasaban el `SELECT`; uno insertaba y el resto chocaba con la PK → **500**. Con 8 "dejar de seguir" simultáneos, todos veían la fila y **todos descontaban**: el contador bajaba 8 en vez de 1 (`followers` de la ONG quedaba desfasado para siempre). En el de voluntarios, además, salía una notificación `new_follower` por cada request que pasaba el `SELECT`.
+- **B16 (`PATCH /api/ngos/me/patrocinios/:empresaId/:projectId`):** chequeaba `estado !== 'propuesto'` y después hacía el `UPDATE` sin condición. Con aceptar y rechazar a la vez, **6 de 8 respondían 200** (cada una con su notificación y su email a la empresa, contradictorios); con la misma decisión 8 veces, **8 de 8** respondían 200.
+- En SQLite no se ve: cada handler corre casi sin intercalarse con los demás (mismo caso que `enrollments-concurrency.test.js`, §34).
+
+**Arreglo:**
+- **`routes/follows.js`:** helper `toggleFollow(changeSql, params, counterSql, counterId)`: en una `db.transaction()` (regla 21) corre el `INSERT ... ON CONFLICT DO NOTHING` (o el `DELETE`) y mueve el contador **solo si `changes === 1`**; devuelve si hubo cambio real. Los 6 handlers (seguir/dejar de seguir × 3) lo usan y se borraron los `SELECT` previos. La notificación de nuevo seguidor queda **después del COMMIT** y solo si hubo follow real. La respuesta no cambió (`{ following, followers, message }`, 200 también si ya lo seguías).
+- **`routes/ngos.js`:** compare-and-swap: `UPDATE ... WHERE empresa_id=$2 AND project_id=$3 AND estado='propuesto'`; si `changes !== 1` → **409** "Esta propuesta ya fue decidida" (el mismo mensaje que ya existía para una propuesta decidida antes), sin notificación ni email. El chequeo previo se mantiene para el caso secuencial y el 404.
+- **Frontend:** sin cambios. `NGOPatrocinios` ya muestra el mensaje del servidor si la decisión falla (§65), y ese 409 ya existía.
+
+### Tests (nuevos: 12, en los dos motores)
+`test/integration/follows-sponsorship-concurrency.test.js`. Como en §34, verifica **invariantes**, no quién gana:
+- por cada tipo de follow: 8 "seguir" a la vez → todos 200, una fila, contador +1 (y en voluntarios, una sola notificación); 8 "dejar de seguir" a la vez → todos 200, sin fila, contador vuelve al original; 5 rondas de 12 pedidos mezclados → solo 200 y `contador == original + filas`;
+- patrocinio: 8 decisiones mezcladas aceptar/rechazar → exactamente un 200, el resto 409, el estado guardado es el del 200 y la empresa recibe una sola notificación (del tipo que corresponde); la misma decisión 8 veces → un 200 y siete 409.
+
+### Verificación
+- **Rojo → verde:** antes del arreglo, en Postgres fallaban 11 de 12 (solo pasaba `setup`), con `200,500,200,...` al seguir, "baja exactamente 1, no 8" al dejar de seguir y `6 !== 1` / `8 !== 1` en el patrocinio. En SQLite pasaban los 12 (esperable, ver arriba). Después: 12/12 en Postgres en 5 corridas seguidas.
+- **Mutación (8, los dos motores, script descartable):** detectados: contador sin mirar `changes`, `toggleFollow` que devuelve siempre `true` / siempre `false`, sacar el `ON CONFLICT`, notificar siempre, sacar el `AND estado='propuesto'` y sacar el 409 por `changes` (los dos últimos solo en Postgres, como se esperaba). **Sobrevive 1: "sin transacción"** (los dos statements sueltos). **No es equivalente:** si el proceso o la conexión se cae entre el `INSERT`/`DELETE` y el `UPDATE` del contador, sin transacción queda desfasado; con ella no. Pero bajo concurrencia normal el comportamiento es el mismo (cada statement mira su propio `changes`), y probarlo exige inyectar una falla a mitad de camino: no lo hice.
+- **Suites completas:** SQLite **381/381** y Postgres **383/383**, las dos también con `TZ=America/Argentina/Cordoba`.
+
+### Errores propios
+- En la primera versión del test propuse el patrocinio sobre `proj-4`, que es de otra ONG (ngo-4): habría dado 404 y no probaba nada. Lo vi al revisar el seed, antes de correrlo; pasé a `proj-7` (de ngo-1).
+- En el script de mutación, dos patrones no matchearon porque `follows.js` es CRLF y los escribí con `\n`, y en el reintento rompí el escapado. Los corrí de nuevo bien; ningún archivo del proyecto quedó modificado por el script (`git status` limpio salvo los cambios de esta tarea).
+
+### ⚠️ NO verificado
+- Sin navegador: no vi el 409 del patrocinio en `NGOPatrocinios`. Por lectura, el `catch` de `decide` muestra `userMessage(e, ...)` (§65), pero **no hay test de frontend de ese error** (`NGOPatrocinios.test.tsx` solo cubre listar, aceptar, rechazar y vacío).
+- Los contadores de producción que ya se hayan desfasado por este bug **no se corrigen** (no hay datos reales todavía, la app no está desplegada; si los hubiera, se recalculan con un `UPDATE ... SET followers = (SELECT COUNT(*) ...)`).
+- La caída a mitad de transacción (el mutante sobreviviente) no está probada.
