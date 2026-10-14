@@ -131,4 +131,20 @@ describe('Concurrencia en inscripciones (cupos_ocupados)', () => {
     assert.ok(rs.filter((r) => r.status !== 200).every((r) => r.status === 404 || r.status === 409));
     assert.equal(await spots('proj-7'), 7, 'baja exactamente 1 (8 → 7), no 6');
   });
+
+  // La misma persona se inscribe al mismo proyecto varias veces a la vez: todas pasan el SELECT "¿ya estoy
+  // inscripta?", el UNIQUE (user_id, project_id) deja entrar a una y las demás son 409, no 500. Cubre el
+  // camino isUniqueViolation de POST /enrollments (src/lib/dbErrors.js, PROJECT_ANALYSIS.md §85).
+  test('la misma persona se inscribe 6 veces a la vez al mismo proyecto → un 201 y cinco 409', async () => {
+    const lucia = await login('lucia@example.com');
+    const rs = await burst(6, () =>
+      call('/api/enrollments', { token: lucia, method: 'POST', body: { project_id: 'proj-5', message: 'quiero ayudar' } }));
+    const statuses = rs.map((r) => r.status).sort();
+    assert.deepEqual(statuses, [201, 409, 409, 409, 409, 409], JSON.stringify(rs.map((r) => [r.status, r.body.error])));
+    const list = await call('/api/enrollments/project/proj-5', { token: ngo1 });
+    assert.equal(list.status, 200, 'proj-5 es de Sustentando (ngo1)');
+    const mine = list.body.enrollments.filter((e) => e.volunteer_email === 'lucia@example.com');
+    assert.equal(mine.length, 1, 'una sola inscripción');
+  });
+
 });

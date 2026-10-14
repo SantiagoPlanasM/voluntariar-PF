@@ -1,9 +1,11 @@
 // src/routes/auth.js
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const { randomUUID } = require('node:crypto');
 const db = require('../db');
 const { signToken, requireAuth } = require('../middleware/auth');
 const { checkText, firstError } = require('../lib/inputs');
+const { isUniqueViolation } = require('../lib/dbErrors');
 
 const router = express.Router();
 
@@ -36,44 +38,52 @@ router.post('/register', async (req, res) => {
     if (!['volunteer', 'ngo', 'company'].includes(role))
       return res.status(400).json({ error: 'Rol inválido' });
 
-    const existing = await db.get('SELECT id FROM users WHERE email=$1', [email.trim().toLowerCase()]);
+    const normEmail = email.trim().toLowerCase();
+    const existing = await db.get('SELECT id FROM users WHERE email=$1', [normEmail]);
     if (existing) return res.status(409).json({ error: 'Ya existe una cuenta con ese email' });
 
     const hashed = await bcrypt.hash(password, 10);
     const avatar = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name.trim())}`;
+    const user = { id: randomUUID(), name: name.trim(), email: normEmail, role, avatar };
 
-    await db.run(
-      `INSERT INTO users (name, email, password, role, avatar) VALUES ($1,$2,$3,$4,$5)`,
-      [name.trim(), email.trim().toLowerCase(), hashed, role, avatar]
-    );
+    // Usuario y perfil, juntos o ninguno (REVISION B17): antes, si fallaba el perfil quedaba un usuario sin
+    // perfil y ese email ya no se podía volver a registrar. El id se genera acá (regla 23).
+    try {
+      await db.transaction(async (tx) => {
+        await tx.run(
+          `INSERT INTO users (id, name, email, password, role, avatar) VALUES ($1,$2,$3,$4,$5,$6)`,
+          [user.id, user.name, user.email, hashed, role, avatar]
+        );
 
-    const user = await db.get(
-      'SELECT id, name, email, role, avatar FROM users WHERE email=$1',
-      [email.trim().toLowerCase()]
-    );
-
-    // Crear perfil extendido según rol
-    if (role === 'ngo') {
-      await db.run(
-        `INSERT INTO ngos (user_id, nombre, foto_perfil) VALUES ($1,$2,$3)`,
-        [user.id, name.trim(), avatar]
-      );
-    }
-    if (role === 'company') {
-      await db.run(
-        `INSERT INTO empresas (user_id, nombre, foto_perfil) VALUES ($1,$2,$3)`,
-        [user.id, name.trim(), avatar]
-      );
-    }
-    if (role === 'volunteer') {
-      // Separar nombre en nombre + apellido si viene junto
-      const parts = name.trim().split(' ');
-      const firstName = parts[0];
-      const lastName  = apellido?.trim() || parts.slice(1).join(' ') || '';
-      await db.run(
-        `INSERT INTO voluntarios (user_id, nombre, apellido, foto_perfil) VALUES ($1,$2,$3,$4)`,
-        [user.id, firstName, lastName, avatar]
-      );
+        // Crear perfil extendido según rol
+        if (role === 'ngo') {
+          await tx.run(
+            `INSERT INTO ngos (user_id, nombre, foto_perfil) VALUES ($1,$2,$3)`,
+            [user.id, user.name, avatar]
+          );
+        }
+        if (role === 'company') {
+          await tx.run(
+            `INSERT INTO empresas (user_id, nombre, foto_perfil) VALUES ($1,$2,$3)`,
+            [user.id, user.name, avatar]
+          );
+        }
+        if (role === 'volunteer') {
+          // Separar nombre en nombre + apellido si viene junto
+          const parts = user.name.split(' ');
+          const firstName = parts[0];
+          const lastName  = apellido?.trim() || parts.slice(1).join(' ') || '';
+          await tx.run(
+            `INSERT INTO voluntarios (user_id, nombre, apellido, foto_perfil) VALUES ($1,$2,$3,$4)`,
+            [user.id, firstName, lastName, avatar]
+          );
+        }
+      });
+    } catch (err) {
+      // Dos registros simultáneos con el mismo email pasan los dos el SELECT de arriba: el UNIQUE deja entrar
+      // a uno y el otro es un 409, no un 500.
+      if (isUniqueViolation(err)) return res.status(409).json({ error: 'Ya existe una cuenta con ese email' });
+      throw err;
     }
 
     const token = signToken(user);

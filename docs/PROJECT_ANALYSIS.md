@@ -2195,3 +2195,33 @@ Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/
 
 ### ⚠️ NO verificado
 - ~~`npm run test:pg`~~ **Verificado después del commit** (el usuario prendió Docker; Postgres 16 en contenedor): **373/373**, también con `TZ=America/Argentina/Cordoba`, `cancelled 0`, salida 0.
+
+## 85. Registro sin transacción y email duplicado simultáneo → 500 — REVISION B17
+
+**Contexto:** `POST /api/auth/register` hacía el `INSERT` en `users` y después, suelto, el del perfil (`voluntarios`/`ngos`/`empresas`). Lo confirmé con tests antes de tocar el código:
+- **Falla a mitad (los 3 roles, los dos motores):** inyectando una falla en el `INSERT` del perfil (mismo mecanismo que §59: se intercepta `db.run` y el `tx.run`), quedaba **el usuario sin perfil**. Ese email ya no se podía volver a registrar ("Ya existe una cuenta").
+- **Mismo email, 6 registros a la vez:** en **Postgres, 3 de 3 corridas** dieron `201, 500, 500, 409, 409, 409`: varios pasaban el `SELECT` previo y chocaban con el `UNIQUE` de `users.email`. En SQLite no se reproduce (dio un 201 y cinco 409).
+- De paso, releía al usuario "por email" en vez de generar el id (regla 23).
+
+**Qué se hizo:**
+- `routes/auth.js`: el id sale de `randomUUID()`. Usuario y perfil van en **`db.transaction()` con `tx.*`** (regla 21). Si el `INSERT` choca con el `UNIQUE` → **409** con el mismo mensaje de siempre. El `SELECT` previo queda: evita calcular el hash y abrir una transacción para el caso común (secuencial). La respuesta no cambió.
+- **`src/lib/dbErrors.js` (nuevo):** `isUniqueViolation(err)` (Postgres `23505`; SQLite `SQLITE_CONSTRAINT_UNIQUE`/`_PRIMARYKEY` o el mensaje). `routes/enrollments.js` ya tenía esa condición inline (`err.message?.includes('UNIQUE') || err.code === '23505'`); ahora usa el helper (regla 3).
+- Docs: `API_CONTEXT.md` (registro: validación real, transacción, 409; **login**: el doc decía que el mensaje de error era genérico, **y no lo es**: ver B20 abajo), y `AI_RULES.md` regla 21 (cuándo usar el helper).
+
+### Tests (nuevos: 9)
+- `register-transaction.test.js` (5): falla en el perfil para cada rol (500, no queda el usuario y el mismo email después se registra bien); 6 registros simultáneos (un 201, cinco 409, un usuario, un perfil); la respuesta trae el usuario recién creado, releído por id.
+- `test/unit/dbErrors.test.js` (3): los códigos de los dos motores, y que FK, NOT NULL y errores comunes **no** cuentan como UNIQUE (para no convertirlos en 409).
+- `enrollments-concurrency.test.js` (+1): la misma persona se inscribe 6 veces a la vez al mismo proyecto → un 201 y cinco 409, una sola inscripción. Ese camino (el 409 de `enrollments.js`) **no tenía test**: lo encontró la mutación.
+
+### Verificación
+- **SQLite 380/380 y Postgres 382/382**, los dos también con `TZ=America/Argentina/Cordoba`, `cancelled 0`, salida 0.
+- **Mutación (9 mutantes, cada uno contra SQLite y Postgres):** sin transacción, sin capturar el 409, el id sin insertar, cada rama del helper, "cualquier error es UNIQUE" y el 409 de inscripciones. Todos muertos menos:
+  - **"Sin el `SELECT` previo" — equivalente:** con el 409 por `UNIQUE`, un duplicado responde igual con o sin el `SELECT`; solo cambia que se calcula el hash de más.
+  - En la primera corrida también sobrevivió "inscripción sin 409": no era equivalente, faltaba el test (agregado arriba). Ahora muere.
+
+### Errores propios
+- La primera versión del test de inscripciones simultáneas tenía un `if (mine)` que podía saltarse la verificación de "una sola inscripción". Lo hice estricto antes de commitear.
+
+### ⚠️ NO verificado / visto y no tocado
+- **B20 (login que distingue "no hay cuenta" de "contraseña incorrecta")** sigue pendiente de tu decisión. Corregí el doc, que decía lo contrario, sin cambiar el comportamiento.
+- La interfaz no cambia: el 409 ya se mostraba en `AuthModal` como "Ya existe una cuenta con ese email". No lo miré en Chrome.

@@ -100,15 +100,15 @@
 
 ### `POST /api/auth/register`
 - **Body:** `{ name, email, password, role: 'volunteer'|'ngo'|'company', ...(campos específicos por rol) }`
-- **Validación:** `validateName` (mín. 2 caracteres), `validateEmail` (regex), `validatePassword` (mín. 6 caracteres) — regex duplicadas en `frontend/AuthModal.tsx`.
-- **Efecto:** crea fila en `users`; según `role`, crea también fila en `voluntarios`, `ngos` o `empresas` con `user_id` como FK.
-- **Respuesta 201:** `{ token, user }`
-- **Errores:** `400` (validación o email duplicado — `users.email` es UNIQUE).
+- **Validación:** `validateName` (letras y espacios, 2–50), `validateEmail` (regex), `validatePassword` (mín. 8 caracteres, una mayúscula y un número) — regex duplicadas en `frontend/AuthModal.tsx`. Todos deben ser strings (§76).
+- **Efecto:** crea la fila en `users` (id generado en el código, regla 23) y, según `role`, la de `voluntarios`, `ngos` o `empresas`, **en una sola transacción**: si falla el perfil no queda el usuario (`PROJECT_ANALYSIS.md §85`).
+- **Respuesta 201:** `{ message, token, user }`
+- **Errores:** `400` validación; **`409`** "Ya existe una cuenta con ese email" (también si dos registros con el mismo email llegan a la vez: el UNIQUE de `users.email` deja pasar a uno, §85).
 
 ### `POST /api/auth/login`
 - **Body:** `{ email, password }`
 - **Respuesta 200:** `{ token, user }`
-- **Errores:** `401` credenciales inválidas (mismo mensaje genérico tanto si el email no existe como si la password no matchea, para no filtrar existencia de cuentas).
+- **Errores:** `400` faltan datos o email inválido; `401` con **dos mensajes distintos**: "No encontramos una cuenta con ese email" y "Contraseña incorrecta". Eso permite averiguar qué emails tienen cuenta (`REVISION.md` B20, **pendiente de decisión** del usuario: es un tema de UX además de seguridad). *(Este doc decía antes que el mensaje era genérico; nunca lo fue.)*
 
 ### `GET /api/auth/me` — Auth
 - **Respuesta 200:** `{ user }` (incluye datos de `users` + perfil extendido según rol, vía JOIN a `voluntarios`/`ngos`/`empresas`).

@@ -4,6 +4,7 @@ const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { sendEmail } = require('../lib/email');
 const { newEnrollmentEmail, enrollmentApprovedEmail, enrollmentRejectedEmail } = require('../lib/emailTemplates');
+const { isUniqueViolation } = require('../lib/dbErrors');
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
@@ -84,7 +85,7 @@ router.post('/', requireAuth, requireRole('volunteer'), async (req, res) => {
     res.status(201).json({ enrollment, message: 'Inscripción enviada. Pendiente de aprobación.' });
   } catch (err) {
     // Manejar constraint UNIQUE a nivel de BD (race condition)
-    if (err.message?.includes('UNIQUE') || err.code === '23505') {
+    if (isUniqueViolation(err)) {
       return res.status(409).json({ error: 'Ya estás inscripto en este proyecto' });
     }
     console.error('POST /enrollments error:', err);
