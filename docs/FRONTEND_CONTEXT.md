@@ -116,7 +116,7 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 
 ### Pantallas — lado Empresa
 - `CompanyDashboard.tsx` — panel de impacto: 4 KPIs (proyectos patrocinados, propuestas pendientes con contador de rechazadas, horas de voluntariado, voluntarios alcanzados) + lista de proyectos con badge de estado. Horas/voluntarios/cupos solo se muestran en patrocinios `aceptado`. Estado de error con "Reintentar". Usa `api.empresas.dashboard()` y los mapas de `lib/sponsorship.ts`. **No** es la ruta de aterrizaje tras el login (eso sigue siendo `/company/profile`, ver `AuthModal.tsx`).
-- `CompanyOwnProfile.tsx` — perfil propio editable + lista de patrocinios propios (proponer, ver estado, retirar uno pendiente).
+- `CompanyOwnProfile.tsx` — perfil propio editable + lista de patrocinios propios (proponer, ver estado, retirar uno pendiente). Acepta **`?proponer=<projectId>`** (lo manda el botón "Patrocinar este proyecto" de `ProjectDetails`): abre "Proponer" con ese proyecto elegido y, si no vino en el listado, lo trae con `api.projects.get`; avisa si ya hay una propuesta vigente o si el proyecto no está activo. El listado pide `limit: 500` (sin `limit` el backend devuelve 20). `PROJECT_ANALYSIS.md §66`.
 - `CompanyPublicProfile.tsx` — vista pública del perfil de una Empresa, accesible sin login desde `/company/:id`.
 
 ### Momentos (publicaciones con fotos) — ver la sección "Momentos" al final

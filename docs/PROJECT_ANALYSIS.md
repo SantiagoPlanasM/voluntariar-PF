@@ -1693,3 +1693,40 @@ Ninguno detectado en este cambio.
 ### ⚠️ NO verificado / fuera de alcance
 - En el navegador probé solo el panel y patrocinios; KPIs, notificaciones y la sección de la empresa los cubren los tests.
 - **Visto y no tocado:** `VolunteerProfile` ("Mi Perfil") con el backend caído muestra **0 en todas las estadísticas** (§62), y `NGOProjectDetail` usa `alert()` para errores de aprobar o cargar horas. Mismo problema de fondo, pero no estaban en F9. Quedan anotados.
+
+## 66. Empresa: el selector de patrocinio solo listaba 20 proyectos — REVISION F6
+
+**Contexto:** `CompanyOwnProfile` llenaba "Proponer patrocinio" con `api.projects.list({ status: 'active' })` sin `limit`: el backend devuelve 20 por defecto (`projects.js`, sin paginación, deuda conocida). El botón "Patrocinar este proyecto" de `ProjectDetails` llevaba a `/company/profile` sin decir cuál proyecto. **Reproducido contra Postgres:** con 37 proyectos activos, 17 no aparecían en el selector, y la empresa no tenía forma de patrocinarlos.
+
+**Arreglo:**
+- `ProjectDetails`: el botón lleva a `/company/profile?proponer=<id>`.
+- `CompanyOwnProfile`: con `?proponer=` abre "Proponer" con ese proyecto ya elegido, una sola vez (`useRef`).
+  - Si no vino en el listado, lo trae con `api.projects.get` y lo agrega.
+  - Si ya hay una propuesta vigente para ese proyecto, o el proyecto no está activo, lo dice.
+  - El listado pide `limit: '500'` (constante `MAX_PROPOSABLE` comentada).
+  - El error del formulario se muestra también cuando no hay proyectos para elegir.
+
+### Tests (nuevos: 7)
+`SponsorPreselect.test.tsx`:
+- el listado pide un `limit` > 20;
+- un proyecto fuera de la lista se trae, queda elegido y se propone;
+- uno que sí está en la lista queda elegido sin pedirlo aparte;
+- propuesta vigente → aviso;
+- proyecto no activo → aviso y no se ofrece;
+- sin `?proponer=` el formulario arranca cerrado;
+- el link de `ProjectDetails` (renderizado con una empresa) apunta a `?proponer=<id>`.
+
+### Verificación
+- **Rojo → verde:** fallaban los 5 casos de preselección y de `limit` (`limit` era `NaN`; nada se preelegía). Pasaba el de "arranca cerrado", que es control. El test del link lo agregué después, al ver que nada lo cubría; la mutación confirma que detecta el link viejo.
+- **Mutación (8 mutantes, línea base en verde, script descartable):** sin `limit`, sin preselección, sin traer el proyecto faltante, sin aviso de propuesta vigente, ofrecer no activos, no agregarlo a la lista, pedirlo aparte aunque esté, y el link viejo: **8 de 8 detectados.**
+- **Suite del frontend:** **305/305**, también con `TZ=America/Argentina/Cordoba`. Los tests anteriores de `CompanyOwnProfile` y de §65 siguen pasando.
+- **TypeScript: NO verificado.** El frontend no tiene `typescript` instalado; ver §67.
+- **En el navegador (Claude in Chrome), contra Postgres** (schema descartable `verif_f6` con 25 proyectos extra creados por la API, borrado al terminar; frontend con la Vite **local** 6.4.3): como TechCorp, abrí "Jornada extra número 17" (uno de los 17 que el listado por defecto dejaba afuera) y toqué "Patrocinar este proyecto". Llevó a `/company/profile?proponer=…` con el formulario abierto y ese proyecto elegido. Envié la propuesta: quedó "Pendiente" en pantalla y `propuesto` en la base.
+
+### Errores míos
+1. **`npx vite` bajó y ejecutó un paquete del registry.** En el primer intento de verificación, `cd frontend && npx vite …` (lanzado en segundo plano) no resolvió la Vite local e instaló `vite@8.3.4` en el caché de npx (`npm warn exec The following package was not found and will be installed`). Esa Vite servía otro directorio (404) y así lo vi. Frené, avisé al usuario, borré esa carpeta del caché con su aprobación y rehíce la verificación con `./node_modules/.bin/vite`. No sé por qué esa vez npx no encontró la local. Lección: nunca `npx` para binarios del proyecto.
+2. Al revisar el caché encontré el error más grave, el de §67.
+
+### ⚠️ NO verificado
+- TypeScript (§67).
+- Con más de 500 proyectos activos, el selector manual seguiría cortado. El camino por `?proponer=` no depende de ese tope. Hace falta paginación real (deuda conocida).

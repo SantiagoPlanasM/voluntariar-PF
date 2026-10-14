@@ -1,10 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { LogOut, Edit2, Loader2, Save, X, Sprout, Send, Trash2 } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { api, Empresa, Patrocinio, Project } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { userMessage } from '../../lib/format';
 import { InlineError } from './LoadError';
+
+// Tope del listado de proyectos para proponer. Sin `limit` el backend devuelve 20 y los demás no se podían
+// patrocinar (REVISION F6). GET /projects no tiene paginación (deuda conocida): el camino principal es
+// `?proponer=<id>` desde el botón "Patrocinar este proyecto", que no depende de este tope.
+const MAX_PROPOSABLE = '500';
 
 const CATEGORIES = ['Medio Ambiente','Educación','Salud','Animales','Alimentación','Tecnología','Arte y Cultura','Deportes'];
 
@@ -36,6 +41,10 @@ export function CompanyOwnProfile() {
   const [proposeMsg, setProposeMsg] = useState('');
   const [proposing, setProposing] = useState(false);
   const [proposeErr, setProposeErr] = useState('');
+  // ?proponer=<id> (desde ProjectDetails): abrir el formulario con ese proyecto ya elegido, una sola vez.
+  const [searchParams] = useSearchParams();
+  const preselectId = searchParams.get('proponer');
+  const preselectDone = useRef(false);
 
   useEffect(() => { load(); loadPatrocinios(); }, []);
 
@@ -44,15 +53,35 @@ export function CompanyOwnProfile() {
     try {
       const [{ patrocinios: p }, { projects }] = await Promise.all([
         api.empresas.patrocinios.list(),
-        api.projects.list({ status: 'active' }),
+        api.projects.list({ status: 'active', limit: MAX_PROPOSABLE }),
       ]);
       setPatrocinios(p);
       // Ofrecer para proponer solo proyectos sin propuesta vigente (propuesta o aceptada)
       const yaPropuestos = new Set(p.filter(x => x.estado !== 'rechazado').map(x => x.project_id));
-      setActiveProjects(projects.filter(pr => !yaPropuestos.has(pr.id)));
+      const disponibles = projects.filter(pr => !yaPropuestos.has(pr.id));
+      setActiveProjects(disponibles);
+      if (preselectId && !preselectDone.current) {
+        preselectDone.current = true;
+        await preselect(preselectId, disponibles, yaPropuestos);
+      }
     } catch (e) {
       // Antes se tragaba y se veía "Todavía no hay patrocinios" (REVISION F9).
       setPatrociniosError(userMessage(e, 'No pudimos cargar tus patrocinios. Revisá tu conexión.'));
+    }
+  };
+
+  const preselect = async (id: string, disponibles: Project[], yaPropuestos: Set<string>) => {
+    setShowPropose(true);
+    if (yaPropuestos.has(id)) { setProposeErr('Ya tenés una propuesta vigente para este proyecto.'); return; }
+    if (disponibles.some(pr => pr.id === id)) { setProposeProjectId(id); return; }
+    // No vino en el listado (más allá del tope): se trae aparte.
+    try {
+      const { project } = await api.projects.get(id);
+      if (project.status !== 'active') { setProposeErr('Ese proyecto no está activo: no se puede patrocinar.'); return; }
+      setActiveProjects(prev => [project, ...prev]);
+      setProposeProjectId(id);
+    } catch (e) {
+      setProposeErr(userMessage(e, 'No pudimos cargar ese proyecto. Revisá tu conexión.'));
     }
   };
 
@@ -223,6 +252,7 @@ export function CompanyOwnProfile() {
 
               {showPropose && (
                 <div className="p-4 bg-violet-50/50 border-b border-gray-100 space-y-2">
+                  {proposeErr && <p className="text-xs text-red-500">{proposeErr}</p>}
                   {activeProjects.length === 0 ? (
                     <p className="text-xs text-gray-500">No hay proyectos activos disponibles para proponer ahora mismo.</p>
                   ) : (
@@ -241,7 +271,6 @@ export function CompanyOwnProfile() {
                         rows={2} placeholder="Mensaje para la ONG (opcional)"
                         value={proposeMsg} onChange={e => setProposeMsg(e.target.value)}
                       />
-                      {proposeErr && <p className="text-xs text-red-500">{proposeErr}</p>}
                       <button onClick={handlePropose} disabled={proposing}
                         className="w-full py-2 bg-violet-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-60 hover:bg-violet-700 transition-colors">
                         {proposing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}

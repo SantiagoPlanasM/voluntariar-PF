@@ -141,7 +141,8 @@ export function ProjectDetails() {
     if (user?.role === 'company') {
       return (
         <Link
-          to="/company/profile"
+          // ?proponer: el perfil abre "Proponer" con este proyecto ya elegido (REVISION F6)
+          to={`/company/profile?proponer=${encodeURIComponent(project?.id ?? '')}`}
           className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-200 ${className}`}>
           <Briefcase className="w-4 h-4" />
           Patrocinar este proyecto
