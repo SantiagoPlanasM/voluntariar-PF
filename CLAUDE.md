@@ -15,7 +15,7 @@ Respondé en español rioplatense (voseo).
 - Si un pedido choca con AI_RULES, avisá antes de seguir.
 
 ## Verificación (todo tiene que dar verde)
-- Backend: `npm test` y `npm run test:pg`. Hoy: **267** en SQLite y **269** en Postgres (+2 solo de Postgres).
+- Backend: `npm test` y `npm run test:pg`. Hoy: **280** en SQLite y **282** en Postgres (+2 solo de Postgres).
   `test:pg` necesita un Postgres en `localhost:5432` (ver `TEST_PG_*` en `test/integration/helpers.js`); sirve
   `docker run --rm -d -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=voluntariar_test postgres:16`.
 - Frontend: `npm test`. Hoy: **253** tests.

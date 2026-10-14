@@ -1368,3 +1368,33 @@ Igual que en B2, el impacto visible es menor que lo que decía `REVISION.md`: Ex
 - **Tildes (probado en los dos motores):** ningún motor las ignora ("maraton" no encuentra "Maratón"). Arreglarlo pide `unaccent` (extensión de Postgres) o normalizar en una columna aparte: es una decisión, no la tomé.
 - **SQLite y mayúsculas no ASCII (probado):** "MARATÓN" no encuentra "Maratón" en SQLite (dev), sí en Postgres. No afecta a producción.
 - La búsqueda por categoría solo existe en Postgres (ver §52).
+
+## 55. Tests de autorización por dueño entre ONGs — REVISION T1
+
+**Contexto:** quinto ítem de `docs/REVISION.md`. Los controles de dueño existen en el código (`WHERE ... AND p.ngo_id = $n`) y la revisión no encontró IDOR, pero solo `posts.test.js` probaba una "ONG ajena": si alguien sacaba un filtro, ningún test se ponía rojo. Cambio **solo de tests**, sin tocar código de rutas, para tener una red antes de modificar más rutas.
+
+### Tests (nuevos: 13, en los dos motores)
+`test/integration/ownership.test.js`, con el seed. Green Córdoba (ngo-2) intenta operar sobre recursos de Sustentando (ngo-1, dueña de `proj-1`). Los KPIs y la propuesta de patrocinio (de TechCorp) se crean en el `before`, por la API. Cada caso comprueba el código **y que la base no cambió**:
+- ver las inscripciones de `proj-1` (403, sin emails); aprobar o rechazar (404, sin cambio de estado ni de cupo); cargar horas (404);
+- editar y borrar `proj-1` (404, el proyecto queda igual);
+- crear, editar y borrar KPIs de `proj-1` (403), y editar o borrar el KPI ajeno **pasando por la URL de un proyecto propio** (`/projects/proj-2/kpis/<kpi de proj-1>`: el KPI no cambia);
+- ver o decidir el patrocinio propuesto a `proj-1` (no aparece en su lista; PATCH → 404, sigue "propuesto");
+- ver en su propio panel (`GET /ngos/me` y `/ngos/ngo-2/dashboard`) la inscripción pendiente de `proj-1`, que trae el email del voluntario;
+- ver el dashboard o los empleados de ngo-1, o agregarle empleados (403, no se crea nada).
+
+Al final, **la ONG dueña hace lo mismo con los mismos ids y le funciona** (ver, cargar horas, aprobar, editar el KPI, aceptar el patrocinio, editar, borrar el KPI y el proyecto). Eso prueba que los rechazos no venían de un id mal armado.
+
+### Verificación
+- **No hay rojo → verde:** son tests de un comportamiento que ya era correcto. La prueba de que sirven es la mutación.
+- **Mutación (script descartable, en SQLite y en Postgres):** cada filtro de dueño se rompió de a uno (`X = $n` → `(X = $n OR 1=1)`, conserva los parámetros): 3 en `enrollments.js`, 7 en `projects.js` (PUT/DELETE de proyecto, POST/PUT/DELETE de KPI y los dos `project_id` de las consultas de KPI) y 7 en `ngos.js` (`/me` y dashboard con pendientes, lista y PATCH de patrocinios, dashboard y empleados GET/POST). **17 de 17 detectados en los dos motores.** Un primer pase dejó vivos los filtros de pendientes de `GET /ngos/me` y del dashboard (líneas 93 y 276); agregué el test de "pendientes ajenas en su propio panel" y murieron.
+- El mismo texto de búsqueda agarró 2 consultas más (`ngos.js:134` y `:228`, los proyectos **públicos** de una ONG en su perfil). Sobreviven. **No son equivalentes:** sin el filtro, el perfil mostraría proyectos de otras ONGs. Pero no son autorización (son datos públicos), así que quedan fuera de T1.
+- **Suites completas:** SQLite **280/280** y Postgres **282/282**, las dos también con `TZ=America/Argentina/Cordoba`.
+- `AI_RULES.md` regla 15: todo endpoint nuevo con control de dueño suma su caso a este archivo.
+
+### Errores míos
+Ninguno en el código. El primer pase de los tests no cubría las pendientes que muestran `/ngos/me` y el dashboard; lo detectó la mutación.
+
+### ⚠️ NO verificado / fuera de alcance
+- **REVISION B18 (sigue abierto; confirmado en SQLite y Postgres con un script descartable):** `PUT /projects/<propio>/kpis/<kpi ajeno>` no modifica nada, pero **responde 200 con el KPI ajeno** (nombre, valor y `project_id` de la otra ONG), porque relee por id sin filtrar por proyecto. El test comprueba que la base no cambia y no mira la respuesta, para no mezclar el arreglo con este cambio de solo tests.
+- No se probaron empresas entre sí (el seed tiene una sola), ni voluntarios contra inscripciones ajenas (`DELETE /enrollments/:id` filtra por `user_id`; no se mutó).
+- Las rutas `/ngo/*` del frontend siguen sin guarda (deuda conocida); el control real es el del backend, que es lo que se prueba acá.
