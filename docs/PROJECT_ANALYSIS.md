@@ -1807,3 +1807,23 @@ Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/
 
 ### ⚠️ NO verificado
 - Que la ONG no tenga forma de "reabrir" una inscripción rechazada: hoy `PATCH /enrollments/:id` permite pasar de `rejected` a `approved`. Si lo hace, el botón pasa a "Aprobado" (se lee del servidor en cada carga). No lo probé.
+
+## 71. El chat reconectaba para siempre con el token vencido — REVISION F10
+
+**Contexto:** `ChatContext` reconecta el WebSocket con backoff (tope 10 s) cuando se corta. Si el servidor lo cerraba con **4001** (token inválido o vencido, `ws/index.js:63`), lo intentaba igual cada 10 s, **para siempre**, aunque con ese token cada intento iba a fallar.
+
+**Arreglo** (`lib/ChatContext.tsx`): `onclose` mira `ev.code`; con 4001 no reprograma la reconexión. Cualquier otro corte (reinicio del server, red, 1006) sigue reconectando. No agregué un cierre de sesión automático: sería un cambio de comportamiento mayor. El 401 del próximo pedido REST o la próxima recarga (§62) lo resuelven.
+
+### Tests (nuevos: 2)
+`src/lib/ChatContext.test.tsx`, con un `WebSocket` falso y timers falsos: un cierre 1006 reconecta a 1 s; un cierre 4001 no abre ninguna conexión nueva en 60 s.
+
+### Verificación
+- **Rojo → verde:** el de 4001 fallaba (abría otra conexión); el de 1006 era control.
+- **Mutación (3 mutantes):** sin el chequeo, otro código, y no reconectar nunca: **3 de 3 detectados.**
+- **TypeScript:** exit 0. **Suite del frontend:** **310/310**.
+
+### Errores míos
+1. El primer mock de `useAuth` devolvía un objeto nuevo en cada render. El efecto (que depende de `user`) reabría el socket en cada render y los dos tests fallaban por eso, no por el bug. Lo cambié a referencias estables, como en la app, antes de confiar en el rojo.
+
+### ⚠️ NO verificado
+- **En el navegador:** un 4001 solo pasa si el token vence con la sesión abierta. Al cargar con un token inválido, `AuthContext` cierra la sesión antes (401) y el socket no se abre. No lo reproduje en Chrome.

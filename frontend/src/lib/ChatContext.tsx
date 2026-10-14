@@ -56,9 +56,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
       ws.onopen = () => { setConnected(true); attempt = 0; };
 
-      ws.onclose = () => {
+      ws.onclose = (ev) => {
         setConnected(false);
         if (closedByEffect) return; // cierre intencional (logout/unmount) — no reconectar
+        // 4001 = el servidor rechazó el token (inválido o vencido, ws/index.js): con el mismo token cada
+        // intento falla igual. Antes reconectaba cada 10 s para siempre (REVISION F10).
+        if (ev.code === 4001) return;
         attempt += 1;
         const delay = Math.min(1000 * 2 ** (attempt - 1), 10000); // 1s, 2s, 4s, 8s, tope 10s
         reconnectTimer = setTimeout(connect, delay);
