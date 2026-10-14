@@ -8,7 +8,9 @@ const { toMillis } = require('../lib/time');
 const router = express.Router();
 
 // ── Helpers ───────────────────────────────────────────────────────────────
-const parseJson = (val) => { try { return JSON.parse(val || '[]'); } catch { return []; } };
+// En Postgres, `pg` ya entrega las columnas json/jsonb (el json_agg del listado) como array:
+// se devuelve tal cual. Antes se le hacía JSON.parse(array), fallaba y quedaba [] (REVISION B2).
+const parseJson = (val) => { if (Array.isArray(val)) return val; try { return JSON.parse(val || '[]'); } catch { return []; } };
 
 function fmt(p) {
   return {
@@ -79,9 +81,9 @@ router.get('/', optionalAuth, async (req, res) => {
       ) DESC, p.created_at DESC`;
     }
 
-    // Roles como JSON agregado compatible con SQLite y PostgreSQL
+    // Roles y requisitos como arrays de strings, la misma forma que arma la rama SQLite y GET /:id
     const rolesAgg = db.type === 'postgres'
-      ? `COALESCE(json_agg(DISTINCT jsonb_build_object('nombre', ro.nombre)) FILTER (WHERE ro.nombre IS NOT NULL), '[]'::json) AS roles_json`
+      ? `COALESCE(json_agg(DISTINCT ro.nombre) FILTER (WHERE ro.nombre IS NOT NULL), '[]'::json) AS roles_json`
       : `'[]' AS roles_json`;
 
     const reqAgg = db.type === 'postgres'

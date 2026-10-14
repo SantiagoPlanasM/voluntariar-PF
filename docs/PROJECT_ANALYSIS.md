@@ -1294,3 +1294,28 @@ Se declararon en el servicio `voluntariar-api`: `APP_URL` (`https://voluntariar.
 ### ⚠️ NO verificado
 - El widget con sesión iniciada (filtra por la categoría del rol): solo lo cubren los tests de la API con `categoria`. Tampoco se vio en el celular.
 - Producción: no hay deploy (ver §50).
+
+## 52. Listado de proyectos sin roles ni requisitos en Postgres — REVISION B2
+
+**Contexto:** segundo ítem de `docs/REVISION.md`. `GET /api/projects` tiene dos ramas (`BACKEND_CONTEXT.md §2`). En la de Postgres, roles y requisitos salen de `json_agg`, y `pg` ya entrega esas columnas como arrays de JS. `parseJson` (de `fmt`) les hacía `JSON.parse(array)`, que lanza, y el `catch` devolvía `[]`. Además, los roles se agregaban como objetos (`jsonb_build_object('nombre', …)`) en lugar de strings. Con el seed, en Postgres 0 de 12 proyectos traían roles o requisitos; en SQLite, 12 de 12.
+
+**Arreglo** (`routes/projects.js`): `parseJson` devuelve tal cual lo que ya es array; en la rama Postgres, `json_agg(DISTINCT ro.nombre)`, así la forma es `string[]`, como en SQLite, en `GET /:id` y en `api.ts` (`roles_needed: string[]`). Los `DISTINCT` ya estaban y siguen siendo necesarios: los JOIN con roles × requisitos multiplican filas.
+
+### Tests (nuevos: 3, en los dos motores)
+`test/integration/projects-list-shape.test.js`, con el seed: (1) cada proyecto del listado (`limit=100`) trae los mismos roles y requisitos que su `GET /:id`, sin importar el orden (ninguna de las dos consultas tiene `ORDER BY`); (2) el seed tiene proyectos con roles y con requisitos, para que (1) no pase sin comparar nada; (3) todos los roles y requisitos del listado son strings.
+
+### Verificación
+- **Rojo → verde:** en Postgres fallaban (1) y (2) (`actual: []`, `expected: ['Conductor', 'Voluntario general']`); (3) pasaba solo porque las listas venían vacías, y es el que detecta los roles como objetos (lo confirmó la mutación). En SQLite los 3 pasaban antes y después.
+- **Mutación (5 mutantes, en Postgres, script descartable):** sacar el `Array.isArray`, que devuelva `[]`, volver a `jsonb_build_object`, sacar el `DISTINCT` de roles y el de requisitos: **5 de 5 detectados**. En SQLite esa rama no se ejecuta.
+- **Suites completas:** SQLite **263/263** y Postgres **265/265**, las dos también con `TZ=America/Argentina/Cordoba`.
+- **En el navegador (Claude in Chrome), contra Postgres** (schema descartable `verif_b2`, borrado al terminar): por la API, 12 de 12 proyectos con roles y requisitos. Explorar, la portada y el feed con sesión (voluntaria del seed) cargan, todas las llamadas a `/api/projects` dan 200 y no hay errores en la consola.
+
+### Corrección a la revisión
+`REVISION.md` decía que "feed y explorar muestran todos los proyectos sin roles ni requisitos". **No es así:** ninguna pantalla que consume `GET /api/projects` (Explorar, `PublicFeed`, la barra lateral de `MainFeed`, `CompanyOwnProfile`) muestra roles ni requisitos. El único componente que los dibuja es `FeedPostCard`, y sus datos vienen de `/api/follows/feed`, que tiene su propia consulta (no afectada). El bug era real en el contrato de la API, pero hoy no tenía efecto visible. Si alguien hubiera mostrado los roles del listado, los objetos `{nombre}` habrían roto el render de React.
+
+### Errores míos
+1. La severidad "alta" de B2 en la revisión se apoyó en un impacto visual que no comprobé (ver arriba). Lo vi recién al buscar en el navegador dónde se mostraban los roles.
+
+### ⚠️ NO verificado / visto y no tocado
+- **Otras diferencias entre las dos ramas, fuera de este cambio:** la de Postgres busca también por nombre de categoría (`c.nombre LIKE`) y la de SQLite no. Además, con un `LEFT JOIN` a `project_categorias` y `c.nombre` en el `GROUP BY`, un proyecto con dos categorías saldría **dos veces** en Postgres (el seed no tiene ninguno así; no lo probé). Quedan para decidir con el usuario.
+- Requisitos repetidos dentro de un mismo proyecto: el `DISTINCT` los junta en el listado y el detalle no. No pasa con el seed.
