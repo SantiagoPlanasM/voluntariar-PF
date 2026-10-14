@@ -172,7 +172,7 @@
 - **Respuesta 200:** `{ success: true }`.
 
 ### `POST /api/projects/:id/comments` — Auth (cualquier rol)
-- **Body:** `{ comment }`. Pasa por `hasBadWord()`.
+- **Body:** `{ comment }`. Pasa por `hasBadWord()`. **404** si el proyecto no existe (antes 500 por la FK, `§56`).
 - **Respuesta 201:** `{ comment }` (incluye datos del autor vía JOIN a `users`, más `is_participant: boolean` — agregado por el usuario 2026-09, para que el frontend distinga si quien comenta participó del proyecto o no).
 - **Ojo en el frontend:** `api.ts` tipa esta respuesta como `{ comment: AppComment }` — si se toca este endpoint, no usar `Comment` a secas como tipo (es el tipo global del DOM, no el propio; ya pasó una vez, ver `PROJECT_ANALYSIS.md §29`).
 
@@ -190,10 +190,11 @@
 - **Respuesta 201:** `{ kpi }`.
 
 ### `PUT /api/projects/:id/kpis/:kpiId` — Auth, role `ngo` (dueño)
-- Actualización parcial de un KPI existente. **Respuesta 200:** `{ kpi }`.
+- **No es parcial:** pisa todos los campos con lo que manda el body (un campo omitido queda en `null`; sin `nombre` daría 500 por el NOT NULL, a confirmar — `REVISION.md` D6). **Respuesta 200:** `{ kpi }`.
+- **404** si el KPI no existe o no es de ese proyecto (antes respondía 200 con el KPI de otro proyecto, de otra ONG, o con `{}`: `PROJECT_ANALYSIS.md §56`).
 
 ### `DELETE /api/projects/:id/kpis/:kpiId` — Auth, role `ngo` (dueño)
-- **Respuesta 200:** `{ success: true }`.
+- **Respuesta 200:** `{ message: "KPI eliminado" }` (así lo tipa `api.ts`). **404** si el KPI no existe o no es de ese proyecto (antes 200 sin borrar nada, `§56`).
 
 ---
 

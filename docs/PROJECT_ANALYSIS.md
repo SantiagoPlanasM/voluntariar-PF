@@ -1398,3 +1398,28 @@ Ninguno en el código. El primer pase de los tests no cubría las pendientes que
 - **REVISION B18 (sigue abierto; confirmado en SQLite y Postgres con un script descartable):** `PUT /projects/<propio>/kpis/<kpi ajeno>` no modifica nada, pero **responde 200 con el KPI ajeno** (nombre, valor y `project_id` de la otra ONG), porque relee por id sin filtrar por proyecto. El test comprueba que la base no cambia y no mira la respuesta, para no mezclar el arreglo con este cambio de solo tests.
 - No se probaron empresas entre sí (el seed tiene una sola), ni voluntarios contra inscripciones ajenas (`DELETE /enrollments/:id` filtra por `user_id`; no se mutó).
 - Las rutas `/ngo/*` del frontend siguen sin guarda (deuda conocida); el control real es el del backend, que es lo que se prueba acá.
+
+## 56. KPIs: fuga de datos de otra ONG y 200 sin hacer nada · comentar un proyecto inexistente — REVISION B18
+
+**Contexto:** el usuario pidió adelantar B18 después de que §55 lo confirmara. Había tres problemas en `routes/projects.js`:
+1. `PUT /projects/:id/kpis/:kpiId` controlaba que `:id` fuera de la ONG, pero después releía el KPI **solo por id**. Con la URL de un proyecto propio y el id de un KPI ajeno (`/projects/proj-2/kpis/<KPI de proj-1>`), el UPDATE no tocaba nada (filtra por proyecto), pero la respuesta era **200 con el KPI de la otra ONG** (nombre, valor, `project_id`). Confirmado en los dos motores (§55).
+2. PUT y DELETE de un KPI inexistente, o de otro proyecto, respondían 200 (`{}` o "KPI eliminado") sin hacer nada.
+3. Comentar un proyecto inexistente daba **500** (la FK rechazaba el INSERT) en vez de 404.
+
+**Arreglo:** PUT y DELETE de KPI miran `changes` del UPDATE/DELETE (que ya filtran por `id AND project_id`): si es 0 → **404** "KPI no encontrado en este proyecto". La relectura del PUT también filtra por proyecto (defensa extra). El POST de comentarios comprueba que el proyecto exista antes de insertar → **404**. `API_CONTEXT.md` actualizado. De paso corregí en esas mismas líneas dos errores de D6: el PUT de KPI **no es parcial** y el DELETE responde `{ message: "KPI eliminado" }`, no `{ success: true }`.
+
+### Tests (nuevos: 8, en los dos motores)
+`test/integration/project-subresources.test.js`: PUT y DELETE de un KPI ajeno por la URL de un proyecto propio (404, sin datos ajenos en la respuesta, el KPI no cambia ni se borra), PUT y DELETE de un KPI inexistente (404), la dueña edita (200 con el KPI) y borra (200, y el segundo intento da 404), comentario a un proyecto inexistente (404, no se guarda nada) y a uno existente (201). El comentario de `ownership.test.js` que decía "la respuesta no se prueba acá" ahora apunta a este archivo.
+
+### Verificación
+- **Rojo → verde:** en los dos motores fallaban los 6 casos de error (200 donde debía haber 404; 500 en el comentario) y pasaban los 2 de control. Con el arreglo pasan los 8.
+- **Mutación (script descartable, los dos motores):** sacar el 404 del PUT, invertirlo, sacar el 404 del DELETE y sacar el chequeo de proyecto del comentario: **detectados**. Sobrevive "la relectura del PUT sin filtrar por proyecto". Es **equivalente**: el 404 de arriba ya garantiza que el KPI es de ese proyecto, y el filtro queda como defensa extra.
+- **Suites completas:** SQLite **288/288** y Postgres **290/290**, las dos también con `TZ=America/Argentina/Cordoba`.
+
+### Errores míos
+1. El primer pase de mutación reportó como sobreviviente el chequeo del comentario. Era un error de mi script: la misma línea (`if (!project) return … 'Proyecto no encontrado'`) aparece también en `GET /:id`, y `replace` mutó la primera aparición. Repetido apuntando a la línea correcta (847), murió en los dos motores (`actual: 500`).
+
+### ⚠️ NO verificado
+- **En el navegador:** no lo probé. El camino feliz no cambió; los errores ya se muestran en `NGOKPIs.tsx` (el formulario muestra el mensaje y el borrado hace `alert`). Borrar exige un `confirm()`, que bloquea la extensión de Chrome. **Cambio de comportamiento:** borrar un KPI que ya no existe (p. ej. borrado desde otra pestaña) antes desaparecía en silencio y ahora muestra "KPI no encontrado en este proyecto".
+- El PUT de KPI sigue sin ser parcial y, sin `nombre`, probablemente da 500 (D6, a confirmar). No lo toqué.
+- `POST /projects/:id/ratings` sobre un proyecto inexistente: no lo revisé.

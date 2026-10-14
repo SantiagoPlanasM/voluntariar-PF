@@ -842,6 +842,10 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
     if (hasBadWord(comment))
       return res.status(400).json({ error: 'El comentario contiene palabras no permitidas' });
 
+    // Proyecto inexistente: 404. Antes el INSERT fallaba por la FK y respondía 500 (REVISION B18).
+    const project = await db.get('SELECT id FROM projects WHERE id=$1', [req.params.id]);
+    if (!project) return res.status(404).json({ error: 'Proyecto no encontrado' });
+
     // id propio: ver POST / (PROJECT_ANALYSIS §40). Antes se releía "el último comentario de este
     // usuario en este proyecto" por created_at, que en SQLite empata dentro del mismo segundo.
     const commentId = randomUUID();
@@ -952,7 +956,7 @@ router.put('/:id/kpis/:kpiId', requireAuth, requireRole('ngo'), async (req, res)
     if (!project) return res.status(403).json({ error: 'Sin permiso' });
 
     const { nombre, descripcion, valor, tipo_valor, unidad, fecha } = req.body;
-    await db.run(
+    const upd = await db.run(
       `UPDATE kpis SET nombre=$1, descripcion=$2, valor=$3, tipo_valor=$4, unidad=$5, fecha=$6
        WHERE id=$7 AND project_id=$8`,
       [nombre?.trim(), descripcion?.trim() || null,
@@ -960,7 +964,10 @@ router.put('/:id/kpis/:kpiId', requireAuth, requireRole('ngo'), async (req, res)
        tipo_valor, unidad?.trim() || null, fecha || null,
        req.params.kpiId, req.params.id]
     );
-    const kpi = await db.get('SELECT * FROM kpis WHERE id=$1', [req.params.kpiId]);
+    // Si el KPI no es de ESTE proyecto (o no existe) el UPDATE no toca nada: 404. Antes se releía por id
+    // sin filtrar y se respondía 200 con el KPI de otra ONG (REVISION B18).
+    if (upd.changes === 0) return res.status(404).json({ error: 'KPI no encontrado en este proyecto' });
+    const kpi = await db.get('SELECT * FROM kpis WHERE id=$1 AND project_id=$2', [req.params.kpiId, req.params.id]);
     res.json({ kpi });
   } catch (err) { res.status(500).json({ error: 'Error al actualizar KPI' }); }
 });
@@ -971,7 +978,8 @@ router.delete('/:id/kpis/:kpiId', requireAuth, requireRole('ngo'), async (req, r
     const ngo = await db.get('SELECT id FROM ngos WHERE user_id=$1', [req.user.id]);
     const project = await db.get('SELECT id FROM projects WHERE id=$1 AND ngo_id=$2', [req.params.id, ngo?.id]);
     if (!project) return res.status(403).json({ error: 'Sin permiso' });
-    await db.run('DELETE FROM kpis WHERE id=$1 AND project_id=$2', [req.params.kpiId, req.params.id]);
+    const del = await db.run('DELETE FROM kpis WHERE id=$1 AND project_id=$2', [req.params.kpiId, req.params.id]);
+    if (del.changes === 0) return res.status(404).json({ error: 'KPI no encontrado en este proyecto' });
     res.json({ message: 'KPI eliminado' });
   } catch (err) { res.status(500).json({ error: 'Error al eliminar KPI' }); }
 });

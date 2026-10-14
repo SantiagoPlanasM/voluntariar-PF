@@ -134,7 +134,7 @@ describe('Autorización por dueño entre ONGs', () => {
 
     test('editar o borrar un KPI ajeno pasando por la URL de un proyecto propio', async () => {
       // proj-2 es de la ONG ajena: pasa el control de dueño del proyecto, pero el KPI no es de ese proyecto.
-      // (La respuesta del PUT devuelve igual el KPI ajeno: es REVISION.md B18, no se prueba acá.)
+      // Los códigos de respuesta (404, sin datos ajenos) los prueba project-subresources.test.js (B18).
       await api(`/api/projects/proj-2/kpis/${kpiId}`, { token: other, method: 'PUT', body: { nombre: 'Pisado', valor: 0 } });
       await api(`/api/projects/proj-2/kpis/${kpiId}`, { token: other, method: 'DELETE' });
       assert.deepEqual(await kpi(kpiId), { nombre: 'Árboles plantados', valor: 10 });
