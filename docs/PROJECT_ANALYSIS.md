@@ -1724,7 +1724,7 @@ Ninguno detectado en este cambio.
 - **En el navegador (Claude in Chrome), contra Postgres** (schema descartable `verif_f6` con 25 proyectos extra creados por la API, borrado al terminar; frontend con la Vite **local** 6.4.3): como TechCorp, abrí "Jornada extra número 17" (uno de los 17 que el listado por defecto dejaba afuera) y toqué "Patrocinar este proyecto". Llevó a `/company/profile?proponer=…` con el formulario abierto y ese proyecto elegido. Envié la propuesta: quedó "Pendiente" en pantalla y `propuesto` en la base.
 
 ### Errores míos
-1. **`npx vite` bajó y ejecutó un paquete del registry.** En el primer intento de verificación, `cd frontend && npx vite …` (lanzado en segundo plano) no resolvió la Vite local e instaló `vite@8.3.4` en el caché de npx (`npm warn exec The following package was not found and will be installed`). Esa Vite servía otro directorio (404) y así lo vi. Frené, avisé al usuario, borré esa carpeta del caché con su aprobación y rehíce la verificación con `./node_modules/.bin/vite`. No sé por qué esa vez npx no encontró la local. Lección: nunca `npx` para binarios del proyecto.
+1. **`npx vite` bajó y ejecutó un paquete del registry.** En el primer intento de verificación, `cd frontend && npx vite …` (lanzado en segundo plano) no resolvió la Vite local e instaló `vite@8.3.4` en el caché de npx (`npm warn exec The following package was not found and will be installed`). Esa Vite servía otro directorio (404) y así lo vi. Frené, avisé al usuario, borré esa carpeta del caché con su aprobación y rehíce la verificación con `./node_modules/.bin/vite`. No sé por qué esa vez npx no encontró la local *(causa encontrada en §70: el `cd` se pisó con otro comando lanzado en paralelo)*. Lección: nunca `npx` para binarios del proyecto.
 2. Al revisar el caché encontré el error más grave, el de §67.
 
 ### ⚠️ NO verificado
@@ -1786,3 +1786,24 @@ No hizo falta el `src/vite-env.d.ts` que había propuesto: `"vite/client"` en `t
 
 ### ⚠️ NO verificado
 - Que nadie use `process` en código de la app por error: TypeScript ya no lo marca (ver "contra").
+
+## 70. Inscripción rechazada se veía "Inscripto · Pendiente" — REVISION F8
+
+**Contexto:** en `ProjectDetails`, el botón de inscripción mostraba `Inscripto · ${status === 'approved' ? 'Aprobado' : 'Pendiente'}`. Cualquier estado que no fuera "aprobado" (incluido **rechazado**) se veía "Pendiente", para siempre. Como `enrollments` tiene `UNIQUE(user_id, project_id)`, un voluntario rechazado **no puede volver a postularse** a ese proyecto: el botón tiene que decirlo, no ofrecer otra inscripción.
+
+**Arreglo** (`ProjectDetails.tsx`): estado `rejected` → **"Inscripción rechazada"**, deshabilitado y en rojo (`bg-red-50 text-red-600`). Pendiente y aprobado no cambian.
+
+### Tests (nuevos: 3)
+`EnrollStatusLabel.test.tsx`: rechazada → "Inscripción rechazada" deshabilitado y sin "Pendiente"; pendiente → "Inscripto · Pendiente"; aprobada → "Inscripto · Aprobado".
+
+### Verificación
+- **Rojo → verde:** fallaba el de rechazada (no encontraba el texto); pendiente y aprobada eran controles.
+- **Mutación (3 mutantes):** sin la rama de rechazada y otro texto: **detectados**. **Sobrevive el estilo rojo**: los tests no miran clases. Lo verifiqué a ojo en el navegador.
+- **TypeScript:** `npm run typecheck` → exit 0. **Suite del frontend:** **308/308**.
+- **En el navegador (Claude in Chrome), contra Postgres** (schema descartable `verif_f8`, con la inscripción de María en `proj-9` pasada a `rejected`; borrado al terminar): como María, en `/project/proj-9` el botón dice **"Inscripción rechazada"** en rojo y está deshabilitado.
+
+### Errores míos — y la causa del incidente de `npx` (§66)
+Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/vite` falló con *No such file or directory* (exit 127): **se ejecutó en `backend/`**. Lo había lanzado en paralelo con el del backend (`cd …/backend && …`). El directorio de trabajo de la herramienta es compartido y los dos `cd` se pisaron. **Es la causa del incidente de §66:** ahí `npx vite` corrió en `backend/`, no encontró Vite y la bajó del registry. Esta vez, sin `npx`, falló sin consecuencias. Desde ahora el frontend se levanta con **ruta absoluta y la raíz como argumento** (`"$F/node_modules/.bin/vite" "$F" --port 5180`) y sin depender de un `cd`. Así funcionó.
+
+### ⚠️ NO verificado
+- Que la ONG no tenga forma de "reabrir" una inscripción rechazada: hoy `PATCH /enrollments/:id` permite pasar de `rejected` a `approved`. Si lo hace, el botón pasa a "Aprobado" (se lee del servidor en cada carga). No lo probé.

@@ -166,12 +166,15 @@ export function ProjectDetails() {
         onClick={handleEnroll}
         disabled={enrolling || alreadyEnrolled}
         className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2
-          ${alreadyEnrolled ? 'bg-gray-100 text-gray-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-200'}
+          ${!alreadyEnrolled ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-200'
+            : project.my_enrollment?.status === 'rejected' ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'}
           disabled:opacity-60 ${className}`}>
         {enrolling && <Loader2 className="w-4 h-4 animate-spin" />}
-        {alreadyEnrolled
-          ? `Inscripto · ${project.my_enrollment?.status === 'approved' ? 'Aprobado' : 'Pendiente'}`
-          : 'Unirme como voluntario'}
+        {!alreadyEnrolled ? 'Unirme como voluntario'
+          // Rechazada: antes se veía "Inscripto · Pendiente" para siempre (REVISION F8). No se puede volver a
+          // postular (UNIQUE(user_id, project_id) en enrollments), así que el botón sigue deshabilitado.
+          : project.my_enrollment?.status === 'rejected' ? 'Inscripción rechazada'
+          : `Inscripto · ${project.my_enrollment?.status === 'approved' ? 'Aprobado' : 'Pendiente'}`}
       </button>
     );
   };
