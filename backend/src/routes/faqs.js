@@ -19,10 +19,12 @@ function normalizar(str) {
   return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
+// `activo=true` y no `activo=1`: en Postgres la columna es BOOLEAN y `boolean = integer`
+// es un error de tipos (daba 500 siempre); SQLite toma `true` como 1.
 async function topFaqs(categoria) {
   const rows = categoria
-    ? await db.all(`SELECT id, pregunta FROM faqs WHERE activo=1 AND categoria=$1 ORDER BY orden LIMIT 5`, [categoria])
-    : await db.all(`SELECT id, pregunta FROM faqs WHERE activo=1 ORDER BY orden LIMIT 5`, []);
+    ? await db.all(`SELECT id, pregunta FROM faqs WHERE activo=true AND categoria=$1 ORDER BY orden LIMIT 5`, [categoria])
+    : await db.all(`SELECT id, pregunta FROM faqs WHERE activo=true ORDER BY orden LIMIT 5`, []);
   return rows;
 }
 
@@ -32,8 +34,8 @@ router.get('/', optionalAuth, async (req, res) => {
   try {
     const { categoria } = req.query;
     const rows = categoria
-      ? await db.all(`SELECT id, categoria, pregunta, respuesta FROM faqs WHERE activo=1 AND categoria=$1 ORDER BY orden`, [categoria])
-      : await db.all(`SELECT id, categoria, pregunta, respuesta FROM faqs WHERE activo=1 ORDER BY orden`, []);
+      ? await db.all(`SELECT id, categoria, pregunta, respuesta FROM faqs WHERE activo=true AND categoria=$1 ORDER BY orden`, [categoria])
+      : await db.all(`SELECT id, categoria, pregunta, respuesta FROM faqs WHERE activo=true ORDER BY orden`, []);
     res.json({ faqs: rows.map(fmtFaq) });
   } catch (err) {
     console.error('GET /faqs error:', err);
@@ -62,8 +64,8 @@ router.post('/ask', optionalAuth, async (req, res) => {
     // en vez de pre-filtrar con LIKE en SQL. Evita que el filtro SQL y el
     // scoring queden desincronizados entre sí.
     const candidates = categoria
-      ? await db.all(`SELECT id, categoria, pregunta, respuesta, keywords, orden FROM faqs WHERE activo=1 AND categoria=$1`, [categoria])
-      : await db.all(`SELECT id, categoria, pregunta, respuesta, keywords, orden FROM faqs WHERE activo=1`, []);
+      ? await db.all(`SELECT id, categoria, pregunta, respuesta, keywords, orden FROM faqs WHERE activo=true AND categoria=$1`, [categoria])
+      : await db.all(`SELECT id, categoria, pregunta, respuesta, keywords, orden FROM faqs WHERE activo=true`, []);
 
     if (candidates.length === 0) {
       return res.json({ matched: false, suggestions: await topFaqs(categoria) });

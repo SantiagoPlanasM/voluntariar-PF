@@ -359,6 +359,7 @@
 - **Respuesta 200 con match:** `{ matched: true, best: Faq, alternatives: Faq[] }`.
 - **Respuesta 200 sin match:** `{ matched: false, suggestions: [{id, pregunta}] }` (nunca deja al frontend sin nada que mostrar).
 - **400** si `question` tiene menos de 3 caracteres.
+- Solo FAQs con `activo` verdadero, en las dos rutas. El filtro es `activo=true` (no `activo=1`: en Postgres la columna es BOOLEAN y daba 500 siempre, `PROJECT_ANALYSIS.md §51`). Tests: `test/integration/faqs.test.js`.
 
 ---
 

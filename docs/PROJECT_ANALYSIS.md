@@ -1272,3 +1272,25 @@ Se declararon en el servicio `voluntariar-api`: `APP_URL` (`https://voluntariar.
 ### ⚠️ NO verificado
 - **Render:** no se desplegó. No verifiqué si, en un Blueprint **ya creado**, Render pide los valores de las variables `sync: false` nuevas al sincronizar o si hay que cargarlas a mano en el panel (no consulté la documentación de Render). Tampoco que `APP_URL` sea la URL real del frontend desplegado: se tomó de `CORS_ORIGINS`.
 - Por qué la verificación anterior en Postgres (Linux) no lo detectó: probablemente corría menos archivos en paralelo, pero no lo comprobé.
+
+## 51. Chatbot de FAQs: 500 siempre en Postgres (`activo=1` sobre BOOLEAN) — REVISION B1
+
+**Contexto:** primer ítem del orden de arreglo de `docs/REVISION.md` (revisión del 2026-10-13). Las 6 consultas de `routes/faqs.js` filtraban `WHERE activo=1`; en Postgres la columna se crea `BOOLEAN` (`migrate.js`) y `boolean = integer` es un error de tipos. Resultado: `GET /api/faqs` y `POST /api/faqs/ask` respondían 500 siempre en Postgres (producción). Ningún test tocaba `/api/faqs`, por eso `test:pg` no lo veía.
+
+**Arreglo:** `activo=true` en las 6 consultas, el mismo literal que ya usan `messages.js` y `notifications.js`; SQLite lo toma como 1. Comentario en el código con el porqué. La regla se sumó a `AI_RULES.md` regla 13 y a las trampas de `CLAUDE.md`.
+
+### Tests (nuevos: 5, en los dos motores)
+`test/integration/faqs.test.js`: catálogo completo (8 FAQs de `migrate.js`, forma de cada una), filtro por categoría con orden, `ask` con coincidencia, `ask` sin coincidencia con sugerencias de la categoría, y una FAQ desactivada (`UPDATE faqs SET activo=false`) que no aparece en el catálogo (con y sin categoría), ni como respuesta, ni en las sugerencias (con y sin categoría).
+
+### Verificación
+- **Rojo → verde:** en Postgres, los 5 fallaban con `operator does not exist: boolean = integer` (el mismo 500 que la revisión vio con el seed); con el arreglo, pasan. En SQLite pasaban antes y después (el bug es solo de Postgres).
+- **Mutación (14 mutantes, script descartable fuera del repo):** por cada aparición de `activo=true`, volver a `activo=1` y sacar el filtro (`1=1`). En Postgres murieron 12; los 2 sobrevivientes son la aparición dentro del **comentario** (equivalentes). En SQLite sobreviven además los 6 `activo=1` (equivalentes ahí por diseño: `1` ≡ `true`; mueren en Postgres) y mueren los 6 "sin filtro". **Ningún sobreviviente no equivalente.** Un primer pase dejó vivo "sin filtro" en las sugerencias sin categoría; se agregó ese assert antes de la corrida final.
+- **Suites completas:** SQLite **260/260** y Postgres **262/262** (Postgres 16 en Docker), las dos también con `TZ=America/Argentina/Cordoba`.
+- **En el navegador (Claude in Chrome), contra Postgres:** backend en un schema descartable (`verif_b1`, migrado y sembrado, borrado al terminar) y frontend con Vite, sin tocar los `.env`. Sin sesión, el widget `ChatbotWidget` mostró las 4 sugerencias y respondió "como cancelo mi inscripcion?" con la FAQ correcta. Sin errores en la consola durante la pregunta; la consola se empezó a leer después de cargar la página, así que la carga inicial no quedó registrada. Con sesión (categoría por rol) no se probó.
+
+### Errores míos
+1. El primer test de "FAQ desactivada" no miraba las sugerencias de `ask` **sin** categoría: lo vi al planear la mutación y lo agregué antes de correrla.
+
+### ⚠️ NO verificado
+- El widget con sesión iniciada (filtra por la categoría del rol): solo lo cubren los tests de la API con `categoria`. Tampoco se vio en el celular.
+- Producción: no hay deploy (ver §50).
