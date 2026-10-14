@@ -2007,7 +2007,7 @@ Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/
 - Al armar la lista de D7 me salteé al principio los tests de `routes.test.tsx`, `FeedTabsPlacement` y `MomentsPlacement` que importan `Root`, `NGOLayout`, `PublicFeed` y `VolunteerPublicProfile`; los agregué al revisar los `import` de cada test.
 
 ### ⚠️ NO verificado
-- **D6 en Postgres:** Docker no estaba corriendo. Por el NOT NULL debería dar el mismo 500, pero no lo corrí.
+- ~~**D6 en Postgres**~~ **Verificado después** (§84, con Docker): el mismo test descartable contra Postgres 16 da lo mismo que SQLite: sin `nombre` → **500** `Error al actualizar KPI`; con solo `nombre`, 200 y el resto en `null`.
 - El 500 del PUT de KPI sin `nombre` **sigue** (es un bug de backend, no de docs): debería ser 400. No lo arreglé en este commit de solo docs; queda junto con el "PUT no parcial" (deuda conocida, regla 16).
 - No revisé el resto de cada doc línea por línea; solo los puntos D1–D7.
 
@@ -2194,4 +2194,4 @@ Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/
 - Un script de docs falló a mitad (buscaba una fila de `REVISION.md` que ya había cambiado en §78). Alcanzó a escribir `CLAUDE.md` y no `REVISION.md`; lo revisé y completé.
 
 ### ⚠️ NO verificado
-- **`npm run test:pg`:** Docker no estaba corriendo. Son cambios solo de tests (sin queries nuevas), pero el test de T3 crea proyectos y compara puntajes: en Postgres podría cambiar el orden si empatan (no deberían: la diferencia es de 15 puntos). El conteo esperado en Postgres es 373; no lo corrí.
+- ~~`npm run test:pg`~~ **Verificado después del commit** (el usuario prendió Docker; Postgres 16 en contenedor): **373/373**, también con `TZ=America/Argentina/Cordoba`, `cancelled 0`, salida 0.
