@@ -27,7 +27,7 @@ Respondé en español rioplatense (voseo).
 - Todo cambio de backend se prueba en SQLite, en Postgres y con `TZ=America/Argentina/Cordoba`.
 - Documentá en el mismo cambio (los `docs/*_CONTEXT.md` que correspondan) y agregá una sección
   nueva a `docs/PROJECT_ANALYSIS.md` con: qué se hizo, verificación, **errores propios** y **⚠️ NO verificado**.
-- Commits chicos: un commit por tarea.
+- Commits chicos: un commit por tarea. Sin línea `Co-Authored-By` ni ninguna atribución a Claude.
 
 ## Honestidad
 - Decime siempre qué verificaste y qué no. No inventes números: corré los tests.
