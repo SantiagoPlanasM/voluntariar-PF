@@ -64,7 +64,8 @@ describe('Concurrencia en follows y en la decisión de patrocinio', () => {
   const followerNotifs = async () => Number((await db.get(
     `SELECT COUNT(*) AS n FROM notifications WHERE user_id=$1 AND type='new_follower'`, [juanId])).n);
 
-  test('setup', async () => {
+  // Preparación (sesiones, ids y estado de partida), no un test (REVISION T4).
+  before(async () => {
     const l = await login('lucia@example.com');
     lucia = l.token; luciaId = l.user.id;
     juanId = (await login('juan@example.com')).user.id;

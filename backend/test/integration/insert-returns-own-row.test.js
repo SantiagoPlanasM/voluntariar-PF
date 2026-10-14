@@ -38,7 +38,8 @@ describe('Las altas devuelven su propia fila (mensajes, comentarios, KPIs)', () 
     return { token: r.body.token, id: r.body.user.id };
   };
 
-  test('setup', async () => {
+  // Sesiones para los tests: es preparación, no un test (REVISION T4; antes era un test('setup') sin asserts).
+  before(async () => {
     maria = await login('maria@example.com');
     juan = await login('juan@example.com');
     ngo1 = await login('admin@sustentando.org');

@@ -235,12 +235,35 @@ describe('API — flujo completo (integración, servidor real + DB temporal)', (
     });
 
     test('un voluntario con historial recibe recomendaciones influenciadas por categoría', async () => {
+      // REVISION T3: antes este test solo miraba el status y el flag, no que la categoría influyera.
+      // Dos proyectos iguales salvo la categoría: uno de la del historial (Medio Ambiente, la del proyecto
+      // donde está inscripta) y otro de Educación, creado DESPUÉS (el desempate por fecha lo favorecería).
+      const create = (title, category) => api('/api/projects', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ngoToken}` },
+        body: JSON.stringify({ title, description: 'Proyecto para probar las recomendaciones', location: 'Córdoba',
+          type: 'fugaz', duration: '1 día', volunteers_needed: 10, category }),
+      });
+      const afin = await create('Limpiar el arroyo', 'Medio Ambiente');
+      const otra = await create('Apoyo escolar', 'Educación');
+      assert.equal(afin.status, 201);
+      assert.equal(otra.status, 201);
+
       const { status, body } = await api('/api/projects/recommended', {
         headers: { Authorization: `Bearer ${volunteerToken}` },
       });
       assert.equal(status, 200);
       // vale ya está inscripta (aprobada) en el proyecto de arriba
       assert.equal(body.based_on_history, true);
+
+      const ids = body.recommendations.map(p => p.id);
+      const a = body.recommendations.find(p => p.id === afin.body.project.id);
+      const e = body.recommendations.find(p => p.id === otra.body.project.id);
+      assert.ok(a && e, 'los dos proyectos nuevos tienen que estar entre los candidatos');
+      assert.ok(ids.indexOf(a.id) < ids.indexOf(e.id), 'el de su categoría va antes que el de otra');
+      assert.ok(a.recommendation_score > e.recommendation_score);
+      assert.ok(a.recommendation_reasons.includes('Coincide con tu interés en "Medio Ambiente"'), JSON.stringify(a.recommendation_reasons));
+      assert.ok(!e.recommendation_reasons.some(r => r.startsWith('Coincide con tu interés')));
     });
 
     test('el proyecto donde ya está inscripta no aparece en sus recomendaciones', async () => {

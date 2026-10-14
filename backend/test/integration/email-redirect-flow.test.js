@@ -70,7 +70,8 @@ describe('Emails de los flujos reales con EMAIL_REDIRECT_TO', () => {
     }
   };
 
-  test('setup', async () => {
+  // Sesiones para los tests: es preparación, no un test (REVISION T4; antes era un test('setup') sin asserts).
+  before(async () => {
     ngo1 = await login('admin@sustentando.org');
     lucia = await login('lucia@example.com');
     company = await login('admin@techcorp.com');

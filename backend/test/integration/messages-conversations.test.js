@@ -47,7 +47,8 @@ describe('GET /api/messages/conversations', () => {
     return r.body.conversations;
   };
 
-  test('setup', async () => {
+  // Sesiones para los tests: es preparación, no un test (REVISION T4; antes era un test('setup') sin asserts).
+  before(async () => {
     maria = await login('maria@example.com');
     juan = await login('juan@example.com');
     lucia = await login('lucia@example.com');

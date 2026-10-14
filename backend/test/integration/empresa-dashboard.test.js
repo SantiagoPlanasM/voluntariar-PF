@@ -60,7 +60,8 @@ describe('Dashboard de Empresa (KPIs de patrocinio)', () => {
 
   let techcorp, ngo1, ngo3, empresaId;
 
-  test('setup: logins y id de la empresa', async () => {
+  // Preparación: sesiones y id de la empresa (REVISION T4).
+  before(async () => {
     techcorp = await login('admin@techcorp.com');
     ngo1 = await login('admin@sustentando.org');
     ngo3 = await login('admin@bancoalimentos.org');

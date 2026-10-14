@@ -50,7 +50,8 @@ describe('Altas con id propio y edición de capacidad', () => {
   const createProject = (over) => call('/api/projects', { token: ngo1, method: 'POST', body: projectBody(over) });
   const getProject = async (id) => (await call(`/api/projects/${id}`)).body.project;
 
-  test('setup', async () => {
+  // Preparación (sesiones y precondiciones), no un test (REVISION T4): si falla, la suite no corre.
+  before(async () => {
     ngo1 = await login('admin@sustentando.org');
     maria = await login('maria@example.com');
     juan = await login('juan@example.com');
@@ -163,7 +164,8 @@ describe('Altas con id propio y edición de capacidad', () => {
     const approve = async (id) => assert.equal(
       (await call(`/api/enrollments/${id}`, { token: ngo1, method: 'PATCH', body: { status: 'approved' } })).status, 200);
 
-    test('setup: proyecto con 3 cupos y 2 inscripciones aprobadas', async () => {
+    // Preparación: proyecto con 3 cupos y 2 inscripciones aprobadas (REVISION T4).
+    before(async () => {
       const r = await createProject({ title: 'Capacidad editable', volunteers_needed: 3 });
       assert.equal(r.status, 201);
       projectId = r.body.project.id;

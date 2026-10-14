@@ -39,6 +39,8 @@ describe('<ProjectCard />', () => {
     renderWithProviders(<ProjectCard project={baseProject} />);
     expect(screen.getByText('Reforestación Urbana')).toBeInTheDocument();
     expect(screen.getByText(/Córdoba/)).toBeInTheDocument();
+    // REVISION T2: el nombre del test prometía la categoría y no la miraba.
+    expect(screen.getByText('Medio Ambiente')).toBeInTheDocument();
   });
 
   test('muestra el progreso de voluntarios inscriptos sobre el total', () => {

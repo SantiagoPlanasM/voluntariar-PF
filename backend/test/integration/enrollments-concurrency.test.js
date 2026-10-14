@@ -65,7 +65,8 @@ describe('Concurrencia en inscripciones (cupos_ocupados)', () => {
 
   const burst = (n, fn) => Promise.all(Array.from({ length: n }, (_, i) => fn(i)));
 
-  test('setup', async () => {
+  // Preparación (sesiones, ids y cupos de partida), no un test (REVISION T4).
+  before(async () => {
     ngo1 = await login('admin@sustentando.org');
     juan = await login('juan@example.com');
     maria = await login('maria@example.com');

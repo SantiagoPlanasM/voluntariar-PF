@@ -77,7 +77,8 @@ describe('Capacidad al aprobar inscripciones', () => {
   const statusOf = async (projectId, id) =>
     (await call(`/api/enrollments/project/${projectId}`, { token: ngo1 })).body.enrollments.find((e) => e.id === id)?.status;
 
-  test('setup', async () => {
+  // Sesiones para los tests: es preparación, no un test (REVISION T4; antes era un test('setup') sin asserts).
+  before(async () => {
     ngo1 = await login('admin@sustentando.org');
     maria = await login('maria@example.com');
     juan = await login('juan@example.com');

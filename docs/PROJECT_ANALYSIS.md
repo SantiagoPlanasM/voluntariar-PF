@@ -2175,3 +2175,23 @@ Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/
 - **La carrera en un navegador real**, con latencia de verdad.
 - **El cambio de conversación dentro del chat en Chrome:** el seed no tiene conversaciones y no quise crear mensajes solo para esto. Hoy casi no se llega a ese caso desde la interfaz, porque al cambiar de conversación se vuelve a la lista (otra ruta, que desmonta el hilo).
 - **No revisé el resto de las pantallas** con el mismo patrón (`ProjectDetails`, `NGOPublicProfile`, `CompanyPublicProfile`, `ExploreScreen`, `MainFeed`…). Las que cargan por `:id` tienen el mismo riesgo si se navega de un recurso a otro sin desmontar. Quedan para revisar con este mismo test.
+
+## 84. Tests que prometían más de lo que verificaban, y `setup` como test — REVISION T2–T4
+
+**Qué se hizo (solo tests; nada de código de la app):**
+- **T2** `ProjectCard.test.tsx`: "muestra el título, la ubicación y la categoría" no miraba la categoría. Ahora la afirma. La tarjeta ya la mostraba (`ProjectCard.tsx`), así que no había bug.
+- **T3** `api.test.js`, "recomendaciones influenciadas por categoría": solo miraba el status y `based_on_history`, que se calcula aparte del puntaje. Con el test viejo, la señal de categoría podía no hacer nada y el test pasaba igual. Ahora la ONG crea dos proyectos iguales salvo la categoría: uno de la categoría del historial de la voluntaria (Medio Ambiente) y otro de Educación, creado **después** (el desempate por fecha favorecería a ese). El test exige que el de su categoría aparezca antes, con más puntaje y con la razón `Coincide con tu interés en "Medio Ambiente"`, y que el otro no tenga esa razón.
+- **T4**: la revisión listaba 5 `test('setup')` sin asserts. Buscando encontré **10** (los otros 5 tenían asserts de precondiciones; uno era mío, de §77). Los 10 pasaron a `before()`. Si una preparación falla, `node:test` **cancela** los tests de esa suite en vez de correrlos con datos `undefined` (fallas en cascada confusas). Además ya no cuentan como tests.
+
+### Verificación
+- **Backend SQLite: 371/371** (antes 381; −10 por T4), también con `TZ=America/Argentina/Cordoba`, `cancelled 0`, salida 0.
+- **Que un `before()` roto no pase en silencio:** rompí a propósito el de `messages-conversations.test.js` y la corrida dio `pass 0 · fail 0 · **cancelled 4**`, mostró el error y salió con **código 1**. Restauré el archivo (comparado byte a byte). **Ojo:** el resumen dice `fail 0`, así que de ahora en más hay que mirar `cancelled` y el código de salida (lo agregué en `CLAUDE.md`).
+- **Mutación:** T2: sin `{project.category}` en la tarjeta → muere. T3: apagar la señal 1 (`if (hasHistory)` → `if (false)`) → muere; sacar solo la razón → muere. Con el test viejo de T3 los dos habrían sobrevivido (por lectura: no miraba ni el orden ni las razones).
+- **Frontend: 374/374. Typecheck: 0 errores.**
+
+### Errores propios
+- Mi primer intento de editar `api.test.js` fue un `node -e "…"` con backticks adentro: el shell los interpretó (`Bearer: command not found`) y el script no escribió nada (falló su propio chequeo). Lo pasé a un script en archivo.
+- Un script de docs falló a mitad (buscaba una fila de `REVISION.md` que ya había cambiado en §78). Alcanzó a escribir `CLAUDE.md` y no `REVISION.md`; lo revisé y completé.
+
+### ⚠️ NO verificado
+- **`npm run test:pg`:** Docker no estaba corriendo. Son cambios solo de tests (sin queries nuevas), pero el test de T3 crea proyectos y compara puntajes: en Postgres podría cambiar el orden si empatan (no deberían: la diferencia es de 15 puntos). El conteo esperado en Postgres es 373; no lo corrí.
