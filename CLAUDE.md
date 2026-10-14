@@ -15,7 +15,7 @@ Respondé en español rioplatense (voseo).
 - Si un pedido choca con AI_RULES, avisá antes de seguir.
 
 ## Verificación (todo tiene que dar verde)
-- Backend: `npm test` y `npm run test:pg`. Hoy: **380** en SQLite y **382** en Postgres (+2 solo de Postgres). Bajó de 381 a propósito: 10 `test('setup')` pasaron a `before()` (§84). Un `before()` que falla deja los tests como **cancelled** (no `fail`): mirá también ese número y el código de salida.
+- Backend: `npm test` y `npm run test:pg`. Hoy: **385** en SQLite y **387** en Postgres (+2 solo de Postgres). Bajó de 381 a propósito: 10 `test('setup')` pasaron a `before()` (§84). Un `before()` que falla deja los tests como **cancelled** (no `fail`): mirá también ese número y el código de salida.
   `test:pg` necesita un Postgres en `localhost:5432` (ver `TEST_PG_*` en `test/integration/helpers.js`); sirve
   `docker run --rm -d -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=voluntariar_test postgres:16`.
 - Frontend: `npm test`. Hoy: **374** tests. Tipos: `npm run typecheck` (TypeScript 7, instalado el 2026-10-14). Hoy: **0 errores** (§68–§69). Nunca `npx tsc`: el paquete `tsc` de npm no es TypeScript.

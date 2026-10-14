@@ -12,10 +12,24 @@ const router = express.Router();
 // se devuelve tal cual. Antes se le hacía JSON.parse(array), fallaba y quedaba [] (REVISION B2).
 const parseJson = (val) => { if (Array.isArray(val)) return val; try { return JSON.parse(val || '[]'); } catch { return []; } };
 
+// Campos que algunos endpoints agregan a la fila ANTES de formatear (el feed, routes/follows.js).
+const PROJECT_EXTRAS = ['ratings', 'recent_comments', 'comments_count', 'my_enrollment_status', 'follow_source', 'follow_label'];
+
+// Lista blanca: solo estos campos salen por la API (AI_RULES regla 8, REVISION B21). Antes empezaba con
+// `...p` y devolvía TODAS las columnas de la fila (titulo, cupos, roles_json…): la próxima columna que se
+// agregara a projects habría salido sola por los endpoints públicos. Un campo nuevo para el frontend se
+// agrega acá Y en la interface Project de frontend/src/lib/api.ts.
+// Columnas de un KPI que devuelve la API (todas las de hoy, pero elegidas: regla 8, REVISION B21).
+const KPI_COLS = 'id, project_id, nombre, descripcion, valor, tipo_valor, unidad, fecha, created_at';
+
 function fmt(p) {
-  return {
-    ...p,
-    // Compatibilidad frontend: mapear campos nuevos a los nombres que espera el front
+  const out = {
+    id:                 p.id,
+    ngo_id:             p.ngo_id,
+    status:             p.status,
+    created_at:         p.created_at,
+    ngo_name:           p.ngo_name,
+    ngo_logo:           p.ngo_logo,
     title:              p.titulo,
     description:        p.descripcion,
     full_description:   p.descripcion_full,
@@ -40,6 +54,8 @@ function fmt(p) {
     avg_rating:         p.avg_rating != null && Number(p.avg_rating) > 0 ? Number(Number(p.avg_rating).toFixed(1)) : null,
     ratings_count:      p.ratings_count != null ? Number(p.ratings_count) : 0,
   };
+  for (const k of PROJECT_EXTRAS) if (p[k] !== undefined) out[k] = p[k];
+  return out;
 }
 
 // ── Validación ────────────────────────────────────────────────────────────
@@ -632,7 +648,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
     project.category_name   = catRow?.nombre || '';
 
     const comments = await db.all(
-      `SELECT c.*, u.name AS user_name, u.avatar AS user_avatar,
+      `SELECT c.id, c.project_id, c.user_id, c.comment, c.created_at, u.name AS user_name, u.avatar AS user_avatar,
               CASE WHEN e.id IS NOT NULL THEN 1 ELSE 0 END AS is_participant
        FROM comments c
        JOIN users u ON u.id = c.user_id
@@ -640,7 +656,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
        WHERE c.project_id = $1 ORDER BY c.created_at DESC`, [req.params.id]
     );
     const ratings = await db.all(
-      `SELECT r.*, u.name AS user_name
+      `SELECT r.id, r.project_id, r.user_id, r.rating, r.comment, r.created_at, u.name AS user_name
        FROM ratings r JOIN users u ON u.id = r.user_id
        WHERE r.project_id = $1`, [req.params.id]
     );
@@ -650,19 +666,20 @@ router.get('/:id', optionalAuth, async (req, res) => {
     let myEnrollment = null;
     if (req.user) {
       myEnrollment = await db.get(
-        'SELECT * FROM enrollments WHERE user_id=$1 AND project_id=$2',
+        `SELECT id, user_id, project_id, status, mensaje, horas_realizadas, created_at, updated_at
+         FROM enrollments WHERE user_id=$1 AND project_id=$2`,
         [req.user.id, req.params.id]
       );
     }
 
     const kpis = await db.all(
-      'SELECT * FROM kpis WHERE project_id=$1 ORDER BY created_at DESC',
+      `SELECT ${KPI_COLS} FROM kpis WHERE project_id=$1 ORDER BY created_at DESC`,
       [req.params.id]
     );
 
     // ¿Quien pide es la ONG dueña? Lo usa ProjectDetails para ofrecer "Ver en panel ONG" solo a ella (antes se
-    // ofrecía a cualquier ONG y el panel daba 403; REVISION F16). Consulta aparte, para no sumar n.user_id
-    // al SELECT: fmt() esparce todas las columnas y lo expondría.
+    // ofrecía a cualquier ONG y el panel daba 403; REVISION F16). Consulta aparte: n.user_id no hace falta en
+    // la respuesta.
     const canManage = req.user?.role === 'ngo'
       && !!(await db.get('SELECT 1 AS ok FROM ngos WHERE id=$1 AND user_id=$2', [project.ngo_id, req.user.id]));
 
@@ -941,7 +958,7 @@ module.exports.fmt = fmt;
 router.get('/:id/kpis', async (req, res) => {
   try {
     const kpis = await db.all(
-      'SELECT * FROM kpis WHERE project_id=$1 ORDER BY created_at DESC',
+      `SELECT ${KPI_COLS} FROM kpis WHERE project_id=$1 ORDER BY created_at DESC`,
       [req.params.id]
     );
     res.json({ kpis });
@@ -968,7 +985,7 @@ router.post('/:id/kpis', requireAuth, requireRole('ngo'), async (req, res) => {
        tipo_valor, unidad?.trim() || null, fecha || null]
     );
 
-    const kpi = await db.get('SELECT * FROM kpis WHERE id=$1', [kpiId]);
+    const kpi = await db.get(`SELECT ${KPI_COLS} FROM kpis WHERE id=$1`, [kpiId]);
     res.status(201).json({ kpi });
   } catch (err) {
     console.error('POST /kpis error:', err);
@@ -995,7 +1012,7 @@ router.put('/:id/kpis/:kpiId', requireAuth, requireRole('ngo'), async (req, res)
     // Si el KPI no es de ESTE proyecto (o no existe) el UPDATE no toca nada: 404. Antes se releía por id
     // sin filtrar y se respondía 200 con el KPI de otra ONG (REVISION B18).
     if (upd.changes === 0) return res.status(404).json({ error: 'KPI no encontrado en este proyecto' });
-    const kpi = await db.get('SELECT * FROM kpis WHERE id=$1 AND project_id=$2', [req.params.kpiId, req.params.id]);
+    const kpi = await db.get(`SELECT ${KPI_COLS} FROM kpis WHERE id=$1 AND project_id=$2`, [req.params.kpiId, req.params.id]);
     res.json({ kpi });
   } catch (err) { res.status(500).json({ error: 'Error al actualizar KPI' }); }
 });

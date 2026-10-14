@@ -19,9 +19,13 @@ const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 const router = express.Router();
 
 // ── Helper para formatear Empresa (mismo criterio que fmtNgo en ngos.js) ──
+// Lista blanca (regla 8, REVISION B21): antes empezaba con `...e` y devolvía todas las columnas de empresas.
+// Un campo nuevo para el frontend se agrega acá Y en la interface Empresa de frontend/src/lib/api.ts.
 function fmtEmpresa(e) {
   return {
-    ...e,
+    id:          e.id,
+    user_id:     e.user_id,   // para "Enviar mensaje" (CompanyPublicProfile)
+    followers:   e.followers != null ? Number(e.followers) : 0,
     name:        e.nombre,
     logo:        e.foto_perfil,
     cover_image: e.banner,

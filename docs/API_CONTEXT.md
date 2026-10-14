@@ -260,8 +260,9 @@
 - **Respuesta 200:** `{ ngo }` (incluye `category` actualizada).
 
 ### `GET /api/ngos/:id/projects` — Público
-- **Query params:** `status` (default `active`).
-- **Respuesta 200:** `{ projects: Project[] }` de esa ONG.
+- **Query params:** `status` opcional (si no se manda, devuelve todos los estados).
+- **Respuesta 200:** `{ projects: Project[] }` de esa ONG, formateados con `fmt`. *(Hasta §86 devolvía las filas crudas, con los nombres de columna en español, aunque este doc decía `Project[]`; ninguna pantalla lo usa.)* Lo mismo vale para los `projects` de `GET /api/ngos/:id/dashboard`.
+- Como todas las respuestas de proyectos, ONGs y empresas: solo los campos de las listas blancas (`fmt`/`fmtNgo`/`fmtEmpresa`, `PROJECT_ANALYSIS.md §86`). Ya no salen las columnas en español ni `created_at` de ONG/empresa/catálogos.
 
 ### `GET /api/ngos/:id/dashboard` — Auth, role `ngo` (dueño)
 - **Respuesta 200:** agregados para el dashboard: total de proyectos, proyectos activos, total de inscripciones, inscripciones pendientes, etc. (No se llama una vez por el frontend para todo — `NGODashboard.tsx` complementa esto con requests individuales por proyecto, ver `FRONTEND_CONTEXT.md §15.5`.)

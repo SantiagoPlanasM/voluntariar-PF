@@ -6,10 +6,9 @@ const { requireAuth, optionalAuth, requireRole } = require('../middleware/auth')
 // justamente para esto) en vez de mantener una copia acá — la copia anterior
 // se había desincronizado y no traía latitude/longitude/modality.
 const { fmt: fmtProject } = require('./projects');
+const { fmtNgo } = require('./ngos');
 
 const router = express.Router();
-
-const parseJson = (val) => { try { return JSON.parse(val || '[]'); } catch { return []; } };
 
 // Alta/baja de un follow y su contador, en una transacción. `changeSql` es un
 // INSERT ... ON CONFLICT DO NOTHING o un DELETE: el contador solo se mueve si
@@ -23,18 +22,6 @@ const toggleFollow = (changeSql, params, counterSql, counterId) =>
     return changes === 1;
   });
 
-function fmtNgo(n) {
-  return {
-    ...n,
-    name:        n.nombre,
-    logo:        n.foto_perfil,
-    cover_image: n.banner,
-    description: n.descripcion,
-    mission:     n.mision,
-    location:    n.ubicacion,
-    category:    n.categoria_nombre || undefined,
-  };
-}
 
 // ── ONGs ──────────────────────────────────────────────────────────────────
 

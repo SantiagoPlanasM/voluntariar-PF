@@ -1,6 +1,6 @@
 # REVISION.md — Revisión de código de VoluntariAR (2026-10-13)
 
-> **Estado (2026-10-14):** este informe se escribió sin tocar el código; después se fueron arreglando ítems en commits separados. Los arreglados tienen ✅ y la sección de `PROJECT_ANALYSIS.md` donde está el detalle (§51–§85). Las correcciones a lo que decía este informe (B2 y B8 tenían menos impacto visible del indicado) están en esas secciones.
+> **Estado (2026-10-14):** este informe se escribió sin tocar el código; después se fueron arreglando ítems en commits separados. Los arreglados tienen ✅ y la sección de `PROJECT_ANALYSIS.md` donde está el detalle (§51–§86). Las correcciones a lo que decía este informe (B2 y B8 tenían menos impacto visible del indicado) están en esas secciones.
 
 **Base revisada:** commit `0d6663a` (`main`). **Método:** tres revisiones de solo lectura en paralelo (backend, frontend, tests+docs) y una verificación propia de los hallazgos de severidad alta. No se modificó ningún archivo del proyecto; este informe es lo único nuevo.
 
@@ -40,7 +40,7 @@ Los ids (B = backend, F = frontend, T = tests, D = docs) son los de cada revisi�
 | Baja ✅ §57 | B9 | bug | `COUNT`/`SUM` sin `Number()` en `/voluntarios/:id` y `/follows/feed` | verificado en Postgres |
 | Baja (B18 ✅ §56, B10 ✅ §74, B11 ✅ §74/§76, B12 ✅ §76, B13 ✅ §76, B14 ✅ §75) | B10–B14, B18 | bug | Validaciones de entrada que terminan en 500 en vez de 400 | probado |
 | Baja ✅ §77 | B15, B16 | bug | Carreras en follows y en la decisión de patrocinio | verificado en Postgres |
-| Baja (B17 ✅ §85) | B17, B19–B21 | mejora | Registro sin transacción, WebSocket, enumeración de emails, `SELECT *` público | por lectura |
+| Baja (B17 ✅ §85, B21 ✅ §86) | B17, B19–B21 | mejora | Registro sin transacción, WebSocket, enumeración de emails, `SELECT *` público | por lectura |
 | Baja (F8 ✅ §70, F10 ✅ §71, F11 ✅ §72, F14 ✅ §82, F16 ✅ §73) | F8, F10, F11, F14, F16 | bug/mejora | Inscripción rechazada se ve "Pendiente", reconexión WS infinita, etc. | por lectura |
 | Baja (F13 ✅ §80, F15 ✅ §83) | F13, F15 | mejora | Botones solo-ícono sin nombre; respuestas viejas (a confirmar) | lectura / a confirmar |
 | Baja (T2–T4 ✅ §84; D3, D4, D7 ✅ §78) | T2–T4, D3, D4, D7 | mejora | Tests con nombre que promete más, `setup` como test, docs menores | por lectura |
@@ -219,7 +219,7 @@ Los ids (B = backend, F = frontend, T = tests, D = docs) son los de cada revisi�
 |---|---|---|
 | `PUT /projects/:id` no parcial | **Sí** | `projects.js:784-796` pisa título, tipo y `status || 'active'`; además la respuesta arma roles/requisitos/categoría con lo que mandó el body (`:808-810`) aunque no los guarda. |
 | `GET /projects` sin paginación | **Sí** | `projects.js:62,146,194`: `limit` sin tope, sin desempate en `recent`/`rating`; `limit=abc` → `LIMIT NaN` (500 en Postgres, a confirmar). F6 es una consecuencia nueva. |
-| `fmt` compartido | **A medias** | El `fmt` de proyectos ya se importa (`follows.js:8`, `ngos.js:10`), pero `follows.js:14-25` tiene una **copia de `fmtNgo`**, `follows.js:12` un `parseJson` sin uso, y `ngos.js:224` devuelve filas sin `fmt`. |
+| `fmt` compartido | ✅ **Resuelto en §86** (era: a medias) | El `fmt` de proyectos ya se importa (`follows.js:8`, `ngos.js:10`), pero `follows.js:14-25` tiene una **copia de `fmtNgo`**, `follows.js:12` un `parseJson` sin uso, y `ngos.js:224` devuelve filas sin `fmt`. |
 | `ReviewModal` duplicado | **Sí** | `ReviewModal` en `MyParticipation.tsx:6,174`; `ReviewsModal` en `FeedPostCard.tsx:10,508`. |
 | `JWT_SECRET` con fallback | **Sí, en dos lugares** | `middleware/auth.js:4` **y `ws/index.js:19`** (copia nueva para la lista). En Render `render.yaml` usa `generateValue: true`. |
 | Otros conocidos | Siguen | `NGOEmpleados.tsx:31,47` con `fetch` directo (además no mira `res.ok`: un 403 se ve como "sin miembros"); rutas `/ngo/*` y `/company/*` sin guarda (un voluntario no ve datos ajenos, pero `/ngo/dashboard` le muestra un panel vacío); `OnboardingScreen` sin enrutar; sin rate limiting en auth. |

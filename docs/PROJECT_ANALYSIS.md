@@ -2225,3 +2225,24 @@ Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/
 ### ⚠️ NO verificado / visto y no tocado
 - **B20 (login que distingue "no hay cuenta" de "contraseña incorrecta")** sigue pendiente de tu decisión. Corregí el doc, que decía lo contrario, sin cambiar el comportamiento.
 - La interfaz no cambia: el 409 ya se mostraba en `AuthModal` como "Ya existe una cuenta con ese email". No lo miré en Chrome.
+
+## 86. Endpoints públicos devolvían columnas no elegidas — REVISION B21 (lista blanca, decisión del usuario)
+
+**Contexto:** test centinela (`public-columns.test.js`): agrega una columna "secreta" a cada tabla con datos públicos y recorre los 22 endpoints públicos. **Rojo: 11 la devolvían.** La causa principal: `fmt`, `fmtNgo` y `fmtEmpresa` empezaban con `...fila` (salían todas las columnas, también en endpoints autenticados). Además: catálogos con `SELECT *`, subconsultas del detalle de proyecto (`c.*`, `r.*`, KPIs `*`, mi inscripción `*`), y `/ngos/:id/projects` y el dashboard de ONG devolvían filas crudas. El usuario eligió la lista blanca completa.
+
+**Qué se hizo:** los tres formateadores son listas blancas (`fmt` deja pasar los extras que el feed agrega a la fila: `PROJECT_EXTRAS`). `fmtNgo` se exporta y `follows.js` lo importa (borrada su copia y un `parseJson` sin uso: deuda "fmt compartido", resuelta). Catálogos y subconsultas con columnas explícitas (`KPI_COLS`). `/ngos/:id/projects` y el dashboard pasan por `fmt` (ninguna pantalla los usa). Se mantienen `user_id` de ONG/empresa (botón "Enviar mensaje"). Salen de las respuestas: las columnas en español y `created_at` de ONG, empresa y catálogos (el frontend no los usa: auditado con grep).
+
+**Método para no romper la API:** foto de las claves de 24 endpoints (públicos y con los 3 roles) antes y después, y cada clave que desapareció buscada en el frontend. **Así apareció un error mío:** la primera versión dejaba al feed sin `ratings` (follows.js lo agrega antes de formatear) y `FeedPostCard` se quedaba sin reseñas; ningún test lo veía. Lo agregué a los extras y sumé tests de contrato ("sale todo lo que espera el frontend") para proyectos, feed, ONGs y empresas.
+
+### Verificación
+- **SQLite 385/385 y Postgres 387/387**, también con `TZ=America/Argentina/Cordoba`. Frontend 374/374 (sin cambios).
+- **Mutación (15, los dos motores):** volver a `...fila` en cada formateador, sacar `ratings`/los extras/`ngo_name`/`user_id`, `SELECT *` en catálogos, comentarios, calificaciones y KPIs, y `/ngos/:id/projects` crudo. Sobrevivió 1 ("comentarios `c.*`"): el test no tenía comentarios en `proj-1`; agregado, ahora muere. **0 sobrevivientes.**
+- **Chrome** (SQLite descartable): feed (reseñas de "Reciclaje Educativo" desde la tarjeta: 5.0, Juan Pérez), detalle de proyecto, perfil público de ONG y de empresa ("Mensaje" lleva a `/messages/user-ngo-1` y `/messages/user-comp-1`), Explorar (12 pines, recomendaciones) y perfil propio de la ONG; sin "undefined" ni "NaN".
+
+### Errores propios
+1. El feed sin `ratings` (arriba): lo atrapó la comparación de claves, no los tests.
+2. El test centinela decía insertar un comentario y no lo hacía (lo mostró la mutación).
+
+### ⚠️ NO verificado
+- Pantallas de empresa con sesión, panel de ONG con proyectos de otras ONGs, y móvil: no las recorrí en Chrome (tests de contrato + foto de claves).
+- Los demás `SELECT *` del backend en endpoints autenticados que devuelven datos propios (`/auth/me`, empleados, notificaciones, inscripciones) no se tocaron: no son públicos.

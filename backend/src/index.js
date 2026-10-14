@@ -49,21 +49,21 @@ const db = require('./db');
 
 app.get('/api/categorias', async (_, res) => {
   try {
-    const rows = await db.all('SELECT * FROM categorias ORDER BY nombre', []);
+    const rows = await db.all('SELECT id, nombre, descripcion, icono FROM categorias ORDER BY nombre', []);
     res.json({ categorias: rows });
   } catch { res.status(500).json({ error: 'Error al obtener categorías' }); }
 });
 
 app.get('/api/roles', async (_, res) => {
   try {
-    const rows = await db.all('SELECT * FROM roles ORDER BY nombre', []);
+    const rows = await db.all('SELECT id, nombre, descripcion FROM roles ORDER BY nombre', []);
     res.json({ roles: rows });
   } catch { res.status(500).json({ error: 'Error al obtener roles' }); }
 });
 
 app.get('/api/habilidades', async (_, res) => {
   try {
-    const rows = await db.all('SELECT * FROM habilidades ORDER BY nombre', []);
+    const rows = await db.all('SELECT id, nombre, descripcion FROM habilidades ORDER BY nombre', []);
     res.json({ habilidades: rows });
   } catch { res.status(500).json({ error: 'Error al obtener habilidades' }); }
 });

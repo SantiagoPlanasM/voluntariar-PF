@@ -181,6 +181,7 @@ Como el esquema de base de datos está en español (`titulo`, `descripcion`, `ub
 - `projects.js::fmt(p)` — mapea proyecto DB → proyecto API, además parsea `roles_json`/`requisitos_json` (strings JSON) a arrays reales con `parseJson()`. Incluye `latitude`/`longitude`/`modality` (agregados 2026-09). **Exportado** (`module.exports.fmt = fmt`) para que otros routers que devuelven proyectos lo reusen en vez de copiarlo — lo importan `follows.js` y `ngos.js` (ver §10, ítem sobre duplicación ya corregida dos veces).
 - `ngos.js::fmtNgo(n)` — mapea ONG DB → ONG API (`nombre→name`, `foto_perfil→logo`, `banner→cover_image`, `descripcion→description`, `mision→mission`, `ubicacion→location`, `categoria_nombre→category`).
 - `empresas.js::fmtEmpresa(e)` — mismo patrón para Empresa (`nombre→name`, `industria→industry`, `categoria_nombre→category`, etc.).
+- **Los tres son listas blancas** (`PROJECT_ANALYSIS.md §86`): devuelven solo los campos que nombran, nunca `...fila`. Antes esparcían la fila entera y cualquier columna nueva salía sola por la API. `fmt` deja pasar además los campos que el feed agrega a la fila antes de formatear (`PROJECT_EXTRAS`: `ratings`, `recent_comments`, `comments_count`, `my_enrollment_status`, `follow_source`, `follow_label`). `fmtNgo` se exporta desde `ngos.js` y lo importa `follows.js` (tenía su propia copia). `test/integration/public-columns.test.js` controla las dos mitades: que no salga una columna no elegida y que sí salga todo lo que espera el frontend.
 
 ## 7. Helpers y validaciones
 
@@ -224,7 +225,7 @@ No existe una carpeta `src/helpers/` ni `src/utils/` — todo helper vive inline
 
 Cualquier campo nuevo que se agregue a una tabla debe:
 1. Agregarse al `CREATE TABLE` en `migrate.js`.
-2. Agregarse (si aplica) al `fmt()`/`fmtNgo()` correspondiente para exponerse en inglés.
+2. Agregarse (si aplica) al `fmt()`/`fmtNgo()`/`fmtEmpresa()` correspondiente para exponerse en inglés. **Si no se agrega ahí, no sale por la API** (son listas blancas, §86): es a propósito.
 3. Agregarse al `interface` correspondiente en `frontend/src/lib/api.ts`.
 
 **Excepción a tener en cuenta:** en `POST /api/projects` y `PUT /api/projects/:id`, el **body de entrada** ya viaja en inglés (`title`, `location`, `type`, `volunteers_needed`, etc.) — la traducción español↔inglés en este endpoint ocurre únicamente en la *respuesta* (`fmt()`), no en la *lectura* del body. Esto es distinto al resto del backend, donde la convención "DB en español" se refleja también en cómo se nombran las variables internas. Es la fuente del bug B5 (`PROJECT_ANALYSIS.md §13`): el código de `validateProject`/`POST`/`PUT` había sido escrito en algún momento leyendo `cupos` (español) del body en vez de `volunteers_needed` (inglés, el nombre real que envía el frontend), lo que impedía crear o editar cualquier proyecto. Al tocar este endpoint, verificar siempre contra `frontend/src/app/components/CreateVoluntariado.tsx` qué nombres de campo realmente viajan en el body.

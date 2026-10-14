@@ -16,9 +16,15 @@ const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 const router = express.Router();
 
 // ── Helper para formatear ONG ─────────────────────────────────────────────
+// Lista blanca (regla 8, REVISION B21): antes empezaba con `...n` y devolvía todas las columnas de ngos.
+// Es el único formateador de ONG: routes/follows.js lo importa (tenía su propia copia). Un campo nuevo
+// para el frontend se agrega acá Y en la interface NGO de frontend/src/lib/api.ts.
 function fmtNgo(n) {
   return {
-    ...n,
+    id:          n.id,
+    user_id:     n.user_id,   // para "Enviar mensaje" (NGOPublicProfile): es el id de usuario, no un dato sensible
+    followers:   n.followers != null ? Number(n.followers) : 0,
+    founded:     n.founded,
     // Compatibilidad con el frontend que espera estos nombres
     name:        n.nombre,
     logo:        n.foto_perfil,
@@ -245,7 +251,8 @@ router.get('/:id/projects', async (req, res) => {
     sql += ' ORDER BY p.created_at DESC';
 
     const projects = await db.all(sql, params);
-    res.json({ projects });
+    // Antes devolvía las filas crudas (solo con nombres de columna en español). Ninguna pantalla lo usa hoy.
+    res.json({ projects: projects.map(fmtProject) });
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener proyectos de ONG' });
   }
@@ -300,7 +307,7 @@ router.get('/:id/dashboard', requireAuth, requireRole('ngo'), async (req, res) =
       pending_enrollments: pendingEnrollments.length,
     };
 
-    res.json({ ngo: fmtNgo(ngo), projects, pending_enrollments: pendingEnrollments, stats });
+    res.json({ ngo: fmtNgo(ngo), projects: projects.map(fmtProject), pending_enrollments: pendingEnrollments, stats });
   } catch (err) {
     console.error('GET /ngos/:id/dashboard error:', err);
     res.status(500).json({ error: 'Error al obtener dashboard' });
@@ -472,3 +479,5 @@ router.patch('/me/patrocinios/:empresaId/:projectId', requireAuth, requireRole('
 });
 
 module.exports = router;
+// Compartido con routes/follows.js (no copiarlo: regla 4).
+module.exports.fmtNgo = fmtNgo;
