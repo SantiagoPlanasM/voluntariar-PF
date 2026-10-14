@@ -1827,3 +1827,20 @@ Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/
 
 ### ⚠️ NO verificado
 - **En el navegador:** un 4001 solo pasa si el token vence con la sesión abierta. Al cargar con un token inválido, `AuthContext` cierra la sesión antes (401) y el socket no se abre. No lo reproduje en Chrome.
+
+## 72. Notificaciones con 3 horas de desfase (copia propia de `timeAgo`) — REVISION F11
+
+**Contexto:** `NotificationsScreen.tsx` tenía su propia copia de `timeAgo` con `new Date(fecha)`. El formato de SQLite (`"YYYY-MM-DD HH:MM:SS"`, UTC sin zona) se leía como hora **local**. Comprobado con la expresión vieja en la TZ de Córdoba: una notificación de hace 5 minutos daba **−175 minutos** (3 h "en el futuro") y se mostraba "ahora". Pasa solo con SQLite (dev): Postgres manda ISO con `Z`, que la copia sí leía bien.
+
+**Arreglo:** la pantalla usa el `timeAgo` compartido de `lib/format.ts` (pasa por `parseBackendDate`, §46/§53); se borró la copia (regla 3). **Cambio visible chico:** el texto pasa de "hace 5m" / "hace 3h" / "hace 2d" al formato del resto de la app ("5 min" / "3 h" / "2 d", y la fecha después de una semana).
+
+### Tests (nuevos: 2)
+`NotificationsTime.test.tsx` (TZ de Córdoba y "ahora" fijos): formato SQLite de hace 5 minutos → "5 min"; ISO con `Z` de hace 3 horas → "3 h".
+
+### Verificación
+- **Rojo → verde:** fallaban los dos. El de SQLite por el bug ("ahora"). El de ISO, solo por el formato viejo ("hace 3h").
+- **Mutación:** una copia local con **el mismo formato** que la compartida pero parseando con `new Date()` → **detectada**. El test agarra el error de parseo, no solo el cambio de texto.
+- **TypeScript:** exit 0. **Suite del frontend:** **312/312**.
+
+### ⚠️ NO verificado
+- **En el navegador:** el bug es solo de SQLite (dev) y mis verificaciones corren contra Postgres. Lo cubre el test.

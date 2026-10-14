@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Bell, CheckCheck, Loader2, ArrowLeft, CheckCircle, XCircle, UserPlus, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { api, AppNotification } from '../../lib/api';
-import { userMessage } from '../../lib/format';
+import { timeAgo, userMessage } from '../../lib/format';
 import { InlineError } from './LoadError';
 import { useAuth } from '../../lib/AuthContext';
 
@@ -14,16 +14,8 @@ const TYPE_ICON = {
   default:             { icon: Bell,        color: 'text-gray-500 bg-gray-50 border-gray-100' },
 };
 
-function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins  = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days  = Math.floor(diff / 86400000);
-  if (mins < 1)   return 'ahora';
-  if (mins < 60)  return `hace ${mins}m`;
-  if (hours < 24) return `hace ${hours}h`;
-  return `hace ${days}d`;
-}
+// "Hace cuánto": el timeAgo compartido (lib/format.ts). Antes había una copia acá con `new Date(fecha)`, que
+// leía el formato de SQLite (UTC sin zona) como hora local: 3 h de desfase en Córdoba (REVISION F11).
 
 export function NotificationsScreen() {
   const { user } = useAuth();
