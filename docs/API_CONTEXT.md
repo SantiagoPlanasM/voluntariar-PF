@@ -460,7 +460,7 @@ Chat 1 a 1 básico. El historial y el envío tienen doble vía: REST (siempre di
 - **Respuesta 200:** `{ conversations: [{ user: {id,name,avatar,role}, last_message, last_at, last_from_me, unread }] }` — una fila por cada persona con la que el usuario logueado tiene al menos un mensaje, ordenadas por el más reciente primero.
 
 ### `GET /api/messages/thread/:userId` — Auth
-- **Respuesta 200:** `{ messages: [{id,sender_id,receiver_id,body,read,created_at}], other: {id,name,avatar,role} }` — hasta los últimos 300 mensajes con esa persona, orden cronológico ascendente.
+- **Respuesta 200:** `{ messages: [{id,sender_id,receiver_id,body,read,created_at}], other: {id,name,avatar,role} }` — hasta los últimos 300 mensajes con esa persona, orden cronológico ascendente (subconsulta `ORDER BY created_at DESC, id DESC LIMIT 300` y después ascendente; hasta `PROJECT_ANALYSIS.md §61` devolvía los 300 **más viejos**). No hay paginación: los anteriores a esos 300 no se pueden ver.
 - **Errores:** `404` si `userId` no existe.
 
 ### `POST /api/messages` — Auth

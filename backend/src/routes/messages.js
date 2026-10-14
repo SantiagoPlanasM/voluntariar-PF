@@ -127,12 +127,19 @@ router.get('/thread/:userId', requireAuth, async (req, res) => {
     const other = await db.get('SELECT id, name, avatar, role FROM users WHERE id=$1', [otherId]);
     if (!other) return res.status(404).json({ error: 'Usuario no encontrado' });
 
+    // Los 300 MÁS NUEVOS (subconsulta DESC + LIMIT) y después en orden cronológico. Antes era
+    // `ORDER BY created_at ASC LIMIT 300`: los 300 más viejos, así que en una conversación larga nunca
+    // se veían los nuevos (REVISION B4). `id` desempata: en SQLite created_at tiene resolución de 1 s;
+    // no es cronológico, pero hace que el corte y el orden sean siempre los mismos.
     const messages = await db.all(
-      `SELECT id, sender_id, receiver_id, body, read, created_at
-       FROM messages
-       WHERE (sender_id=$1 AND receiver_id=$2) OR (sender_id=$2 AND receiver_id=$1)
-       ORDER BY created_at ASC
-       LIMIT 300`,
+      `SELECT * FROM (
+         SELECT id, sender_id, receiver_id, body, read, created_at
+         FROM messages
+         WHERE (sender_id=$1 AND receiver_id=$2) OR (sender_id=$2 AND receiver_id=$1)
+         ORDER BY created_at DESC, id DESC
+         LIMIT 300
+       ) AS latest
+       ORDER BY created_at ASC, id ASC`,
       [req.user.id, otherId]
     );
     res.json({ messages, other });

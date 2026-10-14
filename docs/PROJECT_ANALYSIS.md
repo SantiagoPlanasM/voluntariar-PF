@@ -1554,3 +1554,25 @@ Códigos incorrectos (eran errores del cliente) y mensajes técnicos en inglés 
 ### ⚠️ NO verificado
 - El 403 de CORS en el navegador real: el test lo prueba con `fetch` desde Node mandando el header `Origin`. En un navegador, el bloqueo lo hace también el propio navegador, y lo que muestre depende de él.
 - `ws/index.js:86` sigue reenviando `err.message` interno por WebSocket (REVISION B19, aparte).
+
+## 61. El chat cargaba los primeros 300 mensajes, no los últimos — REVISION B4
+
+**Contexto:** `GET /api/messages/thread/:userId` hacía `ORDER BY created_at ASC LIMIT 300`, o sea, los 300 **más viejos**. El comentario de la ruta y `API_CONTEXT.md` prometían los últimos. En una conversación de más de 300 mensajes, al reabrirla nunca se veían los nuevos.
+
+**Arreglo** (`routes/messages.js`): subconsulta con los 300 más nuevos (`ORDER BY created_at DESC, id DESC LIMIT 300`) y después orden cronológico (`ORDER BY created_at ASC, id ASC`). `id` desempata cuando `created_at` empata (en SQLite tiene resolución de 1 s). No es cronológico, pero hace que el corte y el orden sean siempre los mismos. Misma consulta en los dos motores.
+
+### Tests (nuevos: 2, en los dos motores)
+`test/integration/messages-thread-latest.test.js`: 301 mensajes María ↔ Juan insertados con un `created_at` distinto por segundo. Por la API empatarían casi todos en SQLite y el orden sería arbitrario. Tiene que devolver exactamente `m1…m300` en orden; `m0`, el más viejo, queda afuera. Más una conversación corta, insertada en desorden, que tiene que venir completa y ordenada (control).
+
+### Verificación
+- **Rojo → verde:** en los dos motores, el primer test daba `actual: 'm0'` (el más viejo primero); el control pasaba. Con el arreglo pasan los dos, junto con `messages-conversations.test.js`.
+- **Mutación (6 mutantes, los dos motores, script descartable):** volver a ASC adentro, DESC afuera, `LIMIT 299` y `LIMIT 301`, sin orden externo: **5 detectados.** Sobrevive "sin desempate por `id`". **No es equivalente**, pero los datos del test no tienen empates. Con empates no existe un orden cronológico "correcto"; el desempate solo hace que la respuesta sea estable, y un test de eso sería frágil (sin el desempate, la base podría devolver por casualidad el mismo orden).
+- **Suites completas:** SQLite **319/319** y Postgres **321/321**, las dos también con `TZ=America/Argentina/Cordoba`.
+- **En el navegador (Claude in Chrome), contra Postgres** (schema descartable `verif_b4` con 301 mensajes insertados con `generate_series`, borrado al terminar): como María, abrí el chat con Juan. Abajo, el último es "Mensaje número 300", con su hora bien (también confirma §53); arriba, el primero es "Mensaje número 1". El 0 quedó afuera.
+
+### Errores míos
+Ninguno detectado.
+
+### ⚠️ NO verificado / fuera de alcance
+- **No hay paginación:** los mensajes anteriores a los últimos 300 no se pueden ver desde la interfaz. Hace falta un "cargar anteriores" (cursor por `created_at`/`id`). Queda como mejora, no lo hice.
+- Mensajes enviados en el mismo segundo en SQLite (dev): su orden relativo lo decide el `id` (aleatorio), no el orden real de envío. En Postgres (microsegundos) casi no pasa.
