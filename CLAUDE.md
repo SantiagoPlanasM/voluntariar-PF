@@ -15,7 +15,7 @@ Respondé en español rioplatense (voseo).
 - Si un pedido choca con AI_RULES, avisá antes de seguir.
 
 ## Verificación (todo tiene que dar verde)
-- Backend: `npm test` y `npm run test:pg`. Hoy: **288** en SQLite y **290** en Postgres (+2 solo de Postgres).
+- Backend: `npm test` y `npm run test:pg`. Hoy: **291** en SQLite y **293** en Postgres (+2 solo de Postgres).
   `test:pg` necesita un Postgres en `localhost:5432` (ver `TEST_PG_*` en `test/integration/helpers.js`); sirve
   `docker run --rm -d -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=voluntariar_test postgres:16`.
 - Frontend: `npm test`. Hoy: **253** tests.
@@ -35,7 +35,7 @@ Respondé en español rioplatense (voseo).
 - No tenés acceso real a Cloudinary ni a Resend; los tests usan dobles y nunca suben nada.
 
 ## Trampas ya resueltas (no reintroducir)
-- `SUM`/`COUNT`/`AVG` en Postgres llegan como string → normalizar con `Number()`. Los tests SQLite no lo ven.
+- `SUM`/`COUNT`/`AVG` en Postgres llegan como string → normalizar con `Number(x) || 0` (no `x || 0`: `'0'` es truthy). Los tests SQLite no lo ven.
 - Fechas: string en SQLite, `Date` en Postgres → nada de métodos de string; usar `toMillis()`
   (backend, `src/lib/time.js`) y `parseBackendDate` (frontend: la usan `timeAgo` y `formatTime`; acepta ISO con zona y formato viejo).
 - Nunca releer "el último por `created_at`" tras un INSERT: generar el id con `crypto.randomUUID()`,

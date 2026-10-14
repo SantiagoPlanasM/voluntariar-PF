@@ -146,14 +146,15 @@ router.get('/:userId', async (req, res) => {
         banner: user.banner,
         descripcion: user.descripcion,
         followers: user.followers,
-        following_count: followingCount?.count || 0,
+        following_count: Number(followingCount?.count) || 0,
         created_at: user.created_at,
       },
       habilidades,
       stats: {
-        total_enrollments: enrollmentStats?.total || 0,
-        approved_enrollments: enrollmentStats?.approved || 0,
-        total_horas: enrollmentStats?.total_horas || 0,
+        // Number(): en Postgres COUNT/SUM llegan como string, y '0' || 0 sigue siendo '0' (REVISION B9).
+        total_enrollments: Number(enrollmentStats?.total) || 0,
+        approved_enrollments: Number(enrollmentStats?.approved) || 0,
+        total_horas: Number(enrollmentStats?.total_horas) || 0,
       },
       participaciones,
     });

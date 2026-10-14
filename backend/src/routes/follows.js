@@ -415,7 +415,7 @@ router.get('/feed', requireAuth, requireRole('volunteer'), async (req, res) => {
 
     res.json({
       projects: rows.map(fmtProject),
-      total: countRow?.total || 0,
+      total: Number(countRow?.total) || 0, // COUNT llega como string en Postgres (REVISION B9)
     });
   } catch (err) {
     console.error('GET /follows/feed error:', err);

@@ -1423,3 +1423,26 @@ Ninguno en el código. El primer pase de los tests no cubría las pendientes que
 - **En el navegador:** no lo probé. El camino feliz no cambió; los errores ya se muestran en `NGOKPIs.tsx` (el formulario muestra el mensaje y el borrado hace `alert`). Borrar exige un `confirm()`, que bloquea la extensión de Chrome. **Cambio de comportamiento:** borrar un KPI que ya no existe (p. ej. borrado desde otra pestaña) antes desaparecía en silencio y ahora muestra "KPI no encontrado en este proyecto".
 - El PUT de KPI sigue sin ser parcial y, sin `nombre`, probablemente da 500 (D6, a confirmar). No lo toqué.
 - `POST /projects/:id/ratings` sobre un proyecto inexistente: no lo revisé.
+
+## 57. Agregados sin `Number()` en el perfil de voluntario y el feed de seguidos — REVISION B9
+
+**Contexto:** en Postgres `COUNT`/`SUM` llegan como string (bigint/numeric) y en SQLite como número (§33, `AI_RULES` regla 13). Quedaban dos endpoints sin normalizar: `GET /api/voluntarios/:userId` (`stats.total_enrollments`, `stats.approved_enrollments`, `stats.total_horas` y `volunteer.following_count`) y `GET /api/follows/feed` (`total`). Usaban `x || 0`, que no arregla nada: `'3' || 0` es `'3'`, y **`'0' || 0` también es `'0'`** (un string no vacío es truthy).
+
+**Barrido previo:** revisé todos los `COUNT`/`SUM`/`AVG` del backend. El resto ya se normaliza (`num()` en `empresas.js`; `parseInt`/`parseFloat` en las stats de `ngos.js`; `Number()` en `posts.js`, en `fmt` de proyectos y en el `ratingByProject` de recomendados). Solo quedaban estos dos.
+
+**Arreglo:** `Number(x) || 0` en los 5 campos (como `num()` de `empresas.js`). `CLAUDE.md` ahora aclara por qué `x || 0` no alcanza.
+
+### Tests (nuevos: 3, en los dos motores)
+`test/integration/aggregates-are-numbers.test.js`, con el seed: perfil de María con valores exactos (`{ total_enrollments: 3, approved_enrollments: 2, total_horas: 2.5 }`, `following_count: 2`), perfil de Lucía sin inscripciones ni seguidos (los ceros tienen que ser `0`, no `'0'`) y `total` del feed después de seguir a ngo-1 (`3`, igual a la cantidad de proyectos devueltos).
+
+### Verificación
+- **Rojo → verde:** en Postgres fallaban los 3 (`'3'`, `'2'`, `'0'`); con el arreglo pasan. En SQLite pasaban antes y después.
+- **Mutación (5 mutantes, Postgres, script descartable):** sacar cada `Number()` de a uno. **4 detectados.** Sobrevive `Number(total_horas)`, **equivalente hoy**: `horas_realizadas` es REAL, `SUM(real)` devuelve `real` y `pg` ya lo entrega como número (en el rojo llegaba `2.5` bien). Lo dejé por consistencia y por si la columna pasa a NUMERIC.
+- **Suites completas:** SQLite **291/291** y Postgres **293/293**, las dos también con `TZ=America/Argentina/Cordoba`.
+- **Sin navegador, a propósito:** `VolunteerPublicProfile.tsx` solo muestra estos valores (no hace cuentas con ellos) y `"3"` se ve igual que `3`. No había efecto visible: era el contrato de tipos de `api.ts` (`number`), que en Postgres no se cumplía.
+
+### Errores míos
+1. El primer test suponía que María no seguía a nadie y que Lucía no tenía seguidos. El seed tiene María → Juan y Lucía → María, así que el primer `following_count: 1` "pasaba" por el seed y no por mi follow. Lo corregí antes del arreglo: María sigue además a Lucía (espero 2) y el caso de ceros borra primero los seguidos e inscripciones de Lucía.
+
+### ⚠️ NO verificado
+Nada pendiente de este cambio.
