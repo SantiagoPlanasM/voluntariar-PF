@@ -17,6 +17,22 @@ export function describeLoadError(err: unknown, notFound: string): { message: st
   return { message: 'No pudimos conectarnos con el servidor. Revisá tu conexión.', retry: true };
 }
 
+/** Error de carga DENTRO de una pantalla (un listado, una sección de un panel), con "Reintentar". Antes
+ *  esos errores se tragaban y se mostraba el estado vacío ("Sin notificaciones", "Todavía no hay
+ *  patrocinios"), como si no hubiera datos (REVISION F9). */
+export function InlineError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 text-center py-10 px-4">
+      <AlertCircle className="w-7 h-7 text-red-400 mx-auto mb-2" />
+      <p className="text-sm text-gray-600 mb-4">{message}</p>
+      <button onClick={onRetry}
+        className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors">
+        <RefreshCw className="w-3.5 h-3.5" /> Reintentar
+      </button>
+    </div>
+  );
+}
+
 interface Props {
   message: string;
   onRetry?: () => void;

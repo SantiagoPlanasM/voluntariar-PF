@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Check, X as XIcon, Handshake } from 'lucide-react';
 import { api, Patrocinio } from '../../lib/api';
+import { userMessage } from '../../lib/format';
+import { InlineError } from './LoadError';
 
 const ESTADO_BADGE: Record<Patrocinio['estado'], string> = {
   propuesto: 'bg-amber-50 text-amber-700',
@@ -15,21 +17,26 @@ export function NGOPatrocinios() {
   const [patrocinios, setPatrocinios] = useState<Patrocinio[]>([]);
   const [loading, setLoading] = useState(true);
   const [decidingKey, setDecidingKey] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => { load(); }, []);
 
   const load = async () => {
     setLoading(true);
+    setLoadError('');
     try { const { patrocinios: p } = await api.ngos.patrocinios.list(); setPatrocinios(p); }
-    catch { /* la lista simplemente queda vacía */ }
+    // Antes se tragaba y se veía "Todavía no recibiste propuestas" (REVISION F9).
+    catch (e) { setLoadError(userMessage(e, 'No pudimos cargar las propuestas. Revisá tu conexión.')); }
     finally { setLoading(false); }
   };
 
   const decide = async (empresaId: string, projectId: string, estado: 'aceptado' | 'rechazado') => {
     const key = `${empresaId}-${projectId}`;
     setDecidingKey(key);
+    setActionError('');
     try { await api.ngos.patrocinios.decide(empresaId, projectId, estado); await load(); }
-    catch { /* si falla, el usuario puede reintentar desde la lista */ }
+    catch (e) { setActionError(userMessage(e, 'No se pudo guardar tu decisión. Revisá tu conexión y probá de nuevo.')); }
     finally { setDecidingKey(null); }
   };
 
@@ -49,7 +56,11 @@ export function NGOPatrocinios() {
         <h1 className="text-xl font-black text-gray-900">Propuestas de patrocinio</h1>
       </div>
 
-      {patrocinios.length === 0 ? (
+      {actionError && <p role="alert" className="mb-4 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{actionError}</p>}
+
+      {loadError ? (
+        <InlineError message={loadError} onRetry={load} />
+      ) : patrocinios.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm text-center py-12">
           <p className="text-gray-400 text-sm">Todavía no recibiste propuestas de patrocinio.</p>
         </div>

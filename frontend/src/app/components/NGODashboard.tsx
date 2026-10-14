@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { Plus, Search, Users, Sprout, ChevronRight, CheckCircle, Clock, XCircle, Loader2, Camera } from 'lucide-react';
-import { api, Project, EnrollmentWithVolunteer, NGO, NGOStats } from '../../lib/api';
+import { api, ApiError, Project, EnrollmentWithVolunteer, NGO, NGOStats } from '../../lib/api';
+import { userMessage } from '../../lib/format';
+import { InlineError } from './LoadError';
 import { useAuth } from '../../lib/AuthContext';
 
 const safeNum = (v: any, f=0) => { const n=parseFloat(v); return isNaN(n)?f:n; };
@@ -17,17 +19,22 @@ export function NGODashboard() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch]   = useState('');
   const [processing, setProcessing] = useState<string|null>(null);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => { load(); }, []);
 
   const load = async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const { ngo: n, projects: p, stats: s, pending_enrollments } = await api.ngos.me();
       setNgo(n); setProjects(p); setStats(s);
       setPending(pending_enrollments);
-    } catch (e: any) {
-      if (e.message?.includes('Token')||e.message?.includes('autenticado')) navigate('/');
+    } catch (e) {
+      // Sesión vencida → al inicio (antes se buscaba "Token" en el texto del mensaje). Cualquier otro error
+      // se muestra: antes se tragaba y el panel parecía el de una ONG sin proyectos (REVISION F9).
+      if (e instanceof ApiError && e.status === 401) navigate('/');
+      else setLoadError(userMessage(e, 'No pudimos cargar tu panel. Revisá tu conexión.'));
     } finally { setLoading(false); }
   };
 
@@ -45,6 +52,7 @@ export function NGODashboard() {
   );
 
   if (loading) return <div className="flex items-center justify-center h-screen"><Loader2 className="w-8 h-8 animate-spin text-blue-600"/></div>;
+  if (loadError) return <div className="p-4 md:p-8 max-w-3xl mx-auto"><InlineError message={loadError} onRetry={load} /></div>;
 
   return (
     <div className="min-h-screen bg-gray-50">

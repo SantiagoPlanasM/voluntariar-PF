@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Bell, CheckCheck, Loader2, ArrowLeft, CheckCircle, XCircle, UserPlus, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { api, AppNotification } from '../../lib/api';
+import { userMessage } from '../../lib/format';
+import { InlineError } from './LoadError';
 import { useAuth } from '../../lib/AuthContext';
 
 const TYPE_ICON = {
@@ -29,20 +31,24 @@ export function NotificationsScreen() {
   const [notifs, setNotifs]   = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [marking, setMarking] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => { load(); }, []);
 
   const load = async () => {
     setLoading(true);
+    setLoadError('');
     try { setNotifs((await api.notifications.list()).notifications); }
-    catch { setNotifs([]); }
+    catch (e) { setNotifs([]); setLoadError(userMessage(e, 'No pudimos cargar tus notificaciones. Revisá tu conexión.')); } // antes: "Sin notificaciones" (F9)
     finally { setLoading(false); }
   };
 
   const markAll = async () => {
     setMarking(true);
+    setActionError('');
     try { await api.notifications.markAllRead(); load(); }
-    catch {}
+    catch (e) { setActionError(userMessage(e, 'No pudimos marcar las notificaciones como leídas. Revisá tu conexión.')); }
     finally { setMarking(false); }
   };
 
@@ -79,10 +85,13 @@ export function NotificationsScreen() {
       </header>
 
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-2">
+        {actionError && <p role="alert" className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{actionError}</p>}
         {loading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
           </div>
+        ) : loadError ? (
+          <InlineError message={loadError} onRetry={load} />
         ) : notifs.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
             <Bell className="w-10 h-10 text-gray-200 mx-auto mb-3" />

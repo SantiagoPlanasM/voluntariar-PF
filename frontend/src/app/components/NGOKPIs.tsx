@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, Plus, Trash2, Edit2, X, Save, Loader2, BarChart2, TrendingUp } from 'lucide-react';
 import { api, KPI } from '../../lib/api';
-import { formatDateOnly } from '../../lib/format';
+import { formatDateOnly, userMessage } from '../../lib/format';
+import { InlineError } from './LoadError';
 
 const TIPO_COLORS: Record<string, string> = {
   numero:     'bg-blue-50 text-blue-700',
@@ -32,6 +33,7 @@ export function NGOKPIs() {
   const [saving, setSaving]   = useState(false);
   const [err, setErr]         = useState('');
   const [projectTitle, setProjectTitle] = useState('');
+  const [loadError, setLoadError] = useState('');
 
   const emptyForm = { nombre: '', descripcion: '', valor: '', tipo_valor: 'numero', unidad: '', fecha: '' };
   const [form, setForm] = useState(emptyForm);
@@ -44,10 +46,11 @@ export function NGOKPIs() {
 
   const load = async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const { kpis } = await api.projects.kpis.list(projectId!);
       setKpis(kpis || []);
-    } catch { setKpis([]); }
+    } catch (e) { setKpis([]); setLoadError(userMessage(e, 'No pudimos cargar los KPIs. Revisá tu conexión.')); } // antes: "Sin KPIs todavía" (F9)
     finally { setLoading(false); }
   };
 
@@ -210,6 +213,8 @@ export function NGOKPIs() {
           <div className="flex justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
           </div>
+        ) : loadError ? (
+          <InlineError message={loadError} onRetry={load} />
         ) : kpis.length === 0 ? (
           <div className="text-center py-14 bg-white rounded-2xl border border-gray-100">
             <BarChart2 className="w-10 h-10 text-gray-200 mx-auto mb-3" />

@@ -3,6 +3,8 @@ import { LogOut, Edit2, Loader2, Save, X, Sprout, Send, Trash2 } from 'lucide-re
 import { useNavigate } from 'react-router';
 import { api, Empresa, Patrocinio, Project } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
+import { userMessage } from '../../lib/format';
+import { InlineError } from './LoadError';
 
 const CATEGORIES = ['Medio Ambiente','Educación','Salud','Animales','Alimentación','Tecnología','Arte y Cultura','Deportes'];
 
@@ -26,6 +28,8 @@ export function CompanyOwnProfile() {
   const [form, setForm] = useState({ name: '', description: '', mission: '', location: '', industry: '', category: '' });
 
   const [patrocinios, setPatrocinios] = useState<Patrocinio[]>([]);
+  const [patrociniosError, setPatrociniosError] = useState('');
+  const [withdrawError, setWithdrawError] = useState('');
   const [activeProjects, setActiveProjects] = useState<Project[]>([]);
   const [showPropose, setShowPropose] = useState(false);
   const [proposeProjectId, setProposeProjectId] = useState('');
@@ -36,6 +40,7 @@ export function CompanyOwnProfile() {
   useEffect(() => { load(); loadPatrocinios(); }, []);
 
   const loadPatrocinios = async () => {
+    setPatrociniosError('');
     try {
       const [{ patrocinios: p }, { projects }] = await Promise.all([
         api.empresas.patrocinios.list(),
@@ -45,7 +50,10 @@ export function CompanyOwnProfile() {
       // Ofrecer para proponer solo proyectos sin propuesta vigente (propuesta o aceptada)
       const yaPropuestos = new Set(p.filter(x => x.estado !== 'rechazado').map(x => x.project_id));
       setActiveProjects(projects.filter(pr => !yaPropuestos.has(pr.id)));
-    } catch { /* la sección de patrocinios simplemente queda vacía */ }
+    } catch (e) {
+      // Antes se tragaba y se veía "Todavía no hay patrocinios" (REVISION F9).
+      setPatrociniosError(userMessage(e, 'No pudimos cargar tus patrocinios. Revisá tu conexión.'));
+    }
   };
 
   const handlePropose = async () => {
@@ -61,8 +69,9 @@ export function CompanyOwnProfile() {
 
   const handleWithdraw = async (projectId: string) => {
     if (!window.confirm('¿Retirar esta propuesta de patrocinio?')) return;
+    setWithdrawError('');
     try { await api.empresas.patrocinios.withdraw(projectId); loadPatrocinios(); }
-    catch { /* si falla, el usuario puede reintentar */ }
+    catch (e) { setWithdrawError(userMessage(e, 'No se pudo retirar la propuesta. Revisá tu conexión y probá de nuevo.')); }
   };
 
   const load = async () => {
@@ -243,7 +252,10 @@ export function CompanyOwnProfile() {
                 </div>
               )}
 
-              {patrocinios.length === 0 ? (
+              {withdrawError && <p role="alert" className="mx-4 mt-3 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{withdrawError}</p>}
+              {patrociniosError ? (
+                <div className="p-4"><InlineError message={patrociniosError} onRetry={loadPatrocinios} /></div>
+              ) : patrocinios.length === 0 ? (
                 <div className="text-center py-8 px-4">
                   <Sprout className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                   <p className="text-gray-400 text-sm">Todavía no hay patrocinios</p>

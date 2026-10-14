@@ -1662,3 +1662,34 @@ Ninguno detectado en este cambio.
 - "Volver" con historial real en el navegador: lo cubre el test (con `history.state.idx`); en Chrome probé solo el caso sin historial.
 - Que React Router siga guardando `idx` en `history.state` en futuras versiones: es un detalle interno suyo. Si cambia, se vería "Ir al inicio" siempre (no se rompe nada).
 - F9 (errores tragados en listados y paneles) va en el próximo commit.
+
+## 65. Errores tragados en silencio — REVISION F9
+
+**Contexto:** seis lugares descartaban el error:
+- **Cargas** que, si fallaban, mostraban el estado vacío como si no hubiera datos: `NGOPatrocinios` ("Todavía no recibiste propuestas"), `NGOKPIs` ("Sin KPIs todavía"), `NotificationsScreen` ("Sin notificaciones"), la sección de patrocinios de `CompanyOwnProfile` ("Todavía no hay patrocinios") y `NGODashboard` (un panel sin proyectos, salvo que el mensaje contuviera "Token").
+- **Acciones** que fallaban sin decir nada: decidir un patrocinio, retirar una propuesta y marcar las notificaciones como leídas.
+
+**Arreglo:**
+- `InlineError` (nuevo, en `components/LoadError.tsx`): mensaje + "Reintentar". Cada carga guarda su error y lo muestra **en lugar** del estado vacío. El mensaje sale de `userMessage()` (el del backend en español, o un texto propio si no hay red).
+- Las acciones muestran su error con `role="alert"`.
+- `NGODashboard` va al inicio solo con un **401** (`ApiError.status`, §62); antes buscaba "Token"/"autenticado" en el texto del mensaje.
+
+### Tests (nuevos: 9)
+`SwallowedErrors.test.tsx`, con el API simulado. Para cada una de las 5 cargas: error 500 → se ve el mensaje y **no** el estado vacío, y "Reintentar" vuelve a pedir. Más: 401 en el panel → va a `/`; y las 3 acciones que fallan (409 o sin red) → aparece el `alert`.
+
+### Verificación
+- **Rojo → verde:** 8 de 9 fallaban con el bug real (no aparecía ningún error). El de 401 ya pasaba; es control de que el cambio no lo rompe.
+- **Mutación (15 mutantes, línea base en verde, script descartable):** volver a tragar el error en cada carga y en cada acción, volver al estado vacío, "Reintentar" que no recarga (en 4 pantallas), 401 que no redirige y cualquier error que redirige: **15 de 15 detectados.** En el primer pase faltaba el de "Reintentar" en notificaciones: el test solo miraba que el botón existiera. Agregué el chequeo de que vuelve a pedir.
+- **TypeScript:** 0 errores. **Suite del frontend:** **298/298**, también con `TZ=America/Argentina/Cordoba`. Los tests previos de `NGOPatrocinios` y `CompanyOwnProfile` siguen pasando.
+- **En el navegador (Claude in Chrome), contra Postgres** (schema descartable `verif_f9`, borrado al terminar): como Sustentando, el panel cargó normal. Con el backend **apagado**:
+  - `/ngo/dashboard` → "No pudimos cargar tu panel. Revisá tu conexión." con "Reintentar";
+  - `/ngo/patrocinios` → "No pudimos cargar las propuestas…".
+  
+  Levanté el backend, toqué "Reintentar" y cargó: ahí sí "Todavía no recibiste propuestas", que ahora es el vacío real (el seed no tiene propuestas).
+
+### Errores míos
+1. El primer test de notificaciones no comprobaba que "Reintentar" recargara (ver mutación).
+
+### ⚠️ NO verificado / fuera de alcance
+- En el navegador probé solo el panel y patrocinios; KPIs, notificaciones y la sección de la empresa los cubren los tests.
+- **Visto y no tocado:** `VolunteerProfile` ("Mi Perfil") con el backend caído muestra **0 en todas las estadísticas** (§62), y `NGOProjectDetail` usa `alert()` para errores de aprobar o cargar horas. Mismo problema de fondo, pero no estaban en F9. Quedan anotados.
