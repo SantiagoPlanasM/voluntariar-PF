@@ -1869,3 +1869,34 @@ Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/
 
 ### ⚠️ NO verificado / visto
 - Para una ONG en un proyecto ajeno, la columna de acciones queda vacía (sin botón). Podría mostrar algo informativo; no lo cambié.
+
+## 74. Calificación y estado de proyecto inválidos daban 500 — REVISION B10 y B11 (`status`)
+
+**Contexto (`routes/projects.js`):**
+- `POST /:id/ratings` validaba con `!rating || rating < 1 || rating > 5`. **`"abc" < 1` es `false`**, así que `"abc"`, un array o `"4.0x"` pasaban y reventaban en el `CHECK` de la base (**500**). Con `3.5`, SQLite lo guardaba y **Postgres (INTEGER) daba 500**. `comment` no se validaba.
+- `PUT /:id`: un `status` fuera de `active`/`completed`/`cancelled` reventaba en el `CHECK` (500).
+
+**Arreglo:**
+- `rating` tiene que ser un **entero** de 1 a 5. Un string de solo dígitos (`"4"`) se convierte, por si viene de un form. Si no → 400 "La calificación tiene que ser un número entero del 1 al 5".
+- `comment`, si viene, texto de hasta 1000 caracteres (400 si no).
+- `status` en el PUT, si viene, tiene que estar en la lista (400 si no).
+
+### Tests (nuevos: 13, en los dos motores)
+`test/integration/projects-input-validation.test.js`:
+- `rating` `"abc"`, `3.5`, `0`, `6`, `null`, `[4]` y `"4.0x"` → 400, sin cambiar la calificación existente;
+- `comment` objeto → 400; 1001 caracteres → 400; exactamente 1000 → 200; `"4"` con comentario → 200 y se guarda `4`;
+- `status: "borrado"` → 400 sin cambiar el proyecto; `status: "completed"` → 200.
+
+### Verificación
+- **Rojo → verde:** en los dos motores fallaban `"abc"`, `3.5`, el array, `"4.0x"` (500), los dos de `comment` y el de `status`. `0`, `6` y `null` ya daban 400: son control.
+- **Mutación (7, los dos motores, script descartable):** sin `isInteger`, sin convertir `"4"`, rango hasta 6, sin chequeo de tipo del comentario, tope `>= 1000`, sin chequeo de `status` y lista sin `completed`: **7 de 7 detectados.** En el primer pase sobrevivió el tope del comentario: no había caso de exactamente 1000. Lo agregué.
+- **Suites completas:** SQLite **335/335** y Postgres **337/337**, las dos también con `TZ=America/Argentina/Cordoba`.
+- Sin navegador: el frontend manda siempre un entero de 1 a 5 (las estrellas) y nunca un `status` inválido.
+
+### Errores míos
+1. El primer test asumía que María no tenía calificación en `proj-1`, pero el seed ya tiene una (5). Los casos `0`/`6`/`null` fallaban por eso y no por el bug. Lo corregí a "no cambia la existente" antes de confiar en el rojo.
+2. Al escribir la regex `/^\d+$/` con un `node -e` entre comillas, el escapado se comió la barra y quedó `/^d+$/` (rechazaba `"4"`). Lo agarró el test. Lo corregí con un script en archivo. Lección (como en §63): código con barras o backticks, por archivo, no por `node -e`.
+3. Un `node -e` que actualizaba la documentación falló a mitad (no encontró la fila de `REVISION.md`, que ya había cambiado con B18). Como el `git add` estaba en otra línea, el commit salió sin esta sección. Lo vi en `git show --stat` y lo completé con `--amend`.
+
+### ⚠️ NO verificado / fuera de alcance
+- Los comentarios de una calificación no pasan por el filtro de palabras (`hasBadWord`), a diferencia de los comentarios del proyecto. No lo cambié (B7 está pendiente de decisión).

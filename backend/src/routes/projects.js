@@ -783,6 +783,10 @@ router.put('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
             volunteers_needed, funding_goal, cost_per_person, hours_per_week, status,
             latitude, longitude, latitud, longitud, modality, modalidad } = req.body;
 
+    // Antes un status fuera de la lista reventaba en el CHECK de la base (500). REVISION B11.
+    if (status != null && !['active', 'completed', 'cancelled'].includes(status))
+      return res.status(400).json({ error: 'Estado inválido: tiene que ser active, completed o cancelled' });
+
     const lat = latitude !== undefined ? (latitude != null ? parseFloat(latitude) : null)
               : (latitud !== undefined ? (latitud != null ? parseFloat(latitud) : null) : project.latitud);
     const lng = longitude !== undefined ? (longitude != null ? parseFloat(longitude) : null)
@@ -888,9 +892,14 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
 // ── POST /api/projects/:id/ratings ────────────────────────────────────────
 router.post('/:id/ratings', requireAuth, async (req, res) => {
   try {
-    const { rating, comment } = req.body;
-    if (!rating || rating < 1 || rating > 5)
-      return res.status(400).json({ error: 'Rating entre 1 y 5' });
+    const { comment } = req.body;
+    // Entero de 1 a 5 (también llega como "4" desde un form). Antes "abc" pasaba la validación ("abc" < 1 es
+    // false) y reventaba en el CHECK; 3.5 lo guardaba SQLite y en Postgres (INTEGER) daba 500. REVISION B10.
+    const rating = typeof req.body.rating === 'string' && /^\d+$/.test(req.body.rating) ? Number(req.body.rating) : req.body.rating;
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5)
+      return res.status(400).json({ error: 'La calificación tiene que ser un número entero del 1 al 5' });
+    if (comment != null && (typeof comment !== 'string' || comment.length > 1000))
+      return res.status(400).json({ error: 'El comentario tiene que ser un texto de hasta 1000 caracteres' });
 
     // Validación de participación aprobada para calificar
     const enrollment = await db.get(

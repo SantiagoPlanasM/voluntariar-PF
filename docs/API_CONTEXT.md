@@ -166,6 +166,7 @@
 - Verifica `ngo_id` de la sesión contra el `ngo_id` del proyecto (join implícito vía `WHERE id=$1 AND ngo_id=$2`).
 - **Body:** mismos campos que create (en inglés: `title`, `description`, `full_description`, `image`, `location`, `type`, `duration`, `volunteers_needed`, `funding_goal`, `cost_per_person`, `hours_per_week`, `status`), todos opcionales (actualización parcial). *(Corregido — tenía el mismo bug que `POST /`, leía `cupos` en vez de `volunteers_needed`. Ver `PROJECT_ANALYSIS.md §13`, bug B5.)*
 - **Capacidad (`PROJECT_ANALYSIS.md §40`):** `volunteers_needed` **omitido o `null` conserva la capacidad actual** (antes se pisaba con `0`); un valor explícito debe ser un entero ≥ 1 (**400** `"Los cupos deben ser un número positivo"`, igual que al crear; antes un negativo violaba el `CHECK(cupos >= 0)` y devolvía 500). **No se puede bajar por debajo de las inscripciones aprobadas**: **400** `"No podés bajar la capacidad a N: ya hay M voluntarios aprobados."`. La condición va dentro del propio `UPDATE` (`... AND cupos_ocupados <= $9`), así que es atómica frente a aprobaciones concurrentes. **No es una actualización parcial real**: el resto de los campos omitidos no se conserva (p. ej. `status` omitido vuelve a `'active'`); no se verificó qué hace cada uno. Ninguna pantalla del frontend usa hoy este endpoint.
+- **`status`**, si viene, tiene que ser `active`, `completed` o `cancelled` → si no, **400** (antes 500 por el `CHECK`; `§74`).
 - **Respuesta 200:** `{ project }`. **Errores:** `404` si el proyecto no existe o no pertenece a la ONG del usuario (no distingue "no existe" de "no es tuyo", por diseño).
 
 ### `DELETE /api/projects/:id` — Auth, role `ngo` (dueño)
@@ -178,7 +179,7 @@
 - **Ojo en el frontend:** `api.ts` tipa esta respuesta como `{ comment: AppComment }` — si se toca este endpoint, no usar `Comment` a secas como tipo (es el tipo global del DOM, no el propio; ya pasó una vez, ver `PROJECT_ANALYSIS.md §29`).
 
 ### `POST /api/projects/:id/ratings` — Auth (cualquier rol)
-- **Body:** `{ rating (1-5), comment? }`.
+- **Body:** `{ rating (1-5), comment? }`. `rating` tiene que ser un **entero** de 1 a 5 (acepta `"4"`); `comment`, si viene, texto de hasta 1000 caracteres. Si no → **400** (antes `"abc"` o `3.5` llegaban a la base y daban 500; `PROJECT_ANALYSIS.md §74`).
 - **Restricción agregada por el usuario (2026-09):** solo puede calificar quien tenga una `enrollment` con `status='approved'` en ese proyecto — `403` si no. Antes cualquier usuario logueado podía calificar sin haber participado.
 - **Comportamiento:** hace upsert real (`UPDATE` si ya existe una calificación de ese usuario para ese proyecto, `INSERT` si no) — ya no es "calificar una sola vez sin poder editar".
 - **Respuesta 201:** `{ rating }`.
