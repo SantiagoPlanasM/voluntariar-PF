@@ -1446,3 +1446,34 @@ Ninguno en el código. El primer pase de los tests no cubría las pendientes que
 
 ### ⚠️ NO verificado
 Nada pendiente de este cambio.
+
+## 58. Guardar habilidades con un id repetido las borraba todas — REVISION B6
+
+**Contexto:** `PUT /api/voluntarios/me/habilidades` reemplaza el set completo: DELETE de todas las filas del voluntario y un INSERT por cada habilidad, **sin transacción**. El `Set` de ids servía solo para validar contra el catálogo; los INSERT recorrían el body tal cual. Con un `habilidad_id` repetido, el segundo INSERT violaba la PK `(user_id, habilidad_id)` **después** del DELETE: respondía 500 y el voluntario se quedaba sin ninguna habilidad. El endpoint no tenía tests.
+
+**Arreglo** (`routes/voluntarios.js`):
+- Se deduplica con un `Map` `habilidad_id → nivel`. **Gana la última aparición**, coherente con "el body es el estado final", como dice el comentario del endpoint. Decisión mía; la alternativa era responder 400 ante repetidos.
+- DELETE + INSERT van en `db.transaction()` con `tx.*` (regla 21): si un INSERT falla, quedan las habilidades anteriores.
+
+### Tests (nuevos: 5, en los dos motores)
+`test/integration/habilidades.test.js`, con María del seed (sin habilidades):
+- guardar el set completo;
+- **id repetido** → 200, se guarda una vez con el nivel de la última aparición;
+- un pedido inválido (habilidad inexistente → 400) no toca lo guardado;
+- **falla inyectada en un INSERT después del DELETE** → 500 y se conservan las habilidades anteriores;
+- un array vacío las borra todas.
+
+La falla se inyecta en el adaptador (`db.run` y el `tx.run` de la transacción, para no depender de cómo esté escrita la ruta). Es la única forma de llegar a ese caso: con la validación y el dedup, ningún pedido válido falla ahí.
+
+### Verificación
+- **Rojo → verde:** en los dos motores fallaba el caso del id repetido (`actual: 500`). El test de la falla inyectada lo agregué después del arreglo, al ver que ningún test del API podía detectar que se sacara la transacción. La mutación confirma que la detecta.
+- **Mutación (4 mutantes, los dos motores, script descartable):** que gane la primera aparición, sin dedup (recorrer el body), **sin transacción** (el callback se ejecuta con `db` en lugar de `tx`) y otro nivel por defecto. **4 de 4 detectados en SQLite y en Postgres.**
+- **Suites completas:** SQLite **296/296** y Postgres **298/298**, las dos también con `TZ=America/Argentina/Cordoba`.
+- **En el navegador (Claude in Chrome), contra Postgres** (schema descartable `verif_b6`, borrado al terminar): con María, en "Mi Perfil" → editar, elegí Cocina e Idiomas y guardé. La página se recarga y muestra "Cocina · Básico" e "Idiomas · Básico". En la base quedaron esas dos filas con nivel `basico`.
+
+### Errores míos
+Ninguno detectado.
+
+### ⚠️ NO verificado
+- Desde la interfaz no se pueden mandar ids repetidos (cada habilidad es un botón que se marca o desmarca), así que el caso del repetido se probó solo por el API.
+- Concurrencia: dos guardados simultáneos del mismo voluntario. Con la transacción, en Postgres el segundo DELETE espera al primero. No lo probé.

@@ -440,7 +440,7 @@
 
 ### `PUT /api/voluntarios/me/habilidades` — Auth, role `volunteer`
 - **Body:** `{ habilidades: [{ habilidad_id, nivel? }] }` — `nivel` es `'basico'` (default), `'intermedio'` o `'avanzado'`.
-- **Comportamiento:** reemplaza el conjunto completo (borra todas las filas previas de `voluntario_habilidades` para ese usuario e inserta las nuevas) — más simple para la UI que calcular altas/bajas/cambios de nivel. Igual patrón que la categoría de ONG (`PUT /api/ngos/me`).
+- **Comportamiento:** reemplaza el conjunto completo (borra todas las filas previas de `voluntario_habilidades` para ese usuario e inserta las nuevas) — más simple para la UI que calcular altas/bajas/cambios de nivel. Igual patrón que la categoría de ONG (`PUT /api/ngos/me`). El DELETE y los INSERT van en **una transacción**: si algo falla, quedan las habilidades anteriores. Un `habilidad_id` **repetido** se guarda una sola vez, con el nivel de la **última** aparición (antes daba 500 y dejaba al voluntario sin habilidades, `PROJECT_ANALYSIS.md §58`). Tests: `test/integration/habilidades.test.js`.
 - **Validación:** máximo 20 habilidades, cada `habilidad_id` debe existir en el catálogo (`habilidades`), `nivel` debe ser uno de los tres valores válidos.
 - **Respuesta 200:** `{ habilidades: [...] }` (el conjunto ya actualizado, mismo formato que el `GET`).
 - **Errores:** `400` (formato inválido, habilidad inexistente, nivel inválido), `403` si el usuario no es `volunteer`.

@@ -54,16 +54,24 @@ router.put('/me/habilidades', requireAuth, requireRole('volunteer'), async (req,
         return res.status(400).json({ error: 'Alguna habilidad no existe en el catálogo' });
     }
 
+    // Un id repetido violaba la PK (user_id, habilidad_id) en el INSERT: se deduplica, y gana la
+    // última aparición (el body es el estado final). REVISION B6.
+    const nivelPorId = new Map();
+    for (const h of habilidades) nivelPorId.set(h.habilidad_id, h.nivel || 'basico');
+
     // Reemplazo completo: borrar y volver a insertar (mismo patrón que la
     // categoría de ONG en ngos.js — más simple y menos propenso a errores
-    // que calcular un diff de altas/bajas/cambios de nivel).
-    await db.run('DELETE FROM voluntario_habilidades WHERE user_id=$1', [req.user.id]);
-    for (const h of habilidades) {
-      await db.run(
-        'INSERT INTO voluntario_habilidades (user_id, habilidad_id, nivel) VALUES ($1,$2,$3)',
-        [req.user.id, h.habilidad_id, h.nivel || 'basico']
-      );
-    }
+    // que calcular un diff de altas/bajas/cambios de nivel). En una transacción: antes, si un
+    // INSERT fallaba después del DELETE, el voluntario se quedaba sin ninguna habilidad.
+    await db.transaction(async (tx) => {
+      await tx.run('DELETE FROM voluntario_habilidades WHERE user_id=$1', [req.user.id]);
+      for (const [habilidadId, nivel] of nivelPorId) {
+        await tx.run(
+          'INSERT INTO voluntario_habilidades (user_id, habilidad_id, nivel) VALUES ($1,$2,$3)',
+          [req.user.id, habilidadId, nivel]
+        );
+      }
+    });
 
     const updated = await db.all(
       `SELECT h.id, h.nombre, h.descripcion, vh.nivel
