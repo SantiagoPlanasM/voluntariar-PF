@@ -1238,7 +1238,37 @@ Galería en `ProjectDetails`, grilla de miniaturas en `VolunteerPublicProfile` y
 **Lo que eso implica (inferencia, no comprobación mía):** como el 403 se produjo dentro de `POST /posts`, antes de eso el navegador ya había comprimido las fotos y mandado el multipart, y `multer` lo había leído; los dos puntos "no verificados" de §47 sobre eso quedan razonablemente cubiertos, aunque no se hizo una prueba específica de cada uno.
 
 ### Sigue sin verificar
-- **Producción (Render):** `render.yaml` **no declara** `CLOUDINARY_*`, `RESEND_API_KEY`, `EMAIL_FROM` ni `APP_URL`; hay que cargarlas a mano en el panel de Render (o agregarlas a `render.yaml` con `sync: false`, decisión pendiente de Matías). Sin ellas, publicar responde 503 y los emails se omiten. Tampoco se verificó la versión de Node de Render ni el log de build.
+- **Producción (Render):** `render.yaml` **no declara** `CLOUDINARY_*`, `RESEND_API_KEY`, `EMAIL_FROM` ni `APP_URL`; hay que cargarlas a mano en el panel de Render (o agregarlas a `render.yaml` con `sync: false`, decisión pendiente de Matías). Sin ellas, publicar responde 503 y los emails se omiten. Tampoco se verificó la versión de Node de Render ni el log de build. *(Declaradas en `render.yaml` en §50; los valores secretos se siguen cargando en el panel.)*
 - **Resend con dominio propio / usuarios reales:** con `onboarding@resend.dev` solo se entrega al email registrado en Resend (ver `EMAIL_REDIRECT_TO` en `BACKEND_CONTEXT.md`).
 - Lo visual y táctil de §47 (Tailwind, deslizar en celular real, foco del modal) y Windows.
 
+
+## 50. `test:pg` fallaba en paralelo: `columnExists()` no filtraba por schema · variables de Resend/Cloudinary en `render.yaml`
+
+**Contexto:** al armar el `CLAUDE.md` se corrieron todas las verificaciones en Windows (12 núcleos, Node 24.21.0, Postgres 16.15 en Docker). SQLite daba 255/255, pero `npm run test:pg` fallaba: entre 2 y 140 tests cancelados, **distinto en cada corrida**, con `❌ Error en migraciones: column "estado" does not exist`.
+
+### Causa
+`columnExists()` en `scripts/migrate.js` consultaba `information_schema.columns` filtrando solo por tabla y columna, **sin filtrar por schema**. En `test:pg` cada archivo de test migra su propio schema (`test_<pid>_<rand>`) en la misma base y los archivos corren en paralelo. Si otro schema ya tenía `empresa_voluntariados.estado`, `addColumnIfNotExists()` se salteaba el `ALTER TABLE` en el schema propio y después fallaba el índice sobre esa columna. Por eso el resultado dependía del orden y de cuántos archivos corrían a la vez. Además, los schemas de las corridas fallidas **quedaban sin borrar** (la limpieza no llegaba a correr) y rompían también las corridas siguientes.
+
+Con los archivos de a uno (`-- --test-concurrency=1`) y la base limpia pasaba 255/255, lo que confirmó la causa antes de tocar código.
+
+**Arreglo:** `AND table_schema = current_schema()`: el schema donde `CREATE TABLE` crea las tablas (el primero del `search_path` que existe), así que la consulta mira el mismo lugar que la migración. En producción (solo `public`) el comportamiento no cambia.
+
+### Tests (nuevos: 2, solo en `test:pg`)
+`test/integration/migrate-schemas.test.js`: migra un schema, después otro en la misma base, y exige que el segundo no falle, que tenga `estado`/`mensaje`/`updated_at` y las **mismas columnas** que el primero; y que volver a migrar sea idempotente. No depende del paralelismo: reproduce el bug de forma determinística. En SQLite se saltea (ahí no hay schemas). `helpers.js` ahora exporta `pgConfig` y `USE_PG_TESTS`.
+
+### Verificación
+- **Rojo → verde:** sin el arreglo, los 2 tests fallaban con el mismo error que la suite (`column "estado" does not exist`); con el arreglo, pasan.
+- **Mutación (2 de 2 detectadas):** sacar el filtro de schema (el bug original) y fijarlo a `'public'` (falla con `column "latitud" of relation "projects" already exists`).
+- **Suites completas:** SQLite **255/255** (normal y con `TZ=America/Argentina/Cordoba`); Postgres **257/257** **en paralelo** (sin `--test-concurrency`), tres corridas (una con la TZ de Córdoba), 0 schemas sobrantes antes y después.
+
+### `render.yaml`: variables de Resend y Cloudinary (pedido del usuario)
+Se declararon en el servicio `voluntariar-api`: `APP_URL` (`https://voluntariar.onrender.com`; sin ella los links de los emails apuntaban a `http://localhost:5173`), `EMAIL_FROM` (el mismo remitente de pruebas que el default del código), y `RESEND_API_KEY`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET` con `sync: false` (el valor no va en el repo). Las opcionales (`EMAIL_REDIRECT_TO`, `CLOUDINARY_FOLDER`) no se declararon. El YAML se validó con `js-yaml`. README actualizado.
+
+### Errores míos
+1. **Convertí `migrate.js` de CRLF a LF** al editarlo con `sed -i` desde Git Bash (convierte el archivo entero). Lo vi con `git ls-files --eol`, lo restauré a CRLF y rehíce el comentario con Node; el diff final son 3 líneas. Lección: en este repo, editar archivos CRLF con `Edit`/Node, no con `sed`.
+2. Al principio supuse que `test:pg` solo necesitaba un Postgres levantado; la primera corrida con Docker ya mostró que había un bug.
+
+### ⚠️ NO verificado
+- **Render:** no se desplegó. No verifiqué si, en un Blueprint **ya creado**, Render pide los valores de las variables `sync: false` nuevas al sincronizar o si hay que cargarlas a mano en el panel (no consulté la documentación de Render). Tampoco que `APP_URL` sea la URL real del frontend desplegado: se tomó de `CORS_ORIGINS`.
+- Por qué la verificación anterior en Postgres (Linux) no lo detectó: probablemente corría menos archivos en paralelo, pero no lo comprobé.

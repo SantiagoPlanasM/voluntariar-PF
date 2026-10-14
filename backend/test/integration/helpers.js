@@ -121,4 +121,4 @@ async function setupTestServer({ seed = false } = {}) {
   };
 }
 
-module.exports = { setupTestServer, setupTestDb };
+module.exports = { setupTestServer, setupTestDb, pgConfig, USE_PG_TESTS };

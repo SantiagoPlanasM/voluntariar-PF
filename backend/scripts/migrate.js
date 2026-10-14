@@ -396,10 +396,12 @@ async function migrate() {
   // las veces que sea sin romper si la columna ya está.
   console.log('\n🧩 Migraciones aditivas...');
 
+  // Solo en el schema actual (el del search_path): si otro schema de la misma base
+  // ya tiene la columna, igual hay que agregarla acá (PROJECT_ANALYSIS.md §50).
   async function columnExists(table, column) {
     if (isPg) {
       const row = await db.get(
-        `SELECT 1 FROM information_schema.columns WHERE table_name=$1 AND column_name=$2`,
+        `SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name=$1 AND column_name=$2`,
         [table, column]
       );
       return !!row;
