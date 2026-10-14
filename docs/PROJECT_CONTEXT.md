@@ -62,9 +62,10 @@ No hay backend-for-frontend, GraphQL, ni capa de caché: es un CRUD REST clásic
 | Vite | 6.3 | Bundler / dev server |
 | Tailwind CSS | 4.1 (via `@tailwindcss/vite`) | Estilos utilitarios inline |
 | lucide-react | 0.487 | Íconos |
-| TypeScript | (vía Vite, `tsconfig.json` con `strict: true`) | Tipado — con `noUnusedLocals`/`noUnusedParameters` desactivados |
+| TypeScript | 7 (devDependency; `npm run typecheck`, `tsconfig.json` con `strict: true`) | Tipado — con `noUnusedLocals`/`noUnusedParameters` desactivados. Vite transpila sin chequear tipos: el chequeo real es `npm run typecheck` (`PROJECT_ANALYSIS.md §68–§69`) |
+| Vitest + Testing Library | 5 / 16 | Tests (`npm test`) |
 
-No usa: gestor de estado global (Redux/Zustand — todo vive en `AuthContext` + estado local por componente), React Query/SWR (fetch manual en cada `useEffect`), testing framework, linter configurado en el repo.
+No usa: gestor de estado global (Redux/Zustand — todo vive en `AuthContext` + estado local por componente), React Query/SWR (fetch manual en cada `useEffect`), linter configurado en el repo.
 
 ### Backend
 | Tecnología | Versión | Uso |
@@ -76,10 +77,10 @@ No usa: gestor de estado global (Redux/Zustand — todo vive en `AuthContext` + 
 | better-sqlite3 | 13.0.3 | Driver SQLite síncrono (local). Trae binarios precompilados; `backend/.npmrc` (`ignore-scripts=true`) evita que npm intente compilarlo (ver `PROJECT_ANALYSIS.md §36` y `§38`) |
 | pg | 8.12 | Driver PostgreSQL (producción) |
 | cors | 2.8 | CORS configurable por `CORS_ORIGINS` |
-| multer | 2.4 | Dependencia declarada pero **no usada en ninguna ruta todavía** (se usará con Multimedia; se subió de 1.x, que estaba deprecada con vulnerabilidades — `PROJECT_ANALYSIS.md §37`) |
+| multer | 2.4 | Subida multipart de las fotos de Momentos (`routes/posts.js`, a Cloudinary — `PROJECT_ANALYSIS.md §43`). Se subió de 1.x, que estaba deprecada con vulnerabilidades (`§37`) |
 | `node --watch` | incluido en Node ≥ 22 | Hot-reload en desarrollo (`npm run dev`). Reemplazó a `nodemon` (`PROJECT_ANALYSIS.md §41`); el backend ya no tiene devDependencies |
 
-No usa: ORM (todo es SQL crudo con parámetros posicionales `$1, $2...`), sistema de migraciones versionado (un único script `migrate.js` idempotente con `CREATE TABLE IF NOT EXISTS`), tests, linter.
+No usa: ORM (todo es SQL crudo con parámetros posicionales `$1, $2...`), sistema de migraciones versionado (un único script `migrate.js` idempotente con `CREATE TABLE IF NOT EXISTS`), linter. Los tests usan `node:test` (sin dependencias): `npm test` en SQLite y `npm run test:pg` contra Postgres.
 
 ### Base de datos
 - **Local:** SQLite, archivo `backend/data/voluntariar.sqlite` (creado automáticamente, con WAL habilitado).
@@ -199,7 +200,7 @@ No hay separación entre "componentes de presentación" y "componentes contenedo
 ## 11. Dependencias importantes a tener en cuenta
 
 - `frontend/vite.config.ts` incluye un plugin custom `figmaAssetResolver` y un comentario explícito ("required for Make, even if Tailwind is not being actively used") que indica que el frontend fue generado/scaffoldeado con una herramienta de diseño-a-código (probablemente Figma Make). Esto explica el estilo muy uniforme de Tailwind inline y la ausencia de componentes reutilizables abstraídos.
-- `backend/package.json` declara `multer` como dependencia pero ninguna ruta la importa (`uuid` se eliminó por no usarse) — no hay upload de archivos implementado (los campos de imagen del proyecto/perfil se llenan con URLs externas, p. ej. avatares generados por `dicebear.com`).
+- La única subida de archivos son las fotos de Momentos (`multer` en `routes/posts.js`, guardadas en Cloudinary; `PROJECT_ANALYSIS.md §43`). Los demás campos de imagen (proyecto, perfiles) se llenan con URLs externas, p. ej. avatares generados por `dicebear.com`. (`uuid` se eliminó por no usarse.)
 
 ## 12. Flujo de autenticación
 

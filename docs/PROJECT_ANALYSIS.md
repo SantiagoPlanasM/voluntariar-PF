@@ -1985,3 +1985,28 @@ Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/
 - Sin navegador: no vi el 409 del patrocinio en `NGOPatrocinios`. Por lectura, el `catch` de `decide` muestra `userMessage(e, ...)` (§65), pero **no hay test de frontend de ese error** (`NGOPatrocinios.test.tsx` solo cubre listar, aceptar, rechazar y vacío).
 - Los contadores de producción que ya se hayan desfasado por este bug **no se corrigen** (no hay datos reales todavía, la app no está desplegada; si los hubiera, se recalculan con un `UPDATE ... SET followers = (SELECT COUNT(*) ...)`).
 - La caída a mitad de transacción (el mutante sobreviviente) no está probada.
+
+## 78. Docs que contradecían el código — REVISION D1–D7
+
+**Contexto:** commit de solo documentación (ítem 18 del orden de REVISION.md). Cada corrección se cotejó contra el código actual, no contra lo que decía la revisión (algunas ya estaban resueltas a medias).
+
+**Qué se corrigió:**
+- **D1** `PROJECT_CONTEXT.md`: la tabla de dependencias y §11 decían que `multer` no se usaba y que no había subida de archivos. Ahora: lo usa `routes/posts.js` para las fotos de Momentos (Cloudinary, §43).
+- **D2** `PROJECT_CONTEXT.md`: "No usa: testing framework / tests". Ahora figuran Vitest + Testing Library (frontend) y `node:test` (backend, `npm test` y `npm run test:pg`). De paso, la fila de TypeScript decía "vía Vite": ahora dice TypeScript 7 con `npm run typecheck` (§68–§69). No puse cantidades de tests en ese doc (envejecen; las cuenta `CLAUDE.md`).
+- **D3** `BACKEND_CONTEXT.md`: "28 tablas" → 31 (contadas en `migrate.js`; `DATABASE_CONTEXT.md` ya decía 31).
+- **D4** `DATABASE_CONTEXT.md` §4: los rangos "1–17 / 18–24" ya no coincidían con la numeración de §1. Ahora: 21 tablas con `id` propio y 10 N:M con PK compuesta (con la lista). El "id generado por default de base" era cierto para el esquema (hay un `DEFAULT` de UUID) pero contradecía la regla 23: se aclaró que las altas que devuelven la fila generan el id con `crypto.randomUUID()`. A la tabla de N:M de §2 le faltaban `empresa_categorias` y `post_likes`.
+- **D5** `API_CONTEXT.md`: `GET /api/follows/volunteer/following` y `/followers` figuraban para "cualquiera"; el código exige `requireRole('volunteer')`.
+- **D6** `API_CONTEXT.md`, `PUT` de KPI: el DELETE ya estaba bien (`{ message: "KPI eliminado" }`, corregido en §56). Lo "a confirmar" del PUT **lo probé en SQLite** con un test descartable (fuera del repo): sin `nombre` responde **500** `Error al actualizar KPI`; con solo `nombre`, 200 y el resto de los campos en `null`, incluido `tipo_valor`. El doc ahora lo dice. El frontend (`NGOKPIs.tsx`) siempre manda `nombre` (lo exige el formulario), así que desde la interfaz no se llega al 500.
+- **D7** `FRONTEND_CONTEXT.md`: "47 archivos .tsx (sin tests)" → 48 componentes (faltaba `LoadError.tsx` en la lista de §4). La lista de "sin tests" de §15 tenía 7; ahora son los 29 sin `<Componente>.test.tsx`, con los archivos de test que cubren un aspecto puntual de algunos.
+
+### Verificación
+- Conteos hechos con comandos, no a ojo: 31 `CREATE TABLE` distintos en `migrate.js`, 21 usos de `UUID_PK`, 10 `PRIMARY KEY (...)` compuestas; 48 `.tsx` en `components/` sin contar tests; para cada test "cruzado", los `import` de componentes que hace.
+- D6: SQLite sí (ver arriba). Sin cambios de código: no corrí las suites.
+
+### Errores propios
+- Al armar la lista de D7 me salteé al principio los tests de `routes.test.tsx`, `FeedTabsPlacement` y `MomentsPlacement` que importan `Root`, `NGOLayout`, `PublicFeed` y `VolunteerPublicProfile`; los agregué al revisar los `import` de cada test.
+
+### ⚠️ NO verificado
+- **D6 en Postgres:** Docker no estaba corriendo. Por el NOT NULL debería dar el mismo 500, pero no lo corrí.
+- El 500 del PUT de KPI sin `nombre` **sigue** (es un bug de backend, no de docs): debería ser 400. No lo arreglé en este commit de solo docs; queda junto con el "PUT no parcial" (deuda conocida, regla 16).
+- No revisé el resto de cada doc línea por línea; solo los puntos D1–D7.

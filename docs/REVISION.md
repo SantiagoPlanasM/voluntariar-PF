@@ -1,6 +1,6 @@
 # REVISION.md — Revisión de código de VoluntariAR (2026-10-13)
 
-> **Estado (2026-10-14):** este informe se escribió sin tocar el código; después se fueron arreglando ítems en commits separados. Los arreglados tienen ✅ y la sección de `PROJECT_ANALYSIS.md` donde está el detalle (§51–§77). Las correcciones a lo que decía este informe (B2 y B8 tenían menos impacto visible del indicado) están en esas secciones.
+> **Estado (2026-10-14):** este informe se escribió sin tocar el código; después se fueron arreglando ítems en commits separados. Los arreglados tienen ✅ y la sección de `PROJECT_ANALYSIS.md` donde está el detalle (§51–§78). Las correcciones a lo que decía este informe (B2 y B8 tenían menos impacto visible del indicado) están en esas secciones.
 
 **Base revisada:** commit `0d6663a` (`main`). **Método:** tres revisiones de solo lectura en paralelo (backend, frontend, tests+docs) y una verificación propia de los hallazgos de severidad alta. No se modificó ningún archivo del proyecto; este informe es lo único nuevo.
 
@@ -36,14 +36,14 @@ Los ids (B = backend, F = frontend, T = tests, D = docs) son los de cada revisi�
 | Media ✅ §64 | F7 | bug | Proyecto/ONG/empresa inexistente o error → `navigate(-1)` y página en blanco | por lectura |
 | Media ✅ §65 | F9 | bug | Errores tragados: aceptar/rechazar patrocinio, dashboard ONG, KPIs, notificaciones | por lectura |
 | Media | F12 | mejora | Modales sin `role="dialog"`, Escape ni foco (login incluido) | por lectura |
-| Media | D1, D2, D5, D6 | bug (doc) | Docs que contradicen el código (multer, "no hay tests", roles de follows, KPIs) | por lectura |
+| Media ✅ §78 | D1, D2, D5, D6 | bug (doc) | Docs que contradicen el código (multer, "no hay tests", roles de follows, KPIs) | por lectura |
 | Baja ✅ §57 | B9 | bug | `COUNT`/`SUM` sin `Number()` en `/voluntarios/:id` y `/follows/feed` | verificado en Postgres |
 | Baja (B18 ✅ §56, B10 ✅ §74, B11 ✅ §74/§76, B12 ✅ §76, B13 ✅ §76, B14 ✅ §75) | B10–B14, B18 | bug | Validaciones de entrada que terminan en 500 en vez de 400 | probado |
 | Baja ✅ §77 | B15, B16 | bug | Carreras en follows y en la decisión de patrocinio | verificado en Postgres |
 | Baja | B17, B19–B21 | mejora | Registro sin transacción, WebSocket, enumeración de emails, `SELECT *` público | por lectura |
 | Baja (F8 ✅ §70, F10 ✅ §71, F11 ✅ §72, F16 ✅ §73) | F8, F10, F11, F14, F16 | bug/mejora | Inscripción rechazada se ve "Pendiente", reconexión WS infinita, etc. | por lectura |
 | Baja | F13, F15 | mejora | Botones solo-ícono sin nombre; respuestas viejas (a confirmar) | lectura / a confirmar |
-| Baja | T2–T4, D3, D4, D7 | mejora | Tests con nombre que promete más, `setup` como test, docs menores | por lectura |
+| Baja (D3, D4, D7 ✅ §78) | T2–T4, D3, D4, D7 | mejora | Tests con nombre que promete más, `setup` como test, docs menores | por lectura |
 
 ---
 

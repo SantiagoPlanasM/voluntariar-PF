@@ -63,8 +63,8 @@
 | POST | `/api/follows/project/:projectId` | Sí | volunteer | `routes/follows.js` |
 | DELETE | `/api/follows/project/:projectId` | Sí | volunteer | `routes/follows.js` |
 | GET | `/api/follows/project/:projectId/status` | Opcional | — | `routes/follows.js` |
-| GET | `/api/follows/volunteer/following` | Sí | cualquiera | `routes/follows.js` |
-| GET | `/api/follows/volunteer/followers` | Sí | cualquiera | `routes/follows.js` |
+| GET | `/api/follows/volunteer/following` | Sí | volunteer | `routes/follows.js` |
+| GET | `/api/follows/volunteer/followers` | Sí | volunteer | `routes/follows.js` |
 | POST | `/api/follows/volunteer/:userId` | Sí | volunteer | `routes/follows.js` |
 | DELETE | `/api/follows/volunteer/:userId` | Sí | volunteer | `routes/follows.js` |
 | GET | `/api/follows/volunteer/:userId/status` | No | — | `routes/follows.js` |
@@ -193,7 +193,7 @@
 - **Respuesta 201:** `{ kpi }`.
 
 ### `PUT /api/projects/:id/kpis/:kpiId` — Auth, role `ngo` (dueño)
-- **No es parcial:** pisa todos los campos con lo que manda el body (un campo omitido queda en `null`; sin `nombre` daría 500 por el NOT NULL, a confirmar — `REVISION.md` D6). **Respuesta 200:** `{ kpi }`.
+- **No es parcial:** pisa todos los campos con lo que manda el body (un campo omitido queda en `null`, incluido `tipo_valor`). **Sin `nombre` responde 500** (`Error al actualizar KPI`) por el NOT NULL de la columna: probado en SQLite (`PROJECT_ANALYSIS.md §78`). El frontend siempre lo manda. **Respuesta 200:** `{ kpi }`.
 - **404** si el KPI no existe o no es de ese proyecto (antes respondía 200 con el KPI de otro proyecto, de otra ONG, o con `{}`: `PROJECT_ANALYSIS.md §56`).
 
 ### `DELETE /api/projects/:id/kpis/:kpiId` — Auth, role `ngo` (dueño)
@@ -392,7 +392,7 @@
 
 ### Voluntario (`volunteer_follows`)
 - `POST /volunteer/:userId` / `DELETE /volunteer/:userId` — seguir/dejar de seguir a otro voluntario (auth, `volunteer`; no se puede auto-seguir, CHECK en DB).
-- `GET /volunteer/following` / `GET /volunteer/followers` — mis seguidos/seguidores (auth).
+- `GET /volunteer/following` / `GET /volunteer/followers` — mis seguidos/seguidores (auth, `volunteer`; otro rol → 403).
 - `GET /volunteer/:userId/status` — ¿lo sigo? (público).
 - `GET /volunteer/:userId/followers` / `GET /volunteer/:userId/following` — listas públicas de otro usuario.
 

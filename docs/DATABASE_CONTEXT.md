@@ -174,11 +174,12 @@ id · post_id (NOT NULL FK→posts CASCADE) · url (NOT NULL; URL base de Cloudi
 ### `post_likes`
 post_id (NOT NULL FK→posts CASCADE) · user_id (NOT NULL FK→users CASCADE) · created_at · **PK `(post_id, user_id)`**: un usuario no puede dar dos likes al mismo post (la API usa `ON CONFLICT DO NOTHING`, así que repetir el like es idempotente).
 
-### Tablas intermedias N:M (18–24)
+### Tablas intermedias N:M
 
 | Tabla | PK compuesta | Columnas extra |
 |---|---|---|
 | `ngo_categorias` | (ngo_id, categoria_id) | — |
+| `empresa_categorias` | (empresa_id, categoria_id) | — |
 | `project_categorias` | (project_id, categoria_id) | — |
 | `project_roles` | (project_id, rol_id) | `cantidad` (DEFAULT 1, CHECK > 0) |
 | `voluntario_habilidades` | (user_id, habilidad_id) | `nivel` (CHECK IN `basico`,`intermedio`,`avanzado`, default `basico`) |
@@ -186,6 +187,7 @@ post_id (NOT NULL FK→posts CASCADE) · user_id (NOT NULL FK→users CASCADE) �
 | `ngo_follows` | (user_id, ngo_id) | `created_at` |
 | `project_follows` | (user_id, project_id) | `created_at` |
 | `volunteer_follows` | (follower_id, following_id) | `created_at`, CHECK `follower_id != following_id` (no autoseguirse) |
+| `post_likes` | (post_id, user_id) | `created_at` |
 
 Todas con `ON DELETE CASCADE` en ambas FKs.
 
@@ -271,7 +273,7 @@ erDiagram
 
 ## 4. Claves primarias
 
-Todas las tablas "principales" (1–17) usan `id TEXT PRIMARY KEY` generado por default de base de datos. Las 7 tablas intermedias (18–24) usan **clave primaria compuesta** sobre las dos FKs (sin columna `id` propia).
+Las 21 tablas con entidad propia usan `id TEXT PRIMARY KEY` con un default de base (un UUID: `gen_random_uuid()` en Postgres, una expresión equivalente en SQLite). **Ese default no se usa para las altas que devuelven la fila:** el código genera el id con `crypto.randomUUID()`, inserta y relee por ese id (`AI_RULES.md` regla 23, `PROJECT_ANALYSIS.md §40`). Las 10 tablas N:M (`ngo_categorias`, `empresa_categorias`, `project_categorias`, `project_roles`, `voluntario_habilidades`, `empresa_voluntariados`, `ngo_follows`, `project_follows`, `volunteer_follows`, `post_likes`) usan **clave primaria compuesta** sobre las dos FKs (sin columna `id` propia).
 
 ## 5. Claves foráneas (resumen de política de borrado)
 

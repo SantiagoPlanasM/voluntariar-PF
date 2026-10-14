@@ -25,7 +25,7 @@ frontend/src/
 ├── main.tsx                  # bootstrap: StrictMode + AuthProvider + RouterProvider
 ├── app/
 │   ├── routes.tsx             # todas las rutas (createBrowserRouter)
-│   └── components/            # 47 archivos .tsx (sin tests) — screens + layouts + widgets
+│   └── components/            # 48 componentes .tsx (más sus *.test.tsx) — screens + layouts + widgets
 ├── lib/
 │   ├── api.ts                 # cliente HTTP centralizado + TODOS los tipos TS de dominio (incluye api.posts y el helper de subida multipart)
 │   ├── AuthContext.tsx        # sesión global (Context + Provider + hook useAuth)
@@ -74,7 +74,7 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 
 `OnboardingScreen.tsx` existe como archivo pero **no está registrado en `routes.tsx`** — código muerto/no alcanzable.
 
-## 4. Todos los componentes (47, sin contar `*.test.tsx`)
+## 4. Todos los componentes (48, sin contar `*.test.tsx`)
 
 ### Layouts / navegación
 - `Root.tsx` — layout del lado "voluntario/público": `<Outlet/>` + `<BottomNav/>` + `<AuthModal/>` + `<ChatbotWidget/>`.
@@ -135,6 +135,7 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 
 ### Otros
 - `ReviewModal.tsx` / `ReviewsModal.tsx` — ver nota de duplicación arriba.
+- `LoadError.tsx` — estados de error de carga con "Reintentar"/"Volver" (`describeLoadError`); ver §12 y `PROJECT_ANALYSIS.md §64–§65`.
 
 ## 5. Hooks
 
@@ -305,7 +306,7 @@ Limitado a `AuthContext`. No hay estado global de UI (temas, filtros persistente
 5. **Sin paginación real en `ExploreScreen.tsx`**: pide el catálogo completo con un `limit` alto fijo (`200`) en vez de "cargar más"/scroll infinito — funciona hoy, pero no escala indefinidamente si el catálogo de proyectos crece mucho. Ver `PROJECT_ANALYSIS.md §29` bug 4.
 6. **Validaciones duplicadas** (regex de email/password/nombre en `AuthModal.tsx`, blacklist de palabras en `ProjectDetails.tsx`) que deben mantenerse manualmente sincronizadas con el backend.
 7. **Sin manejo centralizado de expiración de sesión** — un 401 en medio de la navegación no redirige consistentemente al login en todas las pantallas.
-8. **Sin tests automatizados** para varios de los componentes más grandes y recientes: `ProjectMap.tsx`, `FeedPostCard.tsx`, `ReviewsModal.tsx`, `VolunteerPublicProfile.tsx`, `FeedSidebar.tsx`, `ExploreScreen.tsx`, `CreateVoluntariado.tsx` — se revisaron a mano (ver `PROJECT_ANALYSIS.md §29`) pero no tienen red de seguridad automática.
+8. **Componentes sin test propio** (sin `<Componente>.test.tsx`; 29 de 48 al 2026-10-14). Algunos tienen tests de un aspecto puntual en otro archivo (entre paréntesis): `BottomNav`, `ChatThread`, `CompanyBottomNav`, `CompanyLayout`, `CompanySidebarNav`, `CreateVoluntariado`, `ExploreScreen`, `FeedPostCard`, `FeedSidebar`, `MainFeed` (`FeedTabsPlacement`), `MessagesScreen`, `MyParticipation`, `NGOBottomNav`, `NGODashboard` (`SwallowedErrors`), `NGOEmpleados`, `NGOLayout` (`routes`), `NGOOwnProfile`, `NGOProjectDetail` (`LoadErrorScreens`, `MomentsPlacement`), `NGOPublicProfile` (`LoadErrorScreens`, `routes`), `NotificationsScreen` (`NotificationsTime`, `SwallowedErrors`), `OnboardingScreen`, `ProjectDetails` (`EnrollStatusLabel`, `NgoPanelLink`, `SponsorPreselect`, `LoadErrorScreens`, `MomentsPlacement`), `ProjectMap`, `PublicFeed` (`FeedTabsPlacement`), `ReviewModal`, `ReviewsModal`, `Root` (`routes`), `VolunteerProfile`, `VolunteerPublicProfile` (`MomentsPlacement`). Los de más riesgo sin tests de su lógica: `NGOProjectDetail` (aprobar, horas), `CreateVoluntariado`, `MyParticipation`, `NGOEmpleados`.
 
 ## 16. Posibles mejoras
 

@@ -34,7 +34,7 @@ backend/
 │   └── ws/
 │       └── index.js        # servidor de WebSocket (chat en tiempo real), colgado del mismo puerto HTTP
 └── scripts/
-    ├── migrate.js          # DDL: 28 tablas, 20+ índices, datos base (categorías/roles/habilidades/FAQs)
+    ├── migrate.js          # DDL: 31 tablas, 20+ índices, datos base (categorías/roles/habilidades/FAQs)
     └── seed.js              # datos de demo idempotentes
 ```
 
