@@ -24,6 +24,24 @@ services:
         value: 7d
       - key: CORS_ORIGINS
         value: https://voluntariar.onrender.com
+      # Links de los emails (sin esto apuntan a http://localhost:5173)
+      - key: APP_URL
+        value: https://voluntariar.onrender.com
+      # Emails (Resend). Sin RESEND_API_KEY los emails se omiten.
+      # Con el remitente de pruebas solo se entrega al email registrado en Resend:
+      # para pruebas, agregá EMAIL_REDIRECT_TO en el panel (ver backend/.env.example).
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: VoluntariAR <onboarding@resend.dev>
+      # Fotos de Momentos (Cloudinary). Hacen falta las tres; sin ellas publicar responde 503.
+      # Los valores secretos se cargan en el panel de Render, nunca en este archivo.
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
     healthCheckPath: /health
 
   # ── Frontend (Static Site) ───────────────────────────────────────────────

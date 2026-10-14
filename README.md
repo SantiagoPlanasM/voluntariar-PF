@@ -242,7 +242,7 @@ npm run test:pg      # Los mismos tests contra PostgreSQL real (variables TEST_P
 ### Tests
 
 ```bash
-cd backend  && npm test && npm run test:pg   # 255 tests, en SQLite y en PostgreSQL
+cd backend  && npm test && npm run test:pg   # 255 tests en SQLite, 257 en PostgreSQL (+2 solo de Postgres)
 cd frontend && npm test                      # 249 tests (Vitest)
 ```
 *(Cifras al 2026-10-13; el historial y lo que NO se pudo verificar está en `docs/PROJECT_ANALYSIS.md`.)*
@@ -318,7 +318,7 @@ En `voluntariar` (frontend) → Environment:
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | vacías (Momentos responde 503 al publicar) | Las tres, de la cuenta de Cloudinary |
 | `CLOUDINARY_FOLDER` | opcional | Carpeta de las fotos (vacío = sin carpeta) |
 
-> **En Render** estas variables hay que cargarlas a mano en el panel del servicio (Environment): `render.yaml` hoy solo declara `NODE_ENV`, `USE_POSTGRES`, `DATABASE_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN` y `CORS_ORIGINS`. Sin `CLOUDINARY_*` publicar un Momento responde 503; sin `RESEND_API_KEY` los emails se omiten.
+> **En Render:** `render.yaml` ya declara `APP_URL` y `EMAIL_FROM` con su valor, y `RESEND_API_KEY` y las tres `CLOUDINARY_*` con `sync: false` (el valor no va en el repo: se carga en el panel del servicio, *Environment*). Las opcionales (`EMAIL_REDIRECT_TO`, `CLOUDINARY_FOLDER`) no están declaradas: si las querés, agregalas a mano en el panel. Sin `CLOUDINARY_*` publicar un Momento responde 503; sin `RESEND_API_KEY` los emails se omiten.
 
 ### Frontend (`frontend/.env`)
 
