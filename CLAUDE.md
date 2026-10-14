@@ -18,7 +18,7 @@ Respondé en español rioplatense (voseo).
 - Backend: `npm test` y `npm run test:pg`. Hoy: **319** en SQLite y **321** en Postgres (+2 solo de Postgres).
   `test:pg` necesita un Postgres en `localhost:5432` (ver `TEST_PG_*` en `test/integration/helpers.js`); sirve
   `docker run --rm -d -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=voluntariar_test postgres:16`.
-- Frontend: `npm test`. Hoy: **268** tests.
+- Frontend: `npm test`. Hoy: **273** tests.
 - `npm audit` en **0** en los dos paquetes (la base de avisos cambia sola: si aparece uno, avisá).
 
 ## Cómo trabajamos
@@ -37,7 +37,7 @@ Respondé en español rioplatense (voseo).
 ## Trampas ya resueltas (no reintroducir)
 - `SUM`/`COUNT`/`AVG` en Postgres llegan como string → normalizar con `Number(x) || 0` (no `x || 0`: `'0'` es truthy). Los tests SQLite no lo ven.
 - Fechas: string en SQLite, `Date` en Postgres → nada de métodos de string; usar `toMillis()`
-  (backend, `src/lib/time.js`) y `parseBackendDate` (frontend: la usan `timeAgo` y `formatTime`; acepta ISO con zona y formato viejo).
+  (backend, `src/lib/time.js`) y `parseBackendDate` (frontend: la usan `timeAgo` y `formatTime`; acepta ISO con zona y formato viejo). Fechas sin hora (`YYYY-MM-DD`): `formatDateOnly`, nunca `new Date(fecha)` (es UTC: en Córdoba muestra el día anterior).
 - Nunca releer "el último por `created_at`" tras un INSERT: generar el id con `crypto.randomUUID()`,
   insertar y releer por id (los tests de altas tienen que correr en SQLite).
 - Dentro de `db.transaction()` usar `tx.*`, nunca `db.*`. Llamadas externas, emails y notificaciones van fuera/después del COMMIT.

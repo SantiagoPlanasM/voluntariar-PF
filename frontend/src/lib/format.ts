@@ -38,6 +38,18 @@ export function formatTime(iso: string): string {
   return new Date(ms).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 }
 
+/** Fecha sin hora ("YYYY-MM-DD", p. ej. la de un KPI) como "01 oct 2026". Se arma como fecha LOCAL: con
+ *  `new Date('2026-10-01')` es medianoche UTC, que en Córdoba (UTC-3) todavía es el 30 de septiembre, y se
+ *  mostraba un día antes (REVISION F2). Un timestamp completo se toma por su instante (parseBackendDate);
+ *  algo que no es fecha → "". */
+export function formatDateOnly(value: string): string {
+  const opts = { day: '2-digit', month: 'short', year: 'numeric' } as const;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString('es-AR', opts);
+  const ms = parseBackendDate(value);
+  return Number.isNaN(ms) ? '' : new Date(ms).toLocaleDateString('es-AR', opts);
+}
+
 /** Recorta un texto largo para mostrarlo con "ver más". Corta por cantidad de caracteres (`max`) y también
  *  por cantidad de líneas (`maxLines`): un texto cortito pero con muchos saltos de línea ocupa mucho alto.
  *  Corta en el límite de una palabra (salvo que la primera palabra sea larguísima) y agrega "…". */

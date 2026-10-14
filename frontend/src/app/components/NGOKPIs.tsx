@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, Plus, Trash2, Edit2, X, Save, Loader2, BarChart2, TrendingUp } from 'lucide-react';
 import { api, KPI } from '../../lib/api';
+import { formatDateOnly } from '../../lib/format';
 
 const TIPO_COLORS: Record<string, string> = {
   numero:     'bg-blue-50 text-blue-700',
@@ -251,7 +252,7 @@ export function NGOKPIs() {
                       </span>
                       {kpi.fecha && (
                         <span className="text-xs text-gray-400">
-                          {new Date(kpi.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          {formatDateOnly(kpi.fecha)}
                         </span>
                       )}
                     </div>

@@ -1608,3 +1608,27 @@ Ninguno detectado.
 - El mensaje de "servidor no disponible" ante un **502 en HTML real** de un proxy: lo cubren los tests con una respuesta simulada. No hay proxy local.
 - Con el backend caído, las pantallas muestran datos vacíos en vez de un error (en la prueba, "Mi Perfil" mostró 0 en todo). Es F9 (errores tragados), aparte.
 - La sesión se reintenta recién en la próxima recarga: no hay reintento automático de `/auth/me` cuando el backend vuelve.
+
+## 63. Fechas de KPI un día antes — REVISION F2
+
+**Contexto:** `NGOKPIs.tsx` mostraba la fecha con `new Date(kpi.fecha).toLocaleDateString(...)`. `kpis.fecha` es una columna TEXT con lo que manda el `<input type="date">` (`"YYYY-MM-DD"`), igual en los dos motores. `new Date("2026-10-01")` es **medianoche UTC**, y en Córdoba (UTC-3) eso todavía es el 30 de septiembre: se mostraba "30 sept 2026".
+
+**Arreglo:** `formatDateOnly()` en `lib/format.ts`. Un `"YYYY-MM-DD"` se arma como fecha **local** (`new Date(año, mes - 1, día)`); un timestamp completo se toma por su instante (`parseBackendDate`); algo que no es fecha → `""`. `NGOKPIs.tsx` lo usa. Revisé el resto de los `.tsx`: ningún otro componente parsea fechas con `new Date(x)`. Se sumó a las trampas de `CLAUDE.md`.
+
+### Tests (nuevos: 5)
+- `src/lib/format.test.ts` (4): con `process.env.TZ` fijado a Córdoba dentro del test (Node lo aplica en el momento, así el test no depende de la máquina), `"2026-10-01"` → "01 …" y `"2026-01-01"` no cae en el año anterior; lo mismo en UTC+9; un timestamp completo; algo inválido → `""`.
+- `src/app/components/NGOKPIs.test.tsx` (1): con el API simulado y TZ de Córdoba, un KPI con `fecha: "2026-10-01"` se ve como "01 de oct de 2026" y no como "30 sept".
+
+### Verificación
+- **Rojo → verde:** el test del componente fallaba con el bug real (no encontraba "01 de oct de 2026"). Los del helper fueron **rojo débil** (la función no existía).
+- **Mutación (6 mutantes, script descartable, línea base en verde):** volver al parseo UTC, mes corrido, sin la rama de fecha sola, sin chequeo de `NaN`, timestamp completo → `""` y el componente que vuelve a `new Date()`: **6 de 6 detectados.**
+- **TypeScript:** `tsc --noEmit` con 0 errores. **Suite del frontend:** **273/273**, también con `TZ=America/Argentina/Cordoba`.
+- **En el navegador (Claude in Chrome), contra Postgres:** en un primer intento la extensión se desconectó antes de abrir la pantalla; lo hice después, junto con la verificación de §64 (schema descartable). Con Sustentando, en `/ngo/kpis/proj-1`, un KPI con `fecha: "2026-10-01"` se ve **"01 de oct de 2026"** y otro con `"2026-10-02"`, "02 de oct de 2026".
+  - Al crear el primero con `curl` desde Git Bash, los acentos se guardaron rotos (`ef bf bd` en la base): `curl` mandó bytes que no son UTF-8. El segundo, creado con `fetch` desde Node, se ve bien ("Árboles en plantación"). **Fue la herramienta, no la app.**
+
+### Errores míos
+1. Agregué los tests del helper con un `node -e` entre comillas dobles que tenía backticks: bash los tomó como sustitución de comandos y el comentario quedó sin el fragmento `` `new Date('2026-10-01')` ``. Lo vi en el diff y lo corregí con `Edit`. Lección: texto con backticks, por `Edit`/archivo, no por `node -e "..."`.
+2. El primer test del componente buscaba el nombre del KPI con `getByText`, pero aparece dos veces en pantalla: lo cambié a `getAllByText` antes de confiar en el rojo.
+
+### ⚠️ NO verificado
+- F3 (KPI de tipo "texto" que no se puede guardar) sigue abierto: necesita una decisión.

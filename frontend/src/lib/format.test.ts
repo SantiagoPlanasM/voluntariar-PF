@@ -1,6 +1,6 @@
 // src/lib/format.test.ts
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
-import { timeAgo, formatTime, truncateText, userMessage } from './format';
+import { timeAgo, formatTime, formatDateOnly, truncateText, userMessage } from './format';
 
 describe('timeAgo', () => {
   beforeEach(() => {
@@ -98,6 +98,37 @@ describe('formatTime', () => {
   test('un valor que no es fecha devuelve "" en vez de "Invalid Date"', () => {
     expect(formatTime('cualquier cosa')).toBe('');
     expect(formatTime('')).toBe('');
+  });
+});
+
+// Fechas SIN hora ("YYYY-MM-DD", p. ej. la fecha de un KPI): `new Date('2026-10-01')` es medianoche UTC, que en
+// Córdoba (UTC-3) todavía es el 30 de septiembre: se mostraban un día antes (REVISION.md F2).
+describe('formatDateOnly', () => {
+  let prevTZ: string | undefined;
+  beforeEach(() => { prevTZ = process.env.TZ; process.env.TZ = 'America/Argentina/Cordoba'; });
+  afterEach(() => { if (prevTZ === undefined) delete process.env.TZ; else process.env.TZ = prevTZ; });
+
+  const opts = { day: '2-digit', month: 'short', year: 'numeric' } as const;
+
+  test('muestra el mismo día que dice el string, aunque la zona sea UTC-3', () => {
+    expect(formatDateOnly('2026-10-01')).toBe(new Date(2026, 9, 1).toLocaleDateString('es-AR', opts));
+    expect(formatDateOnly('2026-10-01')).toMatch(/^01 /);
+    expect(formatDateOnly('2026-01-01')).toMatch(/2026/); // 1° de enero no cae en el año anterior
+  });
+
+  test('tampoco corre el día en una zona positiva (UTC+9)', () => {
+    process.env.TZ = 'Asia/Tokyo';
+    expect(formatDateOnly('2026-10-01')).toMatch(/^01 /);
+  });
+
+  test('un timestamp completo se formatea por su instante (parseBackendDate)', () => {
+    // 2026-10-01T12:00Z es el 1 de octubre en Córdoba (09:00).
+    expect(formatDateOnly('2026-10-01T12:00:00.000Z')).toMatch(/^01 /);
+  });
+
+  test('algo que no es fecha → ""', () => {
+    expect(formatDateOnly('no es fecha')).toBe('');
+    expect(formatDateOnly('')).toBe('');
   });
 });
 
