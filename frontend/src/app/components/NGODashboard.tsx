@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { Plus, Search, Users, Sprout, ChevronRight, CheckCircle, Clock, XCircle, Loader2, Camera } from 'lucide-react';
-import { api, ApiError, Project, EnrollmentWithVolunteer, NGO, NGOStats } from '../../lib/api';
+import { api, ApiError, Project, PendingEnrollment, NGO, NGOStats } from '../../lib/api';
 import { userMessage } from '../../lib/format';
 import { InlineError } from './LoadError';
 import { useAuth } from '../../lib/AuthContext';
@@ -15,7 +15,7 @@ export function NGODashboard() {
   const [ngo, setNgo]         = useState<NGO | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [stats, setStats]     = useState<NGOStats | null>(null);
-  const [pending, setPending] = useState<EnrollmentWithVolunteer[]>([]);
+  const [pending, setPending] = useState<PendingEnrollment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch]   = useState('');
   const [processing, setProcessing] = useState<string|null>(null);
@@ -123,16 +123,17 @@ export function NGODashboard() {
                     <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-600 flex-shrink-0">{e.volunteer_name[0]}</div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">{e.volunteer_name}</p>
+                      <p className="text-xs text-emerald-700 font-medium truncate">{e.project_title}</p>
                       <p className="text-xs text-gray-400 truncate">{e.volunteer_email}</p>
                     </div>
                     <div className="flex gap-1.5 flex-shrink-0">
                       <button onClick={() => handleEnrollment(e.id,'approved')} disabled={processing===e.id}
-                        aria-label={`Aprobar a ${e.volunteer_name}`}
+                        aria-label={`Aprobar a ${e.volunteer_name} en ${e.project_title}`}
                         className="w-9 h-9 bg-green-50 text-green-600 rounded-xl flex items-center justify-center hover:bg-green-100 disabled:opacity-50">
                         {processing===e.id ? <Loader2 className="w-4 h-4 animate-spin"/> : <CheckCircle className="w-4 h-4"/>}
                       </button>
                       <button onClick={() => handleEnrollment(e.id,'rejected')} disabled={processing===e.id}
-                        aria-label={`Rechazar a ${e.volunteer_name}`}
+                        aria-label={`Rechazar a ${e.volunteer_name} en ${e.project_title}`}
                         className="w-9 h-9 bg-red-50 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-100 disabled:opacity-50">
                         <XCircle className="w-4 h-4"/>
                       </button>

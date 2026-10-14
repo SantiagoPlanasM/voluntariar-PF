@@ -2116,3 +2116,28 @@ Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/
 - En Chrome probé solo `FilterModal`. Reseñas, mapa ampliado, compositor y visor los cubren los tests.
 - **Leaflet con el teclado dentro del mapa ampliado:** el trap de Tab incluye los controles enfocables del mapa. No probé que las flechas y +/- de Leaflet sigan andando con el foco en el mapa.
 - Lector de pantalla real y uso táctil (igual que §79 y §80).
+
+## 82. El panel de la ONG no decía a qué voluntariado es cada solicitud — REVISION F14
+
+**Contexto:** `GET /ngos/me` ya mandaba `project_title` en cada solicitud pendiente (lo verifiqué en `routes/ngos.js`; `GET /ngos/:id/dashboard` también lo manda), pero el tipo `EnrollmentWithVolunteer` no lo declaraba y `NGODashboard` mostraba solo nombre y email. Con varios proyectos, la ONG no sabía a qué voluntariado se anotó cada persona. Además, si la misma persona se anotaba en dos, sus filas y los nombres de sus botones (§80) eran idénticos.
+
+**Qué se hizo:**
+- `api.ts`: `PendingEnrollment extends EnrollmentWithVolunteer { project_title: string }`, usado solo en `ngos.me()`. `GET /enrollments/project/:id` (el otro uso del tipo base) no trae el título y no lo necesita: es la pantalla de un único proyecto.
+- `NGODashboard`: el título del proyecto en una línea entre el nombre y el email, y los botones pasan a "Aprobar a Juan Pérez en Reforestación Urbana" / "Rechazar a …".
+- `API_CONTEXT.md`: la respuesta de `GET /api/ngos/me` documentada con `project_title`.
+- Sin cambios de backend.
+
+### Tests
+- `NGODashboard.test.tsx` (nuevo, 2): cada solicitud muestra su proyecto, y la misma persona en dos proyectos tiene cuatro botones distintos. Rojo con el componente anterior (no encuentra el título ni esos nombres), verde después. En `A11yNames.test.tsx` cambié los dos nombres esperados.
+
+### Verificación
+- **Frontend: 364/364. Typecheck: 0 errores** (antes de este cambio, TypeScript no podía detectar el uso de `project_title` porque el tipo no lo tenía).
+- **Mutación (2):** sacar la línea del título y sacar "en …" de los nombres: los dos mueren.
+- **En Chrome** (SQLite descartable, Sustentando): la solicitud de Juan Pérez muestra "Reforestación Urbana" en verde bajo el nombre; los botones se llaman "Aprobar a Juan Pérez en Reforestación Urbana" / "Rechazar a …".
+
+### Errores propios
+- Ninguno en esta tarea.
+
+### ⚠️ NO verificado
+- Solo lo vi en ancho de escritorio. En el celular la fila es más angosta: el título tiene `truncate`, así que se corta con "…" si es largo, pero no lo vi.
+- El seed tiene una sola solicitud pendiente: el caso de "la misma persona en dos proyectos" está probado solo en el test.

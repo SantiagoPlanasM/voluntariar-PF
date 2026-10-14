@@ -248,6 +248,7 @@
 
 ### `GET /api/ngos/me` — Auth, role `ngo`
 - Devuelve el perfil completo de la ONG de la sesión, incluyendo `category` (mismo JOIN que `GET /api/ngos`; corregido — antes no lo incluía, ver `PROJECT_ANALYSIS.md §13`).
+- **Respuesta 200:** `{ ngo, projects, stats, pending_enrollments }`. Cada solicitud pendiente trae la inscripción, `volunteer_name`/`volunteer_email`/`volunteer_avatar` y **`project_title`** (tipo `PendingEnrollment` en `api.ts`; `NGODashboard` lo muestra, `PROJECT_ANALYSIS.md §82`).
 
 ### `GET /api/ngos/:id` — Público
 - Perfil público de una ONG por id, incluyendo `category` (corregido — antes no lo incluía) y la lista de proyectos de esa ONG con su categoría. *(Corregido — la subquery de proyectos tenía una columna `id` ambigua entre `projects` y `categorias` que causaba un `500` en todos los casos. Ver `PROJECT_ANALYSIS.md §16`, bug B6.)*

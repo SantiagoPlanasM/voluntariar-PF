@@ -113,7 +113,7 @@ export const api = {
   },
   ngos: {
     list: () => req<{ ngos: NGO[] }>('/ngos'),
-    me: () => req<{ ngo: NGO; projects: Project[]; stats: NGOStats; pending_enrollments: EnrollmentWithVolunteer[] }>('/ngos/me'),
+    me: () => req<{ ngo: NGO; projects: Project[]; stats: NGOStats; pending_enrollments: PendingEnrollment[] }>('/ngos/me'),
     get: (id: string) => req<{ ngo: NGO; projects: Project[] }>(`/ngos/${id}`),
     update: (b: Partial<NGO>) => req<{ ngo: NGO }>('/ngos/me', { method: 'PUT', body: JSON.stringify(b) }),
     patrocinios: {
@@ -285,6 +285,10 @@ export interface EnrollmentWithProject extends Enrollment {
 export interface EnrollmentWithVolunteer extends Enrollment {
   volunteer_name: string; volunteer_email: string;
   volunteer_avatar?: string; volunteer_bio?: string;
+}
+/** Solicitud pendiente del panel de la ONG (GET /ngos/me): trae además el título del proyecto. */
+export interface PendingEnrollment extends EnrollmentWithVolunteer {
+  project_title: string;
 }
 export interface NGO {
   id: string; user_id: string; name: string; logo?: string;

@@ -196,8 +196,8 @@ describe('todo botón y campo tiene nombre accesible', () => {
   test('NGODashboard: aprobar y rechazar se distinguen y dicen a quién', async () => {
     as('ngo');
     render(<MemoryRouter><NGODashboard /></MemoryRouter>);
-    expect(await screen.findByRole('button', { name: 'Aprobar a Juan Pérez' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Rechazar a Juan Pérez' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Aprobar a Juan Pérez en Reforestación' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Rechazar a Juan Pérez en Reforestación' })).toBeInTheDocument();
     expect(unnamed()).toEqual([]);
   });
 
