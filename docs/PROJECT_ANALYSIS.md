@@ -2086,3 +2086,33 @@ Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/
 - **`read_page` de Chrome muestra vacíos** algunos botones y links cuyo nombre sale de texto anidado ("Nuevo proyecto", los links del menú lateral). Tienen texto visible y el test los da por nombrados; `computedName` no está disponible en este Chrome para confirmarlo desde el navegador.
 - Avatares con link cuyo nombre es solo la inicial (en las reseñas de `ProjectDetails`): tienen nombre, pero pobre. No lo cambié.
 - Contraste de colores, tamaño de los objetivos táctiles y orden de foco: fuera de F13.
+
+## 81. Los 5 modales que faltaban pasan a `<Modal>` — REVISION F12 (segunda parte)
+
+**Contexto:** §79 migró los modales que citaba la revisión. Quedaban 5 con un patrón propio: `FilterModal`, `ReviewsModal` y el mapa ampliado de `ProjectMap` escuchaban Escape en **`window`**, sin `role="dialog"`, sin foco ni trap. `PostComposer` y el visor de `MomentsGrid` tenían `role="dialog"`, pero Escape solo andaba con el foco adentro, y al abrir el foco no entraba. **Bug de comportamiento real:** con el login abierto encima de las reseñas (sin sesión, "calificar" lo abre), un Escape cerraba los dos modales a la vez.
+
+**Qué se hizo:**
+- Los 5 usan `<Modal>` con el nombre de su título (`labelledBy`): "Filtros", "Reseñas y Calificaciones", "Mapa de Voluntariados", "Compartir un momento", "Momento". Se borraron los tres listeners propios de Escape y bloqueo de scroll. `FilterModal` y `ProjectMap` siguen dentro de `createPortal` (z-index sobre Leaflet). Clases y estilos sin cambios.
+- **`PostComposer`:** Escape pasa por `requestClose`: pregunta si hay fotos y no cierra mientras publica. `closeOnOverlay={false}` (antes el fondo tampoco cerraba).
+- **Visor de `MomentsGrid`:** `closeOnOverlay={false}` (igual que antes).
+- **`ProjectMap`:** "Cerrar detalle" en los dos botones que cierran la ficha del proyecto elegido (mapa chico y ampliado). Quedó afuera de §80 para probarlo acá con el mapa montado.
+
+### Tests (nuevos: 12)
+- `ModalsMigrated.test.tsx` (6): `FilterModal` (nombre, foco, Tab adentro, Escape una vez, scroll liberado); `ReviewsModal` (nombre, foco, Escape) y **login encima de las reseñas: Escape cierra solo el login**; `ProjectMap` con **Leaflet real en jsdom** (solo hizo falta un `ResizeObserver` falso): mapa ampliado con nombre, foco y vuelta del foco al botón que lo abrió, y "Cerrar detalle" tras tocar un pin.
+- `MomentsGrid.test.tsx` (+3) y `PostComposer.test.tsx` (+3): Escape con el foco afuera, foco que entra y vuelve, Tab adentro, el fondo no cierra, y Escape no cierra mientras publica.
+- **Rojo → verde:** con los 5 componentes en su versión anterior fallan 8 de los nuevos. Los otros (Escape una vez y scroll de `FilterModal`, Escape mientras publica, el fondo de `MomentsGrid`) ya se cumplían: quedan como guarda. Para comprobarlo copié los archivos aparte y los restauré con chequeo de md5 (sin `git stash`, ver §80).
+
+### Verificación
+- **Frontend: 362/362**, también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.**
+- **Mutación (13 mutantes):** sacar el nombre o el `id` del título en cada modal, cada "Cerrar detalle", que Escape del compositor saltee `requestClose`, y que el fondo cierre (compositor y visor). 12 muertos. **Sobrevivió 1:** "el fondo cierra el visor de `MomentsGrid`" (no equivalente). Agregué el test y comprobé que ahora muere.
+- **En Chrome** (SQLite descartable; página recargada después de la mutación para no ver estado de HMR): Explorar → filtros: diálogo "Filtros" con el aspecto de siempre, foco adentro, scroll bloqueado; Shift+Tab desde el panel va a "Mostrar 12 voluntariados" (el último); Escape cierra, libera el scroll y el foco vuelve al botón de filtros.
+
+### Errores propios
+1. En el test de `ProjectMap` guardaba la referencia al primer pin; el mapa recrea los marcadores después del primer render y el clic caía en uno desmontado. Lo encontré con un test de debug descartable (lo borré). Ahora se busca el pin en cada intento.
+2. Un `sed` mío rompió ese archivo de debug (reemplazó todos los `);`); lo reescribí entero. No tocó archivos del proyecto.
+3. En Chrome creí que el foco no volvía al botón de filtros: mi chequeo miraba `aria-label` y ese botón se nombra con `title`. Volvía bien.
+
+### ⚠️ NO verificado
+- En Chrome probé solo `FilterModal`. Reseñas, mapa ampliado, compositor y visor los cubren los tests.
+- **Leaflet con el teclado dentro del mapa ampliado:** el trap de Tab incluye los controles enfocables del mapa. No probé que las flechas y +/- de Leaflet sigan andando con el foco en el mapa.
+- Lector de pantalla real y uso táctil (igual que §79 y §80).

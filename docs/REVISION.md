@@ -1,6 +1,6 @@
 # REVISION.md — Revisión de código de VoluntariAR (2026-10-13)
 
-> **Estado (2026-10-14):** este informe se escribió sin tocar el código; después se fueron arreglando ítems en commits separados. Los arreglados tienen ✅ y la sección de `PROJECT_ANALYSIS.md` donde está el detalle (§51–§80). Las correcciones a lo que decía este informe (B2 y B8 tenían menos impacto visible del indicado) están en esas secciones.
+> **Estado (2026-10-14):** este informe se escribió sin tocar el código; después se fueron arreglando ítems en commits separados. Los arreglados tienen ✅ y la sección de `PROJECT_ANALYSIS.md` donde está el detalle (§51–§81). Las correcciones a lo que decía este informe (B2 y B8 tenían menos impacto visible del indicado) están en esas secciones.
 
 **Base revisada:** commit `0d6663a` (`main`). **Método:** tres revisiones de solo lectura en paralelo (backend, frontend, tests+docs) y una verificación propia de los hallazgos de severidad alta. No se modificó ningún archivo del proyecto; este informe es lo único nuevo.
 
@@ -35,7 +35,7 @@ Los ids (B = backend, F = frontend, T = tests, D = docs) son los de cada revisi�
 | Media ✅ §66 | F6 | bug | Empresa: el selector de patrocinio solo lista 20 proyectos | por lectura |
 | Media ✅ §64 | F7 | bug | Proyecto/ONG/empresa inexistente o error → `navigate(-1)` y página en blanco | por lectura |
 | Media ✅ §65 | F9 | bug | Errores tragados: aceptar/rechazar patrocinio, dashboard ONG, KPIs, notificaciones | por lectura |
-| Media ✅ §79 (5 de los 5 citados; quedan otros 5) | F12 | mejora | Modales sin `role="dialog"`, Escape ni foco (login incluido) | por lectura |
+| Media ✅ §79 + §81 (los 10 modales) | F12 | mejora | Modales sin `role="dialog"`, Escape ni foco (login incluido) | por lectura |
 | Media ✅ §78 | D1, D2, D5, D6 | bug (doc) | Docs que contradicen el código (multer, "no hay tests", roles de follows, KPIs) | por lectura |
 | Baja ✅ §57 | B9 | bug | `COUNT`/`SUM` sin `Number()` en `/voluntarios/:id` y `/follows/feed` | verificado en Postgres |
 | Baja (B18 ✅ §56, B10 ✅ §74, B11 ✅ §74/§76, B12 ✅ §76, B13 ✅ §76, B14 ✅ §75) | B10–B14, B18 | bug | Validaciones de entrada que terminan en 500 en vez de 400 | probado |

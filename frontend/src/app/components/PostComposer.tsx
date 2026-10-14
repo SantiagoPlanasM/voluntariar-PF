@@ -7,12 +7,13 @@
 // Los límites (5 fotos, 500 caracteres) deben coincidir con los de backend/src/routes/posts.js.
 // El modal no se cierra solo al publicar: avisa con `onCreated(post)` y quien lo abrió decide (hasta entonces
 // el botón queda bloqueado, para que un segundo clic no publique dos veces).
-import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
 import { X, ImagePlus, Loader2 } from 'lucide-react';
 import { api, type EligibleProject, type Post } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { ACCEPTED_TYPES, compressImage } from '../../lib/imageCompress';
 import { userMessage } from '../../lib/format';
+import { Modal } from './Modal';
 
 export const MAX_PHOTOS = 5;
 export const MAX_CAPTION = 500;
@@ -71,10 +72,6 @@ export function PostComposer({ onClose, onCreated }: Props) {
     if (busy) return;
     if (dirty && !window.confirm('¿Descartar esta publicación? Se pierden las fotos y el texto.')) return;
     onClose();
-  }
-
-  function onKeyDown(e: KeyboardEvent) {
-    if (e.key === 'Escape') requestClose();
   }
 
   function onPick(e: ChangeEvent<HTMLInputElement>) {
@@ -141,14 +138,12 @@ export function PostComposer({ onClose, onCreated }: Props) {
     : 'Para compartir momentos necesitás tener una inscripción aprobada en algún voluntariado.';
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50 sm:p-4">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onKeyDown={onKeyDown}
-        className="w-full max-w-lg max-h-[92vh] overflow-y-auto bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl"
-      >
+    // Escape pasa por requestClose (pregunta si hay fotos y no cierra mientras publica). El fondo no cierra:
+    // un clic de más perdería las fotos elegidas.
+    <Modal onClose={requestClose} labelledBy={titleId} closeOnOverlay={false}
+      overlayClassName="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50 sm:p-4"
+      className="w-full max-w-lg max-h-[92vh] overflow-y-auto bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl"
+    >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <h2 id={titleId} className="text-base font-black text-gray-900">Compartir un momento</h2>
           <button
@@ -293,7 +288,6 @@ export function PostComposer({ onClose, onCreated }: Props) {
             </>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

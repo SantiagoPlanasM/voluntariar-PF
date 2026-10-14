@@ -9,6 +9,7 @@ import { X } from 'lucide-react';
 import { api, type Post } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { PostCard } from './PostCard';
+import { Modal } from './Modal';
 
 interface Props {
   filters: { project_id?: string; user_id?: string };
@@ -134,14 +135,10 @@ export function MomentsGrid({ filters, pageSize = 9 }: Props) {
       )}
 
       {open && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Momento"
-            onKeyDown={(e) => { if (e.key === 'Escape') setOpen(null); }}
-            className="relative w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-3xl"
-          >
+        <Modal onClose={() => setOpen(null)} label="Momento" closeOnOverlay={false}
+          overlayClassName="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+          className="relative w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-3xl"
+        >
             <button
               type="button"
               onClick={() => setOpen(null)}
@@ -151,8 +148,7 @@ export function MomentsGrid({ filters, pageSize = 9 }: Props) {
               <X className="w-4 h-4" />
             </button>
             <PostCard post={open} onDeleted={handleDeleted} />
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

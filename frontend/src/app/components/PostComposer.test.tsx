@@ -3,7 +3,7 @@ import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { PostComposer } from './PostComposer';
 import { makePost, deferred } from '../../test/postFixtures';
-import type { User } from '../../lib/api';
+import type { Post, User } from '../../lib/api';
 
 vi.mock('../../lib/AuthContext', () => ({ useAuth: vi.fn() }));
 vi.mock('../../lib/api', async () => {
@@ -417,5 +417,33 @@ describe('<PostComposer /> — cerrar', () => {
     const { onClose } = await renderOpen();
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Enter' });
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('<PostComposer /> — modal accesible (REVISION F12, <Modal> común)', () => {
+  test('al abrir el foco entra; Escape funciona aunque el foco esté afuera', async () => {
+    const { onClose } = await renderOpen();
+    expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  test('clic en el fondo NO cierra (se perderían las fotos)', async () => {
+    const { onClose } = await renderOpen();
+    fireEvent.click(screen.getByTestId('modal-overlay'));
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  test('mientras publica, Escape no cierra', async () => {
+    const d = deferred<{ post: Post }>();
+    vi.mocked(api.posts.create).mockReturnValue(d.promise);
+    const { onClose } = await renderOpen();
+    choose('proj-1');
+    addPhotos(photo('a.jpg'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Publicar' }));
+    await screen.findByRole('button', { name: /Publicando|Preparando/ });
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+    await act(async () => { d.resolve({ post: makePost({ id: 'x' }) }); });
   });
 });

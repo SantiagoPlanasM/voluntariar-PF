@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useId, useRef, useState, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
 import {
@@ -7,6 +7,7 @@ import {
 import { Project } from '../../lib/api';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { Modal } from './Modal';
 
 // Coordenadas base de Córdoba Capital
 const DEFAULT_CENTER = { lat: -31.4201, lng: -64.1888 };
@@ -98,6 +99,7 @@ function ProjectMapModal({
   const leafletMarkersRef = useRef<L.Marker[]>([]);
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(initialSelectedProject);
+  const titleId = useId();
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isLocating, setIsLocating] = useState(false);
@@ -190,20 +192,7 @@ function ProjectMapModal({
     }
   }, [filteredProjects, selectedProject]);
 
-  // Manejo de tecla Escape y bloqueo de scroll
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [onClose]);
+  // Escape, foco y bloqueo del scroll: <Modal> (antes un listener propio en window).
 
   // Actualizar marcadores
   const updateMarkers = useCallback(() => {
@@ -323,14 +312,10 @@ function ProjectMapModal({
   const handleZoomOut = () => leafletMapRef.current?.zoomOut();
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-[99999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 md:p-8 animate-in fade-in duration-200"
-      onClick={onClose}
+    <Modal onClose={onClose} labelledBy={titleId}
+      overlayClassName="fixed inset-0 z-[99999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 md:p-8 animate-in fade-in duration-200"
+      className="relative w-full max-w-5xl h-[88vh] bg-white rounded-3xl shadow-2xl border border-gray-200/90 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
     >
-      <div
-        className="relative w-full max-w-5xl h-[88vh] bg-white rounded-3xl shadow-2xl border border-gray-200/90 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
-        onClick={e => e.stopPropagation()}
-      >
         {/* Header del Pop-up */}
         {/* Header del Pop-up con Filtros Interactivos (Multiselección) */}
         <div className="flex flex-col md:flex-row md:items-center justify-between px-5 py-3.5 border-b border-gray-100 bg-white z-10 shrink-0 gap-3">
@@ -341,7 +326,7 @@ function ProjectMapModal({
                 <Compass className="w-5 h-5" />
               </div>
               <div className="min-w-0">
-                <h3 className="font-bold text-sm sm:text-base text-gray-900 truncate">
+                <h3 id={titleId} className="font-bold text-sm sm:text-base text-gray-900 truncate">
                   Mapa de Voluntariados
                 </h3>
                 <p className="text-xs text-gray-500 truncate flex items-center gap-1.5">
@@ -547,7 +532,7 @@ function ProjectMapModal({
                     </div>
                   </div>
                   <button
-                    onClick={() => setSelectedProject(null)}
+                    onClick={() => setSelectedProject(null)} aria-label="Cerrar detalle"
                     className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
                   >
                     <X className="w-4 h-4" />
@@ -574,8 +559,7 @@ function ProjectMapModal({
             </div>
           )}
         </div>
-      </div>
-    </div>,
+    </Modal>,
     document.body
   );
 }
@@ -813,7 +797,7 @@ export function ProjectMap({ projects, className = '', onSelectProject }: Projec
                   </div>
                 </div>
                 <button
-                  onClick={() => setSelectedProject(null)}
+                  onClick={() => setSelectedProject(null)} aria-label="Cerrar detalle"
                   className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
                 >
                   <X className="w-4 h-4" />

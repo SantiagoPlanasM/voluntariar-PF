@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { X, Star, Loader2, MessageSquare, CheckCircle2, UserCheck } from 'lucide-react';
 import { api, Rating } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
+import { Modal } from './Modal';
 
 interface ReviewsModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export function ReviewsModal({
   const { user, openAuthModal } = useAuth();
 
   const [ratings, setRatings] = useState<Rating[]>(initialRatings || []);
+  const titleId = useId();
   const [loading, setLoading] = useState(false);
 
   // Formulario de calificación
@@ -62,14 +64,8 @@ export function ReviewsModal({
     }
   }, [isOpen, projectId, initialRatings]);
 
-  // Cerrar con Escape
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    if (isOpen) window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  // Escape y foco: <Modal>. Antes el listener en window cerraba también este modal cuando se apretaba
+  // Escape en el login abierto encima ("Iniciá sesión para calificar").
 
   if (!isOpen) return null;
 
@@ -107,18 +103,14 @@ export function ReviewsModal({
     : (avgRating || 0);
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
-      onClick={onClose}
+    <Modal onClose={onClose} labelledBy={titleId}
+      overlayClassName="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
+      className="bg-white rounded-3xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl border border-gray-100 overflow-hidden"
     >
-      <div
-        className="bg-white rounded-3xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl border border-gray-100 overflow-hidden"
-        onClick={e => e.stopPropagation()}
-      >
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <div className="p-5 border-b border-gray-100 flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-lg font-black text-gray-900 leading-tight">
+            <h3 id={titleId} className="text-lg font-black text-gray-900 leading-tight">
               Reseñas y Calificaciones
             </h3>
             <p className="text-xs text-gray-500 font-medium mt-0.5 line-clamp-1">
@@ -307,7 +299,6 @@ export function ReviewsModal({
             Cerrar
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

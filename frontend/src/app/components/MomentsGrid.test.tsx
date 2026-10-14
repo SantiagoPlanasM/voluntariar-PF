@@ -202,3 +202,36 @@ describe('<MomentsGrid />', () => {
     expect(screen.queryByRole('button', { name: 'Ver más' })).not.toBeInTheDocument();
   });
 });
+
+describe('<MomentsGrid /> — modal accesible (REVISION F12, <Modal> común)', () => {
+  test('diálogo "Momento": el foco entra, Escape cierra aunque el foco esté afuera y vuelve a la miniatura', async () => {
+    list().mockResolvedValue(page(['a']));
+    render(<MomentsGrid filters={{ project_id: 'p1' }} />);
+    const thumb = await screen.findByRole('button', { name: /^Ver momento/ });
+    thumb.focus();
+    fireEvent.click(thumb);
+    const d = screen.getByRole('dialog', { name: 'Momento' });
+    expect(d.contains(document.activeElement)).toBe(true);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(thumb);
+  });
+
+  test('Tab queda adentro del modal', async () => {
+    list().mockResolvedValue(page(['a']));
+    render(<MomentsGrid filters={{ project_id: 'p1' }} />);
+    fireEvent.click(await screen.findByRole('button', { name: /^Ver momento/ }));
+    const last = screen.getByRole('button', { name: 'borrar-fantasma' });
+    last.focus();
+    fireEvent.keyDown(last, { key: 'Tab' });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cerrar' }));
+  });
+
+  test('clic en el fondo no cierra el visor (se mantiene el comportamiento anterior)', async () => {
+    list().mockResolvedValue(page(['a']));
+    render(<MomentsGrid filters={{ project_id: 'p1' }} />);
+    fireEvent.click(await screen.findByRole('button', { name: /^Ver momento/ }));
+    fireEvent.click(screen.getByTestId('modal-overlay'));
+    expect(screen.getByRole('dialog', { name: 'Momento' })).toBeInTheDocument();
+  });
+});

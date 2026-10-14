@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useId, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Sparkles, Zap, Calendar, Laptop, MapPin, DollarSign, Check, Globe } from 'lucide-react';
 import { Project } from '../../lib/api';
 import { CATEGORY_COLORS } from './ProjectMap';
+import { Modal } from './Modal';
 
 export interface FilterState {
   categories: string[];
@@ -87,6 +88,7 @@ export function FilterModal({
 }: FilterModalProps) {
   // Estado borrador mientras el modal está abierto
   const [draft, setDraft] = useState<FilterState>(currentFilters);
+  const titleId = useId();
 
   // Sincronizar con currentFilters al abrir
   useEffect(() => {
@@ -95,21 +97,7 @@ export function FilterModal({
     }
   }, [isOpen, currentFilters]);
 
-  // Manejar Escape y bloquear scroll del fondo
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [isOpen, onClose]);
+  // Escape, foco y bloqueo del scroll los maneja <Modal> (antes un listener propio en window).
 
   // Conteo dinámico en tiempo real de los proyectos que coinciden con el borrador
   const previewCount = useMemo(() => {
@@ -142,18 +130,14 @@ export function FilterModal({
   if (!isOpen) return null;
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200"
-      onClick={onClose}
+    <Modal onClose={onClose} labelledBy={titleId}
+      overlayClassName="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200"
+      className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-gray-100 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200"
     >
-      <div
-        className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-gray-100 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200"
-        onClick={e => e.stopPropagation()}
-      >
         {/* ── Cabecera ────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <div>
-            <h3 className="font-bold text-lg text-gray-900 leading-tight">
+            <h3 id={titleId} className="font-bold text-lg text-gray-900 leading-tight">
               Filtros
             </h3>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -349,8 +333,7 @@ export function FilterModal({
             <span>Mostrar {previewCount} voluntariados</span>
           </button>
         </div>
-      </div>
-    </div>,
+    </Modal>,
     document.body
   );
 }
