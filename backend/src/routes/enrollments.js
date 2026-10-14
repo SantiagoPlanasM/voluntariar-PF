@@ -18,6 +18,10 @@ class NoCapacityError extends Error {}
 
 const router = express.Router();
 
+// Tope de horas cargables a una inscripción: holgado (unas 40 h semanales durante 5 años), solo para
+// rechazar valores absurdos o mal tipeados.
+const MAX_HORAS = 10000;
+
 // ── POST /api/enrollments ─────────────────────────────────────────────────
 router.post('/', requireAuth, requireRole('volunteer'), async (req, res) => {
   try {
@@ -292,8 +296,13 @@ router.delete('/:id', requireAuth, async (req, res) => {
 router.patch('/:id/horas', requireAuth, requireRole('ngo'), async (req, res) => {
   try {
     const { horas } = req.body;
-    const h = parseFloat(horas);
-    if (isNaN(h) || h < 0) return res.status(400).json({ error: 'Horas debe ser un número positivo' });
+    // Número finito entre 0 y MAX_HORAS (también como string numérico, p. ej. "7.5"). Antes era parseFloat +
+    // isNaN: "1e400" (o 1e400 en el JSON) pasaba como Infinity y rompía los totales, y "12abc" se guardaba
+    // como 12 en silencio (REVISION B14).
+    const h = typeof horas === 'number' ? horas
+      : typeof horas === 'string' && horas.trim() !== '' ? Number(horas) : NaN;
+    if (!Number.isFinite(h) || h < 0 || h > MAX_HORAS)
+      return res.status(400).json({ error: `Las horas tienen que ser un número entre 0 y ${MAX_HORAS}` });
 
     const ngo = await db.get('SELECT id FROM ngos WHERE user_id=$1', [req.user.id]);
     const enrollment = await db.get(

@@ -1900,3 +1900,23 @@ Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/
 
 ### ⚠️ NO verificado / fuera de alcance
 - Los comentarios de una calificación no pasan por el filtro de palabras (`hasBadWord`), a diferencia de los comentarios del proyecto. No lo cambié (B7 está pendiente de decisión).
+
+## 75. Horas cargadas como Infinity (o "12abc" como 12) — REVISION B14
+
+**Contexto:** `PATCH /api/enrollments/:id/horas` validaba con `parseFloat` + `isNaN`.
+- `"1e400"`, o el número `1e400` en el JSON (que `JSON.parse` convierte en `Infinity`), pasaba como **Infinity** y se guardaba: los totales de horas (panel de empresa, perfil del voluntario) quedaban rotos.
+- `"12abc"` se guardaba como 12 en silencio; `[5]` como 5.
+- No había tope.
+
+**Arreglo** (`routes/enrollments.js`): `horas` tiene que ser un número (o un string numérico no vacío, `"7.5"`) **finito, entre 0 y `MAX_HORAS` (10000)**. Si no → 400 "Las horas tienen que ser un número entre 0 y 10000". El tope es holgado (unas 40 h semanales durante 5 años): solo corta valores absurdos o mal tipeados.
+
+### Tests (nuevos: 12, en los dos motores)
+`test/integration/enrollments-hours-validation.test.js`:
+- `"1e400"`, `1e400` crudo en el JSON, `"12abc"`, `10001`, `-1`, `""`, `null` y `[5]` → 400, sin cambiar las horas;
+- `7.5`, `"7.5"`, `0` y `10000` → 200 y se guardan.
+
+### Verificación
+- **Rojo → verde:** en los dos motores, `"1e400"`, `1e400`, `"12abc"`, `10001` y `[5]` daban 200. `-1`, `""` y `null` ya daban 400, pero en el rojo fallaban **en cascada**: el `10001` anterior se había guardado y cambiaba el punto de partida (`actual: 10001`).
+- **Mutación (6, los dos motores, script descartable):** sin tope, tope `>=`, `parseFloat`, aceptar `""` y no aceptar strings: **detectados**. Sobrevive "sin `isFinite`": **equivalente**, porque el tope ya rechaza `Infinity` (`Infinity > 10000`) y `-Infinity` cae en `h < 0`. `isFinite` queda por claridad.
+- **Suites completas:** SQLite **347/347** y Postgres **349/349**, las dos también con `TZ=America/Argentina/Cordoba`.
+- Sin navegador: `NGOProjectDetail` ya valida `>= 0` antes de mandar. Un valor de más de 10000 ahora se ve con el `alert` de error de esa pantalla (que usa `alert()`, anotado en §65).
