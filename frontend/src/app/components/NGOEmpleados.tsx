@@ -75,7 +75,7 @@ export function NGOEmpleados() {
       <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)}
+            <button onClick={() => navigate(-1)} aria-label="Volver"
               className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
               <ArrowLeft className="w-4 h-4 text-gray-600" />
             </button>
@@ -100,23 +100,23 @@ export function NGOEmpleados() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1 block">Nombre *</label>
-                <input className={inp} placeholder="Ana" value={form.nombre}
+                <input className={inp} placeholder="Ana" aria-label="Nombre" value={form.nombre}
                   onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1 block">Apellido *</label>
-                <input className={inp} placeholder="García" value={form.apellido}
+                <input className={inp} placeholder="García" aria-label="Apellido" value={form.apellido}
                   onChange={e => setForm(f => ({ ...f, apellido: e.target.value }))} />
               </div>
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-500 mb-1 block">Email *</label>
-              <input className={inp} type="email" placeholder="ana@ong.org" value={form.email}
+              <input className={inp} type="email" placeholder="ana@ong.org" aria-label="Email" value={form.email}
                 onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-500 mb-1 block">Rol</label>
-              <select className={inp} value={form.rol}
+              <select className={inp} aria-label="Rol" value={form.rol}
                 onChange={e => setForm(f => ({ ...f, rol: e.target.value }))}>
                 {ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
               </select>

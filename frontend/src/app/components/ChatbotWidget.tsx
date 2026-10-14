@@ -77,7 +77,7 @@ export function ChatbotWidget() {
               <MessageCircleQuestion className="w-5 h-5" />
               <span className="font-bold text-sm">Ayuda rápida</span>
             </div>
-            <button onClick={close} className="text-white/80 hover:text-white">
+            <button onClick={close} aria-label="Cerrar" className="text-white/80 hover:text-white">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -129,12 +129,13 @@ export function ChatbotWidget() {
           <div className="p-3 border-t border-gray-100 flex gap-2 flex-shrink-0">
             <input
               ref={inputRef}
+              aria-label="Tu pregunta"
               value={input} onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') ask(input); }}
               placeholder="Escribí tu pregunta..."
               className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
-            <button onClick={() => ask(input)} disabled={asking || !input.trim()}
+            <button onClick={() => ask(input)} disabled={asking || !input.trim()} aria-label="Enviar pregunta"
               className="w-9 h-9 flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-xl flex-shrink-0 transition-colors">
               <Send className="w-4 h-4" />
             </button>

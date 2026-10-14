@@ -52,10 +52,11 @@ export function NGOOwnProfile() {
       <div className="bg-gradient-to-br from-blue-600 to-emerald-600 px-4 pt-14 pb-8 relative">
         <div className="absolute top-4 right-4 flex gap-2">
           <button onClick={() => { setEditing(!editing); setSaveErr(''); }}
+            aria-label={editing ? 'Cancelar edición' : 'Editar perfil'}
             className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
             {editing ? <X className="w-5 h-5 text-white" /> : <Edit2 className="w-5 h-5 text-white" />}
           </button>
-          <button onClick={() => { logout(); navigate('/'); }}
+          <button onClick={() => { logout(); navigate('/'); }} aria-label="Cerrar sesión"
             className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
             <LogOut className="w-5 h-5 text-white" />
           </button>
@@ -90,13 +91,13 @@ export function NGOOwnProfile() {
 
             <div>
               <p className="text-xs font-semibold text-gray-600 mb-1.5">Nombre *</p>
-              <input className={inp} placeholder="Nombre de la ONG" value={form.name}
+              <input className={inp} placeholder="Nombre de la ONG" aria-label="Nombre" value={form.name}
                 onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setSaveErr(''); }} />
             </div>
 
             <div>
               <p className="text-xs font-semibold text-gray-600 mb-1.5">Categoría</p>
-              <select className={inp} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
+              <select className={inp} aria-label="Categoría" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
                 <option value="">Sin especificar</option>
                 {CATEGORIES.map(c => <option key={c}>{c}</option>)}
               </select>
@@ -104,19 +105,19 @@ export function NGOOwnProfile() {
 
             <div>
               <p className="text-xs font-semibold text-gray-600 mb-1.5">Ubicación</p>
-              <input className={inp} placeholder="Ej: Córdoba, Argentina" value={form.location}
+              <input className={inp} placeholder="Ej: Córdoba, Argentina" aria-label="Ubicación" value={form.location}
                 onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
             </div>
 
             <div>
               <p className="text-xs font-semibold text-gray-600 mb-1.5">Descripción</p>
-              <textarea className={inp + ' resize-none'} rows={3} value={form.description}
+              <textarea className={inp + ' resize-none'} rows={3} aria-label="Descripción" value={form.description}
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
             </div>
 
             <div>
               <p className="text-xs font-semibold text-gray-600 mb-1.5">Misión</p>
-              <textarea className={inp + ' resize-none'} rows={2} value={form.mission}
+              <textarea className={inp + ' resize-none'} rows={2} aria-label="Misión" value={form.mission}
                 onChange={e => setForm(f => ({ ...f, mission: e.target.value }))} />
             </div>
 

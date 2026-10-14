@@ -109,13 +109,13 @@ export function VolunteerPublicProfile() {
     <div className="min-h-screen bg-gray-50 md:ml-60">
       {/* Header */}
       <div className="bg-gradient-to-br from-emerald-600 to-teal-700 px-4 pt-14 pb-10 relative z-0">
-        <button onClick={() => navigate(-1)}
+        <button onClick={() => navigate(-1)} aria-label="Volver"
           className="absolute top-4 left-4 w-10 h-10 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
           <ArrowLeft className="w-5 h-5 text-white" />
         </button>
 
         {user && user.id !== id && (
-          <Link to={`/messages/${id}`}
+          <Link to={`/messages/${id}`} aria-label={`Enviar mensaje a ${v.name}`}
             className="absolute top-4 right-4 w-10 h-10 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
             <MessageSquare className="w-5 h-5 text-white" />
           </Link>
@@ -276,7 +276,7 @@ export function VolunteerPublicProfile() {
               <h3 id={listTitleId} className="font-bold text-gray-900">
                 {listMode === 'followers' ? 'Seguidores' : 'Siguiendo'}
               </h3>
-              <button onClick={() => setListMode(null)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
+              <button onClick={() => setListMode(null)} aria-label="Cerrar" className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
                 <X className="w-4 h-4 text-gray-600" />
               </button>
             </div>

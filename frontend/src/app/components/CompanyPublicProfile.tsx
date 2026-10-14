@@ -42,7 +42,7 @@ export function CompanyPublicProfile() {
         {empresa.cover_image && (
           <img src={empresa.cover_image} alt="" className="w-full h-full object-cover opacity-40" />
         )}
-        <button onClick={() => navigate(-1)}
+        <button onClick={() => navigate(-1)} aria-label="Volver"
           className="absolute top-4 left-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg">
           <ArrowLeft className="w-5 h-5 text-gray-800" />
         </button>

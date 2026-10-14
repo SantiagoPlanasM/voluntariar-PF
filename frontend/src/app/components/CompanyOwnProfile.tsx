@@ -139,10 +139,11 @@ export function CompanyOwnProfile() {
       <div className="bg-gradient-to-br from-violet-600 to-indigo-600 px-4 pt-14 pb-8 relative">
         <div className="absolute top-4 right-4 flex gap-2">
           <button onClick={() => { setEditing(!editing); setSaveErr(''); }}
+            aria-label={editing ? 'Cancelar edición' : 'Editar perfil'}
             className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
             {editing ? <X className="w-5 h-5 text-white" /> : <Edit2 className="w-5 h-5 text-white" />}
           </button>
-          <button onClick={() => { logout(); navigate('/'); }}
+          <button onClick={() => { logout(); navigate('/'); }} aria-label="Cerrar sesión"
             className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
             <LogOut className="w-5 h-5 text-white" />
           </button>
@@ -176,19 +177,19 @@ export function CompanyOwnProfile() {
 
             <div>
               <p className="text-xs font-semibold text-gray-600 mb-1.5">Nombre *</p>
-              <input className={inp} placeholder="Nombre de la empresa" value={form.name}
+              <input className={inp} placeholder="Nombre de la empresa" aria-label="Nombre" value={form.name}
                 onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setSaveErr(''); }} />
             </div>
 
             <div>
               <p className="text-xs font-semibold text-gray-600 mb-1.5">Industria / Rubro</p>
-              <input className={inp} placeholder="Ej: Tecnología, Retail, Alimentos" value={form.industry}
+              <input className={inp} placeholder="Ej: Tecnología, Retail, Alimentos" aria-label="Industria / Rubro" value={form.industry}
                 onChange={e => setForm(f => ({ ...f, industry: e.target.value }))} />
             </div>
 
             <div>
               <p className="text-xs font-semibold text-gray-600 mb-1.5">Categoría de interés</p>
-              <select className={inp} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
+              <select className={inp} aria-label="Categoría de interés" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
                 <option value="">Sin especificar</option>
                 {CATEGORIES.map(c => <option key={c}>{c}</option>)}
               </select>
@@ -196,19 +197,19 @@ export function CompanyOwnProfile() {
 
             <div>
               <p className="text-xs font-semibold text-gray-600 mb-1.5">Ubicación</p>
-              <input className={inp} placeholder="Ej: Córdoba, Argentina" value={form.location}
+              <input className={inp} placeholder="Ej: Córdoba, Argentina" aria-label="Ubicación" value={form.location}
                 onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
             </div>
 
             <div>
               <p className="text-xs font-semibold text-gray-600 mb-1.5">Descripción</p>
-              <textarea className={inp + ' resize-none'} rows={3} value={form.description}
+              <textarea className={inp + ' resize-none'} rows={3} aria-label="Descripción" value={form.description}
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
             </div>
 
             <div>
               <p className="text-xs font-semibold text-gray-600 mb-1.5">Misión de RSE</p>
-              <textarea className={inp + ' resize-none'} rows={2} value={form.mission}
+              <textarea className={inp + ' resize-none'} rows={2} aria-label="Misión de RSE" value={form.mission}
                 onChange={e => setForm(f => ({ ...f, mission: e.target.value }))} />
             </div>
 
@@ -259,7 +260,7 @@ export function CompanyOwnProfile() {
                     <>
                       <select
                         className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-                        value={proposeProjectId} onChange={e => setProposeProjectId(e.target.value)}
+                        aria-label="Proyecto a patrocinar" value={proposeProjectId} onChange={e => setProposeProjectId(e.target.value)}
                       >
                         <option value="">Elegí un proyecto...</option>
                         {activeProjects.map(p => (
@@ -269,7 +270,7 @@ export function CompanyOwnProfile() {
                       <textarea
                         className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500"
                         rows={2} placeholder="Mensaje para la ONG (opcional)"
-                        value={proposeMsg} onChange={e => setProposeMsg(e.target.value)}
+                        aria-label="Mensaje para la ONG" value={proposeMsg} onChange={e => setProposeMsg(e.target.value)}
                       />
                       <button onClick={handlePropose} disabled={proposing}
                         className="w-full py-2 bg-violet-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-60 hover:bg-violet-700 transition-colors">

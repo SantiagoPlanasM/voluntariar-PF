@@ -2050,3 +2050,39 @@ Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/
 - **Duplicación vista y no tocada:** las listas de seguidores de `VolunteerProfile` y `VolunteerPublicProfile` son casi el mismo JSX; candidato a un `FollowListModal`.
 - Botones solo-ícono sin nombre (cerrar, mostrar contraseña, etc.): es **F13**, el próximo commit.
 - El backend de la prueba tomó Resend/Cloudinary del `.env`; no hice nada que mande mails ni suba fotos.
+
+## 80. Botones solo-ícono y campos sin nombre accesible — REVISION F13
+
+**Contexto:** la revisión listaba ~12 botones de solo ícono y algunos campos sin etiqueta. Con un lector de pantalla se anunciaban como "botón" o "campo de edición", sin decir para qué servían, y aprobar y rechazar una inscripción no se distinguían. Hice un relevamiento propio (script descartable que parsea los `.tsx`): **44 botones**, **1 link** (mensaje del perfil público, apareció con el test) y **~55 campos**. Muchos campos tienen texto visible arriba (`<p>` o `<label>` sin `htmlFor`) que no está asociado al campo. El `placeholder` no sirve de etiqueta porque desaparece al escribir.
+
+**Qué se hizo** (solo atributos; nada visual):
+- **Botones:** `aria-label` en cerrar, volver, enviar (mensaje, pregunta, comentario), editar/cancelar edición, cerrar sesión, agregar/quitar rol y requisito, limpiar búsqueda y cerrar formulario. Si el botón actúa sobre un ítem de una lista, el nombre dice cuál: "Aprobar a Juan Pérez" / "Rechazar a Juan Pérez", "Editar KPI Árboles" / "Borrar KPI Árboles", "Quitar rol Cocinero".
+- **Toggles:** "Mostrar contraseña" con `aria-pressed`. Las estrellas de las tres calificaciones (`ReviewModal`, `ReviewsModal`, `ProjectDetails`) se llaman "1 estrella" … "5 estrellas" con `aria-pressed` en la elegida.
+- **Campos:** `aria-label` con el mismo texto que la etiqueta visible (sin el "*"), así lo que se lee coincide con lo que se ve. Si no hay etiqueta visible, va un nombre según la función ("Mensaje", "Tu pregunta", "Buscar proyectos", "Horas de Ana", "Nivel de Primeros auxilios", "Proyecto a patrocinar"). En los dos casos donde la etiqueta visible cambia (el valor de un KPI según el tipo; ubicación o plataforma en el alta), el nombre cambia con ella.
+- **No tocado:** `OnboardingScreen.tsx` (no está enrutado) y los "Cerrar detalle" de `ProjectMap` (van con la migración de ese modal, donde se monta el mapa en un test).
+- **Por qué `aria-label` y no `<label htmlFor>`:** es un atributo por campo, sin tocar el layout de ~55 campos de 15 archivos. Lo que se pierde es que tocar el texto de arriba no enfoca el campo. Convertirlo en `<label>` es una mejora aparte.
+
+### Tests
+- **`A11yNames.test.tsx` (nuevo, 18 tests):** monta cada pantalla con sus formularios, pestañas y listas abiertos, y exige que **ningún** botón, link ni campo tenga nombre vacío (`queryAllByRole(rol, { name: '' })`, el mismo cálculo que usan los lectores de pantalla). Las pantallas son: login/registro, chatbot, chat, reseña (dos modales), KPIs, panel y perfil de ONG, perfil de empresa (edición y propuesta), perfil de voluntario (edición y lista), alta de proyecto (los 3 pasos, fugaz y sostenido), detalle de proyecto (las 3 pestañas), explorar, detalle de proyecto de la ONG, notificaciones, perfiles públicos (empresa, ONG, voluntario), empleados, feed público y tarjeta del feed. También comprueba nombres puntuales y `aria-pressed`.
+- **Rojo → verde:** con los componentes anteriores fallan los 18 (lo comprobé volviendo los componentes al estado previo con el test ya terminado); después pasan los 18.
+
+### Verificación
+- **Frontend: 350/350** (antes 332). **Typecheck: 0 errores.**
+- **Mutación (script descartable): sacar cada `aria-label`/`aria-pressed` agregado, de a uno.** Primera corrida: 97 mutantes, **13 sobrevivientes, ninguno equivalente**. Todos eran partes que el test no abría (pestañas de reseñas y comentarios, comentario del feed, tipo "sostenido", listas de seguidores, perfil público, el estado de las estrellas de `ReviewsModal`) más los 2 de `ProjectMap`. Amplié el test y recorrí los 11 que siguen en este commit más el link nuevo: **12 de 12 muertos**. Total del commit: **96 mutantes, 0 sobrevivientes.**
+- **En Chrome** (backend contra SQLite descartable, Vite local), leyendo el árbol de accesibilidad del navegador:
+  - Login: diálogo "Iniciar sesión" con "Cerrar", "Email", "Contraseña", "Mostrar contraseña" (al tocarlo, `aria-pressed="true"` y el campo pasa a texto).
+  - Panel de ONG (Sustentando): "Aprobar a Juan Pérez" / "Rechazar a Juan Pérez", "Buscar proyectos".
+  - KPIs: "Volver", "Cerrar formulario", "Nombre", "Descripción", "Valor", "Unidad", "Fecha de medición".
+
+### Errores propios
+1. **Mi relevamiento estático no veía los links de solo ícono:** buscaba solo `<button>`. El de "Enviar mensaje a …" lo encontró el test general. Después revisé los `<Link>`: era el único.
+2. **La primera versión del test no abría secciones enteras** (pestañas, acordeones, el tipo "sostenido"): pasaba igual y la mutación mostró 11 nombres sin verificar. Lección: un test de "no hay nada sin nombre" vale lo que las pantallas que abre.
+3. **`git stash` cambió finales de línea:** para comprobar el rojo guardé los componentes con `git stash` y los restauré con `pop`. Con `core.autocrlf=true`, 10 archivos que estaban en LF en el disco volvieron en CRLF. El contenido del commit no cambia (el índice queda en LF), pero CLAUDE.md pide no convertirlos: los devolví a LF y lo verifiqué con `git ls-files --eol`. Lección: en este repo, nada de `stash`; copiar los archivos aparte.
+4. **El Vite de la verificación de §79 seguía corriendo:** `TaskStop` cortó el shell pero no el proceso de node, que quedó escuchando en 5173 durante ~25 min. Al lanzar uno nuevo falló por el puerto. Lo vi al revisar quién escuchaba, lo cerré y levanté otro. Antes, otro Vite lanzado **en paralelo** con el backend falló porque el `cd` se pisó (lo mismo de §70): lo relancé solo y con rutas absolutas.
+5. En Chrome, un clic en el campo de contraseña lo tapó otra extensión del navegador (probablemente el gestor de contraseñas). Pasé al campo con Tab.
+
+### ⚠️ NO verificado
+- **Lector de pantalla real** (NVDA/VoiceOver/TalkBack): verifiqué los nombres que calculan jsdom y el árbol de Chrome, no lo que se escucha.
+- **`read_page` de Chrome muestra vacíos** algunos botones y links cuyo nombre sale de texto anidado ("Nuevo proyecto", los links del menú lateral). Tienen texto visible y el test los da por nombrados; `computedName` no está disponible en este Chrome para confirmarlo desde el navegador.
+- Avatares con link cuyo nombre es solo la inicial (en las reseñas de `ProjectDetails`): tienen nombre, pero pobre. No lo cambié.
+- Contraste de colores, tamaño de los objetivos táctiles y orden de foco: fuera de F13.

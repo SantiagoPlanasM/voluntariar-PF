@@ -48,7 +48,7 @@ export function ReviewModal({ projectId, projectTitle, onClose, onSaved }: Props
               <h2 id={titleId} className="font-bold text-lg text-gray-900">Dejar reseña</h2>
               <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">{projectTitle}</p>
             </div>
-            <button onClick={onClose}
+            <button onClick={onClose} aria-label="Cerrar"
               className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
               <X className="w-4 h-4 text-gray-600" />
             </button>
@@ -58,7 +58,7 @@ export function ReviewModal({ projectId, projectTitle, onClose, onSaved }: Props
           <div className="text-center mb-5">
             <div className="flex justify-center gap-2 mb-2">
               {[1,2,3,4,5].map(n => (
-                <button key={n}
+                <button key={n} aria-label={`${n} estrella${n > 1 ? 's' : ''}`} aria-pressed={n === rating}
                   onMouseEnter={() => setHover(n)}
                   onMouseLeave={() => setHover(0)}
                   onClick={() => setRating(n)}
@@ -84,6 +84,7 @@ export function ReviewModal({ projectId, projectTitle, onClose, onSaved }: Props
               Comentario <span className="font-normal text-gray-400">(opcional)</span>
             </label>
             <textarea
+              aria-label="Comentario"
               value={comment}
               onChange={e => setComment(e.target.value)}
               placeholder="¿Cómo fue tu experiencia en este voluntariado?"

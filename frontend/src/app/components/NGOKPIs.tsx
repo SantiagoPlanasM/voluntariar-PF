@@ -105,7 +105,7 @@ export function NGOKPIs() {
       <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)}
+            <button onClick={() => navigate(-1)} aria-label="Volver"
               className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
               <ArrowLeft className="w-4 h-4 text-gray-600" />
             </button>
@@ -148,7 +148,7 @@ export function NGOKPIs() {
               <h2 className="font-bold text-sm text-gray-900">
                 {editing ? 'Editar KPI' : 'Nuevo KPI'}
               </h2>
-              <button type="button" onClick={cancelForm}
+              <button type="button" onClick={cancelForm} aria-label="Cerrar formulario"
                 className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200">
                 <X className="w-4 h-4 text-gray-500" />
               </button>
@@ -157,19 +157,19 @@ export function NGOKPIs() {
             <div>
               <label className="text-xs font-semibold text-gray-500 mb-1 block">Nombre *</label>
               <input className={inp} placeholder="Ej: Árboles plantados, Familias beneficiadas"
-                value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
+                aria-label="Nombre" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
             </div>
 
             <div>
               <label className="text-xs font-semibold text-gray-500 mb-1 block">Descripción</label>
               <input className={inp} placeholder="Qué mide este indicador"
-                value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
+                aria-label="Descripción" value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1 block">Tipo</label>
-                <select className={inp} value={form.tipo_valor}
+                <select className={inp} aria-label="Tipo" value={form.tipo_valor}
                   onChange={e => setForm(f => ({ ...f, tipo_valor: e.target.value }))}>
                   {Object.entries(TIPO_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
@@ -181,7 +181,7 @@ export function NGOKPIs() {
                 <input className={inp}
                   type={form.tipo_valor === 'texto' ? 'text' : 'number'}
                   placeholder={form.tipo_valor === 'porcentaje' ? '85' : form.tipo_valor === 'booleano' ? '1 o 0' : '500'}
-                  value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} />
+                  aria-label={form.tipo_valor === 'booleano' ? 'Logrado (1=Sí, 0=No)' : 'Valor'} value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} />
               </div>
             </div>
 
@@ -189,12 +189,12 @@ export function NGOKPIs() {
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1 block">Unidad</label>
                 <input className={inp} placeholder="árboles, familias, hs..."
-                  value={form.unidad} onChange={e => setForm(f => ({ ...f, unidad: e.target.value }))} />
+                  aria-label="Unidad" value={form.unidad} onChange={e => setForm(f => ({ ...f, unidad: e.target.value }))} />
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1 block">Fecha de medición</label>
                 <input className={inp} type="date"
-                  value={form.fecha} onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))} />
+                  aria-label="Fecha de medición" value={form.fecha} onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))} />
               </div>
             </div>
 
@@ -240,11 +240,11 @@ export function NGOKPIs() {
                         )}
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <button onClick={() => handleEdit(kpi)}
+                        <button onClick={() => handleEdit(kpi)} aria-label={`Editar KPI ${kpi.nombre}`}
                           className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
                           <Edit2 className="w-3.5 h-3.5 text-gray-500" />
                         </button>
-                        <button onClick={() => handleDelete(kpi.id)}
+                        <button onClick={() => handleDelete(kpi.id)} aria-label={`Borrar KPI ${kpi.nombre}`}
                           className="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center transition-colors">
                           <Trash2 className="w-3.5 h-3.5 text-red-500" />
                         </button>

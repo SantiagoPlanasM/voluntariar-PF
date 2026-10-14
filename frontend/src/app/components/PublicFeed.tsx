@@ -99,7 +99,7 @@ export function PublicFeed() {
           <form onSubmit={e => { e.preventDefault(); load(); }} className="hidden md:flex flex-1 max-w-md mx-6">
             <div className="relative w-full">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+              <input type="text" aria-label="Buscar proyectos" value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar proyectos..."
                 className="w-full pl-10 pr-4 py-2.5 bg-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all" />
             </div>

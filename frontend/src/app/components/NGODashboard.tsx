@@ -83,7 +83,7 @@ export function NGODashboard() {
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"/>
-            <input type="text" placeholder="Buscar proyectos..."
+            <input type="text" aria-label="Buscar proyectos" placeholder="Buscar proyectos..."
               className="w-full pl-9 pr-4 py-2 bg-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={search} onChange={e => setSearch(e.target.value)}/>
           </div>
@@ -127,10 +127,12 @@ export function NGODashboard() {
                     </div>
                     <div className="flex gap-1.5 flex-shrink-0">
                       <button onClick={() => handleEnrollment(e.id,'approved')} disabled={processing===e.id}
+                        aria-label={`Aprobar a ${e.volunteer_name}`}
                         className="w-9 h-9 bg-green-50 text-green-600 rounded-xl flex items-center justify-center hover:bg-green-100 disabled:opacity-50">
                         {processing===e.id ? <Loader2 className="w-4 h-4 animate-spin"/> : <CheckCircle className="w-4 h-4"/>}
                       </button>
                       <button onClick={() => handleEnrollment(e.id,'rejected')} disabled={processing===e.id}
+                        aria-label={`Rechazar a ${e.volunteer_name}`}
                         className="w-9 h-9 bg-red-50 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-100 disabled:opacity-50">
                         <XCircle className="w-4 h-4"/>
                       </button>

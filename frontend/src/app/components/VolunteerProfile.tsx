@@ -119,10 +119,11 @@ export function VolunteerProfile() {
       <div className="bg-gradient-to-br from-emerald-600 to-teal-700 px-4 pt-14 pb-10 relative z-0">
         <div className="absolute top-4 right-4 flex gap-2">
           <button onClick={() => { setEditing(!editing); setSaveErr(''); }}
+            aria-label={editing ? 'Cancelar edición' : 'Editar perfil'}
             className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
             {editing ? <X className="w-5 h-5 text-white" /> : <Edit2 className="w-5 h-5 text-white" />}
           </button>
-          <button onClick={() => { logout(); navigate('/'); }}
+          <button onClick={() => { logout(); navigate('/'); }} aria-label="Cerrar sesión"
             className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
             <LogOut className="w-5 h-5 text-white" />
           </button>
@@ -193,7 +194,7 @@ export function VolunteerProfile() {
 
             <div>
               <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Nombre completo *</label>
-              <input className={inp} value={form.name}
+              <input className={inp} aria-label="Nombre completo" value={form.name}
                 onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setSaveErr(''); }} />
             </div>
 
@@ -201,13 +202,13 @@ export function VolunteerProfile() {
               <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Sobre mí</label>
               <textarea className={inp + ' resize-none'} rows={3}
                 placeholder="Contá quién sos y por qué querés ser voluntario..."
-                value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} />
+                aria-label="Sobre mí" value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} />
             </div>
 
             <div>
               <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Ubicación</label>
               <input className={inp} placeholder="Ej: Córdoba Capital"
-                value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
+                aria-label="Ubicación" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
             </div>
 
             <div>
@@ -232,7 +233,7 @@ export function VolunteerProfile() {
                     return (
                       <div key={d.habilidad_id} className="flex items-center justify-between gap-2">
                         <span className="text-xs text-gray-700">{skill.nombre}</span>
-                        <select value={d.nivel} onChange={e => setSkillNivel(d.habilidad_id, e.target.value)}
+                        <select aria-label={`Nivel de ${skill.nombre}`} value={d.nivel} onChange={e => setSkillNivel(d.habilidad_id, e.target.value)}
                           className="text-xs bg-white border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-emerald-500">
                           {Object.entries(NIVEL_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                         </select>
@@ -425,7 +426,7 @@ export function VolunteerProfile() {
               <h3 id={listTitleId} className="font-bold text-gray-900">
                 {listMode === 'followers' ? 'Seguidores' : 'Siguiendo'}
               </h3>
-              <button onClick={() => setListMode(null)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
+              <button onClick={() => setListMode(null)} aria-label="Cerrar" className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
                 <X className="w-4 h-4 text-gray-600" />
               </button>
             </div>

@@ -193,6 +193,7 @@ export function ExploreScreen() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
+                aria-label="Buscar voluntariados"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Buscar por título, ONG, ubicación..."
@@ -201,6 +202,7 @@ export function ExploreScreen() {
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
+                  aria-label="Limpiar búsqueda"
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />

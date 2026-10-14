@@ -170,7 +170,7 @@ export function CreateVoluntariado() {
       <header className="bg-white border-b border-gray-100 sticky top-0 z-20">
         <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-4">
           <div className="flex items-center gap-3 mb-4">
-            <button onClick={() => step > 1 ? back() : navigate(-1)}
+            <button onClick={() => step > 1 ? back() : navigate(-1)} aria-label="Volver"
               className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors flex-shrink-0">
               <ArrowLeft className="w-4 h-4 text-gray-700" />
             </button>
@@ -247,7 +247,7 @@ export function CreateVoluntariado() {
               <div id="field-title">
                 <label className={lbl}>Título del voluntariado *</label>
                 <input className={inp('title')} placeholder="Ej: Jornada de limpieza en el río"
-                  value={form.title} onChange={e => set('title', e.target.value)} />
+                  aria-label="Título del voluntariado" value={form.title} onChange={e => set('title', e.target.value)} />
                 <p className={hint}>{form.title.length}/80 caracteres</p>
                 {err('title')}
               </div>
@@ -256,7 +256,7 @@ export function CreateVoluntariado() {
                 <label className={lbl}>Descripción corta *</label>
                 <textarea className={inp('description') + ' resize-none'} rows={3}
                   placeholder="Contá en pocas palabras qué harán los voluntarios y por qué es importante..."
-                  value={form.description} onChange={e => set('description', e.target.value)} />
+                  aria-label="Descripción corta" value={form.description} onChange={e => set('description', e.target.value)} />
                 <p className={hint}>{form.description.length} caracteres · mínimo 10</p>
                 {err('description')}
               </div>
@@ -350,7 +350,7 @@ export function CreateVoluntariado() {
                         ? 'Ej: Parque Sarmiento y Google Meet'
                         : 'Ej: Parque Sarmiento, Córdoba'
                     }
-                    value={form.location}
+                    aria-label={form.modality === 'remoto' ? 'Plataforma o medio digital' : 'Ubicación'} value={form.location}
                     onChange={e => set('location', e.target.value)}
                   />
                 </div>
@@ -366,7 +366,7 @@ export function CreateVoluntariado() {
                 <div id="field-duration">
                   <label className={lbl}>Duración del evento *</label>
                   <input className={inp('duration')} placeholder="Ej: 1 jornada (4 hs), 2 días, sábado 9 a 13 hs"
-                    value={form.duration} onChange={e => set('duration', e.target.value)} />
+                    aria-label="Duración del evento" value={form.duration} onChange={e => set('duration', e.target.value)} />
                   {err('duration')}
                 </div>
               ) : (
@@ -374,7 +374,7 @@ export function CreateVoluntariado() {
                   <label className={lbl}>Horas por semana *</label>
                   <input className={inp('hours_per_week')} type="number" min="1" max="40"
                     placeholder="Ej: 4"
-                    value={form.hours_per_week} onChange={e => set('hours_per_week', e.target.value)} />
+                    aria-label="Horas por semana" value={form.hours_per_week} onChange={e => set('hours_per_week', e.target.value)} />
                   <p className={hint}>Tiempo estimado que dedicará cada voluntario por semana</p>
                   {err('hours_per_week')}
                 </div>
@@ -386,7 +386,7 @@ export function CreateVoluntariado() {
                   <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input className={inp('volunteers_needed') + ' pl-9'} type="number" min="1"
                     placeholder="Ej: 20"
-                    value={form.volunteers_needed} onChange={e => set('volunteers_needed', e.target.value)} />
+                    aria-label="Voluntarios necesarios" value={form.volunteers_needed} onChange={e => set('volunteers_needed', e.target.value)} />
                 </div>
                 {err('volunteers_needed')}
               </div>
@@ -405,7 +405,7 @@ export function CreateVoluntariado() {
                 </label>
                 <textarea className={inp('full_description') + ' resize-none'} rows={4}
                   placeholder="Agregá más detalles: horarios, qué deben traer, cómo será el día..."
-                  value={form.full_description} onChange={e => set('full_description', e.target.value)} />
+                  aria-label="Descripción completa" value={form.full_description} onChange={e => set('full_description', e.target.value)} />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -416,13 +416,13 @@ export function CreateVoluntariado() {
                   </label>
                   <input className={inp('cost_per_person')} type="number" min="0"
                     placeholder="0 = gratis"
-                    value={form.cost_per_person} onChange={e => set('cost_per_person', e.target.value)} />
+                    aria-label="Costo por persona" value={form.cost_per_person} onChange={e => set('cost_per_person', e.target.value)} />
                   <p className={hint}>Transporte, materiales, etc.</p>
                 </div>
                 <div>
                   <label className={lbl}>Meta de financiamiento</label>
                   <input className={inp('funding_goal')} type="number" min="0" placeholder="0"
-                    value={form.funding_goal} onChange={e => set('funding_goal', e.target.value)} />
+                    aria-label="Meta de financiamiento" value={form.funding_goal} onChange={e => set('funding_goal', e.target.value)} />
                   <p className={hint}>Opcional</p>
                 </div>
               </div>
@@ -447,9 +447,9 @@ export function CreateVoluntariado() {
                 <input
                   className={`flex-1 px-4 py-3 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${roleError ? 'border-red-400' : 'border-gray-200'}`}
                   placeholder="O escribí uno personalizado..."
-                  value={newRole} onChange={e => { setNewRole(e.target.value); setRoleError(''); }}
+                  aria-label="Rol personalizado" value={newRole} onChange={e => { setNewRole(e.target.value); setRoleError(''); }}
                   onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addRole())} />
-                <button type="button" onClick={() => addRole()}
+                <button type="button" onClick={() => addRole()} aria-label="Agregar rol"
                   className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors flex-shrink-0">
                   <Plus className="w-4 h-4" />
                 </button>
@@ -460,7 +460,7 @@ export function CreateVoluntariado() {
                   {roles.map(r => (
                     <span key={r} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 text-xs rounded-full font-medium">
                       {r}
-                      <button type="button" onClick={() => setRoles(roles.filter(x => x !== r))}>
+                      <button type="button" onClick={() => setRoles(roles.filter(x => x !== r))} aria-label={`Quitar rol ${r}`}>
                         <X className="w-3 h-3" />
                       </button>
                     </span>
@@ -488,9 +488,9 @@ export function CreateVoluntariado() {
                 <input
                   className={`flex-1 px-4 py-3 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 ${reqError ? 'border-red-400' : 'border-gray-200'}`}
                   placeholder="O escribí uno personalizado..."
-                  value={newReq} onChange={e => { setNewReq(e.target.value); setReqError(''); }}
+                  aria-label="Requisito personalizado" value={newReq} onChange={e => { setNewReq(e.target.value); setReqError(''); }}
                   onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addReq())} />
-                <button type="button" onClick={() => addReq()}
+                <button type="button" onClick={() => addReq()} aria-label="Agregar requisito"
                   className="px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors flex-shrink-0">
                   <Plus className="w-4 h-4" />
                 </button>
@@ -501,7 +501,7 @@ export function CreateVoluntariado() {
                   {requirements.map(r => (
                     <span key={r} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs rounded-full font-medium">
                       {r}
-                      <button type="button" onClick={() => setReqs(requirements.filter(x => x !== r))}>
+                      <button type="button" onClick={() => setReqs(requirements.filter(x => x !== r))} aria-label={`Quitar requisito ${r}`}>
                         <X className="w-3 h-3" />
                       </button>
                     </span>

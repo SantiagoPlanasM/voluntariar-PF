@@ -193,7 +193,7 @@ export function ProjectDetails() {
           : <div className="w-full h-full bg-gradient-to-br from-emerald-200 to-teal-300" />
         }
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-        <button onClick={() => navigate(-1)}
+        <button onClick={() => navigate(-1)} aria-label="Volver"
           className="absolute top-4 left-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg">
           <ArrowLeft className="w-5 h-5 text-gray-800" />
         </button>
@@ -399,6 +399,7 @@ export function ProjectDetails() {
                                 <button
                                   type="button"
                                   key={star}
+                                  aria-label={`${star} estrella${star > 1 ? 's' : ''}`} aria-pressed={star === userRating}
                                   onClick={() => setUserRating(star)}
                                   className="p-0.5 hover:scale-110 transition-transform"
                                 >
@@ -418,6 +419,7 @@ export function ProjectDetails() {
                           </div>
 
                           <textarea
+                            aria-label="Tu reseña"
                             value={ratingComment}
                             onChange={e => { setRatingComment(e.target.value); setRatingErr(''); }}
                             placeholder="Escribí tu experiencia, aprendizajes o sugerencias..."
@@ -532,6 +534,7 @@ export function ProjectDetails() {
                     <form onSubmit={handleComment} className="pt-2 border-t border-gray-100 space-y-1.5">
                       <div className="flex gap-2">
                         <input
+                          aria-label="Comentario"
                           value={comment}
                           onChange={e => { setComment(e.target.value); setCommentErr(''); }}
                           placeholder={user ? 'Escribí un comentario...' : 'Iniciá sesión para comentar'}
@@ -540,7 +543,7 @@ export function ProjectDetails() {
                           className={`flex-1 px-3 py-2 bg-gray-100 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 ${!user ? 'cursor-pointer' : ''}`}
                         />
                         {user && (
-                          <button type="submit" disabled={commenting}
+                          <button type="submit" disabled={commenting} aria-label="Publicar comentario"
                             className="w-9 h-9 bg-emerald-600 text-white rounded-xl flex items-center justify-center disabled:opacity-60 flex-shrink-0">
                             {commenting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                           </button>

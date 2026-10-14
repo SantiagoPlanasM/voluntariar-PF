@@ -127,6 +127,7 @@ export function ReviewsModal({
           </div>
           <button
             onClick={onClose}
+            aria-label="Cerrar"
             className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -180,6 +181,7 @@ export function ReviewsModal({
                       <button
                         type="button"
                         key={star}
+                        aria-label={`${star} estrella${star > 1 ? 's' : ''}`} aria-pressed={star === userScore}
                         onClick={() => setUserScore(star)}
                         className="p-1 hover:scale-125 transition-transform"
                       >
@@ -199,6 +201,7 @@ export function ReviewsModal({
                 </div>
 
                 <textarea
+                  aria-label="Tu reseña"
                   value={userComment}
                   onChange={e => { setUserComment(e.target.value); setErrorMsg(''); }}
                   placeholder="Contá tu experiencia, aprendizajes o qué te pareció la coordinación..."

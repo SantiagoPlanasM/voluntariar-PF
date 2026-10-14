@@ -65,7 +65,7 @@ export function NGOProjectDetail() {
     <div className="min-h-screen bg-gray-50 pb-8">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="flex items-center gap-3 p-4">
-          <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
+          <button onClick={() => navigate(-1)} aria-label="Volver" className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
             <ArrowLeft className="w-4 h-4 text-gray-700" />
           </button>
           <div>
@@ -165,6 +165,7 @@ export function NGOProjectDetail() {
                       <Clock3 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                       <input
                         type="number" min="0" step="0.5"
+                        aria-label={`Horas de ${e.volunteer_name}`}
                         placeholder={e.hours_logged ? undefined : '0'}
                         defaultValue={e.hours_logged || ''}
                         onChange={ev => setHoursDraft(d => ({ ...d, [e.id]: ev.target.value }))}

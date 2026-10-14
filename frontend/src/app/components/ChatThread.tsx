@@ -65,7 +65,7 @@ export function ChatThread() {
   return (
     <div className="max-w-2xl mx-auto w-full flex flex-col h-[calc(100vh-4rem)] md:h-screen">
       <header className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-white sticky top-0 z-10">
-        <button onClick={() => navigate(backTo)} className="p-1.5 -ml-1.5 rounded-full hover:bg-gray-100">
+        <button onClick={() => navigate(backTo)} aria-label="Volver" className="p-1.5 -ml-1.5 rounded-full hover:bg-gray-100">
           <ArrowLeft className="w-5 h-5 text-gray-600" />
         </button>
         {other?.avatar
@@ -103,13 +103,14 @@ export function ChatThread() {
 
       <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100 bg-white">
         <input
+          aria-label="Mensaje"
           value={draft}
           onChange={e => setDraft(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
           placeholder="Escribí un mensaje..."
           className="flex-1 bg-gray-100 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
         />
-        <button onClick={handleSend} disabled={!draft.trim() || sending}
+        <button onClick={handleSend} disabled={!draft.trim() || sending} aria-label="Enviar mensaje"
           className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center disabled:opacity-40 flex-shrink-0 hover:bg-emerald-700 transition-colors">
           {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
         </button>

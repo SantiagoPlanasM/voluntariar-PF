@@ -436,6 +436,7 @@ export function FeedPostCard({ project, onRefresh }: FeedPostCardProps) {
               <form onSubmit={handlePostComment} className="flex gap-2 pt-1">
                 <input
                   type="text"
+                  aria-label="Comentario"
                   placeholder="Escribí un comentario..."
                   value={newComment}
                   onChange={e => setNewComment(e.target.value)}

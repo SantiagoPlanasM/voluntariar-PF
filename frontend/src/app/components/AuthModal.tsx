@@ -151,7 +151,7 @@ export function AuthModal() {
             </div>
             {authModalIntent && <p className="text-sm text-gray-500 mt-0.5">{authModalIntent}</p>}
           </div>
-          <button onClick={closeAuthModal}
+          <button onClick={closeAuthModal} aria-label="Cerrar"
             className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors flex-shrink-0 mt-1">
             <X className="w-4 h-4 text-gray-600" />
           </button>
@@ -191,14 +191,14 @@ export function AuthModal() {
           <form onSubmit={tab === 'login' ? handleLogin : handleRegister} className="space-y-3" noValidate>
             {tab === 'register' && (
               <div>
-                <input className={inp(!!fieldErrors.name)} placeholder="Tu nombre completo"
+                <input className={inp(!!fieldErrors.name)} aria-label="Nombre completo" placeholder="Tu nombre completo"
                   value={form.name} onChange={e => setField('name', e.target.value)} />
                 {fieldErrors.name && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.name}</p>}
               </div>
             )}
 
             <div>
-              <input className={inp(!!fieldErrors.email)} type="email" placeholder="Email"
+              <input className={inp(!!fieldErrors.email)} type="email" aria-label="Email" placeholder="Email"
                 value={form.email} onChange={e => setField('email', e.target.value)} />
               {fieldErrors.email && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.email}</p>}
             </div>
@@ -206,10 +206,11 @@ export function AuthModal() {
             <div>
               <div className="relative">
                 <input className={inp(!!fieldErrors.password) + ' pr-11'}
-                  type={showPass ? 'text' : 'password'}
+                  type={showPass ? 'text' : 'password'} aria-label="Contraseña"
                   placeholder={tab === 'register' ? 'Mínimo 8 caracteres, 1 mayúscula y 1 número' : 'Contraseña'}
                   value={form.password} onChange={e => setField('password', e.target.value)} />
                 <button type="button" onClick={() => setShowPass(!showPass)}
+                  aria-label="Mostrar contraseña" aria-pressed={showPass}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                   {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
