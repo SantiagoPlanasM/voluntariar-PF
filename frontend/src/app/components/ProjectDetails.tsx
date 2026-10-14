@@ -6,6 +6,7 @@ import {
   Laptop, Globe
 } from 'lucide-react';
 import { api, ProjectDetail } from '../../lib/api';
+import { LoadError, describeLoadError } from './LoadError';
 import { useAuth } from '../../lib/AuthContext';
 import { MomentsGrid } from './MomentsGrid';
 
@@ -21,6 +22,7 @@ export function ProjectDetails() {
   const { user, openAuthModal } = useAuth();
   const [project, setProject]     = useState<ProjectDetail | null>(null);
   const [loading, setLoading]     = useState(true);
+  const [loadError, setLoadError] = useState<{ message: string; retry: boolean } | null>(null);
   const [tab, setTab]             = useState<Tab>('details');
   const [enrolling, setEnrolling] = useState(false);
   const [enrollMsg, setEnrollMsg] = useState('');
@@ -43,6 +45,7 @@ export function ProjectDetails() {
 
   const load = async (pid: string) => {
     setLoading(true);
+    setLoadError(null);
     try {
       const [projRes, followRes] = await Promise.all([
         api.projects.get(pid),
@@ -51,7 +54,7 @@ export function ProjectDetails() {
       setProject(projRes.project);
       setIsFollowing(followRes.following);
     }
-    catch { navigate(-1); }
+    catch (e) { setLoadError(describeLoadError(e, 'No encontramos este voluntariado')); }
     finally { setLoading(false); }
   };
 
@@ -121,7 +124,10 @@ export function ProjectDetails() {
       <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
     </div>
   );
-  if (!project) return null;
+  if (loadError || !project) return (
+    <LoadError message={loadError?.message ?? 'No encontramos este voluntariado'}
+      onRetry={loadError?.retry && id ? () => load(id) : undefined} home="/" />
+  );
 
   const fundPct = safePct(project.current_funding, project.funding_goal);
   const volPct  = safePct(project.current_volunteers, project.volunteers_needed);

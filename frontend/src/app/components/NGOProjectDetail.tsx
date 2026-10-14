@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft, Users, CheckCircle, Clock, XCircle, Loader2, DollarSign, BarChart2, MessageCircle, Clock3, Save } from 'lucide-react';
 import { api, Project, EnrollmentWithVolunteer } from '../../lib/api';
 import { MomentsFeed } from './MomentsFeed';
+import { LoadError, describeLoadError } from './LoadError';
 
 export function NGOProjectDetail() {
   const { projectId } = useParams();
@@ -10,6 +11,7 @@ export function NGOProjectDetail() {
   const [project, setProject] = useState<Project | null>(null);
   const [enrollments, setEnrollments] = useState<EnrollmentWithVolunteer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<{ message: string; retry: boolean } | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [processing, setProcessing] = useState<string | null>(null);
   const [hoursDraft, setHoursDraft] = useState<Record<string, string>>({});
@@ -19,13 +21,14 @@ export function NGOProjectDetail() {
 
   const load = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const [{ project: p }, { enrollments: e }] = await Promise.all([
         api.projects.get(projectId!),
         api.enrollments.byProject(projectId!),
       ]);
       setProject(p); setEnrollments(e);
-    } catch { navigate(-1); }
+    } catch (e) { setLoadError(describeLoadError(e, 'No encontramos este voluntariado')); }
     finally { setLoading(false); }
   };
 
@@ -50,7 +53,10 @@ export function NGOProjectDetail() {
   const filtered = filter === 'all' ? enrollments : enrollments.filter(e => e.status === filter);
 
   if (loading) return <div className="flex items-center justify-center h-screen"><Loader2 className="w-8 h-8 animate-spin text-[#0056B3]" /></div>;
-  if (!project) return null;
+  if (loadError || !project) return (
+    <LoadError message={loadError?.message ?? 'No encontramos este voluntariado'}
+      onRetry={loadError?.retry ? load : undefined} home="/ngo/dashboard" />
+  );
 
   const fundPct = Math.min(100, (project.current_funding / project.funding_goal) * 100) || 0;
   const volPct  = Math.min(100, (project.current_volunteers / project.volunteers_needed) * 100) || 0;

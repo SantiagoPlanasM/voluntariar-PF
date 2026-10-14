@@ -2,6 +2,7 @@ import { useParams, useNavigate, Link } from 'react-router';
 import { useState, useEffect } from 'react';
 import { ArrowLeft, MapPin, Users, Sprout, Loader2, Calendar, MessageCircle, UserPlus, Check } from 'lucide-react';
 import { api, NGO, Project } from '../../lib/api';
+import { LoadError, describeLoadError } from './LoadError';
 import { useAuth } from '../../lib/AuthContext';
 
 function safePct(a: any, b: any) {
@@ -17,15 +18,19 @@ export function NGOPublicProfile() {
   const [ngo, setNgo]         = useState<NGO | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<{ message: string; retry: boolean } | null>(null);
   const [filter, setFilter]   = useState<'all' | 'active' | 'completed'>('all');
 
   const [following, setFollowing] = useState(false);
   const [togglingFollow, setTogglingFollow] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
 
-  useEffect(() => {
+  useEffect(() => { load(); }, [id]);
+
+  const load = () => {
     if (!id) return;
     setLoading(true);
+    setLoadError(null);
     Promise.all([
       api.ngos.get(id),
       api.follows.ngoStatus(id).catch(() => ({ following: false })),
@@ -36,9 +41,9 @@ export function NGOPublicProfile() {
         setFollowersCount(n.followers || 0);
         setFollowing(statusRes.following);
       })
-      .catch(() => navigate(-1))
+      .catch((e) => setLoadError(describeLoadError(e, 'No encontramos esta organización')))
       .finally(() => setLoading(false));
-  }, [id]);
+  };
 
   const handleToggleFollow = async () => {
     if (!user) {
@@ -70,7 +75,10 @@ export function NGOPublicProfile() {
       <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
     </div>
   );
-  if (!ngo) return null;
+  if (loadError || !ngo) return (
+    <LoadError message={loadError?.message ?? 'No encontramos esta organización'}
+      onRetry={loadError?.retry ? load : undefined} home="/" />
+  );
 
   const filtered = filter === 'all' ? projects : projects.filter(p => p.status === filter);
   const active   = projects.filter(p => p.status === 'active').length;

@@ -1632,3 +1632,33 @@ Ninguno detectado.
 
 ### ⚠️ NO verificado
 - F3 (KPI de tipo "texto" que no se puede guardar) sigue abierto: necesita una decisión.
+
+## 64. Recurso que no carga → página en blanco — REVISION F7
+
+**Contexto:** `ProjectDetails`, `NGOPublicProfile`, `CompanyPublicProfile` y `NGOProjectDetail` hacían `catch { navigate(-1) }` y después `if (!x) return null`. Abiertas desde un link compartido (pestaña nueva, sin historial), `navigate(-1)` no tiene a dónde ir: la pantalla quedaba **en blanco, sin mensaje**, tanto si el recurso no existía como si el backend fallaba.
+
+**Arreglo:**
+- `components/LoadError.tsx` (nuevo, compartido, regla 3):
+  - `describeLoadError(err, textoNoExiste)` usa el `status` de `ApiError` (§62): 404 → "No encontramos este voluntariado / esta organización / esta empresa", sin reintentar; 403 → el mensaje del servidor, sin reintentar; 5xx → el mensaje con "Reintentar"; sin red (`TypeError`) → "No pudimos conectarnos con el servidor. Revisá tu conexión.", con "Reintentar".
+  - `<LoadError>` muestra el mensaje, "Reintentar" si corresponde, y "Volver" solo si hay página anterior (React Router guarda el índice en `history.state.idx`); si no, "Ir al inicio" (`/`, o `/ngo/dashboard` en `NGOProjectDetail`). Mismo estilo que el error de `CompanyDashboard`.
+- Las 4 pantallas guardan el error en `loadError` y lo limpian al reintentar. `NGOPublicProfile` y `CompanyPublicProfile` cargaban dentro del `useEffect`: lo pasé a una función `load` para poder reintentar.
+
+### Tests (nuevos: 16)
+- `LoadError.test.tsx` (8): los cuatro casos de `describeLoadError`; "Reintentar" llama a `onRetry` y no aparece sin él; sin historial → "Ir al inicio" con el `href` correcto; con historial → "Volver".
+- `LoadErrorScreens.test.tsx` (8): las 4 pantallas con el API simulado. 404 → mensaje de "no existe", sin "Reintentar" y **sin `navigate(-1)`**; 502 → mensaje y "Reintentar", que vuelve a pedir.
+
+### Verificación
+- **Rojo → verde:** los 8 tests de pantallas fallaban con el bug real (no aparecía nada en pantalla). Los de `LoadError` fueron rojo débil (el módulo no existía).
+- **Mutación (12 mutantes, línea base en verde, script descartable):** 404 o 4xx reintentables, texto técnico sin red, "Volver" siempre o nunca, "Reintentar" que no llama, cada una de las 4 pantallas volviendo a `navigate(-1)`, y dos pantallas sin `onRetry`: **12 de 12 detectados.**
+- **TypeScript:** 0 errores. **Suite del frontend:** **289/289**.
+- **En el navegador (Claude in Chrome), contra Postgres** (schema descartable `verif_f7`, borrado al terminar):
+  - `/project/no-existe` en una pestaña nueva → "No encontramos este voluntariado" con "Ir al inicio" (sin "Volver"; antes, en blanco).
+  - Con el backend **apagado**, `/ngo/ngo-1` → "No pudimos conectarnos con el servidor. Revisá tu conexión." con "Reintentar". Levanté el backend, toqué "Reintentar" y cargó el perfil de Sustentando.
+
+### Errores míos
+Ninguno detectado en este cambio.
+
+### ⚠️ NO verificado
+- "Volver" con historial real en el navegador: lo cubre el test (con `history.state.idx`); en Chrome probé solo el caso sin historial.
+- Que React Router siga guardando `idx` en `history.state` en futuras versiones: es un detalle interno suyo. Si cambia, se vería "Ir al inicio" siempre (no se rompe nada).
+- F9 (errores tragados en listados y paneles) va en el próximo commit.

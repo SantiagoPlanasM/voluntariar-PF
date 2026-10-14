@@ -278,7 +278,8 @@ Limitado a `AuthContext`. No hay estado global de UI (temas, filtros persistente
 ## 12. Manejo de errores
 
 - Sin *error boundary* de React en ningún nivel — un throw no capturado en render rompe la pantalla completa (pantalla en blanco), no solo un componente.
-- Cada componente atrapa errores de `fetch`/`api.*` con `try/catch` local y los muestra con un `useState<string|null>` propio, normalmente renderizado como texto rojo inline — no hay un componente `<ErrorBanner/>` reutilizable ni un sistema de toasts/notificaciones de error.
+- Cada componente atrapa errores de `fetch`/`api.*` con `try/catch` local y los muestra con un `useState<string|null>` propio, normalmente renderizado como texto rojo inline — no hay un sistema de toasts/notificaciones de error.
+- **Pantallas que cargan un recurso por id** (`ProjectDetails`, `NGOPublicProfile`, `CompanyPublicProfile`, `NGOProjectDetail`): si la carga falla, muestran **`<LoadError />`** (`components/LoadError.tsx`), nunca `navigate(-1)` + `return null` (abiertas desde un link compartido quedaban en blanco, `PROJECT_ANALYSIS.md §64`). `describeLoadError(err, textoNoExiste)` decide el mensaje: 404 → "no existe" sin reintentar; 403 → mensaje del servidor sin reintentar; 5xx o sin red → con "Reintentar". "Volver" solo aparece si hay página anterior (`history.state.idx > 0`); si no, "Ir al inicio". Una pantalla nueva de ese tipo tiene que usarlo.
 - No hay reintento automático ni manejo específico de 401 (expiración de sesión) salvo en `NGODashboard`, que inspecciona el string del mensaje de error buscando "Token"/"autenticado" para decidir redirigir a `/`.
 
 ## 13. Convenciones de componentes

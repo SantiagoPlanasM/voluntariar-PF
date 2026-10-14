@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router';
 import { useState, useEffect } from 'react';
 import { ArrowLeft, MapPin, Loader2, MessageCircle, Building2 } from 'lucide-react';
 import { api, Empresa } from '../../lib/api';
+import { LoadError, describeLoadError } from './LoadError';
 import { useAuth } from '../../lib/AuthContext';
 
 export function CompanyPublicProfile() {
@@ -10,22 +11,29 @@ export function CompanyPublicProfile() {
   const { user } = useAuth();
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<{ message: string; retry: boolean } | null>(null);
 
-  useEffect(() => {
+  useEffect(() => { load(); }, [id]);
+
+  const load = () => {
     if (!id) return;
     setLoading(true);
+    setLoadError(null);
     api.empresas.get(id)
       .then(({ empresa: e }) => setEmpresa(e))
-      .catch(() => navigate(-1))
+      .catch((e) => setLoadError(describeLoadError(e, 'No encontramos esta empresa')))
       .finally(() => setLoading(false));
-  }, [id]);
+  };
 
   if (loading) return (
     <div className="flex items-center justify-center h-screen">
       <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
     </div>
   );
-  if (!empresa) return null;
+  if (loadError || !empresa) return (
+    <LoadError message={loadError?.message ?? 'No encontramos esta empresa'}
+      onRetry={loadError?.retry ? load : undefined} home="/" />
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 md:ml-60">
