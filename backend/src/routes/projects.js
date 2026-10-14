@@ -58,6 +58,24 @@ function validateProject(body) {
   return null;
 }
 
+// Lista de textos del body (roles_needed, requirements): ausente → []; tiene que ser un array de strings
+// con largo entre min y max (los mismos límites que CreateVoluntariado.tsx) y a lo sumo maxItems.
+// Devuelve la lista recortada y sin repetidos, o { error }. Antes un string se recorría letra por letra
+// y un no-string rompía en .trim() después del INSERT del proyecto (REVISION B5).
+function cleanTextList(val, { label, min, max, maxItems }) {
+  if (val === undefined || val === null) return { list: [] };
+  if (!Array.isArray(val)) return { error: `${label}: tiene que ser una lista` };
+  if (val.length > maxItems) return { error: `${label}: máximo ${maxItems}` };
+  const list = [];
+  for (const item of val) {
+    const t = typeof item === 'string' ? item.trim() : null;
+    if (t === null || t.length < min || t.length > max)
+      return { error: `${label}: cada uno tiene que tener entre ${min} y ${max} caracteres` };
+    if (!list.includes(t)) list.push(t);
+  }
+  return { list };
+}
+
 // ── GET /api/projects ─────────────────────────────────────────────────────
 router.get('/', optionalAuth, async (req, res) => {
   try {
@@ -667,7 +685,7 @@ router.post('/', requireAuth, requireRole('ngo'), async (req, res) => {
     const {
       title, description, full_description, image, category, location,
       type, duration, volunteers_needed, funding_goal, cost_per_person,
-      hours_per_week, roles_needed = [], requirements = [],
+      hours_per_week, roles_needed, requirements,
       latitude, longitude, latitud, longitud, modality, modalidad
     } = req.body;
 
@@ -680,6 +698,14 @@ router.post('/', requireAuth, requireRole('ngo'), async (req, res) => {
     });
     if (err) return res.status(400).json({ error: err });
 
+    const roles = cleanTextList(roles_needed, { label: 'Roles', min: 2, max: 40, maxItems: 20 });
+    if (roles.error) return res.status(400).json({ error: roles.error });
+    const reqs = cleanTextList(requirements, { label: 'Requisitos', min: 3, max: 100, maxItems: 20 });
+    if (reqs.error) return res.status(400).json({ error: reqs.error });
+    if (category != null && (typeof category !== 'string' || category.trim().length > 60))
+      return res.status(400).json({ error: 'Categoría inválida' });
+    const categoryName = category?.trim() || '';
+
     const lat = latitude != null ? parseFloat(latitude) : (latitud != null ? parseFloat(latitud) : null);
     const lng = longitude != null ? parseFloat(longitude) : (longitud != null ? parseFloat(longitud) : null);
 
@@ -690,61 +716,47 @@ router.post('/', requireAuth, requireRole('ngo'), async (req, res) => {
     // devolvía el proyecto más viejo y le enganchaba categoría/roles/requisitos (PROJECT_ANALYSIS §40).
     const projectId = randomUUID();
 
-    // Insertar proyecto
-    await db.run(
-      `INSERT INTO projects (id, ngo_id, titulo, descripcion, descripcion_full, foto_perfil,
-        tipo, status, ubicacion, duracion, cupos, cupos_ocupados,
-        meta_financiera, recaudado, costo, horas_semanales, latitud, longitud, modalidad)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'active',$8,$9,$10,0,$11,0,$12,$13,$14,$15,$16)`,
-      [projectId, ngo.id, title.trim(), description.trim(), full_description?.trim() || null,
-       image || null, type || 'fugaz', location.trim(), duration?.trim() || null,
-       parseInt(volunteers_needed) || 0, parseFloat(funding_goal) || 0,
-       parseFloat(cost_per_person) || 0,
-       type === 'sostenido' ? parseInt(hours_per_week) : null,
-       lat, lng, mod]
-    );
-
-    const newProject = await db.get('SELECT * FROM projects WHERE id=$1', [projectId]);
-
-    // Categoría
-    if (category) {
-      let cat = await db.get('SELECT id FROM categorias WHERE nombre=$1', [category]);
-      if (!cat) {
-        await db.run('INSERT INTO categorias (nombre) VALUES ($1)', [category]);
-        cat = await db.get('SELECT id FROM categorias WHERE nombre=$1', [category]);
-      }
-      await db.run(
-        'INSERT INTO project_categorias (project_id, categoria_id) VALUES ($1,$2)',
-        [newProject.id, cat.id]
-      ).catch(() => {}); // ignorar duplicado
-    }
-
-    // Roles
-    for (const rolNombre of roles_needed) {
-      if (!rolNombre?.trim()) continue;
-      let rol = await db.get('SELECT id FROM roles WHERE nombre=$1', [rolNombre.trim()]);
-      if (!rol) {
-        await db.run('INSERT INTO roles (nombre) VALUES ($1)', [rolNombre.trim()]);
-        rol = await db.get('SELECT id FROM roles WHERE nombre=$1', [rolNombre.trim()]);
-      }
-      await db.run(
-        'INSERT INTO project_roles (project_id, rol_id) VALUES ($1,$2)',
-        [newProject.id, rol.id]
-      ).catch(() => {});
-    }
-
-    // Requisitos
-    for (const desc of requirements) {
-      if (!desc?.trim() || desc.trim().length < 2) continue;
-      await db.run(
-        'INSERT INTO requisitos (project_id, descripcion) VALUES ($1,$2)',
-        [newProject.id, desc.trim()]
+    // Proyecto + categoría + roles + requisitos en UNA transacción (regla 21): antes eran queries sueltas
+    // y un error a mitad dejaba el proyecto creado sin sus asociaciones (REVISION B5). Adentro, nada de
+    // .catch(() => {}) para "ignorar duplicados": en Postgres un error aborta la transacción entera; los
+    // duplicados se evitan antes (listas sin repetidos) o con ON CONFLICT DO NOTHING.
+    const newProject = await db.transaction(async (tx) => {
+      await tx.run(
+        `INSERT INTO projects (id, ngo_id, titulo, descripcion, descripcion_full, foto_perfil,
+          tipo, status, ubicacion, duracion, cupos, cupos_ocupados,
+          meta_financiera, recaudado, costo, horas_semanales, latitud, longitud, modalidad)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'active',$8,$9,$10,0,$11,0,$12,$13,$14,$15,$16)`,
+        [projectId, ngo.id, title.trim(), description.trim(), full_description?.trim() || null,
+         image || null, type || 'fugaz', location.trim(), duration?.trim() || null,
+         parseInt(volunteers_needed) || 0, parseFloat(funding_goal) || 0,
+         parseFloat(cost_per_person) || 0,
+         type === 'sostenido' ? parseInt(hours_per_week) : null,
+         lat, lng, mod]
       );
-    }
 
-    newProject.roles_json = JSON.stringify(roles_needed);
-    newProject.requisitos_json = JSON.stringify(requirements);
-    newProject.category_name = category || '';
+      // Categoría y roles: se crean en el catálogo si no existen (ON CONFLICT: otra alta concurrente
+      // pudo crearlos recién) y se releen por nombre (es UNIQUE).
+      if (categoryName) {
+        await tx.run('INSERT INTO categorias (nombre) VALUES ($1) ON CONFLICT (nombre) DO NOTHING', [categoryName]);
+        const cat = await tx.get('SELECT id FROM categorias WHERE nombre=$1', [categoryName]);
+        await tx.run('INSERT INTO project_categorias (project_id, categoria_id) VALUES ($1,$2)', [projectId, cat.id]);
+      }
+      for (const rolNombre of roles.list) {
+        await tx.run('INSERT INTO roles (nombre) VALUES ($1) ON CONFLICT (nombre) DO NOTHING', [rolNombre]);
+        const rol = await tx.get('SELECT id FROM roles WHERE nombre=$1', [rolNombre]);
+        await tx.run('INSERT INTO project_roles (project_id, rol_id) VALUES ($1,$2)', [projectId, rol.id]);
+      }
+      for (const desc of reqs.list) {
+        await tx.run('INSERT INTO requisitos (project_id, descripcion) VALUES ($1,$2)', [projectId, desc]);
+      }
+
+      return tx.get('SELECT * FROM projects WHERE id=$1', [projectId]);
+    });
+
+    // Lo que se guardó (recortado y sin repetidos), no lo que vino en el body.
+    newProject.roles_json = JSON.stringify(roles.list);
+    newProject.requisitos_json = JSON.stringify(reqs.list);
+    newProject.category_name = categoryName;
 
     res.status(201).json({ project: fmt(newProject) });
   } catch (err) {

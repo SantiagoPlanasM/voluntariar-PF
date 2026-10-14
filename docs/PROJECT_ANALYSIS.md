@@ -1477,3 +1477,45 @@ Ninguno detectado.
 ### ⚠️ NO verificado
 - Desde la interfaz no se pueden mandar ids repetidos (cada habilidad es un botón que se marca o desmarca), así que el caso del repetido se probó solo por el API.
 - Concurrencia: dos guardados simultáneos del mismo voluntario. Con la transacción, en Postgres el segundo DELETE espera al primero. No lo probé.
+
+## 59. Alta de proyecto: roles/requisitos sin validar y alta a medias sin transacción — REVISION B5
+
+**Contexto:** `POST /api/projects` hacía el INSERT del proyecto y después, en queries sueltas, categoría, roles y requisitos:
+- `roles_needed: "Chef"` (string) se recorría **letra por letra** y creaba los roles "C", "h", "e", "f" en el catálogo global (que `/api/roles` lista a todos);
+- un elemento no-string (`[123]`) fallaba en `.trim()` **después** del INSERT: 500 con el proyecto creado sin asociaciones (y un reintento lo duplicaba);
+- la respuesta devolvía `roles_needed`/`requirements` tal como venían en el body (con espacios, repetidos y vacíos), no lo guardado;
+- los `.catch(() => {})` para "ignorar duplicados" no servirían dentro de una transacción de Postgres, porque un error la aborta entera.
+
+**Arreglo** (`routes/projects.js`):
+- `cleanTextList()` valida **antes de crear nada**: ausente → `[]`; si no, array de strings, a lo sumo 20, rol 2–40 y requisito 3–100 caracteres (los límites de `CreateVoluntariado.tsx`). Recorta y saca repetidos. `category`, si viene, string de hasta 60. Si algo no cumple → 400.
+- No copié la regex de letras de roles del frontend: los tests existentes usan roles como "Rol 1", y la regla 3 pide no duplicar más validaciones.
+- Todo el alta en `db.transaction()` con `tx.*`. Categoría y roles se crean con `ON CONFLICT (nombre) DO NOTHING` (seguro ante otra alta concurrente que cree el mismo nombre) y se releen por nombre (UNIQUE). Sin `.catch` adentro.
+- La respuesta usa las listas limpias.
+
+**Cambio de comportamiento:** antes un rol o requisito vacío o demasiado corto se salteaba en silencio; ahora es 400. El frontend no los manda (valida lo mismo antes).
+
+### Tests (nuevos: 11, en los dos motores)
+`test/integration/projects-create-validation.test.js`. Cada rechazo comprueba 400, mensaje, **que no se creó el proyecto y que el catálogo de roles no cambió**:
+- `roles_needed` y `requirements` como string; `roles_needed` como objeto; elementos número, objeto y `null`;
+- largos fuera de rango (1, solo espacios, 41; requisito de 2 y de 101); 21 roles y 21 requisitos; `category` como array.
+
+Además, los casos válidos:
+- los extremos (2/40/3/100 y 20 de cada uno) se aceptan;
+- recorte y repetidos: la respuesta coincide con `GET /:id`;
+- sin listas en el body → `[]`;
+- **falla inyectada en el INSERT de requisitos** (en `db.run` y en el `tx.run`, como en §58) → 500 y no queda ni el proyecto, ni el rol nuevo, ni la categoría nueva.
+
+### Verificación
+- **Rojo → verde:** en SQLite fallaban 8 de 10 (201 donde iba 400, 500 con el proyecto a medias, la respuesta con el body crudo, el proyecto que quedaba tras la falla); pasaban los 2 de control. Con el arreglo pasan todos, junto con `creation-and-capacity-edit.test.js`. El caso "objeto" lo agregué antes de la mutación: con un string, la falta de `Array.isArray` no se notaba (cada letra mide 1 < 2).
+- **Mutación (13 mutantes, los dos motores, script descartable):** sin `Array.isArray`, los cuatro límites (`<`/`<=`, `>`/`>=`), sin tope de cantidad, sin dedup, sin recorte, sin chequeo de categoría, **sin transacción**, sin `ON CONFLICT` en roles y en categorías, y respuesta con el body crudo: **12 detectados en SQLite y Postgres.** Sobrevive "sin `typeof`" (`item?.trim?.() ?? null`), **equivalente** para JSON: número, `null` u objeto tampoco tienen `trim` y terminan en `null` → 400.
+- **Suites completas:** SQLite **307/307** y Postgres **309/309**, las dos también con `TZ=America/Argentina/Cordoba`.
+- **En el navegador (Claude in Chrome), contra Postgres** (schema descartable `verif_b5`, borrado al terminar): como Sustentando, completé los 3 pasos de "Nuevo Voluntariado" (Salud, roles Coordinador y Fotógrafo, requisitos "Ropa cómoda" y "Mayor de 18 años") y publiqué. `POST /api/projects` → 201, el panel mostró el proyecto nuevo, sin errores en la consola. En la base quedaron la categoría, los 2 roles y los 2 requisitos.
+- `API_CONTEXT.md`: además de lo nuevo, corregí dos errores que ya tenía esa sección: decía que `validateProject` pasa por `hasBadWord()` (no lo hace; solo comentarios y posts) y que sin perfil de ONG respondía 403 (es 404).
+
+### Errores míos
+1. En el primer borrador de tests, "roles como string" pasaba también sin el chequeo de array (por el largo mínimo). Lo detecté al planear la mutación y agregué el caso del objeto.
+
+### ⚠️ NO verificado / para decidir
+- **Catálogo abierto:** cualquier ONG sigue pudiendo crear categorías y roles nuevos en el catálogo global con cualquier texto válido. Para roles parece ser a propósito (el formulario permite roles personalizados). Para categorías, el frontend usa una lista fija pero el backend acepta cualquier texto. ¿Restringimos `category` a las existentes? No lo cambié (regla 16).
+- Dos altas concurrentes que crean el mismo rol nuevo: el `ON CONFLICT` está pensado para eso, pero no lo probé con concurrencia real.
+- `PUT /api/projects/:id` sigue sin guardar roles/requisitos/categoría y responde con los del body (deuda conocida, "PUT no parcial").
