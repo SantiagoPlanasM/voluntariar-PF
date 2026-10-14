@@ -1576,3 +1576,35 @@ Ninguno detectado.
 ### ⚠️ NO verificado / fuera de alcance
 - **No hay paginación:** los mensajes anteriores a los últimos 300 no se pueden ver desde la interfaz. Hace falta un "cargar anteriores" (cursor por `created_at`/`id`). Queda como mejora, no lo hice.
 - Mensajes enviados en el mismo segundo en SQLite (dev): su orden relativo lo decide el `id` (aleatorio), no el orden real de envío. En Postgres (microsegundos) casi no pasa.
+
+## 62. Recargar con el backend caído cerraba la sesión · `req()` reventaba con respuestas no-JSON — REVISION F4 + F5
+
+**Contexto:**
+- **F4:** al recargar, `AuthContext` verifica el token con `GET /auth/me` y hacía `.catch(() => { removeToken(); ... })` ante **cualquier** error. Con Render "dormido" (502), sin red o con un 500, el usuario perdía la sesión.
+- **F5:** `req()` (`lib/api.ts`) hacía `await res.json()` sin protección. Un 502/503 en HTML de un proxy mostraba al usuario `Unexpected token '<' ...`. Además el error no llevaba el código HTTP, así que nadie podía distinguir "token inválido" de "servidor caído".
+
+**Arreglo:**
+- `lib/api.ts`: `ApiError extends Error` con `status`. `req()` y `upload()` usan un `readJson()` común: lee el cuerpo con `.catch()`. Si no es OK, `ApiError(data?.error || fallback, status)`, con fallback "El servidor no está disponible en este momento. Probá de nuevo en un rato." para 502/503/504 y "Error del servidor" para el resto. Si es OK pero no es JSON, `ApiError("Respuesta inesperada del servidor")`. Un fallo de red sigue siendo el `TypeError` de fetch, que ya traduce `userMessage()`.
+- `lib/AuthContext.tsx`: cierra la sesión **solo** con 401 (token inválido o vencido, `middleware/auth.js`) o 404 (usuario borrado, `GET /auth/me`). En cualquier otro caso conserva el token y sigue con el usuario guardado en `v_user`.
+- Como `ApiError` hereda de `Error`, los componentes que muestran `e.message` siguen igual.
+
+### Tests (nuevos: 15; 1 actualizado)
+- `src/lib/api.errors.test.ts` (8): 502 en HTML → `ApiError` 502 con el mensaje en español; 503/504 igual; 500 en HTML → "Error del servidor"; error con JSON → mensaje del backend + status; 200 no-JSON → `ApiError`; OK con JSON → tal cual; `upload()` con 502 en HTML; fallo de red → sigue siendo `TypeError`.
+- `src/lib/AuthContext.test.tsx` (7): `/auth/me` OK → usuario del servidor; 401 y 404 → cierra la sesión (borra token y usuario); 502 en HTML, 500 y sin red → **no** la cierra (token y usuario guardado); sin token no llama a `/auth/me`.
+- `src/lib/api.posts.test.ts`: el test de "respuesta no-JSON" esperaba "Error del servidor" para un 502. Lo actualicé al mensaje nuevo, porque el cambio es a propósito.
+
+### Verificación
+- **Rojo → verde:** fallaban los 3 casos de "no cerrar la sesión" (rojo fuerte: la cerraba) y los de `status`/mensaje; los `instanceof ApiError` eran rojo débil (la clase no existía). Pasaban los controles.
+- **Mutación (11 mutantes, script descartable):** `json()` sin `catch`, `status` en 0, 502 o 504 fuera de la lista de "no disponible", ignorar el mensaje del backend, OK sin JSON que no falla, lanzar `Error` común, cerrar ante cualquier error (lo de antes), no cerrar con 404, no cerrar con 401, no usar el usuario guardado: **11 de 11 detectados**, sobre una línea base verde.
+- **TypeScript:** `tsc --noEmit` con 0 errores, antes y después.
+- **Suite del frontend:** **268/268**, también con `TZ=America/Argentina/Cordoba`.
+- **En el navegador (Claude in Chrome):** con María logueada (backend contra un schema descartable de Postgres, `verif_f4`, borrado al terminar), **apagué el backend** y recargué "Mi Perfil": sigue logueada (nombre en la barra y en el encabezado). **Contraprueba:** con el `AuthContext.tsx` anterior, la misma recarga mostró "No estás logueado". Después restauré el arreglo y volví a correr sus tests.
+
+### Errores míos
+1. **La primera corrida de mutación no valía:** incluía `api.posts.test.ts`, que ya fallaba **sin** mutantes (esperaba el mensaje viejo del 502), así que "11 de 11 detectados" era falso. Lo vi recién al correr la suite completa. Actualicé ese test, confirmé la línea base en verde (24/24) y repetí la mutación. Lección: **correr la línea base antes de mutar**.
+2. Primero escribí `ApiError` con un *parameter property* (`constructor(message, public status)`); lo cambié a un campo explícito para no depender de la configuración de TypeScript.
+
+### ⚠️ NO verificado
+- El mensaje de "servidor no disponible" ante un **502 en HTML real** de un proxy: lo cubren los tests con una respuesta simulada. No hay proxy local.
+- Con el backend caído, las pantallas muestran datos vacíos en vez de un error (en la prueba, "Mi Perfil" mostró 0 en todo). Es F9 (errores tragados), aparte.
+- La sesión se reintenta recién en la próxima recarga: no hay reintento automático de `/auth/me` cuando el backend vuelve.

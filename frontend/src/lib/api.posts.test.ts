@@ -56,7 +56,8 @@ describe('api.posts', () => {
 
     test('una respuesta de error que no es JSON (p. ej. la página de un proxy) no revienta con SyntaxError', async () => {
       fetchMock.mockImplementation(() => Promise.resolve({ ok: false, status: 502, json: async () => { throw new SyntaxError('Unexpected token <'); } } as unknown as Response));
-      await expect(api.posts.create(new FormData())).rejects.toThrow('Error del servidor');
+      // Desde F5 un 502/503/504 sin JSON dice que el servidor no está disponible (antes "Error del servidor").
+      await expect(api.posts.create(new FormData())).rejects.toThrow('El servidor no está disponible');
     });
   });
 

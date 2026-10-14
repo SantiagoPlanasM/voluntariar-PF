@@ -18,7 +18,7 @@ Respondé en español rioplatense (voseo).
 - Backend: `npm test` y `npm run test:pg`. Hoy: **319** en SQLite y **321** en Postgres (+2 solo de Postgres).
   `test:pg` necesita un Postgres en `localhost:5432` (ver `TEST_PG_*` en `test/integration/helpers.js`); sirve
   `docker run --rm -d -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=voluntariar_test postgres:16`.
-- Frontend: `npm test`. Hoy: **253** tests.
+- Frontend: `npm test`. Hoy: **268** tests.
 - `npm audit` en **0** en los dos paquetes (la base de avisos cambia sola: si aparece uno, avisá).
 
 ## Cómo trabajamos

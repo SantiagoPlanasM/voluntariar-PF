@@ -160,7 +160,7 @@ interface AuthContextValue {
 }
 ```
 
-- Al montar, si hay `v_token` en `localStorage` pero no `v_user`, llama a `GET /api/auth/me` para hidratar; si el token es inválido, limpia ambas claves.
+- Al montar, si hay `v_token` en `localStorage`, llama a `GET /api/auth/me` (`initializing` en `true` mientras tanto). OK → usa ese usuario. **Solo cierra la sesión (borra `v_token` y `v_user`) si la respuesta es 401 (token inválido o vencido) o 404 (el usuario ya no existe)**; ante cualquier otro error (sin red, 5xx, el 502 de Render "dormido") conserva el token y sigue con el usuario guardado en `v_user` (`PROJECT_ANALYSIS.md §62`). Antes la cerraba ante cualquier error.
 - `login`/`register` llaman a `api.auth.login`/`api.auth.register`, guardan en `localStorage` (`v_token`, `v_user`) y actualizan el estado.
 - `logout` es puramente client-side: borra `localStorage` y el estado en memoria. **No invalida el token en el servidor** (no existe endpoint de logout/blacklist).
 
@@ -194,10 +194,14 @@ async function request(path, options) {
                ...(token && { Authorization: `Bearer ${token}` }) },
     ...options,
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Error');
-  return data;
+  return readJson(res); // ver abajo
 }
+
+// readJson (también lo usa upload()): el cuerpo se lee con res.json().catch(): un proxy puede devolver
+// HTML. Si !res.ok → throw new ApiError(data?.error || fallback, res.status), donde fallback es
+// "El servidor no está disponible…" para 502/503/504 y "Error del servidor" para el resto. Si es OK pero
+// no es JSON → ApiError("Respuesta inesperada del servidor"). Un fallo de red sigue siendo el TypeError
+// de fetch (lo traduce userMessage() de format.ts). §62.
 
 export const api = {
   auth: { register, login, me, updateMe },

@@ -1,6 +1,6 @@
 // src/lib/AuthContext.tsx
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { api, getToken, setToken, removeToken, getUser, setUser, removeUser, User } from './api';
+import { api, ApiError, getToken, setToken, removeToken, getUser, setUser, removeUser, User } from './api';
 
 interface Ctx {
   loading: boolean;
@@ -35,7 +35,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (savedToken) {
       api.auth.me()
         .then(({ user: u }) => { setU(u); setUser(u); })
-        .catch(() => { removeToken(); removeUser(); setT(null); })
+        .catch((err) => {
+          // Solo se cierra la sesión si de verdad no vale: token inválido/vencido (401) o usuario que ya no
+          // existe (404). Antes se cerraba ante CUALQUIER error: con Render "dormido" (502), sin red o con
+          // un 500, el usuario perdía la sesión (REVISION F4). En esos casos se sigue con el usuario guardado.
+          if (err instanceof ApiError && (err.status === 401 || err.status === 404)) {
+            removeToken(); removeUser(); setT(null);
+          } else {
+            setU(getUser());
+          }
+        })
         .finally(() => setInitializing(false));
     } else {
       // No token — nothing to verify, resolve immediately

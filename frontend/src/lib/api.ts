@@ -10,6 +10,33 @@ export const getUser = (): User | null => {
 export const setUser = (u: User) => localStorage.setItem('v_user', JSON.stringify(u));
 export const removeUser = () => localStorage.removeItem('v_user');
 
+/** Error de la API con el código HTTP. AuthContext lo usa para cerrar la sesión SOLO si el token no vale
+ *  (401/404) y no ante un 502 de Render "dormido" o un 500 (REVISION F4). Un fallo de red no es ApiError:
+ *  sigue siendo el TypeError de fetch (lo maneja userMessage en format.ts). */
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+/** Lee el cuerpo como JSON y lanza ApiError si la respuesta no es OK o si no es JSON. Un proxy puede
+ *  devolver una página HTML (502/503/504): antes `await res.json()` reventaba y el usuario veía
+ *  "Unexpected token '<' ..." (REVISION F5). */
+async function readJson<T>(res: Response): Promise<T> {
+  const data = await res.json().catch(() => undefined);
+  if (!res.ok) {
+    const fallback = [502, 503, 504].includes(res.status)
+      ? 'El servidor no está disponible en este momento. Probá de nuevo en un rato.'
+      : 'Error del servidor';
+    throw new ApiError(data?.error || fallback, res.status);
+  }
+  if (data === undefined) throw new ApiError('Respuesta inesperada del servidor', res.status);
+  return data as T;
+}
+
 async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const token = getToken();
   const res = await fetch(`${BASE}${path}`, {
@@ -20,9 +47,7 @@ async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
       ...opts.headers,
     },
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Error del servidor');
-  return data as T;
+  return readJson<T>(res);
 }
 
 // Subida multipart (fotos). NO fija Content-Type a propósito: el navegador lo pone él, con el "boundary"
@@ -34,9 +59,7 @@ async function upload<T>(path: string, form: FormData): Promise<T> {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,
   });
-  const data = await res.json().catch(() => ({}));   // un 502 de un proxy puede no ser JSON
-  if (!res.ok) throw new Error(data.error || 'Error del servidor');
-  return data;
+  return readJson<T>(res);
 }
 
 export const api = {
