@@ -6,6 +6,7 @@ const http    = require('http');
 const { initWebSocket } = require('./ws');
 const { describeEmailConfig } = require('./lib/email');
 const { describeStorageConfig } = require('./lib/storage');
+const { errorHandler, corsError } = require('./lib/errorHandler');
 
 const app = express();
 
@@ -18,7 +19,7 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
       cb(null, true);
     } else {
-      cb(new Error(`CORS: origen no permitido → ${origin}`));
+      cb(corsError(origin)); // el manejador global responde 403 (antes 500 con el origen en el mensaje)
     }
   },
   credentials: true,
@@ -73,10 +74,9 @@ app.use((req, res) => {
 });
 
 // ── Error global ──────────────────────────────────────────────────────────
-app.use((err, req, res, next) => {
-  console.error('Error global:', err.message);
-  res.status(500).json({ error: err.message || 'Error interno del servidor' });
-});
+// Errores del cliente (JSON roto, cuerpo grande, CORS) con su código y mensaje en español; el resto,
+// 500 genérico. Ver src/lib/errorHandler.js (REVISION B3).
+app.use(errorHandler);
 
 // ── Start ─────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;

@@ -1519,3 +1519,38 @@ Además, los casos válidos:
 - **Catálogo abierto:** cualquier ONG sigue pudiendo crear categorías y roles nuevos en el catálogo global con cualquier texto válido. Para roles parece ser a propósito (el formulario permite roles personalizados). Para categorías, el frontend usa una lista fija pero el backend acepta cualquier texto. ¿Restringimos `category` a las existentes? No lo cambié (regla 16).
 - Dos altas concurrentes que crean el mismo rol nuevo: el `ON CONFLICT` está pensado para eso, pero no lo probé con concurrencia real.
 - `PUT /api/projects/:id` sigue sin guardar roles/requisitos/categoría y responde con los del body (deuda conocida, "PUT no parcial").
+
+## 60. El manejador global de errores respondía 500 con el mensaje técnico — REVISION B3
+
+**Contexto:** el último `app.use` de `src/index.js` respondía siempre `500 { error: err.message }`. Lo que llega ahí son, sobre todo, errores del cliente que levantan `express.json()` y CORS:
+- JSON mal formado → `500 {"error":"Unexpected end of JSON input"}`;
+- un cuerpo de más de 5 MB → 500;
+- en producción, un origen no permitido → `500 {"error":"CORS: origen no permitido → <origen>"}`.
+
+Códigos incorrectos (eran errores del cliente) y mensajes técnicos en inglés hacia el usuario, contra la regla 19.
+
+**Arreglo:** el manejador pasó a `src/lib/errorHandler.js`, para poder testear también los casos que ninguna ruta dispara:
+- `entity.parse.failed` → **400**, `entity.too.large` → **413** ("máximo 5 MB"), `charset/encoding.unsupported` → **415** ("usá UTF-8");
+- el rechazo de CORS (marcado con `corsError()`, que ahora usa el callback de `index.js`) → **403** "Origen no permitido", sin repetir el origen;
+- otro 4xx desconocido → su código con "El pedido no es válido";
+- todo lo demás → **500** "Error interno del servidor".
+
+`err.message` va siempre al log, nunca a la respuesta. Si la respuesta ya se empezó a mandar, se delega a Express (`next(err)`). Los errores de multer siguen manejándose en `posts.js` (no llegan acá).
+
+### Tests (nuevos: 10)
+- `test/integration/error-handler.test.js` (5, los dos motores): JSON roto → 400; 5 MB + 10 bytes → 413; `charset=latin9` → 415, cada uno con su mensaje específico y sin texto técnico. CORS en producción: origen ajeno → 403 sin el origen; `http://localhost:5173` → 200. El callback lee `NODE_ENV` en cada pedido, así que el test lo cambia solo mientras corre. Más un control: un JSON válido no da 500.
+- `test/unit/errorHandler.test.js` (5): error inesperado → 500 genérico, con el detalle en el log; 4xx desconocido → su código; un 5xx con `status` explícito no se trata como error del cliente; `headersSent` → `next(err)`; `corsError()` → 403.
+
+### Verificación
+- **Rojo → verde:** los 4 casos de integración daban 500 antes del arreglo; el control pasaba. Los unitarios arrancaron con un **rojo débil** (el módulo no existía todavía); cubren caminos a los que no se llega por HTTP.
+- **Mutación (12 mutantes, script descartable):** cambiar cada código, sacar cada rama (CORS, tabla de body-parser, 4xx genérico, `headersSent`), devolver `err.message` en el 500, sacar el log, ampliar el rango 4xx a `<= 503`, y volver al `new Error` en el callback de CORS. **12 de 12 detectados.** En el primer pase sobrevivió "sin la tabla de body-parser": los códigos coincidían por el 4xx genérico y solo cambiaba el mensaje, que el test no miraba. Agregué asserts del mensaje específico ("JSON válido", "5 MB", "UTF-8").
+- **Suites completas:** SQLite **317/317** y Postgres **319/319**, las dos también con `TZ=America/Argentina/Cordoba`.
+- Sin navegador: el frontend nunca manda JSON roto ni cuerpos de más de 5 MB.
+
+### Errores míos
+1. Dejé un comentario `eslint-disable` en el módulo; el backend no usa ESLint, así que lo cambié por un comentario común.
+2. Los primeros asserts solo miraban que el mensaje no fuera técnico, no cuál era (ver mutación).
+
+### ⚠️ NO verificado
+- El 403 de CORS en el navegador real: el test lo prueba con `fetch` desde Node mandando el header `Origin`. En un navegador, el bloqueo lo hace también el propio navegador, y lo que muestre depende de él.
+- `ws/index.js:86` sigue reenviando `err.message` interno por WebSocket (REVISION B19, aparte).

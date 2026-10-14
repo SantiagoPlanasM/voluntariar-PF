@@ -9,11 +9,12 @@ Express monolítico clásico, sin capas de servicio/repositorio: cada archivo de
 ```
 backend/
 ├── src/
-│   ├── index.js            # bootstrap: cors, json parser, montaje de rutas, 404, error handler, listen
+│   ├── index.js            # bootstrap: cors, json parser, montaje de rutas, 404, error handler (lib/errorHandler.js), listen
 │   ├── db/index.js         # adaptador dual SQLite/Postgres — único punto de acceso a datos
 │   ├── lib/
 │   │   ├── email.js          # cliente mínimo de Resend (fetch nativo, sin SDK)
 │   │   ├── emailTemplates.js # plantillas HTML de los emails transaccionales
+│   │   ├── errorHandler.js   # manejador global de errores: 400/413/415/403 con mensaje fijo en español, resto 500 genérico
 │   │   ├── storage.js        # fotos en Cloudinary por REST (subida/borrado firmados, tipo real de imagen, URLs optimizadas)
 │   │   └── time.js           # toMillis(): timestamps string (SQLite) o Date (Postgres) → ms
 │   ├── middleware/auth.js  # requireAuth, optionalAuth, requireRole, signToken
