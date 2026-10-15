@@ -9,7 +9,7 @@ import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router';
 import { VolunteerPublicProfile } from './VolunteerPublicProfile';
 import { VolunteerProfile } from './VolunteerProfile';
-import { api, VolunteerPublic } from '../../lib/api';
+import { api, ApiError, VolunteerPublic } from '../../lib/api';
 
 // Objeto estable: VolunteerProfile tiene useEffect([user]); uno nuevo en cada render lo deja en bucle.
 vi.mock('../../lib/AuthContext', () => {
@@ -145,6 +145,45 @@ describe('listas de seguidores/seguidos', () => {
     expect(within(d).queryByRole('link')).toBeNull();
     resolve({ volunteers: [] });
     expect(await within(d).findByText('Todavía no tiene seguidores.')).toBeInTheDocument();
+  });
+
+  test('un error al pedir la lista se ve como error con "Reintentar", no como "Todavía no…" (REVISION S1)', async () => {
+    pub();
+    f.volunteerFollowers.mockReset()
+      .mockRejectedValueOnce(new ApiError('Error interno del servidor', 500))
+      .mockResolvedValueOnce({ volunteers: people });
+    const d = await open('Seguidores');
+    expect(await within(d).findByRole('alert')).toHaveTextContent('Error interno del servidor');
+    expect(within(d).queryByText(/Todavía no/)).toBeNull();
+    fireEvent.click(within(d).getByRole('button', { name: /Reintentar/ }));
+    expect(await within(d).findByRole('link', { name: /Juan/ })).toBeInTheDocument();
+    expect(within(d).queryByRole('alert')).toBeNull();
+    expect(f.volunteerFollowers).toHaveBeenCalledTimes(2);
+  });
+
+  test('sin conexión (fetch rechaza con TypeError): mensaje propio, no el del navegador', async () => {
+    own();
+    await screen.findByRole('button', { name: /Siguiendo/ });
+    f.myFollowing.mockReset().mockRejectedValue(new TypeError('Failed to fetch'));
+    const d = await open('Siguiendo');
+    const alert = await within(d).findByRole('alert');
+    expect(alert).toHaveTextContent('No pudimos cargar la lista. Revisá tu conexión.');
+    expect(alert).not.toHaveTextContent('Failed to fetch');
+    expect(within(d).queryByText(/Todavía no/)).toBeNull();
+  });
+
+  test('si "Reintentar" vuelve a fallar, sigue el error (y mientras reintenta no dice "Todavía no…")', async () => {
+    pub();
+    let reject!: (e: unknown) => void;
+    f.volunteerFollowing.mockReset()
+      .mockRejectedValueOnce(new ApiError('Error interno del servidor', 500))
+      .mockReturnValueOnce(new Promise((_, r) => { reject = r; }));
+    const d = await open('Siguiendo');
+    fireEvent.click(await within(d).findByRole('button', { name: /Reintentar/ }));
+    expect(within(d).queryByRole('alert')).toBeNull();
+    expect(within(d).queryByText(/Todavía no/)).toBeNull();
+    reject(new ApiError('Servicio no disponible', 503));
+    expect(await within(d).findByRole('alert')).toHaveTextContent('Servicio no disponible');
   });
 
   test('tocar una persona navega a su perfil y cierra la lista; "Cerrar" también la cierra', async () => {

@@ -2741,3 +2741,30 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 ### ⚠️ NO verificado
 - No lo vi en el navegador: cómo queda `InlineError` (pensado para pantallas) dentro del modal de reseñas es por lectura de clases.
 - En esta tarea, con `initialRatings` no vacío (el feed) el modal todavía no pedía nada, así que el error solo podía verse desde "Mis participaciones" o con un proyecto sin reseñas en el feed. Lo cambia S3.
+
+## 108. Listas de seguidores: un error ya no se ve como "Todavía no tenés seguidores" — REVISION S1 (FollowListModal)
+
+**Contexto:** `FollowListModal` (§105) pedía la lista al abrirse y, si el pedido fallaba (red, 500), vaciaba la lista y mostraba el texto de vacío ("Todavía no tenés seguidores." / "Todavía no sigue a nadie."). §105 lo dejó así a propósito (refactor sin cambio de comportamiento) y lo anotó en ⚠️; la segunda pasada lo listó en S1.
+
+**Qué se hizo:**
+- `FollowListModal.tsx`: estado `error` y `attempt`. En el `catch`, `userMessage(e, 'No pudimos cargar la lista. Revisá tu conexión.')` (el mensaje del servidor tal cual; un `TypeError` de red se reemplaza). Si hay error se muestra `<InlineError>` (mensaje + "Reintentar") envuelto en `<div role="alert">`; "Reintentar" suma `attempt`, que está en las dependencias del efecto, y vuelve a pedir la lista (mientras tanto, el spinner).
+- El orden de la vista es: cargando → error → vacío → lista. Por eso el `catch` ya no hace `setList([])`: la rama de error se muestra antes que la lista (ver Mutación).
+- `InlineError` no tiene `role="alert"` propio; lo envolví en vez de agregárselo al componente, para no cambiar las otras pantallas que lo usan (y porque otros agentes tocan pantallas con `InlineError` en paralelo).
+
+### Tests (nuevos: 3, en `FollowLists.test.tsx`)
+- Perfil público, "Seguidores" con 500 → `role="alert"` con "Error interno del servidor", sin "Todavía no…"; "Reintentar" → aparece la lista, desaparece el aviso, y el endpoint se llamó 2 veces.
+- Perfil propio, "Siguiendo" sin conexión (`TypeError('Failed to fetch')`) → "No pudimos cargar la lista. Revisá tu conexión.", no "Failed to fetch".
+- "Reintentar" que vuelve a fallar: mientras está pendiente no hay aviso ni "Todavía no…"; al fallar (503), el aviso con el mensaje nuevo.
+- **Rojo de comportamiento:** con el código anterior los 3 fallaban por no encontrar `role="alert"` / el botón "Reintentar" (los 7 de §105 seguían en verde).
+
+### Verificación
+- **Frontend 423/423** (420 + 3), también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.**
+- **Mutación (9 sobre `FollowListModal.tsx`, script con corrida de control previa):** mueren 7. 1 no aplicó (patrón LF; el archivo es CRLF en la copia de trabajo — la versión CRLF del mismo mutante muere). **Sobrevivió 1, equivalente:** "el `catch` no vacía la lista": la rama de error tapa la lista y, como el modo no cambia con la lista abierta, la lista solo puede estar vacía cuando se reintenta. Lo saqué del código en vez de dejarlo.
+
+### Errores propios
+- El worktree arrancó en un commit viejo (`31f0bee`, sin §105 ni la "Segunda pasada"); lo avancé a `main` (`89818c1`) con fast-forward antes de empezar.
+- El primer intento de crear el junction de `node_modules` con `cmd //c mklink` lo bloqueó la herramienta; lo hice con `New-Item -ItemType Junction` de PowerShell. No quedó en git.
+
+### ⚠️ NO verificado
+- No lo vi en el navegador. `InlineError` trae su propia tarjeta (borde, `py-10`) y dentro del modal puede verse como "tarjeta dentro de tarjeta"; no lo comprobé a ojo.
+- Que un lector de pantalla anuncie el aviso (solo verifiqué el `role="alert"` en el DOM).

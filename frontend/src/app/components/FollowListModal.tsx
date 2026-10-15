@@ -4,7 +4,9 @@ import { useEffect, useId, useState } from 'react';
 import { Link } from 'react-router';
 import { Loader2, Users, X } from 'lucide-react';
 import { VolunteerPublic } from '../../lib/api';
+import { userMessage } from '../../lib/format';
 import { Modal } from './Modal';
+import { InlineError } from './LoadError';
 
 export type FollowListMode = 'followers' | 'following';
 
@@ -23,17 +25,21 @@ export function FollowListModal({ mode, load, emptyText, meId, onClose }: Props)
   const titleId = useId();
   const [list, setList] = useState<VolunteerPublic[]>([]);
   const [loading, setLoading] = useState(true);
+  // Un error de carga se muestra como error con "Reintentar", no como lista vacía (REVISION S1).
+  const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     // Si se cierra antes de que llegue la respuesta, se descarta.
     let cancelled = false;
     setLoading(true);
+    setError('');
     load(mode)
       .then(r => { if (!cancelled) setList(r.volunteers); })
-      .catch(() => { if (!cancelled) setList([]); })
+      .catch((e) => { if (!cancelled) setError(userMessage(e, 'No pudimos cargar la lista. Revisá tu conexión.')); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [mode]); // sin `load`: ver su comentario en Props
+  }, [mode, attempt]); // sin `load`: ver su comentario en Props
 
   return (
     <Modal onClose={onClose} labelledBy={titleId}
@@ -51,6 +57,10 @@ export function FollowListModal({ mode, load, emptyText, meId, onClose }: Props)
           {loading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="w-6 h-6 text-emerald-600 animate-spin" />
+            </div>
+          ) : error ? (
+            <div role="alert">
+              <InlineError message={error} onRetry={() => setAttempt(a => a + 1)} />
             </div>
           ) : list.length === 0 ? (
             <div className="text-center py-8">
