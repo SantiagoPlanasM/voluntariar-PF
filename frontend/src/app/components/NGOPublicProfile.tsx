@@ -5,6 +5,7 @@ import { api, NGO, Project } from '../../lib/api';
 import { useLatestRequest } from '../../lib/useLatestRequest';
 import { LoadError, describeLoadError } from './LoadError';
 import { useAuth } from '../../lib/AuthContext';
+import { userMessage, FOLLOW_ERROR } from '../../lib/format';
 
 function safePct(a: any, b: any) {
   const na = parseFloat(a), nb = parseFloat(b);
@@ -24,6 +25,7 @@ export function NGOPublicProfile() {
 
   const [following, setFollowing] = useState(false);
   const [togglingFollow, setTogglingFollow] = useState(false);
+  const [followError, setFollowError] = useState('');
   const [followersCount, setFollowersCount] = useState(0);
 
   // Solo vale la respuesta del último pedido (al cambiar de :id o reintentar): REVISION F15, §89.
@@ -58,6 +60,7 @@ export function NGOPublicProfile() {
     if (user.role !== 'volunteer' || !ngo || togglingFollow) return;
 
     setTogglingFollow(true);
+    setFollowError('');
     try {
       if (following) {
         const res = await api.follows.unfollowNgo(ngo.id);
@@ -69,7 +72,8 @@ export function NGOPublicProfile() {
         setFollowersCount(res.followers);
       }
     } catch (err) {
-      console.error('Error toggling follow:', err);
+      // Antes solo se logueaba (REVISION S6).
+      setFollowError(userMessage(err, FOLLOW_ERROR));
     } finally {
       setTogglingFollow(false);
     }
@@ -152,6 +156,7 @@ export function NGOPublicProfile() {
             )}
           </div>
         </div>
+        {followError && <p role="alert" className="-mt-2 mb-3 text-xs font-medium text-red-600 text-right">{followError}</p>}
 
         {/* Stats */}
         <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-4">

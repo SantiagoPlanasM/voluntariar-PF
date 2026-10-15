@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { LogOut, Bell, Users, Compass, ArrowRight } from 'lucide-react';
 import { api, Project, FeedProject, NGO } from '../../lib/api';
 import { FeedPostCard } from './FeedPostCard';
-import { FeedSidebar } from './FeedSidebar';
+import { FeedSidebar, FollowNgoError } from './FeedSidebar';
 import { FeedTabs } from './FeedTabs';
 import { useAuth } from '../../lib/AuthContext';
 import { useNavigate, Link, useLocation } from 'react-router';
 import { InlineError } from './LoadError';
-import { userMessage } from '../../lib/format';
+import { userMessage, FOLLOW_ERROR } from '../../lib/format';
 
 export function MainFeed() {
   const { user, logout } = useAuth();
@@ -74,14 +74,18 @@ export function MainFeed() {
   };
   const retrySidebar = () => { loadSidebarData(); loadUrgentProjects(); };
 
+  // Error al seguir una ONG sugerida: se muestra debajo de esa ONG (antes solo se logueaba, REVISION S6).
+  const [followError, setFollowError] = useState<FollowNgoError | null>(null);
+
   const handleFollowSuggestedNgo = async (ngoId: string) => {
+    setFollowError(null);
     try {
       await api.follows.followNgo(ngoId);
       setFollowingNgoIds(prev => new Set([...prev, ngoId]));
       setSuggestedNgos(prev => prev.filter(n => n.id !== ngoId));
       loadFollowingFeed();
     } catch (err) {
-      console.error('Error following NGO:', err);
+      setFollowError({ ngoId, message: userMessage(err, FOLLOW_ERROR) });
     }
   };
 
@@ -181,8 +185,8 @@ export function MainFeed() {
                   </p>
                   <div className="space-y-3">
                     {suggestedNgos.map(ngo => (
+                      <div key={ngo.id}>
                       <div
-                        key={ngo.id}
                         className="flex items-center justify-between p-3 rounded-2xl bg-gray-50 hover:bg-gray-100/80 transition-colors border border-gray-100"
                       >
                         <div className="flex items-center gap-3 min-w-0">
@@ -212,6 +216,10 @@ export function MainFeed() {
                         >
                           {followingNgoIds.has(ngo.id) ? 'Siguiendo' : 'Seguir'}
                         </button>
+                      </div>
+                      {followError?.ngoId === ngo.id && (
+                        <p role="alert" className="mt-1 px-1 text-xs font-medium text-red-600">{followError.message}</p>
+                      )}
                       </div>
                     ))}
                   </div>
@@ -252,6 +260,7 @@ export function MainFeed() {
             urgentProjects={urgentProjects}
             suggestionsError={suggestionsError}
             onRetrySuggestions={retrySidebar}
+            followError={followError}
           />
         </aside>
       </div>

@@ -2943,3 +2943,38 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 - `GET /api/ngos/me` es más pesado de lo necesario para obtener solo el id (trae proyectos, stats y solicitudes): no se midió; si molesta, la alternativa es tipar `profile` de `/auth/me` o guardar el id en un contexto del panel de la ONG.
 - Rendimiento del filtro con muchas publicaciones: ya existen `idx_projects_ngo` (`projects.ngo_id`) e `idx_posts_project` (`posts.project_id`) en `migrate.js`, así que no se agregó ninguno; no se midió con volumen ni se miró el plan de consulta.
 - Las publicaciones de un proyecto que cambie de ONG (no hay endpoint para eso) seguirían a la ONG nueva: el filtro es por la ONG dueña **actual** del proyecto.
+
+## 114. Seguir/dejar de seguir que falla ahora avisa — REVISION S6
+
+**Contexto:** en cuatro lugares, si seguir o dejar de seguir fallaba, el error solo se logueaba (`VolunteerPublicProfile`: `catch { }`; `NGOPublicProfile`, `FeedPostCard` y `MainFeed`: `console.error`). El botón dejaba de girar y quedaba como estaba, sin ningún mensaje: la persona no sabía si había seguido o no.
+
+**Qué se hizo:**
+- **El estado ya quedaba como estaba** (el `setFollowing`/`setFollowersCount` va después del `await`, así que un error no lo toca): no hubo que deshacer nada. Los tests lo fijan.
+- **Mensaje breve con `role="alert"` cerca del botón**, con `userMessage(err, FOLLOW_ERROR)` (el mensaje del servidor, o el de respaldo si es un `TypeError` de red). Se limpia al volver a intentar.
+  - `VolunteerPublicProfile`: debajo del botón "Seguir"/"Siguiendo".
+  - `NGOPublicProfile`: debajo de la fila del encabezado (el botón está en un `flex` horizontal con el nombre y "Mensaje"), alineado a la derecha.
+  - `FeedPostCard` (solo el seguir proyecto; no se tocó la parte de reseñas): una etiqueta blanca chica debajo del botón del marcador, sobre la imagen (`absolute top-14 right-4`).
+  - `MainFeed` (seguir una ONG sugerida): el error se guarda con el id de la ONG (`FollowNgoError { ngoId, message }`) y se muestra debajo de **esa** ONG, tanto en la barra lateral (`FeedSidebar`, prop nueva `followError`) como en las sugerencias del feed vacío. Seguir otra ONG lo limpia.
+- **`FOLLOW_ERROR`** en `lib/format.ts` ("No pudimos actualizar el seguimiento. Revisá tu conexión y probá de nuevo."): el mismo respaldo en los cuatro lugares, sin copiarlo (regla 3).
+
+### Tests (nuevos: 9, `FollowErrors.test.tsx`)
+- Perfil de voluntario: seguir con 500 → aviso con el mensaje, el botón sigue en "Seguir" (habilitado) y los seguidores en 7; reintentar anda → "Siguiendo", 8, sin aviso. Dejar de seguir sin conexión → mensaje de respaldo y sigue en "Siguiendo" con 7.
+- Perfil de ONG: lo mismo (seguir sin conexión → respaldo, seguidores en 3; reintentar → 4 y sin aviso). Dejar de seguir con 500 → mensaje del servidor y sigue en "Siguiendo".
+- Tarjeta del feed: seguir proyecto con 500 → aviso y el botón sigue siendo "Seguir este voluntariado"; reintentar → "Dejar de seguir voluntariado" sin aviso. Dejar de seguir sin conexión → respaldo y sigue siguiéndolo.
+- Inicio, barra lateral: falla → aviso en la caja, la ONG sigue sugerida con "+ Seguir"; reintentar anda → la ONG sale de la lista y no queda aviso.
+- Inicio con dos ONGs: falla Verde → exactamente 2 avisos (barra y feed vacío), los dos en el bloque de Verde y no en el de Azul; seguir Azul (anda) → no queda ningún aviso.
+- Inicio, feed vacío: falla → aviso en la lista "ONGs recomendadas para vos" y el botón "Seguir" sigue habilitado.
+- **Rojo de comportamiento:** con el código anterior fallaban los 8 primeros, todos por no encontrar `role="alert"` (en la salida se veían los `console.error` del código viejo: el pedido sí había fallado). El de dos ONGs lo agregué después (ver Mutación).
+
+### Verificación
+- **Frontend 448/448** (439 + 9), también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.** Los archivos tocados siguen en CRLF en la copia de trabajo (el diff solo tiene las líneas cambiadas).
+- **Mutación (22 sobre lo nuevo de los cinco componentes y `FOLLOW_ERROR`, con corrida de control):** primera corrida, mueren 19. **Sobrevivieron 3, no equivalentes:** `MainFeed` sin limpiar el error al reintentar, y `MainFeed`/`FeedSidebar` mostrando el error debajo de **todas** las ONGs (no solo la que falló). Con una sola ONG sugerida los tests no lo distinguían. Agregué el test de dos ONGs y en la segunda corrida **mueren los 22**.
+
+### Errores propios
+- La primera versión del test de dos ONGs tenía aserciones que no probaban nada (`toBeLessThanOrEqual(1)` sobre filas que no contenían el aviso). Las reemplacé por: cantidad exacta de avisos y que cada uno esté en el bloque de Verde y no en el de Azul.
+
+### ⚠️ NO verificado
+- Nada visual: en especial la etiqueta sobre la imagen de `FeedPostCard` y el aviso debajo del encabezado de la ONG (posición y contraste).
+- Seguir una ONG sugerida en `MainFeed` no tiene estado "enviando" (de antes): un doble clic manda dos pedidos. No lo cambié.
+- `NGOPublicProfile` sigue tragando el error de `ngoStatus` (`.catch(() => ({ following: false }))`): si falla, muestra "Seguir" aunque ya la sigas. No estaba en S1/S6; lo anoto.
+- **Merge:** el import nuevo de `FeedPostCard.tsx` quedó en la línea siguiente al de `ReviewsModal`; si otro agente toca los imports de ese archivo, puede haber un conflicto trivial.

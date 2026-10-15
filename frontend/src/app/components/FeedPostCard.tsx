@@ -8,6 +8,7 @@ import {
 import { FeedProject, AppComment, Rating, api } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { ReviewsModal } from './ReviewsModal';
+import { userMessage, FOLLOW_ERROR } from '../../lib/format';
 
 interface FeedPostCardProps {
   project: FeedProject;
@@ -56,6 +57,7 @@ export function FeedPostCard({ project, onRefresh }: FeedPostCardProps) {
     project.follow_source === 'project_follow' || project.follow_source === 'both'
   );
   const [togglingFollow, setTogglingFollow] = useState(false);
+  const [followError, setFollowError] = useState('');
   const [followersCount, setFollowersCount] = useState(project.followers || 0);
 
   const fundPct = safePct(project.current_funding, project.funding_goal);
@@ -97,6 +99,7 @@ export function FeedPostCard({ project, onRefresh }: FeedPostCardProps) {
     if (user.role !== 'volunteer' || togglingFollow) return;
 
     setTogglingFollow(true);
+    setFollowError('');
     try {
       if (isFollowing) {
         const res = await api.follows.unfollowProject(project.id);
@@ -108,7 +111,8 @@ export function FeedPostCard({ project, onRefresh }: FeedPostCardProps) {
         setFollowersCount(res.followers);
       }
     } catch (err) {
-      console.error('Error toggling project follow', err);
+      // Antes solo se logueaba (REVISION S6).
+      setFollowError(userMessage(err, FOLLOW_ERROR));
     } finally {
       setTogglingFollow(false);
     }
@@ -198,6 +202,11 @@ export function FeedPostCard({ project, onRefresh }: FeedPostCardProps) {
           >
             <Bookmark className={`w-4 h-4 ${isFollowing ? 'fill-current' : ''}`} />
           </button>
+        )}
+        {followError && (
+          <p role="alert" className="absolute top-14 right-4 z-10 max-w-[75%] px-2.5 py-1.5 rounded-lg bg-white/95 shadow-sm text-xs font-medium text-red-600">
+            {followError}
+          </p>
         )}
       </div>
 

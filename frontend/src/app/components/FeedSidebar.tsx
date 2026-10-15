@@ -12,7 +12,11 @@ interface FeedSidebarProps {
    *  "¡Ya seguís a todas…!", que se leería como un dato (REVISION S1). */
   suggestionsError?: string;
   onRetrySuggestions?: () => void;
+  /** Error al seguir una ONG: se muestra debajo de esa ONG (REVISION S6). */
+  followError?: FollowNgoError | null;
 }
+
+export interface FollowNgoError { ngoId: string; message: string }
 
 export function FeedSidebar({
   user,
@@ -22,6 +26,7 @@ export function FeedSidebar({
   urgentProjects = [],
   suggestionsError = '',
   onRetrySuggestions,
+  followError = null,
 }: FeedSidebarProps) {
   return (
     <div className="space-y-4 w-full">
@@ -92,7 +97,8 @@ export function FeedSidebar({
             {suggestedNgos.map(ngo => {
               const isFollowing = followingNgoIds.has(ngo.id);
               return (
-                <div key={ngo.id} className="flex items-center justify-between gap-2.5">
+                <div key={ngo.id}>
+                <div className="flex items-center justify-between gap-2.5">
                   <Link
                     to={`/ngo/${ngo.id}`}
                     className="flex items-center gap-2.5 min-w-0 group flex-1"
@@ -137,6 +143,10 @@ export function FeedSidebar({
                       <span>+ Seguir</span>
                     )}
                   </button>
+                </div>
+                {followError?.ngoId === ngo.id && (
+                  <p role="alert" className="mt-1 text-[11px] font-medium text-red-600">{followError.message}</p>
+                )}
                 </div>
               );
             })}

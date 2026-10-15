@@ -81,3 +81,6 @@ export function userMessage(err: unknown, fallback: string): string {
   if (err instanceof Error && err.message) return err.message;
   return fallback;
 }
+
+/** `fallback` de seguir/dejar de seguir (voluntario, ONG, proyecto), sin conexión (REVISION S6). */
+export const FOLLOW_ERROR = 'No pudimos actualizar el seguimiento. Revisá tu conexión y probá de nuevo.';

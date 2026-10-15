@@ -8,6 +8,7 @@ import { api, VolunteerProfileData, VolunteerSkill } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { MomentsGrid } from './MomentsGrid';
 import { FollowListModal, FollowListMode } from './FollowListModal';
+import { userMessage, FOLLOW_ERROR } from '../../lib/format';
 
 const NIVEL_LABELS: Record<string, string> = { basico: 'Básico', intermedio: 'Intermedio', avanzado: 'Avanzado' };
 
@@ -20,6 +21,7 @@ export function VolunteerPublicProfile() {
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [followError, setFollowError] = useState('');
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [error, setError] = useState('');
@@ -60,6 +62,7 @@ export function VolunteerPublicProfile() {
   const handleFollow = async () => {
     if (!user || !id) return;
     setFollowLoading(true);
+    setFollowError('');
     try {
       if (following) {
         const r = await api.follows.unfollowVolunteer(id);
@@ -70,7 +73,10 @@ export function VolunteerPublicProfile() {
         setFollowing(true);
         setFollowerCount(r.followers);
       }
-    } catch { }
+    } catch (e) {
+      // Antes `catch { }`: el botón volvía a su estado sin ningún aviso (REVISION S6).
+      setFollowError(userMessage(e, FOLLOW_ERROR));
+    }
     setFollowLoading(false);
   };
 
@@ -161,6 +167,7 @@ export function VolunteerPublicProfile() {
               }
             </button>
           )}
+          {followError && <p role="alert" className="mt-2 text-xs font-medium text-red-600 text-center">{followError}</p>}
         </div>
       </div>
 
