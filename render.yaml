@@ -1,15 +1,20 @@
 # render.yaml — configuración automática para Render
-# Render lee este archivo y crea los servicios automáticamente
+# Render lee este archivo y crea los servicios automáticamente.
+# Todo en plan gratuito: sin `plan: free`, un servicio web usa el plan pago por defecto y Render pide tarjeta.
 
 services:
   # ── Backend (API) ────────────────────────────────────────────────────────
   - type: web
     name: voluntariar-api
+    plan: free
     runtime: node
     rootDir: backend
-    buildCommand: npm install
+    buildCommand: npm install --omit=dev
     startCommand: npm run db:migrate && npm start
     envVars:
+      # El backend exige Node >= 22 (package.json, "engines").
+      - key: NODE_VERSION
+        value: "22"
       - key: NODE_ENV
         value: production
       - key: USE_POSTGRES
@@ -22,6 +27,7 @@ services:
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 7d
+      # Si Render asigna otra URL al frontend (el nombre ya estaba tomado), corregir esta y APP_URL.
       - key: CORS_ORIGINS
         value: https://voluntariar.onrender.com
       # Links de los emails (sin esto apuntan a http://localhost:5173)
@@ -44,7 +50,7 @@ services:
         sync: false
     healthCheckPath: /health
 
-  # ── Frontend (Static Site) ───────────────────────────────────────────────
+  # ── Frontend (Static Site, gratis) ───────────────────────────────────────
   - type: web
     name: voluntariar
     runtime: static
@@ -52,6 +58,9 @@ services:
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Si Render asigna otra URL a la API, corregir esta.
       - key: VITE_API_URL
         value: https://voluntariar-api.onrender.com/api
     routes:
