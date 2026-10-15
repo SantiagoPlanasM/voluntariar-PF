@@ -22,7 +22,7 @@ const db = require('../db');
 const storage = require('../lib/storage');
 const { requireAuth, optionalAuth, requireRole } = require('../middleware/auth');
 const { toMillis } = require('../lib/time');
-const { hasBadWord } = require('./projects');
+const { hasBadWord } = require('../lib/badWords');
 
 const router = express.Router();
 

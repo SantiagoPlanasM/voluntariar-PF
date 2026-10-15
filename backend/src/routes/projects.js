@@ -5,6 +5,7 @@ const { requireAuth, optionalAuth, requireRole } = require('../middleware/auth')
 const { randomUUID } = require('node:crypto');
 const { toMillis } = require('../lib/time');
 const { checkText, firstError } = require('../lib/inputs');
+const { hasBadWord } = require('../lib/badWords');
 
 const router = express.Router();
 
@@ -893,8 +894,6 @@ router.delete('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
 });
 
 // ── POST /api/projects/:id/comments ──────────────────────────────────────
-const BLACKLIST = ['pelotudo','boludo','idiota','imbecil','mierda','puto','puta','hdp','concha','forro','tarado'];
-const hasBadWord = (t) => BLACKLIST.some(w => t.toLowerCase().includes(w));
 
 router.post('/:id/comments', requireAuth, async (req, res) => {
   try {
@@ -969,7 +968,6 @@ module.exports = router;
 // Exportadas aparte para poder testearlas de forma aislada (mismo patrón
 // que insertMessage en routes/messages.js).
 module.exports.validateProject = validateProject;
-module.exports.hasBadWord = hasBadWord;
 // fmt (title/description/latitude/longitude/modality, etc.) también se
 // exporta para que otros routers que devuelven proyectos (ej. follows.js)
 // reusen la misma función en vez de mantener una copia — evita que las dos

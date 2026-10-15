@@ -9,7 +9,8 @@ const assert = require('node:assert/strict');
 // require no explote.
 process.env.NODE_ENV = 'test';
 
-const { validateProject, hasBadWord } = require('../../src/routes/projects');
+const { validateProject } = require('../../src/routes/projects');
+const { hasBadWord } = require('../../src/lib/badWords'); // se movió a lib/ (REVISION B7, §93)
 const { validateEmail, validateName, validatePassword } = require('../../src/routes/auth');
 
 describe('validateProject', () => {

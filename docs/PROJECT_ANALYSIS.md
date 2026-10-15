@@ -2394,3 +2394,31 @@ Con un socket simulado "conectado": el envío va por REST y el mensaje guardado 
 
 ### ⚠️ NO verificado
 - El camino de error en Chrome (REST no tiene límite de frecuencia y no forcé un rechazo). Lo cubre el test.
+
+## 93. Filtro de palabras por palabra completa (decisión del usuario) — REVISION B7
+
+**Contexto:** `hasBadWord` comparaba por **subcadena**: "Traigan la computadora" daba 400 (contiene "puta"), igual que "disputa", "reputación" o "diputado". Además "imbécil" con acento pasaba. La lista estaba copiada en `routes/projects.js` y en `ProjectDetails.tsx`. El usuario eligió comparar palabras completas.
+
+**Qué se hizo:**
+- **`backend/src/lib/badWords.js` y `frontend/src/lib/badWords.ts` (nuevos):** el texto se normaliza (sin acentos: NFD y se sacan las marcas), se pasa a minúsculas, se parte en palabras (`\p{L}+`, letras Unicode) y se compara palabra por palabra con la lista (la misma de antes, 11 palabras). `projects.js` (comentarios) y `posts.js` (textos de publicaciones) usan el módulo; `ProjectDetails.tsx` usa la copia del frontend. Se borraron las dos definiciones viejas y el export `hasBadWord` de `projects.js`.
+- **Sincronía:** `test/unit/badWords.test.js` lee la lista del frontend y exige que sea **igual** a la del backend.
+- **Límites aceptados del criterio:** los plurales pasan ("boludos") y los homónimos no se distinguen ("forro polar", "concha" de mar se rechazan igual que antes).
+
+### Tests (nuevos: 13)
+- Backend unitario (`badWords.test.js`, 6): las palabras legítimas que contienen una de la lista pasan; la palabra sola, con mayúsculas, acentos o signos, se rechaza; textos vacíos; letras con tilde o de otros alfabetos no cortan la palabra; los límites (plural, homónimo); y la sincronía con el frontend.
+- Backend integración (`comments-badwords.test.js`, 2): "Traigan la computadora…" → 201 (antes 400); "Qué imbécil…" y "sos un BOLUDO" → 400.
+- Frontend (`lib/badWords.test.ts`, 3): el mismo criterio.
+- **Rojo de comportamiento** (no "el módulo no existe"): primero moví la lógica vieja a los módulos nuevos y vi fallar los tests (3 en el backend, 2 en el frontend); después cambié el criterio.
+
+### Verificación
+- **Backend SQLite 430/430 y Postgres 432/432**, también con `TZ=America/Argentina/Cordoba`. **Frontend 401/401. Typecheck: 0 errores.**
+- **Mutación (8):** volver a subcadena (back y front), no sacar acentos, no pasar a minúsculas, partir con `[a-z]+` y una lista distinta en el frontend. **Todos mueren** después de agregar un caso: "partir con `[a-z]+`" sobrevivía.
+
+### Errores propios
+1. **Un caso de test mal planteado:** puse "Ponete el forro polar" entre los textos que debían pasar, pero "forro" está en la lista: con palabra completa se rechaza (no hay forma de distinguir el homónimo). Lo pasé a "límites conocidos".
+2. **Un test viejo roto por mi cambio:** `validators.test.js` importaba `hasBadWord` desde `routes/projects`, y yo había sacado ese export. Lo vio la suite completa; actualicé el `require`.
+3. **Expliqué mal un sobreviviente:** creí que `[a-z]+` cortaría las palabras con ñ. No pasa, porque la normalización convierte la ñ en n antes de partir. Solo cambia con letras que no se descomponen (ø, ß…), y ese es el caso que agregué.
+
+### ⚠️ NO verificado
+- En Chrome no lo probé (el formulario y los mensajes no cambiaron; el criterio lo cubren los tests de los dos lados).
+- Los comentarios de las **calificaciones** siguen sin pasar por el filtro (§74): no estaba en el alcance de B7.

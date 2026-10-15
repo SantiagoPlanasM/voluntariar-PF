@@ -7,13 +7,12 @@ import {
 } from 'lucide-react';
 import { api, ProjectDetail } from '../../lib/api';
 import { useLatestRequest } from '../../lib/useLatestRequest';
+import { hasBadWord } from '../../lib/badWords';
 import { LoadError, describeLoadError } from './LoadError';
 import { useAuth } from '../../lib/AuthContext';
 import { MomentsGrid } from './MomentsGrid';
 
 type Tab = 'details' | 'ratings' | 'comments';
-const BLACKLIST = ['pelotudo','boludo','idiota','imbecil','mierda','puto','puta','hdp','concha','forro','tarado'];
-const hasBadWord = (t: string) => BLACKLIST.some(w => t.toLowerCase().includes(w));
 const safePct = (a: any, b: any) => { const na=parseFloat(a),nb=parseFloat(b); if(!nb||isNaN(na)||isNaN(nb)) return 0; return Math.min(100,Math.round((na/nb)*100)); };
 const safeMoney = (val: any) => { const n=parseFloat(val); return isNaN(n)?'$0':'$'+n.toLocaleString('es-AR'); };
 

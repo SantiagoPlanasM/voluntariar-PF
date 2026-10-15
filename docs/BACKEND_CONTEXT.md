@@ -190,7 +190,7 @@ Como el esquema de base de datos está en español (`titulo`, `descripcion`, `ub
 | `validateEmail/validateName/validatePassword` | `routes/auth.js` | Regex idénticas (copiadas) a las de `frontend/AuthModal.tsx` |
 | `validateProject(body)` | `routes/projects.js` | Valida título, descripción, ubicación, duración (si `fugaz`), horas semanales (si `sostenido`), cupos |
 | `parseJson(val)` | `routes/projects.js` | `JSON.parse` con try/catch que devuelve `[]` en error |
-| `hasBadWord(text)` / `BLACKLIST` | `routes/projects.js` | Lista fija de ~11 palabras ofensivas en español; se reutiliza (copiada, no importada — no se puede compartir módulo JS entre backend y frontend) en `frontend/ProjectDetails.tsx`. También exportado (`module.exports.hasBadWord`) para tests. |
+| `hasBadWord(text)` / `BLACKLIST` | `lib/badWords.js` | Lista fija de 11 palabras ofensivas en español. Compara **palabras completas**, sin mayúsculas ni acentos (`PROJECT_ANALYSIS.md §93`; antes por subcadena). La usan los comentarios de proyectos y los textos de publicaciones. Copia idéntica en `frontend/src/lib/badWords.ts`; `test/unit/badWords.test.js` exige que las listas sean iguales. |
 | `fmt(p)` | `routes/projects.js` (exportado, reusado por `follows.js` y `ngos.js`) | Formateo español→inglés de un proyecto (ver §6) |
 | `fmtNgo(n)` / `fmtEmpresa(e)` | `routes/ngos.js`, `routes/empresas.js` | Formateo español→inglés de ONG/Empresa (ver §6) |
 
