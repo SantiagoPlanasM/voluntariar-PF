@@ -4,6 +4,12 @@ import { useNavigate, Link } from 'react-router';
 import { useEffect, useState } from 'react';
 import { api, EnrollmentWithProject, SkillCatalogItem, VolunteerSkill, NGO, VolunteerPublic } from '../../lib/api';
 import { FollowListModal, FollowListMode } from './FollowListModal';
+import { InlineError } from './LoadError';
+import { userMessage } from '../../lib/format';
+import { useLatestRequest } from '../../lib/useLatestRequest';
+
+/** Cada carga del perfil, para saber cuál falló. */
+type Part = 'enrollments' | 'catalog' | 'skills' | 'ngos' | 'following' | 'followers';
 
 const NAME_RE = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]{2,50}$/;
 const NIVEL_LABELS: Record<string, string> = { basico: 'Básico', intermedio: 'Intermedio', avanzado: 'Avanzado' };
@@ -30,6 +36,36 @@ export function VolunteerProfile() {
 
   const [listMode, setListMode] = useState<FollowListMode | null>(null);
 
+  // Errores de carga (REVISION S1): antes se tragaban y se veían "Todavía no…" y contadores en 0. Un solo
+  // aviso con "Reintentar" (recarga todo) y, en cada parte que falló, "—" o "No se pudo cargar." en vez del vacío.
+  const [failed, setFailed] = useState<ReadonlySet<Part>>(new Set());
+  const [loadErr, setLoadErr] = useState('');
+  const latest = useLatestRequest();
+
+  const loadAll = () => {
+    const req = latest.start();
+    setFailed(new Set()); setLoadErr(''); setLoading(true);
+    // Solo se descarta el error de un pedido viejo (marcaría como fallida una parte que el reintento ya
+    // cargó). Una respuesta vieja exitosa es un dato válido del mismo endpoint: no hace falta descartarla.
+    const fail = (part: Part) => (e: unknown) => {
+      if (!latest.isLatest(req)) return;
+      setFailed(s => new Set(s).add(part));
+      setLoadErr(prev => prev || userMessage(e, 'No pudimos cargar parte de tu perfil. Revisá tu conexión.'));
+    };
+    api.enrollments.my()
+      .then(r => setEnrollments(r.enrollments))
+      .catch(fail('enrollments'))
+      .finally(() => setLoading(false));
+    api.catalog.habilidades().then(r => setSkillCatalog(r.habilidades)).catch(fail('catalog'));
+    api.voluntarios.habilidades.list().then(r => setMySkills(r.habilidades)).catch(fail('skills'));
+    api.follows.myNgos().then(r => setMyNgos(r.ngos)).catch(fail('ngos'));
+    api.follows.myFollowing().then(r => {
+      setMyFollowingVols(r.volunteers);
+      setMyFollowingCount(r.volunteers.length);
+    }).catch(fail('following'));
+    api.follows.myFollowers().then(r => setMyFollowerCount(r.volunteers.length)).catch(fail('followers'));
+  };
+
   useEffect(() => {
     if (!user) return;
     if (user.role === 'ngo') {
@@ -41,19 +77,11 @@ export function VolunteerProfile() {
       return;
     }
     setForm({ name: user.name || '', bio: user.bio || '', location: user.location || '' });
-    api.enrollments.my()
-      .then(r => setEnrollments(r.enrollments))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-    api.catalog.habilidades().then(r => setSkillCatalog(r.habilidades)).catch(() => {});
-    api.voluntarios.habilidades.list().then(r => setMySkills(r.habilidades)).catch(() => {});
-    api.follows.myNgos().then(r => setMyNgos(r.ngos)).catch(() => {});
-    api.follows.myFollowing().then(r => {
-      setMyFollowingVols(r.volunteers);
-      setMyFollowingCount(r.volunteers.length);
-    }).catch(() => {});
-    api.follows.myFollowers().then(r => setMyFollowerCount(r.volunteers.length)).catch(() => {});
+    loadAll();
   }, [user]);
+
+  // Sin el catálogo o sin mis habilidades, el borrador arrancaría vacío y guardar las borraría todas.
+  const skillsUnavailable = failed.has('skills') || failed.has('catalog');
 
   useEffect(() => {
     if (editing) setDraftSkills(mySkills.map(s => ({ habilidad_id: s.id, nivel: s.nivel })));
@@ -77,8 +105,10 @@ export function VolunteerProfile() {
     setSaving(true); setSaveErr('');
     try {
       await api.auth.updateMe({ name: form.name.trim(), bio: form.bio, location: form.location });
-      const { habilidades } = await api.voluntarios.habilidades.update(draftSkills);
-      setMySkills(habilidades);
+      if (!skillsUnavailable) {
+        const { habilidades } = await api.voluntarios.habilidades.update(draftSkills);
+        setMySkills(habilidades);
+      }
       setEditing(false);
       // Refrescar el usuario en contexto
       window.location.reload();
@@ -93,8 +123,11 @@ export function VolunteerProfile() {
     </div>
   );
 
-  const approved = enrollments.filter(e => e.status === 'approved').length;
-  const pending  = enrollments.filter(e => e.status === 'pending').length;
+  /** Contador que se muestra: "—" si su carga falló (un 0 se leería como dato). */
+  const count = (part: Part, n: number) => (failed.has(part) ? '—' : n);
+  const notLoaded = <p className="text-xs text-gray-500 text-center py-6 bg-white rounded-2xl border border-gray-100">No se pudo cargar.</p>;
+  const approved = count('enrollments', enrollments.filter(e => e.status === 'approved').length);
+  const pending  = count('enrollments', enrollments.filter(e => e.status === 'pending').length);
   const inp = 'w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500';
 
   return (
@@ -142,7 +175,7 @@ export function VolunteerProfile() {
             {[
               { icon: CheckCircle, label: 'Aprobadas',  val: approved,           color: 'text-green-600',  bg: 'bg-green-50'  },
               { icon: Clock,       label: 'Pendientes', val: pending,             color: 'text-amber-500',  bg: 'bg-amber-50'  },
-              { icon: Heart,       label: 'Total',      val: enrollments.length,  color: 'text-emerald-600',bg: 'bg-emerald-50'},
+              { icon: Heart,       label: 'Total',      val: count('enrollments', enrollments.length), color: 'text-emerald-600',bg: 'bg-emerald-50'},
             ].map(({ icon: Icon, label, val, color, bg }) => (
               <div key={label} className="text-center">
                 <div className={`w-10 h-10 ${bg} rounded-xl flex items-center justify-center mx-auto mb-2`}>
@@ -156,14 +189,14 @@ export function VolunteerProfile() {
               <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center mx-auto mb-2">
                 <Users className="w-5 h-5 text-purple-600" />
               </div>
-              <p className="text-xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors">{myFollowerCount}</p>
+              <p className="text-xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors">{count('followers', myFollowerCount)}</p>
               <p className="text-xs text-gray-500">Seguidores</p>
             </button>
             <button onClick={() => setListMode('following')} className="text-center group cursor-pointer">
               <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center mx-auto mb-2">
                 <UserCheck className="w-5 h-5 text-blue-600" />
               </div>
-              <p className="text-xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors">{myFollowingCount}</p>
+              <p className="text-xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors">{count('following', myFollowingCount)}</p>
               <p className="text-xs text-gray-500">Siguiendo</p>
             </button>
           </div>
@@ -171,6 +204,12 @@ export function VolunteerProfile() {
       </div>
 
       <div className="max-w-2xl mx-auto px-4 space-y-4 pb-8 relative z-10">
+        {loadErr && (
+          <div role="alert">
+            <InlineError message={loadErr} onRetry={loadAll} />
+          </div>
+        )}
+
         {/* Editar perfil */}
         {editing && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-4">
@@ -197,6 +236,9 @@ export function VolunteerProfile() {
 
             <div>
               <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Habilidades</label>
+              {skillsUnavailable ? (
+                <p className="text-xs text-gray-500">No pudimos cargar tus habilidades: reintentá para editarlas.</p>
+              ) : (<>
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {skillCatalog.map(s => {
                   const selected = draftSkills.find(d => d.habilidad_id === s.id);
@@ -226,6 +268,7 @@ export function VolunteerProfile() {
                   })}
                 </div>
               )}
+              </>)}
             </div>
 
             {saveErr && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-xl">{saveErr}</p>}
@@ -247,11 +290,12 @@ export function VolunteerProfile() {
         )}
 
         {/* Habilidades */}
-        {!editing && mySkills.length > 0 && (
+        {!editing && (mySkills.length > 0 || failed.has('skills')) && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1">
               <Sparkles className="w-3.5 h-3.5" />Habilidades
             </p>
+            {failed.has('skills') && <p className="text-xs text-gray-500">No se pudo cargar.</p>}
             <div className="flex flex-wrap gap-1.5">
               {mySkills.map(s => (
                 <span key={s.id} className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">
@@ -267,12 +311,12 @@ export function VolunteerProfile() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-bold text-gray-900 flex items-center gap-1.5 text-sm">
               <Building2 className="w-4 h-4 text-emerald-600" />
-              <span>Mis ONGs seguidas ({myNgos.length})</span>
+              <span>Mis ONGs seguidas{failed.has('ngos') ? '' : ` (${myNgos.length})`}</span>
             </h2>
             <Link to="/explore" className="text-xs text-emerald-600 font-semibold">Explorar más →</Link>
           </div>
 
-          {myNgos.length === 0 ? (
+          {failed.has('ngos') ? notLoaded : myNgos.length === 0 ? (
             <div className="text-center py-6 bg-white rounded-2xl border border-gray-100 flex flex-col items-center justify-center p-4">
               <Building2 className="w-8 h-8 text-gray-300 mb-1.5" />
               <p className="text-xs text-gray-500">Todavía no sigues a ninguna ONG.</p>
@@ -314,11 +358,11 @@ export function VolunteerProfile() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-bold text-gray-900 flex items-center gap-1.5 text-sm">
               <Users className="w-4 h-4 text-emerald-600" />
-              <span>Voluntarios que sigo ({myFollowingVols.length})</span>
+              <span>Voluntarios que sigo{failed.has('following') ? '' : ` (${myFollowingVols.length})`}</span>
             </h2>
           </div>
 
-          {myFollowingVols.length === 0 ? (
+          {failed.has('following') ? notLoaded : myFollowingVols.length === 0 ? (
             <div className="text-center py-6 bg-white rounded-2xl border border-gray-100 flex flex-col items-center justify-center p-4">
               <Users className="w-8 h-8 text-gray-300 mb-1.5" />
               <p className="text-xs text-gray-500">Todavía no seguís a ningún voluntario.</p>
@@ -364,7 +408,7 @@ export function VolunteerProfile() {
             <div className="space-y-2">
               {[1,2].map(i => <div key={i} className="h-16 bg-gray-200 rounded-xl animate-pulse" />)}
             </div>
-          ) : enrollments.length === 0 ? (
+          ) : failed.has('enrollments') ? notLoaded : enrollments.length === 0 ? (
             <div className="text-center py-8 bg-white rounded-2xl border border-gray-100 flex flex-col items-center justify-center">
               <Sprout className="w-8 h-8 text-emerald-500 mb-2" />
               <p className="text-sm text-gray-500">Aún no participaste en ningún proyecto</p>

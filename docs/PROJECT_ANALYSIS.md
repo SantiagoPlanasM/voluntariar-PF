@@ -2768,3 +2768,42 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 ### ⚠️ NO verificado
 - No lo vi en el navegador. `InlineError` trae su propia tarjeta (borde, `py-10`) y dentro del modal puede verse como "tarjeta dentro de tarjeta"; no lo comprobé a ojo.
 - Que un lector de pantalla anuncie el aviso (solo verifiqué el `role="alert"` en el DOM).
+
+## 109. Perfil propio: los errores de carga se ven (y guardar no borra las habilidades) — REVISION S1 (VolunteerProfile)
+
+**Contexto:** `VolunteerProfile` hace seis pedidos al montar (participaciones, catálogo de habilidades, mis habilidades, ONGs seguidas, siguiendo, seguidores), cada uno con `.catch(() => {})`. Un 500 o la falta de red mostraban "Aún no participaste en ningún proyecto", "Todavía no sigues a ninguna ONG.", "Todavía no seguís a ningún voluntario." y los contadores en 0, como si fueran datos. **Además había una pérdida de datos:** si fallaba "mis habilidades" (o el catálogo) y la persona editaba su perfil, el borrador de habilidades arrancaba vacío y "Guardar cambios" mandaba `habilidades.update([])`, que borra todas.
+
+**Qué se hizo:**
+- **Un solo aviso general**, no uno por sección. Justificación: los seis pedidos van al mismo servidor y casi siempre fallan juntos (sin red, servidor caído); seis tarjetas `InlineError` apiladas serían ruido, y un "Reintentar" que recarga todo es lo más simple (son pedidos chicos). Es el mismo componente que el resto de la app (`InlineError` de §65, dentro de `<div role="alert">`), arriba del contenido. El mensaje es el del primer error: `userMessage(e, 'No pudimos cargar parte de tu perfil. Revisá tu conexión.')`.
+- **Cada parte que falló no muestra su vacío:** un conjunto `failed` (`'enrollments' | 'catalog' | 'skills' | 'ngos' | 'following' | 'followers'`). Los contadores de esa parte muestran "—" en vez de 0 (Aprobadas/Pendientes/Total si fallan las participaciones; Seguidores; Siguiendo), los títulos "Mis ONGs seguidas" y "Voluntarios que sigo" pierden el "(0)", y la sección dice "No se pudo cargar." en vez del texto de vacío. La de Habilidades, que se oculta cuando no hay ninguna, se muestra con "No se pudo cargar." si su carga falló.
+- **Habilidades al editar:** si falló `skills` o `catalog`, el formulario dice "No pudimos cargar tus habilidades: reintentá para editarlas." en lugar de los chips, y `handleSave` **no llama** a `habilidades.update` (sí guarda nombre, bio y ubicación).
+- **"Reintentar"** (`loadAll`) limpia el conjunto y el mensaje, vuelve a poner `loading` (si no, Participaciones diría "Aún no participaste…" mientras llega la respuesta) y repite los seis pedidos. Con `useLatestRequest` se descarta **solo el error** de un pedido viejo (si no, marcaría como fallida una parte que el reintento ya cargó). Las respuestas viejas exitosas no se descartan: son datos válidos del mismo endpoint (ver Mutación).
+
+### Tests (nuevos: 8, `VolunteerProfileErrors.test.tsx`)
+- Todo falla: un solo `role="alert"` con el mensaje del servidor; sin los tres textos de vacío; los cinco contadores en "—"; los títulos sin "(0)"; Habilidades con "No se pudo cargar."; "Reintentar" carga todo (ONGs, participaciones, voluntarios, habilidades, contadores), el aviso desaparece y cada endpoint se llamó 2 veces.
+- Falla solo ONGs: aviso; esa sección dice "No se pudo cargar." y no "Todavía no sigues…"; las demás muestran su vacío real ("Aún no participaste…", Total 0) o sus datos.
+- Sin conexión (`TypeError`) en seguidores: mensaje propio; Seguidores "—" y Siguiendo con su número.
+- Fallan mis habilidades → al editar, el texto de aviso y sin chips; "Guardar" llama a `updateMe` y **no** a `habilidades.update`.
+- Lo mismo si falla el catálogo.
+- Con todo cargado, "Guardar" sí manda las habilidades (`[{ habilidad_id: 'h1', nivel: 'basico' }]`).
+- Mientras "Reintentar" carga las participaciones no dice "Aún no participaste…".
+- Un error viejo que llega después de "Reintentar" no vuelve a mostrar el aviso.
+- **Rojo de comportamiento:** con el código anterior fallaban 6 de los primeros 7 (el 7.º, "con todo cargado…", es el control y pasaba). El de "mientras reintenta" lo escribí después (ver Errores propios) y falló contra la versión sin `setLoading(true)`.
+
+### Verificación
+- **Frontend 431/431** (423 + 8), también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.** Los tests que ya montaban el perfil (`FollowLists`, `ModalsA11y`, `A11yNames`, `StaleResponses`, `MomentsPlacement`) siguen en verde sin cambios. `VolunteerProfile.tsx` sigue en CRLF en la copia de trabajo.
+- **Mutación (32 en total sobre lo nuevo de `VolunteerProfile.tsx`, script con corrida de control):** primera corrida, 31 mutantes: mueren 27, sobreviven 4.
+  - *Guarda `isLatest` en las respuestas exitosas y en el `finally`* (2): equivalentes en la práctica (una respuesta vieja exitosa trae los mismos datos del mismo endpoint). **Las saqué del código.**
+  - *La sección Habilidades fuera de edición no se muestra / no dice "No se pudo cargar."* (2): **no equivalentes**; agregué la aserción al primer test y mueren.
+  - Segunda corrida (29 tras sacar los 2 equivalentes): **29/29 mueren**. Más 3 sobre la línea de `loadAll` después de agregar `setLoading(true)`: **3/3 mueren**.
+
+### Errores propios
+1. Mi primera versión no volvía a poner `loading` al reintentar: Participaciones habría mostrado "Aún no participaste…" mientras llegaba la respuesta. Lo vi revisando el código después de la mutación; escribí el test (rojo) y lo arreglé.
+2. Puse guardas de "último pedido" también en los éxitos sin necesidad; la mutación lo mostró y las saqué.
+3. Para sacar dos mutantes del JSON de configuración usé un `node -e` (en el scratchpad, sin escapes), contra la regla de no usarlo. No tocó el repo.
+4. El rojo de los dos tests de habilidades cayó en la primera aserción (`role="alert"`), no en la de `habilidades.update` no llamada: el rojo de "no borra las habilidades" en sí no lo aislé contra el código viejo (por lectura del código viejo, `handleSave` siempre llamaba a `update(draftSkills)`).
+
+### ⚠️ NO verificado
+- Nada visual: el aviso arriba del contenido, los "—" en la tarjeta de estadísticas, "No se pudo cargar." en cada sección.
+- Las secciones de ONGs y voluntarios **no tienen estado de carga** (de antes): mientras llegan, siguen diciendo "Todavía no…". No lo cambié (no es un error tragado).
+- `handleSave` hace `window.location.reload()`; en jsdom eso imprime "Not implemented: navigation" en la salida de los tests (no falla). No lo stubbeé.
