@@ -28,7 +28,7 @@ const renderPage = () =>
     </MemoryRouter>,
   );
 
-beforeEach(() => openAuthModal.mockReset());
+beforeEach(() => { openAuthModal.mockReset(); }); // con llaves: ver PublicFeedStats.test.tsx
 
 describe('<MomentsPage />', () => {
   test('muestra el título, las pestañas (con "Momentos" activa) y el feed', () => {

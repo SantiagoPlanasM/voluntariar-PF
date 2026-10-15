@@ -71,6 +71,22 @@ app.get('/api/habilidades', async (_, res) => {
   } catch { res.status(500).json({ error: 'Error al obtener habilidades' }); }
 });
 
+// Números de la portada (PublicFeed). Antes estaban fijos en el frontend y mentían (§129).
+// COUNT llega como string en Postgres: Number(x) || 0 (CLAUDE.md, trampas).
+app.get('/api/stats', async (_, res) => {
+  try {
+    const row = await db.get(
+      `SELECT (SELECT COUNT(*) FROM projects WHERE status = 'active') AS active_projects,
+              (SELECT COUNT(*) FROM voluntarios) AS volunteers,
+              (SELECT COUNT(*) FROM ngos) AS ngos`, []);
+    res.json({
+      active_projects: Number(row.active_projects) || 0,
+      volunteers: Number(row.volunteers) || 0,
+      ngos: Number(row.ngos) || 0,
+    });
+  } catch { res.status(500).json({ error: 'Error al obtener las estadísticas' }); }
+});
+
 // ── 404 ───────────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ error: `Ruta no encontrada: ${req.method} ${req.path}` });

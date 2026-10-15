@@ -15,6 +15,7 @@
 | GET | `/api/categorias` | No | — | `index.js` |
 | GET | `/api/roles` | No | — | `index.js` |
 | GET | `/api/habilidades` | No | — | `index.js` |
+| GET | `/api/stats` | No | — | `index.js` |
 | POST | `/api/auth/register` | No | — | `routes/auth.js` |
 | POST | `/api/auth/login` | No | — | `routes/auth.js` |
 | GET | `/api/auth/me` | Sí | cualquiera | `routes/auth.js` |
@@ -524,6 +525,9 @@ Chat 1 a 1 básico. El historial y el envío tienen doble vía: REST (siempre di
 
 ### `GET /api/habilidades` — Público
 - **Respuesta 200:** `{ habilidades: Habilidad[] }` — catálogo completo de habilidades.
+
+### `GET /api/stats` — Público
+- **Respuesta 200:** `{ active_projects, volunteers, ngos }`, números: proyectos con `status = 'active'`, perfiles de `voluntarios` y filas de `ngos`. Los `COUNT` se normalizan con `Number(x) || 0` (en Postgres llegan como string). Los usa la portada (`PublicFeed`) en lugar de los números fijos que tenía (`PROJECT_ANALYSIS.md §129`). Está en `public-columns.test.js`.
 
 ### `GET /health` — Público (fuera de `/api`)
 - **Respuesta 200:** `{ status: 'ok', timestamp }` — usado por Render para health checks.

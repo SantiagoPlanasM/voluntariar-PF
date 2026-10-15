@@ -37,7 +37,7 @@ describe('Endpoints públicos: solo columnas elegidas (regla 8)', () => {
     const empresa = JSON.parse((await get('/api/empresas')).text).empresas[0];
     const posts = JSON.parse((await get('/api/posts')).text).posts || [];
     return [
-      '/api/categorias', '/api/roles', '/api/habilidades',
+      '/api/categorias', '/api/roles', '/api/habilidades', '/api/stats',
       '/api/projects', '/api/projects?limit=100', '/api/projects/proj-1', '/api/projects/proj-1/kpis',
       '/api/ngos', '/api/ngos/ngo-1', '/api/ngos/ngo-1/projects',
       '/api/empresas', `/api/empresas/${empresa.id}`,

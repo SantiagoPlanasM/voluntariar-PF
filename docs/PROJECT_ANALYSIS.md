@@ -3408,3 +3408,37 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 ### ⚠️ NO verificado
 - Un celular real (barra del navegador que aparece y desaparece, `100vh` contra `100dvh`).
 - Pantallas que no recorrí: crear voluntariado, KPIs, empleados, panel de empresa, mensajes de la ONG. Tienen el mismo layout, así que el arreglo aplica igual, pero no las medí.
+
+## 129. Portada con números reales (aprobado por el usuario)
+
+**Contexto:** al probar el primer deploy en Render (2026-10-15) la portada decía "24 proyectos activos, 2.4k voluntarios, 12 ONGs aliadas" con la base vacía. Esos números estaban fijos en `PublicFeed.tsx`. El usuario eligió mostrar los reales.
+
+**Qué se hizo:**
+- **Backend:** `GET /api/stats` (público, en `index.js` junto a los catálogos) → `{ active_projects, volunteers, ngos }`. Cuenta los proyectos con `status = 'active'`, los perfiles de `voluntarios` y las filas de `ngos`, con `Number(x) || 0`. Se sumó a `public-columns.test.js` (regla 8).
+- **Frontend:**
+  - `api.stats()` y el tipo `PublicStats` (regla 6).
+  - `compactNumber` en `lib/format.ts`: "2,4k", con coma decimal.
+  - En la portada la fila es una lista con nombre ("VoluntariAR en números") y singular cuando hay uno.
+  - **Si todo da 0 (deploy nuevo) o el pedido falla, la fila no se muestra:** ni números falsos, ni ceros, ni un error en la portada.
+
+### Tests (nuevos: 8)
+- **Backend** (`stats.test.js` y `stats-empty.test.js`, 3):
+  - con el seed, los números son iguales a los `COUNT` de la base y son números, no strings;
+  - un proyecto que termina deja de contar;
+  - con la base vacía, todo da 0. Va en un archivo aparte porque dentro de un mismo proceso el módulo de la base queda apuntando a la del primer servidor.
+- **Frontend** (`PublicFeedStats.test.tsx`, 5): muestra lo de la API, singulares, oculta con 0 y con error, y `compactNumber`.
+- **Rojo de comportamiento:** el endpoint daba 404 y la portada no pedía nada.
+
+### Verificación
+- **Backend:** SQLite **493/493** y Postgres **495/495**, también con `TZ=America/Argentina/Cordoba`.
+- **Frontend:** **549/549**, también con Córdoba. **Typecheck: 0 errores.**
+- **Mutación (9)**, con corrida de control en SQLite, Postgres y frontend. **Mueren los 9** en el motor que corresponde. Sacar el `Number()` **sobrevive en SQLite y muere en Postgres**: es la trampa de los `COUNT` como string, y por eso los tests del backend corren en los dos motores.
+
+### Errores propios
+- **El caso de la base vacía estaba en el mismo archivo** que el del seed y veía los datos del seed (módulo de la base compartido en el proceso). Lo pasé a su propio archivo.
+- **Un test "fallaba" por un rechazo que el componente sí atajaba:** `beforeEach(() => stats.mockReset())` **devuelve** el mock, y vitest toma una función devuelta por `beforeEach` como limpieza y la ejecuta después de cada test. Llamaba a `stats()` sin `catch`, y el rechazo caía en ese test o en el siguiente. Antes de verlo probé otras dos cosas (otro tipo de error, rechazo asíncrono) que no eran la causa. Ahora va con llaves.
+- **El mismo patrón estaba en `MomentsPage.test.tsx`.** Ahí era inofensivo (el mock no hace nada), pero lo corregí igual.
+
+### ⚠️ NO verificado
+- En producción: hay que redesplegar. Con la base vacía la fila no se ve, que es lo esperado.
+- No lo vi en el navegador (es una fila con el mismo estilo que antes).

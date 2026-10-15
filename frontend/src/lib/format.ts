@@ -80,6 +80,13 @@ export function normalizeText(t: string): string {
   return t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 }
 
+/** Número corto para la portada: hasta 999 tal cual; desde 1000, en miles con una coma decimal
+ *  ("2,4k"; "1k", no "1,0k"). §129. */
+export function compactNumber(n: number): string {
+  if (n < 1000) return String(n);
+  return String(Math.round(n / 100) / 10).replace('.', ',') + 'k';
+}
+
 /** Mensaje de error para mostrarle al usuario. Los errores del servidor ya vienen en español y dicen algo
  *  útil ("Publicaste demasiado, esperá un rato"), así que se muestran tal cual. Un fallo de red de `fetch`
  *  es un TypeError en inglés ("Failed to fetch"): ese se reemplaza por `fallback`. */

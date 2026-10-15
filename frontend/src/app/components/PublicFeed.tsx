@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Search, Heart, Users, MapPin, Zap, Calendar, Clock, DollarSign, Sparkles, ArrowRight, Compass, Leaf, Apple, BookOpen, PawPrint, HeartPulse } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
-import { api, Project } from '../../lib/api';
+import { api, Project, PublicStats } from '../../lib/api';
+import { compactNumber } from '../../lib/format';
 import { useLatestRequest } from '../../lib/useLatestRequest';
 import { useAuth } from '../../lib/AuthContext';
 import { FeedTabs } from './FeedTabs';
@@ -33,6 +34,15 @@ export function PublicFeed() {
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
   const [cat, setCat]           = useState('Todos');
+  const [stats, setStats]       = useState<PublicStats | null>(null);
+
+  // Números de la portada desde la base (§129; antes eran fijos e inventados). Son decorativos: si el pedido
+  // falla no se muestra nada (sin error en la portada), y con todo en 0 la fila se oculta (ver más abajo).
+  useEffect(() => {
+    let cancelled = false;
+    api.stats().then((s) => { if (!cancelled) setStats(s); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     // Wait until auth state is settled
@@ -156,19 +166,21 @@ export function PublicFeed() {
               Desde una jornada de un día hasta proyectos sostenidos.
             </p>
             
-            {/* Metrics widgets */}
-            <div className="flex gap-4 sm:gap-6 flex-wrap">
-              {[
-                { val: '24',    label: 'proyectos activos' },
-                { val: '2.4k', label: 'voluntarios' },
-                { val: '12',   label: 'ONGs aliadas' },
-              ].map(({ val, label }) => (
-                <div key={label} className="bg-emerald-900/25 backdrop-blur-sm px-3.5 py-2 rounded-xl border border-white/5">
-                  <p className="text-2xl sm:text-3xl font-black text-white">{val}</p>
-                  <p className="text-xs sm:text-sm text-emerald-300 font-medium">{label}</p>
-                </div>
-              ))}
-            </div>
+            {/* Metrics widgets: números reales (§129); con la base vacía no se muestran */}
+            {stats && stats.active_projects + stats.volunteers + stats.ngos > 0 && (
+              <ul aria-label="VoluntariAR en números" className="flex gap-4 sm:gap-6 flex-wrap">
+                {[
+                  { n: stats.active_projects, one: 'proyecto activo', many: 'proyectos activos' },
+                  { n: stats.volunteers,      one: 'voluntario',      many: 'voluntarios' },
+                  { n: stats.ngos,            one: 'ONG aliada',      many: 'ONGs aliadas' },
+                ].map(({ n, one, many }) => (
+                  <li key={many} className="bg-emerald-900/25 backdrop-blur-sm px-3.5 py-2 rounded-xl border border-white/5">
+                    <p className="text-2xl sm:text-3xl font-black text-white">{compactNumber(n)}</p>
+                    <p className="text-xs sm:text-sm text-emerald-300 font-medium">{n === 1 ? one : many}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
 
             {/* CTA buttons */}
             <div className="hidden md:flex gap-3 mt-8">

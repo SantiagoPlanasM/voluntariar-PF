@@ -155,6 +155,8 @@ export const api = {
   catalog: {
     habilidades: () => req<{ habilidades: SkillCatalogItem[] }>('/habilidades'),
   },
+  // Números de la portada (GET /api/stats, público; §129).
+  stats: () => req<PublicStats>('/stats'),
   messages: {
     conversations: () => req<{ conversations: Conversation[] }>('/messages/conversations'),
     thread: (userId: string) => req<{ messages: ChatMessage[]; other: Conversation['user'] }>(`/messages/thread/${userId}`),
@@ -253,6 +255,10 @@ export interface KPI {
   descripcion?: string; valor?: number;
   tipo_valor: string; unidad?: string; fecha?: string;
   created_at: string;
+}
+
+export interface PublicStats {
+  active_projects: number; volunteers: number; ngos: number;
 }
 
 export interface SkillCatalogItem {
