@@ -3198,3 +3198,51 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 - **Orden de las reseñas:** el feed las manda de la más nueva a la más vieja (`ORDER BY r.created_at DESC`); el detalle no tiene `ORDER BY` (en Postgres el orden no está garantizado). No lo toqué: es un cambio de comportamiento que no estaba en el pedido. Si se quiere alinear, sería agregar `ORDER BY r.created_at DESC` al detalle.
 
 **Agregado al integrar (coordinador):** el test compara la lista de reseñas del feed con la del detalle con `deepEqual`, pero el detalle no tenía `ORDER BY` (en Postgres el orden no está garantizado) y el feed ordenaba solo por `created_at`, que en SQLite tiene resolución de 1 s (dos reseñas del mismo segundo empatan). Los dos quedaron con `ORDER BY r.created_at DESC, r.id`: orden determinista y el mismo en los dos endpoints. **Cambio visible:** el detalle muestra las reseñas de la más nueva a la más vieja (antes, el orden que devolviera la base).
+
+## 123. Detalle del proyecto: se precarga la reseña propia — pendiente de §112 (`ProjectDetails`)
+
+**Contexto:** `ProjectDetails.tsx` tiene su propio formulario de calificación (pestaña Reseñas; no usa `ReviewsModal`). Arrancaba siempre en 5 ★ y vacío, aunque la persona ya hubiera calificado. El backend hace upsert (§74): mandar sin mirar pisaba la reseña anterior y, sin comentario, la borraba. Es el mismo problema que S4 en `ReviewsModal` (§112), anotado como pendiente en §112 y en `REVISION.md` ("Pendientes que surgieron al arreglarlos"). Además, después de guardar, `handleRate` vaciaba el comentario y recargaba: el formulario quedaba vacío aunque la reseña existiera.
+
+**Qué se hizo (solo `ProjectDetails.tsx`):**
+- **Precarga:** cuando llega el proyecto (`GET /api/projects/:id`, que sí trae `user_id` en las reseñas) y hay sesión, se busca la reseña con `r.user_id === user.id` y se cargan sus estrellas y su comentario (`comment ?? ''`: una reseña sin comentario deja el texto vacío).
+- **Aviso y botón** (se derivan de la lista, `hasOwnRating`): "Ya calificaste este voluntariado. Podés editar tu reseña." y "Actualizar reseña". Si no calificó, quedan como antes ("¿Qué te pareció este voluntariado? Dejá tu reseña" y "Guardar reseña").
+- **Después de guardar ya no se vacía el comentario:** se marca la precarga como pendiente y se recarga; el formulario muestra lo que guardó el servidor (p. ej. el texto sin los espacios de los costados).
+- **Que una recarga no pise lo que se escribe.** `load()` no se llama solo al entrar: también después de comentar, de inscribirse y desde "Reintentar". Precargar en cada recarga pisaría un borrador (escribís la reseña, pasás a Comentarios, comentás → se recarga → perdías lo escrito). Por eso hay una marca `prefillPending` (un `useRef`):
+  - se enciende al cambiar de `:id` (junto con reiniciar el formulario: 5 ★, vacío, sin mensajes) y después de guardar con éxito;
+  - se apaga al aplicar la precarga (una vez por proyecto) y **cuando la persona toca el formulario** (una estrella o el texto);
+  - la precarga es un `useEffect` sobre `[project, user?.id]` que solo actúa si la marca está encendida, hay sesión y el proyecto en pantalla es el de la URL (`project.id === id`).
+  - Por qué también "si toca el formulario": `AuthContext` arranca con `user = null` mientras verifica el token (`initializing`), y `ProjectDetails` no espera. Si el proyecto llega antes (con el token, el backend ya manda `my_enrollment` aprobada y el formulario se ve), la persona puede empezar a escribir antes de que se confirme la sesión; cuando llega `user`, lo escrito gana. El aviso y el botón "Actualizar reseña" sí aparecen, así que sabe que va a reemplazar su reseña.
+  - Por qué `project.id === id`: al cambiar de proyecto, el anterior sigue en el estado hasta que llega el nuevo; si justo en ese momento se confirma la sesión, se precargaría la reseña del proyecto anterior.
+- **Cambio de proyecto sin desmontar** (link a otro proyecto dentro de la app): antes quedaban las estrellas, el texto y los mensajes ("¡Calificación guardada…!" o el error) del anterior. Ahora se reinician.
+- **No se deshabilitó el botón mientras carga** (como en `ReviewsModal`): acá, mientras `load()` corre, toda la pantalla es el spinner (`if (loading) return …`), así que no se puede mandar con el formulario sin precargar. El único hueco es la sesión que se confirma tarde (ver ⚠️).
+
+### Tests (nuevos: 14, `ProjectDetailsRating.test.tsx`)
+- Con reseña propia: aviso, "Actualizar reseña", 3 ★ marcadas (`aria-pressed`) y el comentario; mandar sin tocar nada manda `('proj-1', 3, 'Faltó organización')`.
+- Solo reseñas de otros: 5 ★, vacío, "Guardar reseña", sin aviso.
+- Guardar "  Mejoró  " con 4 ★ → después de recargar, el formulario muestra "Mejoró", 4 ★, el aviso, "Actualizar reseña" y el mensaje de éxito (el mock de `GET` responde según si ya se llamó a `rate`, como el servidor).
+- Escribir un borrador (texto y estrellas), comentar en la otra pestaña (recarga) → el borrador sigue.
+- Una vez por proyecto: si entre dos cargas la reseña cambió en otro lado y la persona no tocó nada, la recarga por un comentario no le cambia el formulario.
+- Sesión que se confirma después del proyecto: se precarga al llegar `user`; si ya había escrito texto, o solo tocado una estrella, eso se mantiene (pero aparece el aviso).
+- Reseña propia sin comentario (`comment: null`): texto vacío y "Actualizar reseña" manda `(…, 4, undefined)`.
+- Pasar a otro proyecto sin desmontar: el formulario es el del nuevo (con y sin reseña propia en cada uno); no quedan el mensaje de éxito ni el error del anterior; si la sesión se confirma mientras carga el nuevo, no se precarga la reseña del anterior.
+- **Rojo de comportamiento:** con el código anterior fallan 12 de 14 (no había aviso ni "Actualizar reseña", el texto quedaba vacío, los mensajes quedaban al cambiar de proyecto). Pasan con el código anterior 2 que son guardas de la implementación nueva: "si no calificó…" (comportamiento que no tenía que cambiar) y "si la sesión se confirma mientras carga otro proyecto…" (el código viejo no precargaba nada). Algunos rojos son en un paso previo del test (p. ej. el del borrador falla al comprobar que la reseña se precargó antes de escribir), no en la aserción final.
+
+### Verificación
+- **Frontend 517/517** (503 + 14), también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores** (`npm run typecheck`, salida 0).
+- Pasan sin cambios los otros tests que montan `ProjectDetails` (`NgoPanelLink`, `StaleResponsesById`, `A11yNames`, `LoadErrorScreens`, `EnrollStatusLabel`, `SponsorPreselect`, `MomentsPlacement`).
+- `ProjectDetails.tsx` sigue en CRLF (`git ls-files --eol`: `w/crlf`; 621 CR en 621 líneas); el diff es de 32+/7−.
+- **Mutación (23 mutantes, con `ProjectDetailsRating`, `NgoPanelLink`, `StaleResponsesById`, `A11yNames` y `LoadErrorScreens`; corrida de control sin mutar en verde; el archivo se restaura en `finally` y lo comprobé con `cmp`):** primera corrida con 12 tests, **sobrevivieron 2, ninguno equivalente**:
+  - Sacar `project.id !== id`: si la sesión se confirma mientras carga otro proyecto, se precargaba la reseña del anterior. Test agregado.
+  - No apagar la marca al precargar: cada recarga volvía a precargar mientras la persona no tocara el formulario. Solo se nota si la reseña cambió en el servidor entre dos cargas (otra pestaña). Test agregado, que fija la decisión "una vez por proyecto".
+  - Segunda corrida (14 tests): **0 sobrevivientes de 23.**
+
+### Errores propios
+- El primer nombre de un test decía "no quedan el mensaje de éxito ni el error", pero solo probaba el de éxito (el error tiene su propio test). Lo corregí.
+- Mi primer chequeo de CRLF (`grep -c $'\r$'` en Git Bash) dio 0 y parecía que el `Edit` había convertido el archivo; `git ls-files --eol` y `tr -cd '\r' | wc -c` mostraron que no (621 CR). No cambió nada, pero el primer chequeo era engañoso.
+
+### ⚠️ NO verificado
+- Nada visual: el aviso, el botón "Actualizar reseña" y las estrellas precargadas no los vi en un navegador.
+- **Sesión que se confirma tarde:** si el proyecto llega antes que `api.auth.me()` y la persona manda sin tocar nada antes de que llegue la sesión, `handleRate` abre el modal de login (porque `user` es `null`), no pisa nada. No lo probé con un test.
+- El orden de las respuestas lo cubre `useLatestRequest` (ya estaba); no agregué un test de respuestas desordenadas que combine la precarga con un `GET` viejo.
+- Si `rate` funciona y el `GET` posterior falla, la pantalla pasa a `LoadError` (comportamiento anterior, no lo toqué).
+- Fuera del pedido, sin tocar: el tipo `Rating` sigue declarando `user_id` obligatorio aunque el feed no lo manda (pendiente de §112).

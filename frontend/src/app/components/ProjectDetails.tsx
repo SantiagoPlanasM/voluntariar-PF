@@ -1,5 +1,5 @@
 import { useParams, useNavigate, Link } from 'react-router';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft, MapPin, Clock, Users, DollarSign, Calendar,
   Star, Briefcase, Loader2, Send, Zap, BarChart3, Bookmark, Check,
@@ -41,9 +41,29 @@ export function ProjectDetails() {
   const [ratingMsg, setRatingMsg] = useState('');
   const [ratingErr, setRatingErr] = useState('');
 
+  // Reseña propia: el backend hace upsert, así que si ya calificó se precargan su puntaje y comentario
+  // (antes arrancaba en 5 ★ y vacío y mandar sin mirar la pisaba; mismo arreglo que ReviewsModal, §112).
+  // Se precarga UNA vez por proyecto (y otra después de guardar), no en cada recarga: comentar o reintentar
+  // también llaman a load(), y eso no tiene que pisar lo que la persona está escribiendo. Si toca el
+  // formulario antes de que llegue la precarga (p. ej. la sesión se confirma tarde), gana lo que escribió.
+  const prefillPending = useRef(true);
+
   // Solo vale la respuesta del último pedido (al cambiar de :id, reintentar o recargar tras una acción): REVISION F15, §89.
   const latest = useLatestRequest();
-  useEffect(() => { if (id) load(id); }, [id]);
+  useEffect(() => {
+    if (!id) return;
+    // Otro proyecto con el componente montado: el formulario del anterior no sirve.
+    setUserRating(5); setRatingComment(''); setRatingMsg(''); setRatingErr('');
+    prefillPending.current = true;
+    load(id);
+  }, [id]);
+
+  useEffect(() => {
+    if (!prefillPending.current || !project || project.id !== id || !user) return;
+    prefillPending.current = false;
+    const own = project.ratings.find(r => r.user_id === user.id);
+    if (own) { setUserRating(own.rating); setRatingComment(own.comment ?? ''); }
+  }, [project, user?.id]);
 
   const load = async (pid: string) => {
     const req = latest.start();
@@ -114,7 +134,8 @@ export function ProjectDetails() {
     try {
       await api.projects.rate(id, userRating, ratingComment.trim() || undefined);
       setRatingMsg('¡Calificación guardada con éxito!');
-      setRatingComment('');
+      // No se vacía: al recargar, el formulario muestra lo que guardó el servidor (que ahora es "tu reseña").
+      prefillPending.current = true;
       load(id);
     } catch (err: any) {
       setRatingErr(err.message || 'Error al calificar');
@@ -137,6 +158,8 @@ export function ProjectDetails() {
   const volPct  = safePct(project.current_volunteers, project.volunteers_needed);
   const hasFunding = (project.funding_goal || 0) > 0;
   const alreadyEnrolled = !!project.my_enrollment;
+  // Solo GET /projects/:id trae user_id en las reseñas (§112); sin sesión ninguna es propia.
+  const hasOwnRating = !!user && project.ratings.some(r => r.user_id === user.id);
   const hoursLabel = project.type === 'fugaz'
     ? (project.duration || 'Sin especificar')
     : (project.hours_per_week ? `${project.hours_per_week}h/semana` : 'No especificado');
@@ -393,7 +416,9 @@ export function ProjectDetails() {
                     {project.my_enrollment?.status === 'approved' ? (
                       <div className="bg-emerald-50/70 rounded-2xl p-4 border border-emerald-100">
                         <h4 className="font-bold text-xs text-emerald-900 mb-2">
-                          ¿Qué te pareció este voluntariado? Dejá tu reseña
+                          {hasOwnRating
+                            ? 'Ya calificaste este voluntariado. Podés editar tu reseña.'
+                            : '¿Qué te pareció este voluntariado? Dejá tu reseña'}
                         </h4>
                         <form onSubmit={handleRate} className="space-y-3">
                           <div className="flex items-center gap-2">
@@ -404,7 +429,7 @@ export function ProjectDetails() {
                                   type="button"
                                   key={star}
                                   aria-label={`${star} estrella${star > 1 ? 's' : ''}`} aria-pressed={star === userRating}
-                                  onClick={() => setUserRating(star)}
+                                  onClick={() => { setUserRating(star); prefillPending.current = false; }}
                                   className="p-0.5 hover:scale-110 transition-transform"
                                 >
                                   <Star
@@ -425,7 +450,7 @@ export function ProjectDetails() {
                           <textarea
                             aria-label="Tu reseña"
                             value={ratingComment}
-                            onChange={e => { setRatingComment(e.target.value); setRatingErr(''); }}
+                            onChange={e => { setRatingComment(e.target.value); setRatingErr(''); prefillPending.current = false; }}
                             placeholder="Escribí tu experiencia, aprendizajes o sugerencias..."
                             rows={2}
                             className="w-full px-3 py-2 bg-white rounded-xl text-xs border border-gray-200 focus:border-emerald-500 focus:outline-none resize-none"
@@ -440,7 +465,7 @@ export function ProjectDetails() {
                             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
                           >
                             {submittingRating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                            <span>Guardar reseña</span>
+                            <span>{hasOwnRating ? 'Actualizar reseña' : 'Guardar reseña'}</span>
                           </button>
                         </form>
                       </div>
