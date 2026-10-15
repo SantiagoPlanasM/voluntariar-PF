@@ -16,7 +16,10 @@
 const { WebSocketServer } = require('ws');
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'voluntariar_dev_secret';
+const { resolveJwtSecret } = require('../lib/jwtSecret');
+
+// El mismo secreto que el REST (un solo lugar lo define, §94; antes esta era una copia aparte del default).
+const JWT_SECRET = resolveJwtSecret();
 
 /** @type {Map<string, Set<import('ws').WebSocket>>} */
 const clients = new Map();

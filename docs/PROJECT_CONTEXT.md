@@ -221,7 +221,7 @@ Ver diagrama de secuencia completo en `BACKEND_CONTEXT.md §4`.
 
 ## 14. Riesgos técnicos (resumen — detalle en `PROJECT_ANALYSIS.md`)
 
-- **`JWT_SECRET` con fallback inseguro** en `middleware/auth.js` — arrastrado desde el análisis inicial del proyecto, nunca resuelto. Con Empresas y Patrocinio manejando datos más sensibles, dejó de ser un riesgo puramente cosmético.
+- ~~**`JWT_SECRET` con fallback inseguro**~~ — **resuelto en `PROJECT_ANALYSIS.md §94`**: obligatorio en producción (el servidor no arranca sin él), un solo lugar lo define (`src/lib/jwtSecret.js`).
 - **Sin paginación real en `GET /api/projects`** — cualquier pantalla que necesite "todos los proyectos" (como `ExploreScreen.tsx`) tiene que pasar un `limit` explícito alto a mano, o los resultados quedan truncados en silencio al default de 20 (bug real encontrado y arreglado así, ver `PROJECT_ANALYSIS.md §29` bug 4 — pero la causa de fondo, la falta de paginación, sigue sin resolver).
 - **Riesgo de duplicación de helpers de formateo entre routers** — ya pasó dos veces (`follows.js` y `ngos.js` con copias desincronizadas de `fmtProject`, ver `PROJECT_ANALYSIS.md §29`). Se resolvió exportando `fmt` desde `projects.js`, pero cualquier router nuevo que devuelva proyectos tiene que acordarse de importarlo, no copiarlo.
 - Lógica de negocio y validaciones duplicadas en frontend y backend (regex de email/nombre/password, blacklist de palabras) sin una fuente única de verdad — mantenerlas sincronizadas es manual.

@@ -1,7 +1,10 @@
 // src/middleware/auth.js
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'voluntariar_dev_secret';
+const { resolveJwtSecret } = require('../lib/jwtSecret');
+
+// Obligatoria en producción: si falta, el servidor no arranca (§94). Antes tenía un default inseguro.
+const JWT_SECRET = resolveJwtSecret();
 
 /**
  * Middleware de autenticación obligatoria.

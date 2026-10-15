@@ -2422,3 +2422,29 @@ Con un socket simulado "conectado": el envío va por REST y el mensaje guardado 
 ### ⚠️ NO verificado
 - En Chrome no lo probé (el formulario y los mensajes no cambiaron; el criterio lo cubren los tests de los dos lados).
 - Los comentarios de las **calificaciones** siguen sin pasar por el filtro (§74): no estaba en el alcance de B7.
+
+## 94. `JWT_SECRET` obligatorio en producción (decisión del usuario) — REVISION B19 / regla 17
+
+**Contexto:** `middleware/auth.js` y `ws/index.js` tenían, cada uno, `process.env.JWT_SECRET || 'voluntariar_dev_secret'`. En producción sin la variable, cualquiera que leyera el repositorio podía firmar tokens válidos de cualquier usuario y rol. El usuario eligió exigirla en producción (no siempre).
+
+**Qué se hizo:**
+- **`src/lib/jwtSecret.js` (nuevo):** `resolveJwtSecret(env)`. En `NODE_ENV=production`, sin `JWT_SECRET` (o con el valor de desarrollo, que es público) lanza un error claro y el servidor no arranca. Fuera de producción devuelve la variable o `voluntariar_dev_secret`, como siempre.
+- `middleware/auth.js` y `ws/index.js` toman el secreto de ahí (se borró la copia del WebSocket).
+- **`render.yaml` no se tocó:** ya define `NODE_ENV=production` y `JWT_SECRET` con `generateValue: true`, así que el deploy cumple la regla nueva.
+- Docs: `AI_RULES` regla 17, `CLAUDE.md` (pendiente resuelto, con una nota sobre el `.env` local) y `PROJECT_CONTEXT` §14.
+
+### Tests (nuevos: 5, `test/unit/jwtSecret.test.js`)
+Desarrollo/tests sin variable → valor de desarrollo; con variable → esa; producción sin variable o vacía → error; producción con el valor de desarrollo → error; y que ni el middleware ni el WebSocket tengan su propia copia (leen el código fuente). Rojo de comportamiento primero, con un stub que reproducía lo de antes.
+
+### Verificación
+- **SQLite 435/435 y Postgres 437/437**, también con `TZ=America/Argentina/Cordoba` (los tests fijan `JWT_SECRET` y `NODE_ENV=test`: no cambian).
+- **Arranque real:** `NODE_ENV=production` sin `JWT_SECRET` → el proceso corta con "Falta JWT_SECRET: en producción es obligatoria…" y código de salida 1.
+- **Mutación (5):** no exigir en producción, aceptar el de desarrollo, exigir también fuera de producción, ignorar la variable y el WebSocket con su copia: **los 5 mueren**.
+
+### Errores propios
+- Ninguno en esta tarea.
+
+### ⚠️ NO verificado
+- **El deploy en Render** (no hay deploy). Por lectura de `render.yaml`, la variable se genera.
+- **Tu `.env` local:** no lo abrí. Si tuviera `NODE_ENV=production` sin `JWT_SECRET`, el backend local no arrancaría (con el error de arriba).
+- Los tokens emitidos con el secreto viejo dejan de valer si cambia el secreto (normal; en Render el valor generado es estable entre deploys).

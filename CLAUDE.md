@@ -15,7 +15,7 @@ Respondé en español rioplatense (voseo).
 - Si un pedido choca con AI_RULES, avisá antes de seguir.
 
 ## Verificación (todo tiene que dar verde)
-- Backend: `npm test` y `npm run test:pg`. Hoy: **430** en SQLite y **432** en Postgres (+2 solo de Postgres). Bajó de 381 a propósito: 10 `test('setup')` pasaron a `before()` (§84). Un `before()` que falla deja los tests como **cancelled** (no `fail`): mirá también ese número y el código de salida.
+- Backend: `npm test` y `npm run test:pg`. Hoy: **435** en SQLite y **437** en Postgres (+2 solo de Postgres). Bajó de 381 a propósito: 10 `test('setup')` pasaron a `before()` (§84). Un `before()` que falla deja los tests como **cancelled** (no `fail`): mirá también ese número y el código de salida.
   `test:pg` necesita un Postgres en `localhost:5432` (ver `TEST_PG_*` en `test/integration/helpers.js`); sirve
   `docker run --rm -d -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=voluntariar_test postgres:16`.
 - Frontend: `npm test`. Hoy: **401** tests. Tipos: `npm run typecheck` (TypeScript 7, instalado el 2026-10-14). Hoy: **0 errores** (§68–§69). Nunca `npx tsc`: el paquete `tsc` de npm no es TypeScript.
@@ -57,4 +57,4 @@ Respondé en español rioplatense (voseo).
 ## Pendientes conocidos (no "arreglar" sin preguntar, regla 16)
 - Prod (Render): los valores de `RESEND_API_KEY` y `CLOUDINARY_*` (`sync: false`) se cargan en el panel; deploy no verificado.
 - Borrar usuario/proyecto no borra los archivos en Cloudinary; el límite de 10 posts/hora no es estricto.
-- Fallback inseguro de `JWT_SECRET` en `middleware/auth.js`: señalarlo, no corregirlo sin permiso.
+- ~~Fallback inseguro de `JWT_SECRET`~~ — resuelto en §94 (con permiso): obligatorio en producción, un solo lugar (`src/lib/jwtSecret.js`). Si tu `.env` local tiene `NODE_ENV=production`, necesita `JWT_SECRET`.
