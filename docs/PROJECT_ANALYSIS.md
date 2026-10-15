@@ -2876,3 +2876,43 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 ### ⚠️ NO verificado
 - No lo vi en el navegador: ni el `InlineError` en el lugar de la lista, ni el aviso chico de "Para vos", ni que la pantalla sin mapa se vea bien.
 - Doble clic en "Reintentar": el botón desaparece al empezar la carga (`loading`), así que no debería haber dos pedidos en vuelo; no lo probé.
+
+## 112. Reseñas: se recargan al abrir y se precarga la propia — REVISION S3 y S4
+
+**Contexto:**
+- **S3:** en `FeedPostCard`, `cardRatings` es estado que nunca cambia. `ReviewsModal`, si recibía `initialRatings` no vacío, no pedía nada y mostraba esa lista; después de calificar recargaba, pero al cerrar y reabrir el efecto volvía a poner `initialRatings` (la lista vieja), y el promedio del modal se calculaba con ella.
+- **S4:** el backend hace upsert (§74), pero el formulario arrancaba siempre en 5 ★ y vacío. Quien ya había calificado y mandaba sin mirar pisaba su reseña (y, sin comentario, la borraba).
+- **Dato que decidió el arreglo:** las reseñas que llegan en el feed (`GET /api/follows/feed`, `follows.js` ~:283) **no traen `user_id`** (aunque el tipo `Rating` de `api.ts` lo declare obligatorio). Solo `GET /api/projects/:id` lo trae (`projects.js` ~:699). Con la lista del feed no se puede saber cuál es la propia.
+
+**Qué se hizo (solo `ReviewsModal.tsx`; `FeedPostCard` y `MyParticipation` sin cambios):**
+- **El modal recarga SIEMPRE al abrirse** (`GET /api/projects/:id`). Elegí esto en vez de que `onReviewAdded` devuelva la lista y `FeedPostCard` actualice `cardRatings` porque: (a) resuelve S3 en un solo lugar y sirve igual para "Mis participaciones"; (b) es la única fuente con `user_id`, que S4 necesita, sin tocar el backend; (c) actualizar `cardRatings` con el modal abierto cambiaba la prop `initialRatings`, que estaba en las dependencias del efecto y reiniciaba el formulario y el mensaje de éxito. Costo: un pedido por apertura.
+- `initialRatings` queda como lo que se ve mientras llega la respuesta: el spinner solo aparece si no hay ninguna lista (`loading && ratings.length === 0`). Las dependencias del efecto pasan a ser `[isOpen, projectId]` (sin `initialRatings`, a propósito).
+- Al abrir se reinicia el formulario (5 ★, vacío, sin mensajes) y, cuando llegan las reseñas, `applyRatings` busca la propia (`r.user_id === user.id`, solo con sesión) y precarga estrellas y comentario.
+- Si ya calificó: el encabezado dice "Ya calificaste este voluntariado. Podés editar tu reseña." y el botón, "Actualizar reseña" (si no, "¿Participaste…?" y "Publicar reseña", como antes).
+- **El botón queda deshabilitado mientras cargan las reseñas:** antes de saber si ya calificó, mandar pisaría la reseña con 5 ★.
+- Después de guardar ya no se vacía el comentario: se recarga y el formulario muestra lo que guardó el servidor (que ahora es "tu reseña").
+
+### Tests (nuevos: 10, `ReviewsModal.test.tsx`)
+- **S3, con `FeedPostCard` real:** calificar desde el feed, cerrar y reabrir → "2 reseñas en total", el comentario nuevo y promedio 4.0 (5 y 3). El mock de `GET` responde según si ya se llamó a `rate` (como el servidor).
+- Mientras recarga se sigue viendo la lista del feed (no un spinner) y se pidió `GET /projects/proj-1`.
+- **S4:** con reseña propia → "Actualizar reseña", el aviso, 3 ★ marcadas (`aria-pressed`) y el comentario cargado; mandar sin tocar nada manda `(3, 'Faltó organización')` y el comentario queda; sin reseña propia → 5 ★, vacío, "Publicar reseña", sin aviso; sin sesión ninguna cuenta como propia; sin sesión y con la lista del feed (sin `user_id`) tampoco; después de guardar "  Mejoró  " el formulario muestra "Mejoró" (lo del servidor); si cambia el `projectId` con el modal montado, lista y formulario son los del proyecto nuevo; mientras carga, el botón está deshabilitado.
+- **Rojo de comportamiento:** con el código anterior fallaban S3 (en la reapertura: "1 reseña"), la precarga (no había "Actualizar reseña") y el botón deshabilitado. El primer intento del test de S3 fallaba por otra razón (ver errores propios).
+
+### Verificación
+- **Frontend 433/433** (423 + 10), también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.** Pasan sin cambios `MyParticipationReview`, `ModalsMigrated` y `A11yNames` (usan `ReviewsModal`).
+- **Mutación (19, con `ReviewsModal.test.tsx` y `MyParticipationReview.test.tsx`):** primera corrida, **sobrevivieron 5**:
+  - `user ? find(…) : undefined` → `find(r => r.user_id === user?.id)`: **no equivalente**. Sin sesión y con la lista del feed (sin `user_id`), `undefined === undefined` marcaría la primera reseña como propia ("Ya calificaste" a un visitante). Test agregado.
+  - No reiniciar lista, estrellas o comentario al abrir (3 mutantes): solo se ve si cambia el `projectId` con el modal montado. Hoy no pasa en la app, pero no es equivalente: test agregado.
+  - `applyRatings` → `setRatings` después de guardar: difiere si el servidor guarda algo distinto de lo escrito (espacios). Test agregado.
+  - Segunda corrida: **0 sobrevivientes de 19.**
+
+### Errores propios
+1. La primera versión del test de S3 fallaba "en rojo" por el orden de los mocks (el código viejo no pedía nada al abrir y el primer `mockResolvedValueOnce` lo consumía el `GET` posterior a calificar), no por S3. Lo cambié por un mock que responde según si ya se calificó; ahora el rojo está en la reapertura.
+2. Un test usaba "Muy bueno" como comentario con 4 ★, que coincide con la etiqueta del promedio ("Muy bueno"): dos elementos. Cambié el texto.
+
+### ⚠️ NO verificado
+- Nada visual: el texto "Ya calificaste…", el botón deshabilitado mientras carga y la lista del feed mientras recarga no los vi.
+- **Sin protección de respuestas viejas** (`useLatestRequest`): no hay carrera alcanzable en la app (el botón está deshabilitado mientras carga; reabrir el mismo proyecto devuelve los mismos datos; "Mis participaciones" desmonta el modal al cerrarlo), pero no está probado contra respuestas desordenadas.
+- Si `rate` funciona y el `GET` posterior falla, se ve el mensaje de éxito y además el error (comportamiento anterior, no lo toqué).
+- Con un pedido más por apertura, en una conexión lenta el usuario espera para poder mandar.
+- **Fuera del pedido, sin tocar:** `ProjectDetails.tsx` tiene su propio formulario de calificación (no usa `ReviewsModal`, al contrario de lo que dice `FRONTEND_CONTEXT`) y por lectura parece tener el mismo problema de S4 (no precarga). Y el tipo `Rating` declara `user_id` obligatorio, pero el feed no lo manda (regla 2): o se agrega `r.user_id` al SELECT de `follows.js` o se marca opcional en el tipo. Decisión del usuario.

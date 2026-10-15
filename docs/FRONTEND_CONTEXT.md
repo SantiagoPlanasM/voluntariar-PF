@@ -92,7 +92,7 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 - `ExploreScreen.tsx` — búsqueda, filtros (`FilterModal.tsx`) y mapa (`ProjectMap.tsx`) del catálogo completo de proyectos.
 - `ProjectMap.tsx` — mapa con Leaflet (gratis, sin API key), pines custom con `L.divIcon`.
 - `FilterModal.tsx` — modal de filtros (categoría, tipo, modalidad, costo) + función pura `filterProjects()` exportada, con tests.
-- `ProjectDetails.tsx` — detalle de un proyecto: info completa, botón de inscripción, comentarios (distinguen si el autor participó, `is_participant`), calificación (solo si `my_enrollment_status === 'approved'`, vía `ReviewsModal.tsx`). Reimplementa la blacklist de palabras del backend para validar comentarios en el cliente antes de enviarlos.
+- `ProjectDetails.tsx` — detalle de un proyecto: info completa, botón de inscripción, comentarios (distinguen si el autor participó, `is_participant`), calificación (solo si `my_enrollment_status === 'approved'`, con un formulario propio: no usa `ReviewsModal`). Reimplementa la blacklist de palabras del backend para validar comentarios en el cliente antes de enviarlos.
 - `ProjectCard.tsx` — tarjeta reutilizada en feeds; incluye el modal de inscripción rápida.
 - `FeedPostCard.tsx` — tarjeta de post para el feed vertical (like, comentar, inscribirse, calificar vía `ReviewsModal.tsx`).
 - `FeedSidebar.tsx` — sidebar de escritorio del feed, puramente presentacional (recibe todo por props, incluidos `suggestionsError`/`onRetrySuggestions`: con error muestra el mensaje y "Reintentar" en vez de "¡Ya seguís a todas…!").
@@ -101,7 +101,7 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 - `VolunteerPublicProfile.tsx` — perfil público de otro voluntario, con follow/unfollow y sus listas de seguidores/seguidos (`FollowListModal`).
 - `NotificationsScreen.tsx` — lista de notificaciones, marcar como leídas.
 
-**Reseñas:** un solo componente, `ReviewsModal.tsx` (reseñas de otros + formulario si `canRate`). Lo usan el feed (`FeedPostCard`) y "Mis participaciones". Hasta `PROJECT_ANALYSIS.md §101` había además un `ReviewModal.tsx` que hacía lo mismo; se borró con OK del usuario.
+**Reseñas:** un solo componente, `ReviewsModal.tsx` (reseñas de otros + formulario si `canRate`). Lo usan el feed (`FeedPostCard`) y "Mis participaciones". Hasta `PROJECT_ANALYSIS.md §101` había además un `ReviewModal.tsx` que hacía lo mismo; se borró con OK del usuario. **Cada vez que se abre pide `GET /api/projects/:id`** (REVISION S3, §112): `initialRatings` solo se muestra mientras llega la respuesta (las reseñas del feed no traen `user_id`). Si la persona logueada ya calificó, el formulario se precarga con su reseña y el botón dice "Actualizar reseña" (S4; el backend hace upsert); mientras carga, el botón está deshabilitado. Un error de carga se ve con `InlineError` y "Reintentar" (S1, §107).
 
 ### Pantallas — lado ONG
 - `NGODashboard.tsx` — lista de proyectos propios + resumen de inscripciones pendientes por proyecto (una sola llamada agregada a `GET /api/ngos/me`, el N+1 que tenía antes ya se resolvió).
