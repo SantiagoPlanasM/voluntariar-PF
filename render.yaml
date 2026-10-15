@@ -29,10 +29,10 @@ services:
         value: 7d
       # Si Render asigna otra URL al frontend (el nombre ya estaba tomado), corregir esta y APP_URL.
       - key: CORS_ORIGINS
-        value: https://voluntariar.onrender.com
+        value: https://voluntariar-g0u6.onrender.com
       # Links de los emails (sin esto apuntan a http://localhost:5173)
       - key: APP_URL
-        value: https://voluntariar.onrender.com
+        value: https://voluntariar-g0u6.onrender.com
       # Emails (Resend). Sin RESEND_API_KEY los emails se omiten.
       # Con el remitente de pruebas solo se entrega al email registrado en Resend:
       # para pruebas, agregá EMAIL_REDIRECT_TO en el panel (ver backend/.env.example).
@@ -62,7 +62,7 @@ services:
         value: "22"
       # Si Render asigna otra URL a la API, corregir esta.
       - key: VITE_API_URL
-        value: https://voluntariar-api.onrender.com/api
+        value: https://voluntariar-api-lxq7.onrender.com/api
     routes:
       - type: rewrite
         source: /*
