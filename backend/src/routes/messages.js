@@ -9,19 +9,25 @@ const router = express.Router();
 
 const MAX_BODY_LEN = 2000;
 
+/** Error causado por lo que mandó el usuario: su mensaje se le puede mostrar (400 por REST, texto por WebSocket).
+ *  Cualquier otro error es interno y nunca se le reenvía (REVISION B19). */
+class MessageInputError extends Error {}
+
 /**
  * Inserta un mensaje y devuelve la fila guardada (con datos del remitente).
  * Compartida entre el endpoint REST (POST /) y el listener de WebSocket
  * (src/ws/index.js), para no duplicar la lógica de validación/inserción.
  */
 async function insertMessage(senderId, receiverId, body) {
+  // Antes un `to` que no era string (p. ej. un objeto) llegaba a la consulta y fallaba con un error interno.
+  if (typeof receiverId !== 'string' || !receiverId) throw new MessageInputError('Destinatario inválido');
   const trimmed = (body || '').toString().trim();
-  if (!trimmed) throw new Error('El mensaje no puede estar vacío');
-  if (trimmed.length > MAX_BODY_LEN) throw new Error(`El mensaje es demasiado largo (máx. ${MAX_BODY_LEN} caracteres)`);
-  if (senderId === receiverId) throw new Error('No podés enviarte mensajes a vos mismo');
+  if (!trimmed) throw new MessageInputError('El mensaje no puede estar vacío');
+  if (trimmed.length > MAX_BODY_LEN) throw new MessageInputError(`El mensaje es demasiado largo (máx. ${MAX_BODY_LEN} caracteres)`);
+  if (senderId === receiverId) throw new MessageInputError('No podés enviarte mensajes a vos mismo');
 
   const receiver = await db.get('SELECT id FROM users WHERE id=$1', [receiverId]);
-  if (!receiver) throw new Error('Destinatario no encontrado');
+  if (!receiver) throw new MessageInputError('Destinatario no encontrado');
 
   // id propio, y se relee ESA fila. Antes se hacía "WHERE sender/receiver ORDER BY created_at DESC
   // LIMIT 1": en SQLite created_at tiene resolución de 1 s, y dos mensajes seguidos del mismo
@@ -166,9 +172,8 @@ router.post('/', requireAuth, async (req, res) => {
 
     res.status(201).json({ message: saved });
   } catch (err) {
-    const clientErrors = ['vacío', 'largo', 'mismo', 'no encontrado'];
-    if (clientErrors.some(k => err.message?.includes(k)))
-      return res.status(400).json({ error: err.message });
+    // Antes se decidía buscando palabras en el mensaje ('vacío', 'largo'…): frágil.
+    if (err instanceof MessageInputError) return res.status(400).json({ error: err.message });
     console.error('POST /messages error:', err);
     res.status(500).json({ error: 'Error al enviar el mensaje' });
   }
@@ -191,3 +196,4 @@ router.patch('/thread/:userId/read', requireAuth, async (req, res) => {
 
 module.exports = router;
 module.exports.insertMessage = insertMessage;
+module.exports.MessageInputError = MessageInputError;

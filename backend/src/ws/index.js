@@ -21,6 +21,26 @@ const JWT_SECRET = process.env.JWT_SECRET || 'voluntariar_dev_secret';
 /** @type {Map<string, Set<import('ws').WebSocket>>} */
 const clients = new Map();
 
+// Límites (REVISION B19). Un mensaje válido entra en unos KB (cuerpo de hasta 2000 caracteres + JSON); sin
+// maxPayload, la librería `ws` acepta hasta 100 MiB por mensaje. Pasado el tope cierra la conexión con 1009.
+const MAX_PAYLOAD = 64 * 1024;
+// Frecuencia: hasta SEND_LIMIT envíos por usuario cada SEND_WINDOW_MS (todas sus conexiones juntas). Cuenta los
+// intentos, no solo los guardados: es para cortar una ráfaga, no para validar.
+const SEND_LIMIT = 20;
+const SEND_WINDOW_MS = 10_000;
+/** @type {Map<string, number[]>} userId -> momentos de sus últimos envíos */
+const recentSends = new Map();
+
+function allowSend(userId, now = Date.now()) {
+  const times = (recentSends.get(userId) || []).filter((t) => now - t < SEND_WINDOW_MS);
+  if (times.length >= SEND_LIMIT) { recentSends.set(userId, times); return false; }
+  times.push(now);
+  recentSends.set(userId, times);
+  return true;
+}
+
+const sendError = (ws, error) => ws.send(JSON.stringify({ type: 'error', error }));
+
 function addClient(userId, ws) {
   if (!clients.has(userId)) clients.set(userId, new Set());
   clients.get(userId).add(ws);
@@ -50,7 +70,7 @@ function isUserOnline(userId) {
 }
 
 function initWebSocket(server) {
-  const wss = new WebSocketServer({ server, path: '/ws' });
+  const wss = new WebSocketServer({ server, path: '/ws', maxPayload: MAX_PAYLOAD });
 
   wss.on('connection', (ws, req) => {
     let userId = null;
@@ -75,15 +95,23 @@ function initWebSocket(server) {
     // un atajo opcional para que el propio cliente mande por WS y ahorre la
     // ida y vuelta HTTP — usa la misma función de inserción que la ruta REST.
     ws.on('message', async raw => {
+      let msg;
+      try { msg = JSON.parse(raw.toString()); }
+      catch { return sendError(ws, 'Mensaje inválido'); } // antes: el texto de JSON.parse, en inglés técnico
+      if (!msg || msg.type !== 'send' || !msg.to || !msg.body) return;
+      if (!allowSend(userId)) return sendError(ws, 'Estás enviando mensajes muy rápido. Esperá unos segundos.');
+
+      const { insertMessage, MessageInputError } = require('../routes/messages');
       try {
-        const msg = JSON.parse(raw.toString());
-        if (msg.type !== 'send' || !msg.to || !msg.body) return;
-        const { insertMessage } = require('../routes/messages');
         const saved = await insertMessage(userId, msg.to, msg.body);
         sendToUser(msg.to, { type: 'message', message: saved });
         sendToUser(userId, { type: 'message', message: saved }); // eco a otras pestañas propias
       } catch (err) {
-        ws.send(JSON.stringify({ type: 'error', error: err.message || 'Error al enviar el mensaje' }));
+        // Solo los errores del usuario se le muestran; los internos (de la base, etc.) van al log. Antes se le
+        // reenviaba cualquier err.message, con detalles del servidor (REVISION B19).
+        if (err instanceof MessageInputError) return sendError(ws, err.message);
+        console.error('WS send error:', err);
+        sendError(ws, 'Error al enviar el mensaje');
       }
     });
   });
@@ -91,4 +119,4 @@ function initWebSocket(server) {
   return wss;
 }
 
-module.exports = { initWebSocket, sendToUser, isUserOnline };
+module.exports = { initWebSocket, sendToUser, isUserOnline, allowSend, SEND_LIMIT, SEND_WINDOW_MS };

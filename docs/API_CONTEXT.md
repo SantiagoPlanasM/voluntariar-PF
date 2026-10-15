@@ -475,9 +475,9 @@ Chat 1 a 1 básico. El historial y el envío tienen doble vía: REST (siempre di
 
 ### `POST /api/messages` — Auth
 - **Body:** `{ to, body }`.
-- **Validación:** `body` no vacío, máx. 2000 caracteres, no podés mandarte a vos mismo, el destinatario debe existir.
+- **Validación:** `to` string (si no, "Destinatario inválido"), `body` no vacío, máx. 2000 caracteres, no podés mandarte a vos mismo, el destinatario debe existir. Esos errores son `MessageInputError` (`routes/messages.js`): los únicos cuyo texto se le muestra al usuario, por REST y por WebSocket (`PROJECT_ANALYSIS.md §87`).
 - **Efecto:** persiste el mensaje; si el destinatario tiene una conexión de WebSocket abierta, se lo empuja en tiempo real (`sendToUser`).
-- **Respuesta 201:** `{ message: {...} }`. **Errores:** `400` (validación), `404` (destinatario inexistente).
+- **Respuesta 201:** `{ message: {...} }`. **Errores:** `400` con el mensaje de la validación (también "Destinatario no encontrado": este doc decía 404, el código siempre dio 400); `500` genérico ante cualquier error interno.
 
 ### `PATCH /api/messages/thread/:userId/read` — Auth
 - Marca como leídos todos los mensajes que `userId` le mandó al usuario logueado.
@@ -488,6 +488,9 @@ Chat 1 a 1 básico. El historial y el envío tienen doble vía: REST (siempre di
 - **Al conectar:** el servidor manda `{ type: 'connected' }`.
 - **Mensajes entrantes (servidor → cliente):** `{ type: 'message', message: {...} }` cuando alguien te escribe (ya sea que el otro lo haya mandado por REST o por WS).
 - **Mensajes salientes opcionales (cliente → servidor):** `{ type: 'send', to, body }` — atajo para mandar sin pasar por REST; usa la misma validación e inserción que `POST /api/messages` internamente. El cliente web (`ChatContext.tsx`) lo usa cuando hay conexión abierta, y cae a `POST /api/messages` si no la hay.
+- **Errores (servidor → cliente):** `{ type: 'error', error }`. Solo con el texto de una `MessageInputError` o uno fijo: "Mensaje inválido" (JSON mal formado), "Estás enviando mensajes muy rápido. Esperá unos segundos." o "Error al enviar el mensaje" (cualquier error interno, que va al log). Antes se reenviaba cualquier `err.message`, con detalles del servidor (§87).
+- **Límites (§87):** `maxPayload` 64 KB (un mensaje más grande cierra la conexión con `1009`); hasta 20 envíos cada 10 s por usuario (todas sus conexiones; cuentan los intentos). `POST /api/messages` **no** tiene límite de frecuencia (no hay rate limiting en la API REST; deuda conocida).
+- **⚠️ El cliente ignora los `{ type: 'error' }`:** `ChatThread` borra el borrador al mandar por socket y, si el servidor lo rechaza, el mensaje se pierde sin aviso (§87, pendiente).
 - **Multi-dispositivo:** un mismo usuario puede tener varias conexiones abiertas (pestañas/dispositivos); todas reciben los mensajes entrantes.
 - **Límite conocido:** el registro de conexiones es un `Map` en memoria de un solo proceso Node — no hay backplane compartido (Redis u otro) entre instancias. Ver `PROJECT_ANALYSIS.md §18` para el detalle.
 

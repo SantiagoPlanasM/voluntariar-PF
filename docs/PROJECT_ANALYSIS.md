@@ -2246,3 +2246,35 @@ Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/
 ### ⚠️ NO verificado
 - Pantallas de empresa con sesión, panel de ONG con proyectos de otras ONGs, y móvil: no las recorrí en Chrome (tests de contrato + foto de claves).
 - Los demás `SELECT *` del backend en endpoints autenticados que devuelven datos propios (`/auth/me`, empleados, notificaciones, inscripciones) no se tocaron: no son públicos.
+
+## 87. WebSocket del chat: errores internos al cliente, sin tope de tamaño ni de frecuencia — REVISION B19 (salvo JWT_SECRET)
+
+**Contexto (confirmado con tests antes de tocar nada, rojo en 6 de 7):** el listener de `ws/index.js` le mandaba al cliente el `err.message` de cualquier error:
+- un error de disco simulado llegó tal cual, **con la ruta del archivo**;
+- un JSON mal formado devolvía `Expected property name or '}' in JSON at position 1…` (inglés técnico, regla 19);
+- un `to` que era un objeto llegaba a la consulta: por WebSocket devolvía `Too few parameter values were provided` y por REST, **500**.
+
+Además no había `maxPayload` (el default de `ws` es **100 MiB**) y una ráfaga de 30 mensajes se guardaba entera.
+
+**Qué se hizo:**
+- `routes/messages.js`: `MessageInputError` para los errores del usuario (destinatario inválido o inexistente, vacío, largo, a uno mismo). Se valida que `to` sea un string. REST decide el 400 por tipo de error y no buscando palabras en el mensaje (`'vacío'`, `'largo'`…), que era frágil.
+- `ws/index.js`: `maxPayload` 64 KB (más grande → la conexión se cierra con `1009`); hasta 20 envíos cada 10 s por usuario (`allowSend`, cuenta intentos; los rechazos no alargan el bloqueo); JSON mal formado → "Mensaje inválido"; error del usuario → su texto; cualquier otro → "Error al enviar el mensaje" + `console.error`.
+- **No tocado:** la copia del fallback de `JWT_SECRET` en `ws/index.js:19` (regla 17, espera tu decisión).
+
+### Tests (nuevos: 11)
+- `ws-hardening.test.js` (7): error interno no se reenvía; JSON mal formado; `to` objeto (y que no se guarda nada); error del usuario sí se muestra; REST con 400 para esos casos; 200 KB → cierre `1009`; ráfaga de 30 → 20 guardados y 10 avisos. El test termina todos los sockets en `after()`: en la primera versión, cuando una aserción fallaba antes del `close`, el servidor no cerraba y la corrida se colgaba.
+- `test/unit/wsRateLimit.test.js` (4): el tope, que la ventana se libera con el tiempo (reloj a mano), que los rechazos no cuentan y que el límite es por usuario.
+
+### Verificación
+- **SQLite 396/396 y Postgres 398/398**, los dos también con `TZ=America/Argentina/Cordoba`.
+- **Mutación (12, los dos motores): 12 muertos**, entre ellos sin `maxPayload`, sin límite, `>` en vez de `>=`, ventana que nunca expira, rechazos que cuentan, límite global en vez de por usuario, reenviar `err.message` y REST todo 500.
+
+### Errores propios
+- La primera corrida del test se colgó: en rojo, el socket de 200 KB nunca se cerraba y el `after` esperaba al servidor. Corregido terminando los sockets.
+- El test de frecuencia usaba a María, que ya había mandado mensajes en los tests anteriores (y cuentan para su límite). Pasé la ráfaga a Juan.
+
+### ⚠️ NO verificado / pendiente
+- **Encontrado y no arreglado — el frontend ignora los errores del socket:** `ChatContext` solo atiende `type: 'message'`. `ChatThread` borra el borrador al mandar por WebSocket, así que si el servidor rechaza el envío (ahora también por frecuencia) **el mensaje se pierde sin aviso**. Ya pasaba antes con cualquier error por socket. Arreglarlo bien pide un id de pedido en el protocolo (o mandar siempre por REST); queda para decidir.
+- **No probado en Chrome:** no cambió nada visible; el envío normal por socket lo cubren los tests de punta a punta de `insert-returns-own-row.test.js`.
+- `POST /api/messages` sigue sin límite de frecuencia (no hay rate limiting en REST; deuda conocida).
+- El mapa de envíos recientes es en memoria y por proceso (igual que las conexiones, §18).
