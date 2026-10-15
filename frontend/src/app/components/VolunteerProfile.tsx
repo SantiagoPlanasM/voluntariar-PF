@@ -1,9 +1,9 @@
 import { useAuth } from '../../lib/AuthContext';
 import { LogOut, CheckCircle, Clock, Heart, Edit2, Save, X, Loader2, Sparkles, MapPin, User, Sprout, Building2, Users, UserCheck } from 'lucide-react';
 import { useNavigate, Link } from 'react-router';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api, EnrollmentWithProject, SkillCatalogItem, VolunteerSkill, NGO, VolunteerPublic } from '../../lib/api';
-import { Modal } from './Modal';
+import { FollowListModal, FollowListMode } from './FollowListModal';
 
 const NAME_RE = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]{2,50}$/;
 const NIVEL_LABELS: Record<string, string> = { basico: 'Básico', intermedio: 'Intermedio', avanzado: 'Avanzado' };
@@ -28,11 +28,7 @@ export function VolunteerProfile() {
   const [myFollowerCount, setMyFollowerCount] = useState(0);
   const [myFollowingCount, setMyFollowingCount] = useState(0);
 
-  type ListMode = 'followers' | 'following' | null;
-  const [listMode, setListMode] = useState<ListMode>(null);
-  const listTitleId = useId();
-  const [listData, setListData] = useState<VolunteerPublic[]>([]);
-  const [listLoading, setListLoading] = useState(false);
+  const [listMode, setListMode] = useState<FollowListMode | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -72,18 +68,6 @@ export function VolunteerProfile() {
   };
   const setSkillNivel = (habilidad_id: string, nivel: string) => {
     setDraftSkills(ds => ds.map(s => (s.habilidad_id === habilidad_id ? { ...s, nivel } : s)));
-  };
-
-  const openMyList = async (mode: 'followers' | 'following') => {
-    setListMode(mode);
-    setListLoading(true);
-    try {
-      const r = mode === 'followers'
-        ? await api.follows.myFollowers()
-        : await api.follows.myFollowing();
-      setListData(r.volunteers);
-    } catch { setListData([]); }
-    setListLoading(false);
   };
 
   const handleSave = async () => {
@@ -168,14 +152,14 @@ export function VolunteerProfile() {
                 <p className="text-xs text-gray-500">{label}</p>
               </div>
             ))}
-            <button onClick={() => openMyList('followers')} className="text-center group cursor-pointer">
+            <button onClick={() => setListMode('followers')} className="text-center group cursor-pointer">
               <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center mx-auto mb-2">
                 <Users className="w-5 h-5 text-purple-600" />
               </div>
               <p className="text-xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors">{myFollowerCount}</p>
               <p className="text-xs text-gray-500">Seguidores</p>
             </button>
-            <button onClick={() => openMyList('following')} className="text-center group cursor-pointer">
+            <button onClick={() => setListMode('following')} className="text-center group cursor-pointer">
               <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center mx-auto mb-2">
                 <UserCheck className="w-5 h-5 text-blue-600" />
               </div>
@@ -417,62 +401,10 @@ export function VolunteerProfile() {
         </div>
       </div>
 
-      {/* Modal de seguidores/seguidos */}
       {listMode && (
-        <Modal onClose={() => setListMode(null)} labelledBy={listTitleId}
-          overlayClassName="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center"
-          className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[70vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-gray-100">
-              <h3 id={listTitleId} className="font-bold text-gray-900">
-                {listMode === 'followers' ? 'Seguidores' : 'Siguiendo'}
-              </h3>
-              <button onClick={() => setListMode(null)} aria-label="Cerrar" className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
-                <X className="w-4 h-4 text-gray-600" />
-              </button>
-            </div>
-            <div className="overflow-y-auto flex-1 p-2">
-              {listLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="w-6 h-6 text-emerald-600 animate-spin" />
-                </div>
-              ) : listData.length === 0 ? (
-                <div className="text-center py-8">
-                  <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-sm text-gray-500">
-                    {listMode === 'followers' ? 'Todavía no tenés seguidores.' : 'Todavía no seguís a nadie.'}
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  {listData.map(vol => (
-                    <Link
-                      key={vol.user_id}
-                      to={vol.user_id === user?.id ? '/profile' : `/volunteer/${vol.user_id}`}
-                      onClick={() => setListMode(null)}
-                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors"
-                    >
-                      {(vol.foto_perfil || vol.avatar) ? (
-                        <img src={vol.foto_perfil || vol.avatar} alt={vol.name} className="w-11 h-11 rounded-full object-cover ring-2 ring-gray-100" />
-                      ) : (
-                        <div className="w-11 h-11 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-sm ring-2 ring-gray-100">
-                          {vol.name[0]}
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{vol.name}</p>
-                        <p className="text-xs text-gray-400 truncate">
-                          {vol.ubicacion || vol.location || 'Argentina'} · {vol.followers || 0} seguidores
-                        </p>
-                      </div>
-                      {vol.user_id === user?.id && (
-                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Tú</span>
-                      )}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-        </Modal>
+        <FollowListModal mode={listMode} meId={user?.id} onClose={() => setListMode(null)}
+          load={m => m === 'followers' ? api.follows.myFollowers() : api.follows.myFollowing()}
+          emptyText={{ followers: 'Todavía no tenés seguidores.', following: 'Todavía no seguís a nadie.' }} />
       )}
     </div>
   );

@@ -1,17 +1,15 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import {
   User, MapPin, Clock, CheckCircle, Heart, Sparkles, Loader2,
-  UserPlus, UserCheck, Users, X, Sprout, ArrowLeft, MessageSquare
+  UserPlus, UserCheck, Sprout, ArrowLeft, MessageSquare
 } from 'lucide-react';
-import { api, VolunteerProfileData, VolunteerPublic, VolunteerSkill } from '../../lib/api';
+import { api, VolunteerProfileData, VolunteerSkill } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { MomentsGrid } from './MomentsGrid';
-import { Modal } from './Modal';
+import { FollowListModal, FollowListMode } from './FollowListModal';
 
 const NIVEL_LABELS: Record<string, string> = { basico: 'Básico', intermedio: 'Intermedio', avanzado: 'Avanzado' };
-
-type ListMode = 'followers' | 'following' | null;
 
 export function VolunteerPublicProfile() {
   const { id } = useParams<{ id: string }>();
@@ -27,10 +25,7 @@ export function VolunteerPublicProfile() {
   const [error, setError] = useState('');
 
   // Modal de seguidores/seguidos
-  const [listMode, setListMode] = useState<ListMode>(null);
-  const listTitleId = useId();
-  const [listData, setListData] = useState<VolunteerPublic[]>([]);
-  const [listLoading, setListLoading] = useState(false);
+  const [listMode, setListMode] = useState<FollowListMode | null>(null);
 
   // Redirect to own profile if viewing self
   useEffect(() => {
@@ -77,19 +72,6 @@ export function VolunteerPublicProfile() {
       }
     } catch { }
     setFollowLoading(false);
-  };
-
-  const openList = async (mode: 'followers' | 'following') => {
-    if (!id) return;
-    setListMode(mode);
-    setListLoading(true);
-    try {
-      const r = mode === 'followers'
-        ? await api.follows.volunteerFollowers(id)
-        : await api.follows.volunteerFollowing(id);
-      setListData(r.volunteers);
-    } catch { setListData([]); }
-    setListLoading(false);
   };
 
   if (loading) return (
@@ -151,11 +133,11 @@ export function VolunteerPublicProfile() {
       <div className="px-4 -mt-6 mb-5 relative z-10">
         <div className="bg-white rounded-2xl shadow-xl p-4 border border-gray-100">
           <div className="grid grid-cols-3 gap-4 mb-4">
-            <button onClick={() => openList('followers')} className="text-center group cursor-pointer">
+            <button onClick={() => setListMode('followers')} className="text-center group cursor-pointer">
               <p className="text-xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors">{followerCount}</p>
               <p className="text-xs text-gray-500">Seguidores</p>
             </button>
-            <button onClick={() => openList('following')} className="text-center group cursor-pointer">
+            <button onClick={() => setListMode('following')} className="text-center group cursor-pointer">
               <p className="text-xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors">{followingCount}</p>
               <p className="text-xs text-gray-500">Siguiendo</p>
             </button>
@@ -272,62 +254,10 @@ export function VolunteerPublicProfile() {
         )}
       </div>
 
-      {/* Modal de seguidores/seguidos (Instagram style) */}
-      {listMode && (
-        <Modal onClose={() => setListMode(null)} labelledBy={listTitleId}
-          overlayClassName="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center"
-          className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[70vh] flex flex-col animate-in slide-in-from-bottom">
-            <div className="flex items-center justify-between p-4 border-b border-gray-100">
-              <h3 id={listTitleId} className="font-bold text-gray-900">
-                {listMode === 'followers' ? 'Seguidores' : 'Siguiendo'}
-              </h3>
-              <button onClick={() => setListMode(null)} aria-label="Cerrar" className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
-                <X className="w-4 h-4 text-gray-600" />
-              </button>
-            </div>
-            <div className="overflow-y-auto flex-1 p-2">
-              {listLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="w-6 h-6 text-emerald-600 animate-spin" />
-                </div>
-              ) : listData.length === 0 ? (
-                <div className="text-center py-8">
-                  <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-sm text-gray-500">
-                    {listMode === 'followers' ? 'Todavía no tiene seguidores.' : 'Todavía no sigue a nadie.'}
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  {listData.map(vol => (
-                    <Link
-                      key={vol.user_id}
-                      to={vol.user_id === user?.id ? '/profile' : `/volunteer/${vol.user_id}`}
-                      onClick={() => setListMode(null)}
-                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors"
-                    >
-                      {(vol.foto_perfil || vol.avatar) ? (
-                        <img src={vol.foto_perfil || vol.avatar} alt={vol.name} className="w-11 h-11 rounded-full object-cover ring-2 ring-gray-100" />
-                      ) : (
-                        <div className="w-11 h-11 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-sm ring-2 ring-gray-100">
-                          {vol.name[0]}
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{vol.name}</p>
-                        <p className="text-xs text-gray-400 truncate">
-                          {vol.ubicacion || vol.location || 'Argentina'} · {vol.followers || 0} seguidores
-                        </p>
-                      </div>
-                      {vol.user_id === user?.id && (
-                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Tú</span>
-                      )}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-        </Modal>
+      {listMode && id && (
+        <FollowListModal mode={listMode} meId={user?.id} onClose={() => setListMode(null)}
+          load={m => m === 'followers' ? api.follows.volunteerFollowers(id) : api.follows.volunteerFollowing(id)}
+          emptyText={{ followers: 'Todavía no tiene seguidores.', following: 'Todavía no sigue a nadie.' }} />
       )}
     </div>
   );

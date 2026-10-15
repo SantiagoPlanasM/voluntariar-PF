@@ -2047,7 +2047,7 @@ Al levantar el frontend, el comando con `cd …/frontend && ./node_modules/.bin/
 - **Táctil / móvil:** el cierre por clic afuera usa `e.target === e.currentTarget`; en pantallas chicas los modales son "bottom sheet". No lo probé en un dispositivo.
 - La lista de seguidores del **perfil público** no la abrí en Chrome (mismo código que la del perfil propio; tiene test).
 - **Quedan 5 modales sin migrar:** `FilterModal`, `ProjectMap`, `ReviewsModal`, `PostComposer`, `MomentsGrid` (tienen Escape propio, pero sin foco inicial, sin trap y sin devolver el foco; en `PostComposer` y `MomentsGrid` el Escape solo anda con el foco adentro). No estaban en F12; van aparte.
-- **Duplicación vista y no tocada:** las listas de seguidores de `VolunteerProfile` y `VolunteerPublicProfile` son casi el mismo JSX; candidato a un `FollowListModal`.
+- **Duplicación vista y no tocada:** las listas de seguidores de `VolunteerProfile` y `VolunteerPublicProfile` son casi el mismo JSX; candidato a un `FollowListModal`. *(Hecho en §105.)*
 - Botones solo-ícono sin nombre (cerrar, mostrar contraseña, etc.): es **F13**, el próximo commit.
 - El backend de la prueba tomó Resend/Cloudinary del `.env`; no hice nada que mande mails ni suba fotos.
 
@@ -2660,3 +2660,43 @@ Lista con `api.ngos.empleados.list('ngo-1')`; un 403 se ve como error con "Reint
 ### ⚠️ NO verificado
 - No lo vi en el navegador: que el mensaje aparezca en el formulario de reseñas lo deduzco del código (`setRatingErr(err.message)` / `setErrorMsg(err.message)`), que ya se usa con los otros 400.
 - No revisé si la base local tiene calificaciones viejas con palabras de la lista.
+
+## 105. Listas de seguidores en un solo componente (aprobado por el usuario)
+
+**Contexto:** las listas "Seguidores"/"Siguiendo" de `VolunteerProfile` (perfil propio) y `VolunteerPublicProfile` eran el mismo modal copiado (~60 líneas de JSX más estado y carga en cada uno; anotado en §81). Solo cambiaban el endpoint (`myFollowers`/`myFollowing` contra `volunteerFollowers(id)`/`volunteerFollowing(id)`) y el texto de la lista vacía ("Todavía no tenés…" contra "Todavía no tiene…").
+
+**Qué se hizo:**
+- **`FollowListModal.tsx` (nuevo):** `mode`, `load(mode)`, `emptyText` por modo, `meId` y `onClose`. Pide la lista al montarse, que es cada vez que se abre, y tiene su propio estado de carga. El JSX es el de antes, con las mismas clases.
+- **Los dos perfiles:** quedó solo `listMode` (sacamos `listData`, `listLoading`, `listTitleId` y las funciones `openMyList`/`openList`). Los botones solo ponen el modo. −157/+19 líneas en los dos archivos.
+- **Diferencias con antes:**
+  - Se sacaron `animate-in slide-in-from-bottom`, que solo tenía la copia del perfil público: no hay plugin de animaciones instalado y esas clases no generaban CSS (verificado: ni `package.json` ni `src/styles` las definen). No cambia nada visible.
+  - Si la lista se cierra antes de que llegue la respuesta, la respuesta se descarta. Antes llegaba igual a un estado que ya no se mostraba.
+- **Sin cambio de comportamiento** a propósito: un error al pedir la lista sigue viéndose como "Todavía no tenés seguidores." (ver ⚠️).
+
+### Tests (nuevos: 7, `FollowLists.test.tsx`)
+Contra los dos perfiles, no contra el componente: así sirven como red del refactor.
+- Cada fila: link a `/volunteer/:id`, o a `/profile` con "Tú" si es el usuario logueado; foto (`foto_perfil` o `avatar`) o inicial; ubicación (`ubicacion`, `location` o "Argentina") y seguidores.
+- Qué endpoint llama cada perfil (las mías en el propio; las del `:id` en el público).
+- El texto de la lista vacía de cada perfil y de cada modo.
+- Mientras carga no aparece "Todavía no…".
+- Tocar una persona navega y cierra la lista; "Cerrar" también.
+- Perfil público → otra persona de la lista: el perfil nuevo carga sin la lista abierta. Es el mismo componente con otro `:id`, y sin cerrar la lista ella volvería a abrirse sola.
+- **Rojo:** no corresponde, porque es un refactor sin cambio de comportamiento. Lo que corresponde es que los tests pasen **con el código anterior**, y pasan los 7: los corrí contra los perfiles de `HEAD`, copiados aparte sin `git stash`, y después restauré los archivos nuevos.
+
+### Verificación
+- **Frontend 420/420** (413 + 7), también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.** Finales de línea: los dos perfiles siguen en CRLF; el componente y el test nuevos, en LF, como `Modal.tsx`.
+- **Mutación (15, sobre `FollowListModal.tsx`):** mueren 12. **Sobreviven 3:**
+  - *`catch` que no vacía la lista:* equivalente. La lista ya empieza vacía en cada apertura.
+  - *Sin la guarda `cancelled`:* equivalente en la práctica. El modo no cambia con la lista abierta, y React 18 ignora un `set…` después de desmontar.
+  - *Estado de carga inicial en `false`:* **no equivalente.** Mostraría "Todavía no…" durante un cuadro, hasta que corre el efecto. No se puede observar con Testing Library, porque `render()` ya ejecuta los efectos.
+  - El mutante "el link no cierra la lista" sobrevivía en la primera corrida: el test navegaba a otra ruta y se desmontaba el perfil entero. Por eso agregué el último test, y ahora muere.
+
+### Errores propios
+1. **La primera corrida de mutación fue falsa:** marcó los 15 como "muere" porque `execSync` usa cmd.exe en Windows y no encontraba `node_modules/.bin/vitest`. Fallaba **todo**, mutado o no. Me llamó la atención que murieran mutantes que esperaba que sobrevivieran. Pasé a `node node_modules/vitest/vitest.mjs` y agregué una corrida de control sin mutar al principio del script.
+2. Al principio, el test de "pide mis listas" no probaba nada en el perfil propio: `myFollowers` también se llama al montar, para el contador. Ahora limpia el mock antes de abrir la lista.
+3. Dejé un comentario `eslint-disable` en el componente, pero el proyecto no tiene ESLint. Lo saqué.
+4. **Doc que ya estaba mal:** `FRONTEND_CONTEXT` §4 decía "47 componentes" y el punto 8, "48"; antes de este cambio eran 48. Ahora dice 49.
+
+### ⚠️ NO verificado
+- No lo vi en el navegador. El JSX y las clases son los de antes (salvo las dos clases que no generaban CSS), pero no lo comprobé a ojo.
+- **Hallazgo, sin arreglar (no estaba en el pedido):** si falla el pedido de la lista (red, 500), el modal dice "Todavía no tenés seguidores." en vez de un error. Es el mismo patrón que se corrigió en `NGOEmpleados` (§98). Queda para la segunda pasada.
