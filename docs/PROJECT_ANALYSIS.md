@@ -3118,3 +3118,19 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 - No lo vi en el navegador: ni el aviso (usa `-mt-3` para pegarse al buscador dentro de `space-y-6`), ni cuánto tarda Explorar con 500 proyectos reales y 500 pines en el mapa. Con los datos de la tesis no se llega a 200.
 - **Comentarios/docs que quedaron desactualizados y no toqué (fuera de "solo código + tests" del frontend):** el comentario de `backend/src/routes/projects.js:148` dice "Explore pide 200"; `docs/BACKEND_ROADMAP_ANALYSIS.md:303` dice "`ExploreScreen` pide `200` (parche)". Conviene actualizarlos a 500.
 - Sigue sin haber paginación real: con más de 500 proyectos activos, los que sobran no se pueden buscar desde Explorar (ahora al menos se avisa).
+
+## 120. Integración de S1–S10 (cinco subagentes en paralelo)
+
+**Qué se hizo:** con permiso del usuario, los hallazgos de la segunda pasada (§106) se repartieron entre cinco subagentes, cada uno en su propio git worktree y con archivos que no se superponían. Los grupos fueron: `ReviewsModal`; backend (S2 y S9); Explorar; perfiles y feed; duplicaciones. Cada uno trabajó con test primero, mutación con corrida de control y un commit por tarea, y dejó un borrador de documentación. El coordinador hizo un cherry-pick a `main` de cada commit en el orden acordado (S1 → S3+S4 → S2 → S6 → S10 → S9 → S7 → S8 → S5), le agregó su sección (§107–§119) y sus cambios de `FRONTEND_CONTEXT`, y lo modificó con `--amend`. **No hubo conflictos.** Este commit junta lo que tocaban todas las tareas a la vez: el punto 8 de `FRONTEND_CONTEXT` (recalculado: 22 de 49 componentes sin test propio), los conteos de `CLAUDE.md`, los ✅ y los pendientes nuevos en `REVISION.md`, y las dos referencias viejas a "200" (`BACKEND_ROADMAP_ANALYSIS` y un comentario de `routes/projects.js`).
+
+### Verificación (sobre `main` ya integrado, no en los worktrees)
+- **Backend:** SQLite **487/487** y Postgres **489/489**, las dos también con `TZ=America/Argentina/Cordoba`; 0 fail y 0 cancelled.
+- **Frontend:** **503/503** (420 + 83), también con la hora de Córdoba. **Typecheck: 0 errores.**
+- Ningún commit tiene línea de coautor ni atribución.
+
+### Errores propios
+- **Los worktrees se crearon desde un commit viejo** (`31f0bee`, 31 commits detrás de `main`) y no lo previne en las instrucciones. Los cinco agentes lo detectaron (el conteo de tests no coincidía) y avanzaron la rama a `main` antes de trabajar; el de backend tuvo que resolver un conflicto en los `require` de `posts.js`.
+
+### ⚠️ NO verificado
+- Nada visual: los estados de error nuevos, el aviso de los 500, la barra de la empresa con "Panel" y los Momentos de la ONG no se vieron en un navegador.
+- Un agente vio fallar 2 tests de `db-transaction.test.js` en 2 de 6 corridas de Postgres con cinco agentes usando la misma base. En las dos corridas de integración, con la máquina sin otra carga, pasaron. Puede ser un test sensible a los tiempos bajo carga; queda anotado.

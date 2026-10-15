@@ -1,6 +1,6 @@
 # REVISION.md — Revisión de código de VoluntariAR (2026-10-13)
 
-> **Estado (2026-10-14):** este informe se escribió sin tocar el código; después se fueron arreglando ítems en commits separados. Los arreglados tienen ✅ y la sección de `PROJECT_ANALYSIS.md` donde está el detalle (§51–§105; la segunda pasada, en §106). Las correcciones a lo que decía este informe (B2 y B8 tenían menos impacto visible del indicado) están en esas secciones.
+> **Estado (2026-10-14):** este informe se escribió sin tocar el código; después se fueron arreglando ítems en commits separados. Los arreglados tienen ✅ y la sección de `PROJECT_ANALYSIS.md` donde está el detalle (§51–§105; la segunda pasada, en §106, y sus arreglos en §107–§119). Las correcciones a lo que decía este informe (B2 y B8 tenían menos impacto visible del indicado) están en esas secciones.
 
 **Base revisada:** commit `0d6663a` (`main`). **Método:** tres revisiones de solo lectura en paralelo (backend, frontend, tests+docs) y una verificación propia de los hallazgos de severidad alta. No se modificó ningún archivo del proyecto; este informe es lo único nuevo.
 
@@ -287,16 +287,16 @@ Cada uno con test primero (rojo → verde), SQLite + Postgres + TZ de Córdoba s
 
 | Sev. | Id | Tipo | Qué |
 |---|---|---|---|
-| Media | S1 | bug | Errores de carga que se ven como "no hay nada" (lista abajo) |
-| Media | S2 | bug | `/ngo/momentos` dice "Fotos de tus voluntariados" y muestra las publicaciones de **todas** las ONGs |
-| Baja | S3 | bug | `ReviewsModal` desde el feed: después de calificar, al reabrirlo se ve la lista vieja |
-| Baja | S4 | mejora | `ReviewsModal` no precarga tu calificación: volver a calificar la reemplaza con 5 ★ y sin comentario, sin avisar |
-| Baja | S5 | bug | Explorar pide `limit: 200`: con más proyectos activos, los demás no aparecen ni en la lista ni en el mapa |
-| Baja | S6 | bug | Seguir/dejar de seguir que falla no avisa nada |
-| Baja | S7 | mejora | Duplicaciones: mapas de patrocinio, marcadores de `ProjectMap`, ítems de `BottomNav` |
-| Baja | S8 | mejora | La búsqueda de Explorar no ignora acentos ("cordoba" no encuentra "Córdoba") |
-| Baja | S9 | mejora | `seed.js` no se niega a correr en producción (crearía cuentas con `Password1`) |
-| Baja | S10 | mejora | El error del formulario de `ReviewsModal` no tiene `role="alert"` |
+| Media ✅ §107–§111 | S1 | bug | Errores de carga que se ven como "no hay nada" (lista abajo) |
+| Media ✅ §113 (filtro `ngo_id`, decisión del usuario) | S2 | bug | `/ngo/momentos` dice "Fotos de tus voluntariados" y muestra las publicaciones de **todas** las ONGs |
+| Baja ✅ §112 | S3 | bug | `ReviewsModal` desde el feed: después de calificar, al reabrirlo se ve la lista vieja |
+| Baja ✅ §112 | S4 | mejora | `ReviewsModal` no precarga tu calificación: volver a calificar la reemplaza con 5 ★ y sin comentario, sin avisar |
+| Baja ✅ §119 | S5 | bug | Explorar pide `limit: 200`: con más proyectos activos, los demás no aparecen ni en la lista ni en el mapa |
+| Baja ✅ §114 | S6 | bug | Seguir/dejar de seguir que falla no avisa nada |
+| Baja ✅ §117 (la barra de la ONG queda pendiente de decisión) | S7 | mejora | Duplicaciones: mapas de patrocinio, marcadores de `ProjectMap`, ítems de `BottomNav` |
+| Baja ✅ §118 | S8 | mejora | La búsqueda de Explorar no ignora acentos ("cordoba" no encuentra "Córdoba") |
+| Baja ✅ §116 | S9 | mejora | `seed.js` no se niega a correr en producción (crearía cuentas con `Password1`) |
+| Baja ✅ §115 | S10 | mejora | El error del formulario de `ReviewsModal` no tiene `role="alert"` |
 
 **S1: errores que se ven como vacío** (el mismo patrón que F9 y `NGOEmpleados`, §65 y §98). Un error de red o un 500 se traga, y la pantalla muestra el estado "vacío" como si fuera un dato:
 - `FollowListModal.tsx` → "Todavía no tenés seguidores." (era así antes de §105; el refactor lo mantuvo a propósito).
@@ -342,7 +342,15 @@ Cada uno con test primero (rojo → verde), SQLite + Postgres + TZ de Córdoba s
 - `API_CONTEXT` campo por campo (solo comparé los códigos de éxito) y `PROJECT_ANALYSIS`/`BACKEND_ROADMAP_ANALYSIS` contra el código.
 - Nada visual ni táctil: S2, S7 (barras) y S10 son por lectura del código.
 
-### Orden propuesto (si los aprobás; un commit cada uno)
+### Pendientes que surgieron al arreglarlos (no tocados; necesitan tu decisión)
+- **Barra inferior de la ONG en pantallas públicas** (S7, §117): unificarla con `NGOBottomNav` le saca "Explorar", su único acceso a `/explore` en celular. Opciones: agregar "Explorar" a `NGOBottomNav` o aceptar perderlo. `SidebarNav` de `Root.tsx` (escritorio) tiene una tercera copia de las listas.
+- **Tipo `Rating` vs. el feed** (§112): `api.ts` declara `user_id` obligatorio y `GET /api/follows/feed` no lo manda (regla 2). Agregarlo al SELECT o marcarlo opcional.
+- **`ProjectDetails` tiene su propio formulario de calificación** (no usa `ReviewsModal`): por lectura, el mismo problema de S4.
+- **`InlineError` sin `role="alert"` propio:** cada pantalla nueva lo envuelve en un `<div role="alert">`; ponerlo en el componente lo resolvería para todas.
+- `NGOPublicProfile` traga el error de `ngoStatus` (muestra "Seguir" aunque ya la sigas); seguir una ONG sugerida en Inicio no bloquea el doble clic.
+- `/api/ngos/me` es pesado para sacar solo el id en `NGOMoments` (§113).
+
+### Orden propuesto (si los aprobás; un commit cada uno) — hecho en §107–§119
 1. **S1**, por pantalla: `ReviewsModal` y `FollowListModal` primero (las dos son modales chicos).
 2. **S3 + S4** juntos (los dos son `ReviewsModal` + `FeedPostCard`).
 3. **S2**: necesito que elijas (a) o (b).

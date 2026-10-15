@@ -145,7 +145,7 @@ router.get('/', optionalAuth, async (req, res) => {
   try {
     const { category, type, status, search, modality, modalidad, sort = 'featured' } = req.query;
     // Paginación (deuda conocida, §96): antes limit/offset iban con parseInt directo al SQL (`limit=abc` → LIMIT NaN,
-    // 500 en Postgres) y sin tope. 500 es lo máximo que pide hoy el frontend (CompanyOwnProfile; Explore pide 200).
+    // 500 en Postgres) y sin tope. 500 es lo máximo que pide hoy el frontend (CompanyOwnProfile y Explore, §119).
     const limit = clampInt(req.query.limit, 20, 1, 500);
     const offset = clampInt(req.query.offset, 0, 0, Number.MAX_SAFE_INTEGER);
     const modFilter = modality || modalidad;

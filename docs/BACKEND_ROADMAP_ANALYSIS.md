@@ -300,7 +300,7 @@ app.use(express.json({ limit: '5mb' }));            // recién después
 | Patrón anti-N+1 con `IN (...)` + `Promise.all` | ✅ Es la convención vigente — mantenerla en todo endpoint de listado nuevo (dashboard de empresa, ficha de voluntario) |
 | **`db.transaction()` en el adaptador** | ✅ Hecho (`PROJECT_ANALYSIS.md §34`). Desbloquea Pagos y resolvió la carrera de `cupos_ocupados` en aprobar/rechazar/cancelar inscripciones |
 | `verifyOwnership()` reutilizable (§1.1) | ⏳ Pendiente (va con Multimedia) |
-| Paginación real en `GET /api/projects` | ⏳ Pendiente — hoy `limit` default 20 y `ExploreScreen` pide `200` (parche) |
+| Paginación real en `GET /api/projects` | ⏳ Pendiente — hoy `limit` default 20, tope 500 (§96) y `ExploreScreen` pide `500` y avisa si la respuesta viene llena (§119) |
 | Mover helpers de formateo a `src/lib/formatters.js` | ⏳ Pendiente — hoy están exportados desde `projects.js` |
 | Rate limiting (auth, uploads, checkout) | ⏳ Pendiente — pasa a prioridad media-alta al sumar Multimedia y Pagos |
 
