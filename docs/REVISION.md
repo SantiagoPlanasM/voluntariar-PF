@@ -1,6 +1,6 @@
 # REVISION.md — Revisión de código de VoluntariAR (2026-10-13)
 
-> **Estado (2026-10-14):** este informe se escribió sin tocar el código; después se fueron arreglando ítems en commits separados. Los arreglados tienen ✅ y la sección de `PROJECT_ANALYSIS.md` donde está el detalle (§51–§94). Las correcciones a lo que decía este informe (B2 y B8 tenían menos impacto visible del indicado) están en esas secciones.
+> **Estado (2026-10-14):** este informe se escribió sin tocar el código; después se fueron arreglando ítems en commits separados. Los arreglados tienen ✅ y la sección de `PROJECT_ANALYSIS.md` donde está el detalle (§51–§95). Las correcciones a lo que decía este informe (B2 y B8 tenían menos impacto visible del indicado) están en esas secciones.
 
 **Base revisada:** commit `0d6663a` (`main`). **Método:** tres revisiones de solo lectura en paralelo (backend, frontend, tests+docs) y una verificación propia de los hallazgos de severidad alta. No se modificó ningún archivo del proyecto; este informe es lo único nuevo.
 
@@ -217,7 +217,7 @@ Los ids (B = backend, F = frontend, T = tests, D = docs) son los de cada revisi�
 
 | Conocido | ¿Sigue? | Detalle |
 |---|---|---|
-| `PUT /projects/:id` no parcial | **Sí** | `projects.js:784-796` pisa título, tipo y `status || 'active'`; además la respuesta arma roles/requisitos/categoría con lo que mandó el body (`:808-810`) aunque no los guarda. |
+| `PUT /projects/:id` no parcial | ✅ **Resuelto en §95** (era: sí) | `projects.js:784-796` pisa título, tipo y `status || 'active'`; además la respuesta arma roles/requisitos/categoría con lo que mandó el body (`:808-810`) aunque no los guarda. |
 | `GET /projects` sin paginación | **Sí** | `projects.js:62,146,194`: `limit` sin tope, sin desempate en `recent`/`rating`; `limit=abc` → `LIMIT NaN` (500 en Postgres, a confirmar). F6 es una consecuencia nueva. |
 | `fmt` compartido | ✅ **Resuelto en §86** (era: a medias) | El `fmt` de proyectos ya se importa (`follows.js:8`, `ngos.js:10`), pero `follows.js:14-25` tiene una **copia de `fmtNgo`**, `follows.js:12` un `parseJson` sin uso, y `ngos.js:224` devuelve filas sin `fmt`. |
 | `ReviewModal` duplicado | **Sí** | `ReviewModal` en `MyParticipation.tsx:6,174`; `ReviewsModal` en `FeedPostCard.tsx:10,508`. |

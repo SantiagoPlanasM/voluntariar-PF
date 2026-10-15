@@ -2448,3 +2448,27 @@ Desarrollo/tests sin variable → valor de desarrollo; con variable → esa; pro
 - **El deploy en Render** (no hay deploy). Por lectura de `render.yaml`, la variable se genera.
 - **Tu `.env` local:** no lo abrí. Si tuviera `NODE_ENV=production` sin `JWT_SECRET`, el backend local no arrancaría (con el error de arriba).
 - Los tokens emitidos con el secreto viejo dejan de valer si cambia el secreto (normal; en Render el valor generado es estable entre deploys).
+
+## 95. `PUT /api/projects/:id` parcial (deuda conocida, aprobada por el usuario)
+
+**Contexto (confirmado con tests, rojo 16 de 17):** el PUT pisaba todo lo que no venía. Mandando solo el título respondía **500** (descripción y ubicación a `NULL` contra el `NOT NULL`). Un `status` omitido volvía a `'active'` (**reactivaba un proyecto terminado**), y los montos, las horas y los textos opcionales quedaban en 0/`NULL`. Además respondía roles, requisitos y categoría **tomados del body, sin guardarlos**, y validaba mucho menos que el alta. Ninguna pantalla usa el endpoint (no hay edición de proyectos en la interfaz), así que el riesgo de cambiar el contrato era bajo.
+
+**Qué se hizo (`routes/projects.js`):**
+- Cada campo que no viene conserva su valor. El resultado combinado se valida con `validateProject` (como el alta), con chequeos de tipo (textos como string, `type` en `fugaz|sostenido`, montos finitos ≥ 0). `null`/`''` borra los opcionales.
+- `roles_needed`, `requirements` y `category`, si vienen, se validan como en el alta (`cleanTextList`, B5) y **reemplazan** a los actuales. Proyecto y asociaciones van en **una transacción** (regla 21), con la condición de capacidad atómica de §40 en el `UPDATE`.
+- La respuesta se relee de la base. El helper nuevo `loadAssoc(q, id)` (roles, requisitos y categoría) lo usan el PUT y `GET /:id`, que tenía la misma consulta.
+
+### Tests
+- `projects-partial-update.test.js` (nuevo, 17): cambiar solo el título no toca nada más; un proyecto terminado sigue terminado; roles/requisitos/categoría se guardan y la respuesta sale de la base; si no vienen quedan como estaban; listas vacías los borran; `null` borra un opcional y es inválido en uno obligatorio; 10 casos inválidos → 400 sin cambiar nada; y una falla inyectada a mitad no deja nada a medias.
+- `ownership.test.js`: el test de la ONG **dueña** mandaba `description: 'x'`, que el PUT viejo aceptaba sin validar. Le puse una descripción válida (el test prueba la autorización, no la validación). El de la ONG ajena sigue dando 404 (se chequea el dueño antes de validar).
+
+### Verificación
+- **SQLite 452/452 y Postgres 454/454**, también con `TZ=America/Argentina/Cordoba`.
+- **Mutación (12):** título siempre del body, status omitido → active, meta omitida → 0, no guardar roles/categoría, borrar requisitos aunque no vengan, responder sin releer, no validar el combinado, montos/tipo/textos sin chequear, `null` que no borra: **los 12 mueren**.
+
+### Errores propios
+- Ninguno en esta tarea (el test de `ownership` que cambié no era un error mío: el PUT viejo aceptaba datos que el alta rechaza).
+
+### ⚠️ NO verificado
+- En Chrome: no hay pantalla que lo use.
+- `PUT` con `latitude`/`longitude` inválidos (texto): se guardan como `NaN`→`null` como antes. No lo cambié.

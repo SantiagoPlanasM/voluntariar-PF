@@ -115,6 +115,21 @@ function cleanTextList(val, { label, min, max, maxItems }) {
   return { list };
 }
 
+// Roles, requisitos y categoría de un proyecto, leídos de sus tablas, en la forma que espera fmt().
+// `q` es db o tx. Lo usan GET /:id y PUT /:id (antes el PUT respondía con lo que mandaba el body).
+async function loadAssoc(q, projectId) {
+  const roles = await q.all(
+    `SELECT ro.nombre FROM project_roles pr JOIN roles ro ON ro.id = pr.rol_id WHERE pr.project_id = $1`, [projectId]);
+  const reqs = await q.all(`SELECT descripcion FROM requisitos WHERE project_id = $1`, [projectId]);
+  const cat = await q.get(
+    `SELECT c.nombre FROM project_categorias pc JOIN categorias c ON c.id = pc.categoria_id WHERE pc.project_id = $1 LIMIT 1`, [projectId]);
+  return {
+    roles_json: JSON.stringify(roles.map((r) => r.nombre)),
+    requisitos_json: JSON.stringify(reqs.map((r) => r.descripcion)),
+    category_name: cat?.nombre || '',
+  };
+}
+
 // ── GET /api/projects ─────────────────────────────────────────────────────
 router.get('/', optionalAuth, async (req, res) => {
   try {
@@ -656,19 +671,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
     if (!project) return res.status(404).json({ error: 'Proyecto no encontrado' });
 
     // Roles, requisitos y categoría
-    const rolesRows = await db.all(
-      `SELECT ro.nombre FROM project_roles pr JOIN roles ro ON ro.id = pr.rol_id WHERE pr.project_id = $1`, [req.params.id]
-    );
-    const reqRows = await db.all(
-      `SELECT descripcion FROM requisitos WHERE project_id = $1`, [req.params.id]
-    );
-    const catRow = await db.get(
-      `SELECT c.nombre FROM project_categorias pc JOIN categorias c ON c.id = pc.categoria_id WHERE pc.project_id = $1 LIMIT 1`, [req.params.id]
-    );
-
-    project.roles_json      = JSON.stringify(rolesRows.map(r => r.nombre));
-    project.requisitos_json = JSON.stringify(reqRows.map(r => r.descripcion));
-    project.category_name   = catRow?.nombre || '';
+    Object.assign(project, await loadAssoc(db, req.params.id));
 
     const comments = await db.all(
       `SELECT c.id, c.project_id, c.user_id, c.comment, c.created_at, u.name AS user_name, u.avatar AS user_avatar,
@@ -819,50 +822,113 @@ router.put('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
     const project = await db.get('SELECT * FROM projects WHERE id=$1 AND ngo_id=$2', [req.params.id, ngo?.id]);
     if (!project) return res.status(404).json({ error: 'Proyecto no encontrado o sin permiso' });
 
-    const { title, description, full_description, image, location, type, duration,
-            volunteers_needed, funding_goal, cost_per_person, hours_per_week, status,
-            latitude, longitude, latitud, longitud, modality, modalidad } = req.body;
+    // PARCIAL (deuda conocida resuelta con OK del usuario, PROJECT_ANALYSIS.md §95): un campo que no viene
+    // (undefined) conserva su valor. Antes se pisaba: título/descripción/ubicación a NULL (500 por NOT NULL),
+    // status a 'active' (reactivaba un proyecto terminado), montos a 0, horas y textos opcionales a NULL.
+    const b = req.body || {};
+    const has = (k) => b[k] !== undefined;
 
+    for (const [k, label] of [['title', 'El título'], ['description', 'La descripción'], ['location', 'La ubicación']])
+      if (has(k) && b[k] !== null && typeof b[k] !== 'string') return res.status(400).json({ error: `${label} tiene que ser un texto` });
+    for (const [k, label] of [['full_description', 'La descripción completa'], ['image', 'La imagen'], ['duration', 'La duración']])
+      if (has(k) && b[k] !== null && typeof b[k] !== 'string') return res.status(400).json({ error: `${label} tiene que ser un texto` });
+    if (has('type') && !['fugaz', 'sostenido'].includes(b.type))
+      return res.status(400).json({ error: 'Tipo inválido: tiene que ser fugaz o sostenido' });
     // Antes un status fuera de la lista reventaba en el CHECK de la base (500). REVISION B11.
-    if (status != null && !['active', 'completed', 'cancelled'].includes(status))
+    if (b.status != null && !['active', 'completed', 'cancelled'].includes(b.status))
       return res.status(400).json({ error: 'Estado inválido: tiene que ser active, completed o cancelled' });
 
+    // El resultado (lo que viene + lo que ya estaba) tiene que cumplir lo mismo que un alta.
+    const m = {
+      titulo:      has('title') ? b.title : project.titulo,
+      descripcion: has('description') ? b.description : project.descripcion,
+      ubicacion:   has('location') ? b.location : project.ubicacion,
+      tipo:        has('type') ? b.type : project.tipo,
+      duracion:    has('duration') ? (b.duration?.trim() || null) : project.duracion,
+      horas:       has('hours_per_week') ? b.hours_per_week : project.horas_semanales,
+      // Capacidad: omitida o null se CONSERVA (antes `parseInt(undefined) || 0` la pisaba con 0).
+      cupos:       b.volunteers_needed != null ? b.volunteers_needed : project.cupos,
+    };
+    const invalid = validateProject({ title: m.titulo, description: m.descripcion, location: m.ubicacion, tipo: m.tipo,
+      duracion: m.duracion, horas_semanales: m.horas, volunteers_needed: m.cupos });
+    if (invalid) return res.status(400).json({ error: invalid });
+    const newCupos = Number.parseInt(m.cupos, 10);
+
+    // Montos: si vienen, número finito >= 0 (null = 0); si no, se conservan.
+    const money = (k, current, label) => {
+      if (!has(k)) return { value: current };
+      if (b[k] === null || b[k] === '') return { value: 0 };
+      const n = Number(b[k]);
+      return Number.isFinite(n) && n >= 0 ? { value: n } : { error: `${label} tiene que ser un número mayor o igual a 0` };
+    };
+    const meta = money('funding_goal', project.meta_financiera, 'La meta de financiamiento');
+    if (meta.error) return res.status(400).json({ error: meta.error });
+    const costo = money('cost_per_person', project.costo, 'El costo por persona');
+    if (costo.error) return res.status(400).json({ error: costo.error });
+
+    // Roles, requisitos y categoría: si vienen se validan como en el alta (REVISION B5) y REEMPLAZAN a los
+    // actuales; si no vienen, no se tocan. Antes no se guardaban y la respuesta los inventaba del body.
+    const roles = has('roles_needed') ? cleanTextList(b.roles_needed, { label: 'Roles', min: 2, max: 40, maxItems: 20 }) : null;
+    if (roles?.error) return res.status(400).json({ error: roles.error });
+    const reqs = has('requirements') ? cleanTextList(b.requirements, { label: 'Requisitos', min: 3, max: 100, maxItems: 20 }) : null;
+    if (reqs?.error) return res.status(400).json({ error: reqs.error });
+    if (has('category') && b.category !== null && (typeof b.category !== 'string' || b.category.trim().length > 60))
+      return res.status(400).json({ error: 'Categoría inválida' });
+
+    const { latitude, longitude, latitud, longitud, modality, modalidad } = b;
     const lat = latitude !== undefined ? (latitude != null ? parseFloat(latitude) : null)
               : (latitud !== undefined ? (latitud != null ? parseFloat(latitud) : null) : project.latitud);
     const lng = longitude !== undefined ? (longitude != null ? parseFloat(longitude) : null)
               : (longitud !== undefined ? (longitud != null ? parseFloat(longitud) : null) : project.longitud);
     const mod = modality || modalidad || project.modalidad ||
-              (location && (location.toLowerCase().includes('remoto') || location.toLowerCase().includes('virtual')) ? 'remoto' : 'presencial');
+              (m.ubicacion && (m.ubicacion.toLowerCase().includes('remoto') || m.ubicacion.toLowerCase().includes('virtual')) ? 'remoto' : 'presencial');
 
-    // Capacidad: si el cliente omite `volunteers_needed` (o manda null) se CONSERVA la actual; antes
-    // `parseInt(undefined) || 0` la pisaba con 0. Un valor explícito debe ser un entero >= 1, igual
-    // que al crear (antes un negativo violaba el CHECK(cupos >= 0) y devolvía 500).
-    let newCupos = project.cupos;
-    if (volunteers_needed !== undefined && volunteers_needed !== null) {
-      newCupos = Number.parseInt(volunteers_needed, 10);
-      if (Number.isNaN(newCupos) || newCupos < 1)
-        return res.status(400).json({ error: 'Los cupos deben ser un número positivo' });
-    }
+    // Proyecto + asociaciones en UNA transacción (regla 21): si algo falla, no queda nada a medias.
+    const result = await db.transaction(async (tx) => {
+      // `AND cupos_ocupados <= $9`: no se puede bajar la capacidad por debajo de las inscripciones ya
+      // aprobadas (AI_RULES regla 20), atómico en el propio UPDATE (§40).
+      const upd = await tx.run(
+        `UPDATE projects SET titulo=$1, descripcion=$2, descripcion_full=$3, foto_perfil=$4,
+         ubicacion=$5, tipo=$6, status=$7, duracion=$8, cupos=$9, meta_financiera=$10,
+         costo=$11, horas_semanales=$12, latitud=$13, longitud=$14, modalidad=$15, updated_at=CURRENT_TIMESTAMP
+         WHERE id=$16 AND cupos_ocupados <= $9`,
+        [m.titulo.trim(), m.descripcion.trim(),
+         has('full_description') ? (b.full_description?.trim() || null) : project.descripcion_full,
+         has('image') ? (b.image || null) : project.foto_perfil,
+         m.ubicacion.trim(), m.tipo, b.status != null ? b.status : project.status, m.duracion,
+         newCupos, meta.value, costo.value,
+         m.tipo === 'sostenido' ? parseInt(m.horas) : null,
+         lat, lng, mod,
+         req.params.id]
+      );
+      if (upd.changes === 0) return { capacity: true };
 
-    // `AND cupos_ocupados <= $9`: no se puede bajar la capacidad por debajo de las inscripciones ya
-    // aprobadas (AI_RULES regla 20). La condición va en el propio UPDATE (no en una lectura previa)
-    // para que sea atómica: en Postgres una aprobación concurrente se serializa sobre esta misma
-    // fila, y el UPDATE re-evalúa la condición con el contador ya actualizado.
-    const upd = await db.run(
-      `UPDATE projects SET titulo=$1, descripcion=$2, descripcion_full=$3, foto_perfil=$4,
-       ubicacion=$5, tipo=$6, status=$7, duracion=$8, cupos=$9, meta_financiera=$10,
-       costo=$11, horas_semanales=$12, latitud=$13, longitud=$14, modalidad=$15, updated_at=CURRENT_TIMESTAMP
-       WHERE id=$16 AND cupos_ocupados <= $9`,
-      [title?.trim(), description?.trim(), full_description?.trim() || null, image || null,
-       location?.trim(), type, status || 'active', duration?.trim() || null,
-       newCupos, parseFloat(funding_goal) || 0,
-       parseFloat(cost_per_person) || 0,
-       type === 'sostenido' ? parseInt(hours_per_week) : null,
-       lat, lng, mod,
-       req.params.id]
-    );
+      if (has('category')) {
+        await tx.run('DELETE FROM project_categorias WHERE project_id=$1', [req.params.id]);
+        const name = b.category?.trim() || '';
+        if (name) {
+          await tx.run('INSERT INTO categorias (nombre) VALUES ($1) ON CONFLICT (nombre) DO NOTHING', [name]);
+          const cat = await tx.get('SELECT id FROM categorias WHERE nombre=$1', [name]);
+          await tx.run('INSERT INTO project_categorias (project_id, categoria_id) VALUES ($1,$2)', [req.params.id, cat.id]);
+        }
+      }
+      if (roles) {
+        await tx.run('DELETE FROM project_roles WHERE project_id=$1', [req.params.id]);
+        for (const rolNombre of roles.list) {
+          await tx.run('INSERT INTO roles (nombre) VALUES ($1) ON CONFLICT (nombre) DO NOTHING', [rolNombre]);
+          const rol = await tx.get('SELECT id FROM roles WHERE nombre=$1', [rolNombre]);
+          await tx.run('INSERT INTO project_roles (project_id, rol_id) VALUES ($1,$2)', [req.params.id, rol.id]);
+        }
+      }
+      if (reqs) {
+        await tx.run('DELETE FROM requisitos WHERE project_id=$1', [req.params.id]);
+        for (const desc of reqs.list)
+          await tx.run('INSERT INTO requisitos (project_id, descripcion) VALUES ($1,$2)', [req.params.id, desc]);
+      }
+      return { capacity: false };
+    });
 
-    if (upd.changes === 0) {
+    if (result.capacity) {
       // O el proyecto desapareció, o la nueva capacidad quedaría por debajo de las aprobadas.
       const fresh = await db.get('SELECT cupos_ocupados FROM projects WHERE id=$1', [req.params.id]);
       if (!fresh) return res.status(404).json({ error: 'Proyecto no encontrado o sin permiso' });
@@ -871,10 +937,9 @@ router.put('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
       });
     }
 
+    // La respuesta sale de la base (lo guardado), no del body.
     const updated = await db.get('SELECT * FROM projects WHERE id=$1', [req.params.id]);
-    updated.roles_json = JSON.stringify(req.body.roles_needed || []);
-    updated.requisitos_json = JSON.stringify(req.body.requirements || []);
-    updated.category_name = req.body.category || '';
+    Object.assign(updated, await loadAssoc(db, req.params.id));
     res.json({ project: fmt(updated) });
   } catch (err) {
     console.error('PUT /projects error:', err);

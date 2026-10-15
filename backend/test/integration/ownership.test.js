@@ -216,7 +216,8 @@ describe('Autorización por dueño entre ONGs', () => {
       const before = await project1();
       const put = await api('/api/projects/proj-1', {
         token: owner, method: 'PUT',
-        body: { title: 'Reforestación Urbana 2', description: 'x', location: 'Córdoba', type: 'fugaz', status: 'active' },
+        // description válida: desde §95 el PUT valida como el alta (antes aceptaba 'x').
+        body: { title: 'Reforestación Urbana 2', description: 'Plantamos árboles nativos en la ciudad', location: 'Córdoba', type: 'fugaz', status: 'active' },
       });
       assert.equal(put.status, 200);
       assert.equal((await project1()).titulo, 'Reforestación Urbana 2');
