@@ -3311,3 +3311,30 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 - Nada visual: el aviso de una línea con "Reintentar" a la derecha, en un celular angosto, puede ocupar dos líneas.
 - **Si iniciás sesión desde el perfil** (tocando "Seguir" sin sesión), el estado no se vuelve a consultar: el botón queda en "Seguir" aunque ya la siguieras (con el código anterior pasaba lo mismo, porque la consulta sin sesión daba `false`). Se resolvería consultando de nuevo cuando cambia `user`; no lo hice (no era parte del pedido).
 - El backend del estado no se tocó (`GET /api/follows/ngo/:id/status`, `optionalAuth`).
+
+## 126. Inicio: "Seguir" una ONG sugerida se bloquea mientras se envía — pendiente de REVISION (§114)
+
+**Contexto:** en `MainFeed`, el botón "Seguir" de una ONG sugerida (en la barra lateral, `FeedSidebar`, y en las sugerencias del feed vacío) no tenía estado de envío: un doble clic mandaba dos `POST /api/follows/ngo/:id` (el backend responde bien al segundo desde §85, pero es un pedido de más y la UI no mostraba que estaba enviando). Anotado en el ⚠️ de §114 y en `REVISION.md`.
+
+**Qué se hizo:**
+- **`MainFeed`:** estado `sendingNgoIds: Set<string>` (las ONGs con un "Seguir" en vuelo). `handleFollowSuggestedNgo` agrega la ONG antes del pedido y la saca en un `finally` (anduvo o falló). Es un conjunto y no un id solo: se puede seguir otra ONG mientras la primera espera, y que una termine no desbloquea a la otra.
+- **Se bloquea el botón de esa ONG en los dos lugares** (barra y feed vacío) porque comparten el estado: `disabled={siguiendo || enviando}`, con `disabled:opacity-60`. El de otras ONGs sigue habilitado.
+- **`FeedSidebar`:** prop opcional nueva `sendingNgoIds` (`ReadonlySet<string>`, por defecto un conjunto vacío constante); sigue siendo presentacional.
+- El error de §114 no cambió: se limpia al volver a intentar, queda debajo de la ONG que falló, y al fallar el botón vuelve a estar habilitado (lo fija el test existente "reintentar lo limpia").
+- No se agregó una guarda en el manejador: el botón deshabilitado ya impide el segundo clic (React re-renderiza al terminar el primer evento de clic), y lo comprueba el test de dos clics.
+
+### Tests (nuevos: 2, en `FollowErrors.test.tsx`, describe "Inicio: seguir una ONG sugerida")
+- Barra lateral, pedido que no resuelve: dos clics en "+ Seguir" → **una sola llamada** y el botón deshabilitado.
+- Dos ONGs, Verde queda en vuelo y Azul falla: al tocar Verde en la barra, su botón del feed vacío también queda bloqueado (otro clic no manda nada); los de Azul siguen habilitados; Azul manda su pedido; cuando Azul falla aparece su aviso, Azul se desbloquea y Verde sigue bloqueada (en los dos lugares).
+- **Rojo de comportamiento:** con el código anterior fallaban los dos: "expected to be called 1 times, but got 2 times" y `toBeDisabled()` del botón del feed vacío.
+
+### Verificación
+- **Frontend 515/515** (513 + 2), también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.** Los tres archivos tocados siguen en CRLF en la copia de trabajo (diff de 55 líneas agregadas y 4 sacadas). `MainFeedErrors` y `FeedTabsPlacement` (que montan `MainFeed`) siguen en verde.
+- **Mutación (9, con corrida de control):** no marcar en vuelo; marcar reemplazando el conjunto en vez de agregar; sin `finally`; `finally` que vacía el conjunto entero; el feed vacío no bloquea; no pasarle la prop a la barra; la barra no bloquea; la barra o el feed vacío bloquean **todas** las ONGs (`size > 0`) → **mueren los 9.** No muté `disabled:opacity-60` (solo visual).
+
+### Errores propios
+- Ninguno en esta tarea. El test de dos ONGs lo armé desde el principio con una que queda en vuelo y otra que falla, para que "vaciar el conjunto entero" y "reemplazarlo" no sobrevivieran.
+
+### ⚠️ NO verificado
+- Nada visual: la opacidad del botón bloqueado (sin texto "Enviando…": el pedido suele tardar poco y el botón cambia a "Siguiendo" o la ONG sale de la lista al terminar).
+- La barra lateral es `hidden lg:block`: en jsdom se ve siempre; no lo probé en un escritorio real (igual que §110).

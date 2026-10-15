@@ -76,9 +76,13 @@ export function MainFeed() {
 
   // Error al seguir una ONG sugerida: se muestra debajo de esa ONG (antes solo se logueaba, REVISION S6).
   const [followError, setFollowError] = useState<FollowNgoError | null>(null);
+  // ONGs con un "Seguir" en vuelo: su botón (en la barra y en el feed vacío) queda bloqueado hasta la
+  // respuesta. Antes un doble clic mandaba dos pedidos.
+  const [sendingNgoIds, setSendingNgoIds] = useState<Set<string>>(new Set());
 
   const handleFollowSuggestedNgo = async (ngoId: string) => {
     setFollowError(null);
+    setSendingNgoIds(prev => new Set(prev).add(ngoId));
     try {
       await api.follows.followNgo(ngoId);
       setFollowingNgoIds(prev => new Set([...prev, ngoId]));
@@ -86,6 +90,8 @@ export function MainFeed() {
       loadFollowingFeed();
     } catch (err) {
       setFollowError({ ngoId, message: userMessage(err, FOLLOW_ERROR) });
+    } finally {
+      setSendingNgoIds(prev => { const next = new Set(prev); next.delete(ngoId); return next; });
     }
   };
 
@@ -205,11 +211,11 @@ export function MainFeed() {
 
                         <button
                           onClick={() => handleFollowSuggestedNgo(ngo.id)}
-                          disabled={followingNgoIds.has(ngo.id)}
+                          disabled={followingNgoIds.has(ngo.id) || sendingNgoIds.has(ngo.id)}
                           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
                             followingNgoIds.has(ngo.id)
                               ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
+                              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm disabled:opacity-60'
                           }`}
                         >
                           {followingNgoIds.has(ngo.id) ? 'Siguiendo' : 'Seguir'}
@@ -259,6 +265,7 @@ export function MainFeed() {
             suggestionsError={suggestionsError}
             onRetrySuggestions={retrySidebar}
             followError={followError}
+            sendingNgoIds={sendingNgoIds}
           />
         </aside>
       </div>

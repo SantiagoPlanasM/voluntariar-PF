@@ -14,9 +14,13 @@ interface FeedSidebarProps {
   onRetrySuggestions?: () => void;
   /** Error al seguir una ONG: se muestra debajo de esa ONG (REVISION S6). */
   followError?: FollowNgoError | null;
+  /** ONGs con un "Seguir" en vuelo: su botón queda bloqueado (antes un doble clic mandaba dos pedidos). */
+  sendingNgoIds?: ReadonlySet<string>;
 }
 
 export interface FollowNgoError { ngoId: string; message: string }
+
+const NO_IDS: ReadonlySet<string> = new Set();
 
 export function FeedSidebar({
   user,
@@ -27,6 +31,7 @@ export function FeedSidebar({
   suggestionsError = '',
   onRetrySuggestions,
   followError = null,
+  sendingNgoIds = NO_IDS,
 }: FeedSidebarProps) {
   return (
     <div className="space-y-4 w-full">
@@ -127,11 +132,11 @@ export function FeedSidebar({
 
                   <button
                     onClick={() => onFollowNgo(ngo.id)}
-                    disabled={isFollowing}
+                    disabled={isFollowing || sendingNgoIds.has(ngo.id)}
                     className={`px-3 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 flex-shrink-0 ${
                       isFollowing
                         ? 'bg-gray-100 text-gray-400 cursor-default'
-                        : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow'
+                        : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow disabled:opacity-60'
                     }`}
                   >
                     {isFollowing ? (

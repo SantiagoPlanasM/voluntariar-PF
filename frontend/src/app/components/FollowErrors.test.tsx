@@ -202,4 +202,43 @@ describe('Inicio: seguir una ONG sugerida', () => {
     expect(await within(main).findByRole('alert')).toHaveTextContent(FALLBACK);
     expect(within(main).getByRole('button', { name: 'Seguir' })).toBeEnabled();
   });
+
+  // Doble clic: antes no había estado de envío y cada clic mandaba un pedido.
+  test('mientras se envía, el botón de esa ONG está bloqueado: dos clics → un pedido', async () => {
+    f.feed.mockResolvedValue({ projects: [project] } as never);
+    f.followNgo.mockReturnValue(new Promise(() => {}));
+    mount();
+    await within(sidebar()).findByText('Fundación Verde');
+    const btn = within(sidebar()).getByRole('button', { name: '+ Seguir' });
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    expect(f.followNgo).toHaveBeenCalledTimes(1);
+    expect(btn).toBeDisabled();
+  });
+
+  test('bloquea también el botón de la misma ONG en el feed vacío, pero no el de otra ONG', async () => {
+    const azul = { id: 'n2', name: 'Red Azul', followers: 1 } as NGO;
+    vi.mocked(api.ngos.list).mockResolvedValue({ ngos: [verde, azul] } as never);
+    f.feed.mockResolvedValue({ projects: [] } as never);
+    // Verde queda en vuelo; Azul falla.
+    f.followNgo.mockImplementation((id: string) => (id === 'n1' ? new Promise(() => {}) : Promise.reject(boom())));
+    mount();
+    await screen.findByText('Tu feed personalizado está listo');
+    const main = screen.getByText('ONGs recomendadas para vos').parentElement!;
+    fireEvent.click(within(sidebar()).getAllByRole('button', { name: '+ Seguir' })[0]); // Verde, en la barra
+    const [verdeMain, azulMain] = within(main).getAllByRole('button', { name: 'Seguir' });
+    expect(verdeMain).toBeDisabled();
+    fireEvent.click(verdeMain);
+    expect(f.followNgo).toHaveBeenCalledTimes(1);
+    expect(azulMain).toBeEnabled();
+    expect(within(sidebar()).getAllByRole('button', { name: '+ Seguir' })[1]).toBeEnabled();
+    fireEvent.click(azulMain);
+    expect(f.followNgo).toHaveBeenCalledTimes(2);
+    expect(f.followNgo).toHaveBeenLastCalledWith('n2');
+    // Que falle Azul la desbloquea a ella sola: Verde sigue en vuelo y bloqueada.
+    expect(await within(main).findByRole('alert')).toHaveTextContent('Error interno del servidor');
+    expect(azulMain).toBeEnabled();
+    expect(verdeMain).toBeDisabled();
+    expect(within(sidebar()).getAllByRole('button', { name: '+ Seguir' })[0]).toBeDisabled();
+  });
 });
