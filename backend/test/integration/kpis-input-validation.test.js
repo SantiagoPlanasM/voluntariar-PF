@@ -39,6 +39,8 @@ describe('KPIs: datos inválidos → 400, no 500', () => {
     ['descripción no es texto', { nombre: 'Ok', descripcion: ['a'] }, 'La descripción tiene que ser un texto'],
     ['unidad no es texto', { nombre: 'Ok', unidad: { u: 1 } }, 'La unidad tiene que ser un texto'],
     ['tipo inválido', { nombre: 'Ok', tipo_valor: 'moneda' }, 'Tipo de KPI inválido'],
+    // F3 (decisión del usuario, §90): 'texto' ya no se acepta al crear ni al editar (valor es numérico).
+    ['tipo texto', { nombre: 'Ok', tipo_valor: 'texto' }, 'Tipo de KPI inválido'],
     ['valor no numérico', { nombre: 'Ok', valor: 'mucho' }, 'El valor tiene que ser un número'],
     ['valor infinito', { nombre: 'Ok', valor: '1e400' }, 'El valor tiene que ser un número'],
     ['valor con basura al final', { nombre: 'Ok', valor: '12abc' }, 'El valor tiene que ser un número'],

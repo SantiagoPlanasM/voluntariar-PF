@@ -24,7 +24,9 @@ const PROJECT_EXTRAS = ['ratings', 'recent_comments', 'comments_count', 'my_enro
 // Antes: `nombre` faltante en el PUT (NOT NULL), un `nombre` que no era string (`.trim()`) o un tipo fuera de la
 // lista (CHECK) daban 500, y valores como `valor: 'mucho'` o un nombre de 1000 caracteres se GUARDABAN
 // (PROJECT_ANALYSIS.md §88). El PUT no es parcial (deuda conocida): exige `nombre` igual que el alta.
-const KPI_TIPOS = ['numero', 'porcentaje', 'texto', 'booleano'];
+// 'texto' ya no se acepta al crear ni editar (F3, decisión del usuario, §90): kpis.valor es numérica y un KPI
+// de texto se guardaba vacío. El CHECK de la base lo sigue permitiendo para los que ya existían.
+const KPI_TIPOS = ['numero', 'porcentaje', 'booleano'];
 function validateKpi({ nombre, descripcion, valor, tipo_valor, unidad }) {
   const err = firstError(
     checkText(nombre, { label: 'El nombre del KPI', max: 120, required: true }),

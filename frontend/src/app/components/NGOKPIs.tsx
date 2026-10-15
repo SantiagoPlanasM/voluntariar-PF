@@ -13,9 +13,13 @@ const TIPO_COLORS: Record<string, string> = {
   booleano:   'bg-emerald-50 text-emerald-700',
 };
 
+// Etiquetas de todos los tipos (los KPIs de tipo 'texto' que ya existían se siguen mostrando)…
 const TIPO_LABELS: Record<string, string> = {
   numero: 'Número', porcentaje: 'Porcentaje', texto: 'Texto', booleano: 'Sí/No',
 };
+// …pero para crear o editar solo se ofrecen los numéricos: 'texto' se guardaba vacío (kpis.valor es numérica;
+// REVISION F3, decisión del usuario, PROJECT_ANALYSIS.md §90).
+const TIPOS_EDITABLES = ['numero', 'porcentaje', 'booleano'];
 
 function formatValor(kpi: KPI): string {
   if (kpi.valor === null || kpi.valor === undefined) return '—';
@@ -86,7 +90,7 @@ export function NGOKPIs() {
       nombre:      kpi.nombre,
       descripcion: kpi.descripcion || '',
       valor:       kpi.valor !== null && kpi.valor !== undefined ? String(kpi.valor) : '',
-      tipo_valor:  kpi.tipo_valor,
+      tipo_valor:  TIPOS_EDITABLES.includes(kpi.tipo_valor) ? kpi.tipo_valor : 'numero',
       unidad:      kpi.unidad || '',
       fecha:       kpi.fecha || '',
     });
@@ -177,7 +181,7 @@ export function NGOKPIs() {
                 <label className="text-xs font-semibold text-gray-500 mb-1 block">Tipo</label>
                 <select className={inp} aria-label="Tipo" value={form.tipo_valor}
                   onChange={e => setForm(f => ({ ...f, tipo_valor: e.target.value }))}>
-                  {Object.entries(TIPO_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  {TIPOS_EDITABLES.map(v => <option key={v} value={v}>{TIPO_LABELS[v]}</option>)}
                 </select>
               </div>
               <div>
@@ -185,7 +189,7 @@ export function NGOKPIs() {
                   {form.tipo_valor === 'booleano' ? 'Logrado (1=Sí, 0=No)' : 'Valor'}
                 </label>
                 <input className={inp}
-                  type={form.tipo_valor === 'texto' ? 'text' : 'number'}
+                  type="number"
                   placeholder={form.tipo_valor === 'porcentaje' ? '85' : form.tipo_valor === 'booleano' ? '1 o 0' : '500'}
                   aria-label={form.tipo_valor === 'booleano' ? 'Logrado (1=Sí, 0=No)' : 'Valor'} value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} />
               </div>

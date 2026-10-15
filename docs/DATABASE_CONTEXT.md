@@ -129,7 +129,7 @@ id · project_id (FK→projects, CASCADE) · descripcion (NOT NULL) · cantidad 
 id · nombre (UNIQUE, NOT NULL) · descripcion · created_at.
 
 ### `kpis`
-id · project_id (FK→projects, CASCADE) · nombre (NOT NULL) · descripcion · valor (REAL) · tipo_valor (CHECK IN `numero`,`porcentaje`,`texto`,`booleano`, default `numero`) · unidad · fecha · created_at.
+id · project_id (FK→projects, CASCADE) · nombre (NOT NULL) · descripcion · valor (REAL) · tipo_valor (CHECK IN `numero`,`porcentaje`,`texto`,`booleano`, default `numero`; la API ya no acepta `texto` al crear/editar — `valor` es REAL y quedaba vacío —, el CHECK lo mantiene por los que ya existían: `PROJECT_ANALYSIS.md §90`) · unidad · fecha · created_at.
 
 ### `enrollments`
 | Columna | Tipo | Restricciones |

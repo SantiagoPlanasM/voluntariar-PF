@@ -190,7 +190,7 @@
 
 ### `POST /api/projects/:id/kpis` — Auth, role `ngo` (dueño)
 - **Body:** `{ nombre, descripcion?, valor?, tipo_valor?, unidad?, fecha? }`
-- **Validación (`validateKpi`, también en el PUT; `PROJECT_ANALYSIS.md §88`):** `nombre` texto obligatorio ≤ 120; `descripcion` ≤ 500 y `unidad` ≤ 40 (texto o `null`); `tipo_valor` ∈ `numero|porcentaje|texto|booleano` (default `numero`); `valor` número finito (`Number()` estricto: `"12abc"` no pasa) o `null`/`""` = sin valor. Si no → **400**.
+- **Validación (`validateKpi`, también en el PUT; `PROJECT_ANALYSIS.md §88`):** `nombre` texto obligatorio ≤ 120; `descripcion` ≤ 500 y `unidad` ≤ 40 (texto o `null`); `tipo_valor` ∈ `numero|porcentaje|booleano` (default `numero`; **`texto` ya no se acepta**, §90); `valor` número finito (`Number()` estricto: `"12abc"` no pasa) o `null`/`""` = sin valor. Si no → **400**.
 - **Respuesta 201:** `{ kpi }`.
 
 ### `PUT /api/projects/:id/kpis/:kpiId` — Auth, role `ngo` (dueño)

@@ -2325,3 +2325,28 @@ Para las seis pantallas, los tres órdenes de llegada: la nueva primero (más un
 
 ### ⚠️ NO verificado
 - La carrera en el navegador real (no hay forma de agregar latencia desde la extensión), y el cambio de `:id` sin desmontar en Chrome. Las navegaciones de la extensión recargan la página entera.
+
+## 90. KPI de tipo "texto": se saca (decisión del usuario) — REVISION F3
+
+**Contexto:** el formulario ofrecía el tipo "texto", pero `kpis.valor` es `REAL`: "Alta" llegaba como `NaN` → `null` y el KPI quedaba con "—". El usuario eligió **sacar el tipo** (en vez de agregar una columna de texto).
+
+**Qué se hizo:**
+- **Backend:** `KPI_TIPOS` (`validateKpi`, §88) ya no incluye `texto`: crear o editar con ese tipo da 400 "Tipo de KPI inválido". El `CHECK` de la base **no se tocó**: los KPIs de tipo texto que ya existan siguen siendo válidos.
+- **Frontend (`NGOKPIs`):** el selector ofrece solo Número, Porcentaje y Sí/No (`TIPOS_EDITABLES`), y el valor es siempre numérico. Un KPI viejo de tipo texto **se sigue viendo** con su etiqueta. **Al editarlo, el formulario arranca en "Número"**: si no, se mandaría un tipo que el servidor ahora rechaza.
+
+### Tests
+- Backend: el caso `tipo texto` → 400 en POST y PUT (`kpis-input-validation.test.js`, +2).
+- Frontend (`NGOKPIs.test.tsx`, +3): el selector no ofrece "Texto" y el valor es numérico; un KPI de texto existente se sigue mostrando; al editarlo y guardar, **lo que se envía** es `tipo_valor: 'numero'`.
+
+### Verificación
+- **Backend SQLite 419/419 y Postgres 421/421. Frontend 396/396. Typecheck: 0 errores.**
+- **Mutación (4):** volver a aceptar `texto` en el back y en el front, y sacar el mapeo al editar, mueren. Sobrevive 1, **equivalente**: el `type` del campo según "texto". Con el selector sin esa opción y el mapeo al editar, el formulario ya no puede estar en ese tipo.
+
+### Errores propios
+1. **Un arnés de mutación inválido:** en bash usé `read` sin `-r` y se comió las barras invertidas de los patrones. Ningún mutante se aplicó ("no aplica") y los resultados no valían nada. Lo rehice con un script en archivo y reemplazo literal.
+2. **Un test que no probaba lo importante:** "al editar arranca en Número" miraba el valor que **muestra** el `<select>`. Con el estado en "texto" y esa opción inexistente, el DOM igual muestra la primera, así que pasaba aunque se mandara `texto`. Lo vio la mutación; ahora el test guarda y revisa lo enviado.
+3. Al editar `projects.js` (CRLF) metí 2 saltos `\n` sueltos en un comentario; lo detecté y normalicé a CRLF antes de commitear.
+
+### ⚠️ NO verificado
+- En Chrome no lo miré: es un selector con una opción menos (los tests cubren lo enviado).
+- Si en producción hay KPIs de tipo texto, se ven con "—" (como antes). Para que tengan valor hay que editarlos (pasan a "Número").

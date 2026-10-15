@@ -1,6 +1,6 @@
 # REVISION.md — Revisión de código de VoluntariAR (2026-10-13)
 
-> **Estado (2026-10-14):** este informe se escribió sin tocar el código; después se fueron arreglando ítems en commits separados. Los arreglados tienen ✅ y la sección de `PROJECT_ANALYSIS.md` donde está el detalle (§51–§89). Las correcciones a lo que decía este informe (B2 y B8 tenían menos impacto visible del indicado) están en esas secciones.
+> **Estado (2026-10-14):** este informe se escribió sin tocar el código; después se fueron arreglando ítems en commits separados. Los arreglados tienen ✅ y la sección de `PROJECT_ANALYSIS.md` donde está el detalle (§51–§90). Las correcciones a lo que decía este informe (B2 y B8 tenían menos impacto visible del indicado) están en esas secciones.
 
 **Base revisada:** commit `0d6663a` (`main`). **Método:** tres revisiones de solo lectura en paralelo (backend, frontend, tests+docs) y una verificación propia de los hallazgos de severidad alta. No se modificó ningún archivo del proyecto; este informe es lo único nuevo.
 
@@ -29,7 +29,7 @@ Los ids (B = backend, F = frontend, T = tests, D = docs) son los de cada revisi�
 | Media | B7 | bug | Filtro de palabras por subcadena: rechaza "computadora", "disputa", "reputación" | probado |
 | Media ✅ §54 | B8 | bug | Búsqueda distingue mayúsculas en Postgres (`LIKE`) | verificado en Postgres |
 | Media ✅ §63 | F2 | bug | Fechas de KPI se muestran un día antes | probado (Node) |
-| Media | F3 | bug | KPI de tipo "texto" no se puede guardar (se manda `parseFloat`) | por lectura |
+| Media ✅ §90 | F3 | bug | KPI de tipo "texto" no se puede guardar (se manda `parseFloat`) | por lectura |
 | Media ✅ §62 | F4 | bug | Al recargar, cualquier error de `/auth/me` (red, 502) cierra la sesión | por lectura |
 | Media ✅ §62 | F5 | bug | `req()` no tolera respuestas no-JSON (502 HTML de un proxy) | por lectura |
 | Media ✅ §66 | F6 | bug | Empresa: el selector de patrocinio solo lista 20 proyectos | por lectura |
