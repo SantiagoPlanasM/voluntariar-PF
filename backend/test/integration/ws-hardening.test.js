@@ -1,17 +1,18 @@
 // test/integration/ws-hardening.test.js
 //
-// REVISION B19 (sin la parte de JWT_SECRET, pendiente de decisión): el listener de mensajes del WebSocket
-//   - reenviaba al cliente el `err.message` de CUALQUIER error, incluidos los internos (de la base) y el de un
-//     JSON mal formado ("Unexpected token…", en inglés técnico; AI_RULES regla 19);
-//   - no validaba que `to` fuera un string (un objeto llegaba directo a la consulta);
-//   - no tenía `maxPayload` (el default de la librería `ws` es 100 MiB por mensaje);
-//   - no limitaba la frecuencia: se podían mandar mensajes sin tope.
+// WebSocket del chat. REVISION B19 (§87) lo reforzó cuando aceptaba envíos (`type: 'send'`): errores internos que
+// se reenviaban al cliente, JSON mal formado, `to` no string, sin maxPayload, sin límite de frecuencia. Desde §92 el
+// cliente manda siempre por REST, y en §100 (decisión del usuario) el servidor dejó de aceptar envíos por el socket:
+// queda SOLO para recibir. Lo que se prueba ahora:
+//   - un `type: 'send'` (o cualquier otra cosa que mande el cliente) no se guarda ni se reenvía;
+//   - maxPayload: un frame enorme igual cierra la conexión (1009) en vez de procesarse;
+//   - REST valida los errores del usuario (los MessageInputError de §87 siguen ahí).
 const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const WebSocket = require('ws');
 const { setupTestServer } = require('./helpers');
 
-describe('WebSocket del chat: errores, tamaño y frecuencia', () => {
+describe('WebSocket del chat: solo recepción, tamaño acotado', () => {
   let server, baseUrl, db;
   let maria, juan;
   const sockets = []; // se terminan todos en after(): si una aserción falla antes del close, el server no se cuelga
@@ -64,45 +65,18 @@ describe('WebSocket del chat: errores, tamaño y frecuencia', () => {
     if (server) await server.close();
   });
 
-  test('un error interno (de la base) NO se reenvía: mensaje genérico en español', async () => {
-    const s = await open(maria.token);
-    const origRun = db.run;
-    db.run = (sql, params) => /INSERT INTO messages/.test(sql)
-      ? Promise.reject(new Error('SQLITE_IOERR: disk I/O error en /var/data/voluntariar.sqlite'))
-      : origRun(sql, params);
-    try {
-      s.ws.send(JSON.stringify({ type: 'send', to: juan.id, body: 'hola' }));
-      await until(() => errors(s).length === 1);
-    } finally {
-      db.run = origRun;
-      s.ws.close();
-    }
-    assert.deepEqual(errors(s), ['Error al enviar el mensaje']);
-  });
-
-  test('JSON mal formado: error en español, sin el detalle técnico', async () => {
-    const s = await open(maria.token);
-    s.ws.send('{esto no es json');
-    await until(() => errors(s).length === 1);
-    s.ws.close();
-    assert.deepEqual(errors(s), ['Mensaje inválido']);
-  });
-
-  test('`to` que no es un string: error claro, sin tocar la base con un objeto', async () => {
-    const s = await open(maria.token);
-    s.ws.send(JSON.stringify({ type: 'send', to: { id: juan.id }, body: 'objeto' }));
-    await until(() => errors(s).length === 1);
-    s.ws.close();
-    assert.deepEqual(errors(s), ['Destinatario inválido']);
-    assert.equal(await countMessages('objeto'), 0);
-  });
-
-  test('los errores del usuario se siguen informando tal cual (p. ej. mandarse un mensaje a sí mismo)', async () => {
-    const s = await open(maria.token);
-    s.ws.send(JSON.stringify({ type: 'send', to: maria.id, body: 'a mí' }));
-    await until(() => errors(s).length === 1);
-    s.ws.close();
-    assert.deepEqual(errors(s), ['No podés enviarte mensajes a vos mismo']);
+  test('un \'send\' por el socket NO se guarda ni se le reenvía al destinatario (el envío es por REST)', async () => {
+    const rx = await open(juan.token);
+    const tx = await open(maria.token);
+    tx.ws.send(JSON.stringify({ type: 'send', to: juan.id, body: 'por el socket' }));
+    tx.ws.send('{esto no es json');
+    // Un mensaje por REST después: cuando llega, el del socket ya habría llegado si se procesara.
+    const r = await call('/api/messages', { token: maria.token, method: 'POST', body: { to: juan.id, body: 'por REST' } });
+    assert.equal(r.status, 201);
+    await until(() => rx.received.some((m) => m.type === 'message' && m.message.body === 'por REST'));
+    assert.deepEqual(rx.received.filter((m) => m.type === 'message').map((m) => m.message.body), ['por REST']);
+    assert.equal(await countMessages('por el socket'), 0);
+    assert.deepEqual(tx.received, [], 'al que manda tampoco se le contesta nada (ni errores)');
   });
 
   test('REST sigue respondiendo 400 a los mismos errores del usuario (y "Destinatario inválido" también)', async () => {
@@ -119,16 +93,5 @@ describe('WebSocket del chat: errores, tamaño y frecuencia', () => {
     s.ws.send(JSON.stringify({ type: 'send', to: juan.id, body: 'x'.repeat(200 * 1024) }));
     await until(() => s.closed !== null);
     assert.equal(s.closed, 1009);
-  });
-
-  test('frecuencia: de 30 mensajes seguidos se guardan 20 y al resto se le avisa', async () => {
-    // La ráfaga la manda Juan: los tests de arriba ya mandaron mensajes de María, y cuentan para su límite.
-    const s = await open(juan.token);
-    for (let i = 0; i < 30; i++) s.ws.send(JSON.stringify({ type: 'send', to: maria.id, body: 'ráfaga' }));
-    await until(() => s.received.length >= 30); // al remitente le llega el eco de cada guardado + cada aviso
-    s.ws.close();
-    assert.equal(await countMessages('ráfaga'), 20);
-    const limited = errors(s).filter((e) => e === 'Estás enviando mensajes muy rápido. Esperá unos segundos.');
-    assert.equal(limited.length, 10);
   });
 });

@@ -9,14 +9,14 @@ const router = express.Router();
 
 const MAX_BODY_LEN = 2000;
 
-/** Error causado por lo que mandó el usuario: su mensaje se le puede mostrar (400 por REST, texto por WebSocket).
- *  Cualquier otro error es interno y nunca se le reenvía (REVISION B19). */
+/** Error causado por lo que mandó el usuario: su mensaje se le puede mostrar (400). Cualquier otro error es interno
+ *  y nunca se le reenvía (REVISION B19). */
 class MessageInputError extends Error {}
 
 /**
  * Inserta un mensaje y devuelve la fila guardada (con datos del remitente).
- * Compartida entre el endpoint REST (POST /) y el listener de WebSocket
- * (src/ws/index.js), para no duplicar la lógica de validación/inserción.
+ * La usa POST / (y la exportan los tests). Hasta §100 también la usaba el listener de envío del
+ * WebSocket, que se sacó: el socket es solo para recibir.
  */
 async function insertMessage(senderId, receiverId, body) {
   // Antes un `to` que no era string (p. ej. un objeto) llegaba a la consulta y fallaba con un error interno.

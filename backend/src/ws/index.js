@@ -24,25 +24,11 @@ const JWT_SECRET = resolveJwtSecret();
 /** @type {Map<string, Set<import('ws').WebSocket>>} */
 const clients = new Map();
 
-// Límites (REVISION B19). Un mensaje válido entra en unos KB (cuerpo de hasta 2000 caracteres + JSON); sin
-// maxPayload, la librería `ws` acepta hasta 100 MiB por mensaje. Pasado el tope cierra la conexión con 1009.
+// El socket es SOLO para recibir (decisión del usuario, PROJECT_ANALYSIS.md §100): los mensajes se mandan por
+// POST /api/messages, que los guarda y llama a sendToUser(). Lo que mande el cliente por acá se ignora.
+// maxPayload (REVISION B19, §87): sin él, la librería `ws` acepta hasta 100 MiB por frame; pasado el tope cierra
+// la conexión con 1009 sin procesarlo.
 const MAX_PAYLOAD = 64 * 1024;
-// Frecuencia: hasta SEND_LIMIT envíos por usuario cada SEND_WINDOW_MS (todas sus conexiones juntas). Cuenta los
-// intentos, no solo los guardados: es para cortar una ráfaga, no para validar.
-const SEND_LIMIT = 20;
-const SEND_WINDOW_MS = 10_000;
-/** @type {Map<string, number[]>} userId -> momentos de sus últimos envíos */
-const recentSends = new Map();
-
-function allowSend(userId, now = Date.now()) {
-  const times = (recentSends.get(userId) || []).filter((t) => now - t < SEND_WINDOW_MS);
-  if (times.length >= SEND_LIMIT) { recentSends.set(userId, times); return false; }
-  times.push(now);
-  recentSends.set(userId, times);
-  return true;
-}
-
-const sendError = (ws, error) => ws.send(JSON.stringify({ type: 'error', error }));
 
 function addClient(userId, ws) {
   if (!clients.has(userId)) clients.set(userId, new Set());
@@ -93,33 +79,11 @@ function initWebSocket(server) {
     ws.on('close', () => removeClient(userId, ws));
     ws.on('error', () => removeClient(userId, ws));
 
-    // El envío principal de mensajes va por REST (POST /api/messages), que
-    // persiste en la base y después llama a sendToUser(). Este listener es
-    // un atajo opcional para que el propio cliente mande por WS y ahorre la
-    // ida y vuelta HTTP — usa la misma función de inserción que la ruta REST.
-    ws.on('message', async raw => {
-      let msg;
-      try { msg = JSON.parse(raw.toString()); }
-      catch { return sendError(ws, 'Mensaje inválido'); } // antes: el texto de JSON.parse, en inglés técnico
-      if (!msg || msg.type !== 'send' || !msg.to || !msg.body) return;
-      if (!allowSend(userId)) return sendError(ws, 'Estás enviando mensajes muy rápido. Esperá unos segundos.');
-
-      const { insertMessage, MessageInputError } = require('../routes/messages');
-      try {
-        const saved = await insertMessage(userId, msg.to, msg.body);
-        sendToUser(msg.to, { type: 'message', message: saved });
-        sendToUser(userId, { type: 'message', message: saved }); // eco a otras pestañas propias
-      } catch (err) {
-        // Solo los errores del usuario se le muestran; los internos (de la base, etc.) van al log. Antes se le
-        // reenviaba cualquier err.message, con detalles del servidor (REVISION B19).
-        if (err instanceof MessageInputError) return sendError(ws, err.message);
-        console.error('WS send error:', err);
-        sendError(ws, 'Error al enviar el mensaje');
-      }
-    });
+    // Sin listener de 'message': hasta §100 aceptaba { type: 'send', to, body } como atajo para mandar; desde §92 ningún
+    // cliente lo usaba (el chat manda por REST) y se sacó para que el socket sea solo de recepción.
   });
 
   return wss;
 }
 
-module.exports = { initWebSocket, sendToUser, isUserOnline, allowSend, SEND_LIMIT, SEND_WINDOW_MS };
+module.exports = { initWebSocket, sendToUser, isUserOnline };

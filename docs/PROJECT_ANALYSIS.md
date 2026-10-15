@@ -2550,3 +2550,24 @@ Lista con `api.ngos.empleados.list('ngo-1')`; un 403 se ve como error con "Reint
 
 ### Verificación
 **Frontend 414/414. Typecheck: 0 errores.** Sin tests propios que borrar (no tenía).
+
+## 100. El WebSocket queda solo para recibir (decisión del usuario)
+
+**Contexto:** desde §92 el chat manda siempre por `POST /api/messages`. El listener `type: 'send'` del servidor (reforzado en §87) quedó sin uso, pero seguía siendo una vía de escritura abierta. El usuario eligió sacarlo.
+
+**Qué se hizo:**
+- `ws/index.js`: sin listener de `message` (lo que mande el cliente se ignora). Se sacaron también el límite de frecuencia (`allowSend`, `SEND_LIMIT`), que solo tenía sentido para esa vía, y `sendError`. **Queda `maxPayload` 64 KB:** un frame enorme igual cierra la conexión (1009) sin procesarse.
+- `MessageInputError` (§87) sigue: la usa `POST /api/messages` para responder 400.
+- Tests: en `ws-hardening.test.js`, los 5 casos del envío por socket y el de frecuencia se reemplazaron por uno que exige que un `send` (o un JSON roto) **no se guarde, no se reenvíe y no se conteste**. Siguen el de `maxPayload` y el de REST. Se borró `test/unit/wsRateLimit.test.js` y el test de §40 que mandaba **por** el socket.
+- Docs: la sección del WebSocket en `API_CONTEXT.md`.
+
+### Verificación
+- **Rojo → verde:** con el listener, el test nuevo falló (el `send` se guardaba y se reenviaba). Sin él, pasa.
+- **SQLite 454/454 y Postgres 456/456** (−9 a propósito: los tests de la vía que se sacó), también con `TZ=America/Argentina/Cordoba`.
+- `grep`: no quedan referencias a `allowSend`, `SEND_LIMIT` ni `sendViaSocket` en el código.
+
+### Errores propios
+- Al principio no vi que `insert-returns-own-row.test.js` (§40) tenía un test de envío **por** el socket. Falló y la corrida se colgó (quedó un socket abierto); lo saqué. Ese archivo no termina los sockets en `after()` si falla un test, como sí hace `ws-hardening` (§87); no lo cambié.
+
+### ⚠️ NO verificado
+- Que ningún cliente fuera del frontend use el envío por socket: no hay otros clientes conocidos.

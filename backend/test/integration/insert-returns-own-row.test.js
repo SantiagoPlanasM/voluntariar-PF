@@ -58,7 +58,7 @@ describe('Las altas devuelven su propia fila (mensajes, comentarios, KPIs)', () 
       assert.equal(new Set(saved.map((m) => m.id)).size, 3, 'ids distintos');
     });
 
-    test('insertMessage (lo usan el endpoint REST Y el WebSocket) con 5 envíos simultáneos: cada uno devuelve el suyo', async () => {
+    test('insertMessage (la usa POST /api/messages) con 5 envíos simultáneos: cada uno devuelve el suyo', async () => {
       const { insertMessage } = require('../../src/routes/messages');
       const bodies = ['a', 'b', 'c', 'd', 'e'];
       const saved = await Promise.all(bodies.map((b) => insertMessage(maria.id, juan.id, b)));
@@ -113,16 +113,7 @@ describe('Las altas devuelven su propia fila (mensajes, comentarios, KPIs)', () 
         'el destinatario debe ver los tres mensajes distintos, en orden');
     });
 
-    test('mensajes enviados POR el WebSocket: el destinatario y el eco al remitente reciben cada uno el suyo', async () => {
-      const rx = await openSocket(juan.token);
-      const tx = await openSocket(maria.token);
-      const bodies = ['ws-uno', 'ws-dos', 'ws-tres'];
-      for (const body of bodies) tx.ws.send(JSON.stringify({ type: 'send', to: juan.id, body }));
-      await until(() => rx.received.length >= 3 && tx.received.length >= 3);
-      rx.ws.close(); tx.ws.close();
-      assert.deepEqual(rx.received.map((m) => m.message.body).sort(), [...bodies].sort(), 'destinatario');
-      assert.deepEqual(tx.received.map((m) => m.message.body).sort(), [...bodies].sort(), 'eco al remitente');
-    });
+    // (Hasta §100 había un test de mensajes enviados POR el socket: esa vía se sacó, el envío es solo por REST.)
   });
 
   describe('comentarios', () => {
