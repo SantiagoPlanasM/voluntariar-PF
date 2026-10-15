@@ -2700,3 +2700,17 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 ### ⚠️ NO verificado
 - No lo vi en el navegador. El JSX y las clases son los de antes (salvo las dos clases que no generaban CSS), pero no lo comprobé a ojo.
 - **Hallazgo, sin arreglar (no estaba en el pedido):** si falla el pedido de la lista (red, 500), el modal dice "Todavía no tenés seguidores." en vez de un error. Es el mismo patrón que se corrigió en `NGOEmpleados` (§98). Queda para la segunda pasada.
+
+## 106. Segunda pasada de revisión (solo lectura)
+
+**Qué se hizo:** revisé lo que `REVISION.md` había dejado como "sin revisar": plantillas y envío de email, `seed.js`, los componentes de Momentos, `ReviewsModal`, `FilterModal`, `ProjectMap`, las barras de navegación, `imageCompress.ts`, `sponsorship.ts`, los tests unitarios del backend y los códigos de éxito de `API_CONTEXT`. El informe está en `REVISION.md`, "Segunda pasada": **10 hallazgos (S1–S10), 2 de severidad media**. El más extendido, S1, son los errores de carga que se ven como "no hay nada"; el otro, S2, es que la página Momentos de la ONG muestra el feed global. **No se tocó código.**
+
+### Verificación
+- Lectura del código. Tres controles con scripts descartables: tests unitarios del backend sin asserts (0), `catch` que tragan errores en el frontend (24 lugares, clasificados en el informe) y códigos de éxito documentados contra el código (0 diferencias después de §104).
+
+### Errores propios
+- El primer intento de escribir este informe con un heredoc de Bash falló por las comillas (no llegó a modificar nada; lo comprobé con `git status`). Lo rehíce con archivos.
+
+### ⚠️ NO verificado
+- Todos los hallazgos son por lectura, salvo los dos controles marcados como "probado". Ninguno se reprodujo en el navegador.
+- No revisé `API_CONTEXT` campo por campo ni `PROJECT_ANALYSIS`/`BACKEND_ROADMAP_ANALYSIS` contra el código.

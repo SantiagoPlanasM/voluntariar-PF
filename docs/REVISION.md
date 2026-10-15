@@ -1,6 +1,6 @@
 # REVISION.md — Revisión de código de VoluntariAR (2026-10-13)
 
-> **Estado (2026-10-14):** este informe se escribió sin tocar el código; después se fueron arreglando ítems en commits separados. Los arreglados tienen ✅ y la sección de `PROJECT_ANALYSIS.md` donde está el detalle (§51–§103). Las correcciones a lo que decía este informe (B2 y B8 tenían menos impacto visible del indicado) están en esas secciones.
+> **Estado (2026-10-14):** este informe se escribió sin tocar el código; después se fueron arreglando ítems en commits separados. Los arreglados tienen ✅ y la sección de `PROJECT_ANALYSIS.md` donde está el detalle (§51–§105; la segunda pasada, en §106). Las correcciones a lo que decía este informe (B2 y B8 tenían menos impacto visible del indicado) están en esas secciones.
 
 **Base revisada:** commit `0d6663a` (`main`). **Método:** tres revisiones de solo lectura en paralelo (backend, frontend, tests+docs) y una verificación propia de los hallazgos de severidad alta. No se modificó ningún archivo del proyecto; este informe es lo único nuevo.
 
@@ -259,7 +259,7 @@ Cada uno con test primero (rojo → verde), SQLite + Postgres + TZ de Córdoba s
 - **No verificado en Postgres:** B10 (3.5), el `LIMIT NaN` y el PUT de KPI sin `nombre`. B1, B2, B8 y B9 sí (servidor real + Postgres 16 en Docker, schema descartable, comparado con SQLite).
 - **Nada visual ni con lector de pantalla** (no hay navegador): F7, F12, F13 y cómo se ve F1.
 - **Concurrencia real:** F15. (B15 y B16 se confirmaron con un test de concurrencia en Postgres y se arreglaron: §77.)
-- **Sin revisar o revisado poco:** `lib/emailTemplates.js` (escape de cada plantilla), `scripts/seed.js`; en frontend, `ProjectMap`, `FilterModal`, `FeedSidebar`, `PostComposer`, `PostCard`, `PhotoCarousel`, `MomentsGrid`, `NGOMoments`, `ReviewsModal`, las barras de navegación, `imageCompress.ts`, `sponsorship.ts`; la calidad de los asserts de los tests unitarios del backend; `docs/PROJECT_ANALYSIS.md` y `BACKEND_ROADMAP_ANALYSIS.md` contra el código; `API_CONTEXT.md` campo por campo (sí se cotejaron los 79 endpoints, que coinciden).
+- **Sin revisar o revisado poco** *(revisado el 2026-10-15: ver "Segunda pasada" al final)*: `lib/emailTemplates.js` (escape de cada plantilla), `scripts/seed.js`; en frontend, `ProjectMap`, `FilterModal`, `FeedSidebar`, `PostComposer`, `PostCard`, `PhotoCarousel`, `MomentsGrid`, `NGOMoments`, `ReviewsModal`, las barras de navegación, `imageCompress.ts`, `sponsorship.ts`; la calidad de los asserts de los tests unitarios del backend; `docs/PROJECT_ANALYSIS.md` y `BACKEND_ROADMAP_ANALYSIS.md` contra el código; `API_CONTEXT.md` campo por campo (sí se cotejaron los 79 endpoints, que coinciden).
 - Los `.env` locales no se abrieron.
 
 ---
@@ -276,3 +276,75 @@ Cada uno con test primero (rojo → verde), SQLite + Postgres + TZ de Córdoba s
 8. Cobertura: 29 de 79 endpoints y 25 de 47 componentes sin ningún test.
 9. Propuesta: 19 commits chicos, empezando por B1 → B2 → F1 → B8 → T1.
 10. Antes necesito tu decisión sobre F3, B7, B20 y JWT_SECRET; no se arregló ni se modificó nada del proyecto.
+
+---
+
+## Segunda pasada (2026-10-15)
+
+**Base:** commit `2b461c0`. **Método:** lectura, de mi parte, de lo que la primera revisión había dejado afuera, más tres controles automáticos (scripts descartables): tests unitarios del backend sin asserts, `catch` que tragan errores en el frontend y códigos de éxito de `API_CONTEXT` contra el código. **No se modificó código.** Mismos criterios de `tipo` y `certeza` que arriba. Todo es **por lectura** salvo donde se indica.
+
+### Hallazgos
+
+| Sev. | Id | Tipo | Qué |
+|---|---|---|---|
+| Media | S1 | bug | Errores de carga que se ven como "no hay nada" (lista abajo) |
+| Media | S2 | bug | `/ngo/momentos` dice "Fotos de tus voluntariados" y muestra las publicaciones de **todas** las ONGs |
+| Baja | S3 | bug | `ReviewsModal` desde el feed: después de calificar, al reabrirlo se ve la lista vieja |
+| Baja | S4 | mejora | `ReviewsModal` no precarga tu calificación: volver a calificar la reemplaza con 5 ★ y sin comentario, sin avisar |
+| Baja | S5 | bug | Explorar pide `limit: 200`: con más proyectos activos, los demás no aparecen ni en la lista ni en el mapa |
+| Baja | S6 | bug | Seguir/dejar de seguir que falla no avisa nada |
+| Baja | S7 | mejora | Duplicaciones: mapas de patrocinio, marcadores de `ProjectMap`, ítems de `BottomNav` |
+| Baja | S8 | mejora | La búsqueda de Explorar no ignora acentos ("cordoba" no encuentra "Córdoba") |
+| Baja | S9 | mejora | `seed.js` no se niega a correr en producción (crearía cuentas con `Password1`) |
+| Baja | S10 | mejora | El error del formulario de `ReviewsModal` no tiene `role="alert"` |
+
+**S1: errores que se ven como vacío** (el mismo patrón que F9 y `NGOEmpleados`, §65 y §98). Un error de red o un 500 se traga, y la pantalla muestra el estado "vacío" como si fuera un dato:
+- `FollowListModal.tsx` → "Todavía no tenés seguidores." (era así antes de §105; el refactor lo mantuvo a propósito).
+- `ReviewsModal.tsx:42-53` → "Sin reseñas todavía".
+- `ExploreScreen.tsx:124-127` → catálogo vacío.
+- `VolunteerProfile.tsx:44-55` → sin participaciones, habilidades ni ONGs seguidas, y contadores en 0.
+- `MainFeed.tsx:65` → la barra lateral dice "¡Ya seguís a todas las organizaciones recomendadas!".
+- **Arreglo:** estado de error con "Reintentar" (`LoadError` / `userMessage`), como en §65. Se puede partir por pantalla.
+- **No son problema:** los otros `catch` silenciosos (contadores de no leídos, marcar como leído, sugerencias del chatbot, título del KPI): ahí lo razonable es seguir sin el dato.
+
+**S2: Momentos de la ONG.** `NGOMoments.tsx` renderiza `<MomentsFeed />` sin filtros, y `GET /api/posts` solo filtra por `project_id` o `user_id`. Una ONG ve, dentro de su panel, el feed de toda la plataforma bajo el texto "Fotos de tus voluntariados. Podés borrar cualquier publicación de tus proyectos." Es una **decisión tuya**:
+- (a) cambiar el texto (es el feed general; el botón de borrar aparece solo en las de sus proyectos, porque lo decide el servidor), o
+- (b) agregar un filtro `ngo_id` en `GET /api/posts` y usarlo acá (backend + frontend + tests).
+
+**S3: reseñas viejas al reabrir.** En `FeedPostCard`, `cardRatings` es estado que nunca se actualiza. `ReviewsModal` recarga después de calificar, pero al cerrarlo y volver a abrirlo su efecto (`:55-65`) vuelve a poner `initialRatings` (la lista vieja) si no estaba vacía. Además el promedio del modal se calcula con esa lista, distinto del que muestra la tarjeta. **Arreglo:** que `onReviewAdded` también devuelva la lista y `FeedPostCard` actualice `cardRatings`, o que el modal recargue siempre al abrirse.
+
+**S4: volver a calificar.** El backend hace upsert (§74), pero el formulario arranca siempre en 5 ★ y vacío. Quien ya calificó y vuelve a mandar el formulario reemplaza su reseña sin ver la anterior, y si no escribe nada, borra su comentario. **Arreglo:** precargar la calificación propia (está en `ratings`, por `user_id`) y decir "Editar tu reseña".
+
+**S5: Explorar con tope de 200.** `ExploreScreen.tsx:123` pide `limit: '200'` (el backend acepta hasta 500, §96) y filtra en el cliente. No pasa nada hasta que haya más de 200 proyectos activos; a partir de ahí, los que sobran desaparecen sin aviso. Con los datos de una tesis no se alcanza; queda anotado.
+
+**S6: seguir sin aviso de error.** `VolunteerPublicProfile.tsx:73` (`catch { }`), `NGOPublicProfile.tsx:72`, `FeedPostCard.tsx:111` y `MainFeed.tsx:76` solo loguean. El botón deja de girar y queda como estaba, sin mensaje.
+
+**S7: duplicaciones.**
+- `SPONSORSHIP_BADGE`/`SPONSORSHIP_LABEL` siguen copiados en `NGOPatrocinios.tsx:8-13` y `CompanyOwnProfile.tsx:17-22`; el propio `lib/sponsorship.ts` pide migrarlos.
+- `ProjectMap.tsx` arma los marcadores y el punto del usuario dos veces (mapa chico `~:200-230`, ampliado `~:600-630`).
+- `BottomNav.tsx:35-48` tiene su propia lista de ítems para ONG y empresa, distinta de `NGOBottomNav`/`CompanyBottomNav`: la de empresa no tiene "Panel" y la de ONG tiene 6 ítems y "Explorar". Según la pantalla, la misma persona ve barras distintas.
+
+**S8: acentos en la búsqueda.** `filterProjects` (`FilterModal.tsx:35-43`) compara en minúsculas pero con acentos. El backend usa `ILIKE`, que tampoco los ignora. Se podría reusar la normalización de `lib/badWords.ts` (NFD).
+
+**S9: seed en producción.** `render.yaml` no corre el seed (solo `db:migrate`), así que hoy no pasa. Pero `npm run db:seed` contra la base de producción crearía 8 cuentas con `Password1`. Una guarda `NODE_ENV === 'production'` → salir con error lo evitaría. Detalle menor: el resumen final no lista `admin@techcorp.com`.
+
+**S10:** `ReviewsModal.tsx:204-205`: el error se muestra en un `<p>` sin `role="alert"`, así que un lector de pantalla no lo anuncia. El resto de los formularios ya lo tienen (§80).
+
+### Revisado sin hallazgos
+- `lib/emailTemplates.js`: todo lo que escribe el usuario pasa por `esc()` antes de entrar al HTML. Los asuntos no son HTML. Las URLs usan `APP_URL` e ids generados por el servidor.
+- `lib/email.js`: falla cerrado con un `EMAIL_REDIRECT_TO` inválido, nunca lanza y no loguea la API key.
+- `imageCompress.ts`, `PostComposer`, `PostCard`, `PhotoCarousel`, `MomentsGrid`, `FeedSidebar` y las barras de navegación (salvo S7).
+- `ProjectMap`: el HTML de los pines (`divIcon`) solo usa colores de una tabla fija. Una categoría arbitraria, que cualquier ONG puede crear, no inyecta nada: a lo sumo el color queda `undefined`.
+- **Tests unitarios del backend** (12 archivos), **probado** con un script: ningún `test()` sin `assert`.
+- **`API_CONTEXT`, códigos de éxito**, **probado** con un script: coinciden con el código en todos los endpoints de los routers. El único que no coincidía (`/ratings`, documentado como 201) se corrigió en §104.
+
+### Qué sigue sin revisar
+- `API_CONTEXT` campo por campo (solo comparé los códigos de éxito) y `PROJECT_ANALYSIS`/`BACKEND_ROADMAP_ANALYSIS` contra el código.
+- Nada visual ni táctil: S2, S7 (barras) y S10 son por lectura del código.
+
+### Orden propuesto (si los aprobás; un commit cada uno)
+1. **S1**, por pantalla: `ReviewsModal` y `FollowListModal` primero (las dos son modales chicos).
+2. **S3 + S4** juntos (los dos son `ReviewsModal` + `FeedPostCard`).
+3. **S2**: necesito que elijas (a) o (b).
+4. **S6**, **S10**, **S9**: chicos.
+5. **S7, S8, S5**: opcionales.
