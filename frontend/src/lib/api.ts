@@ -116,6 +116,12 @@ export const api = {
     me: () => req<{ ngo: NGO; projects: Project[]; stats: NGOStats; pending_enrollments: PendingEnrollment[] }>('/ngos/me'),
     get: (id: string) => req<{ ngo: NGO; projects: Project[] }>(`/ngos/${id}`),
     update: (b: Partial<NGO>) => req<{ ngo: NGO }>('/ngos/me', { method: 'PUT', body: JSON.stringify(b) }),
+    // Equipo de la ONG (antes NGOEmpleados hacía fetch directo: AI_RULES regla 4, PROJECT_ANALYSIS.md §98).
+    empleados: {
+      list: (ngoId: string) => req<{ empleados: Empleado[] }>(`/ngos/${ngoId}/empleados`),
+      create: (ngoId: string, b: { nombre: string; apellido: string; email: string; rol: string }) =>
+        req<{ empleado: Empleado }>(`/ngos/${ngoId}/empleados`, { method: 'POST', body: JSON.stringify(b) }),
+    },
     patrocinios: {
       list: () => req<{ patrocinios: Patrocinio[] }>('/ngos/me/patrocinios'),
       decide: (empresaId: string, projectId: string, estado: 'aceptado' | 'rechazado') =>
@@ -289,6 +295,10 @@ export interface EnrollmentWithVolunteer extends Enrollment {
 /** Solicitud pendiente del panel de la ONG (GET /ngos/me): trae además el título del proyecto. */
 export interface PendingEnrollment extends EnrollmentWithVolunteer {
   project_title: string;
+}
+export interface Empleado {
+  id: string; nombre: string; apellido: string;
+  email: string; rol: string; foto_perfil?: string;
 }
 export interface NGO {
   id: string; user_id: string; name: string; logo?: string;

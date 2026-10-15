@@ -2520,3 +2520,24 @@ ONG y empresa ven su panel; voluntario y la otra organización van a su inicio; 
 ### ⚠️ NO verificado
 - Los botones de cerrar sesión del menú inferior (móvil) usan `window.confirm`, que bloquea la extensión de Chrome: no los probé ahí. Hacen lo mismo que el lateral (`logout(); navigate('/')`).
 - Un usuario de una empresa en el panel de ONG: lo cubre el test. En Chrome probé voluntaria y visitante.
+
+## 98. `NGOEmpleados` pasa a `api.ts` (deuda conocida, aprobada por el usuario)
+
+**Contexto:** `NGOEmpleados` era el único componente con `fetch` directo (AI_RULES regla 4). Problemas:
+- usaba `import.meta.env.VITE_API_URL` **sin** el respaldo que tiene `api.ts` (`http://localhost:3001/api`): sin esa variable, la URL quedaba `undefined/ngos/…` (no lo verifiqué en la práctica: no abro el `.env` del frontend);
+- al listar **no miraba `res.ok`**: un 403 "Sin acceso" o un 500 se veían como "Sin miembros en el equipo".
+
+Confirmado con tests antes de tocarlo (rojo en 3 de 3).
+
+**Qué se hizo:** `api.ngos.empleados.list(ngoId)` y `.create(ngoId, body)`, y el tipo `Empleado` en `api.ts` (regla 6). `NGOEmpleados` los usa; un error de carga se muestra con `InlineError` y "Reintentar" (patrón de F9, §65). El alta muestra el error del servidor como antes. Ya no queda ningún `fetch` directo fuera de `api.ts` (buscado con `grep`).
+
+### Tests (nuevos: 3, `NGOEmpleados.test.tsx`; `fetch` global falla a propósito, para asegurar que no se use)
+Lista con `api.ngos.empleados.list('ngo-1')`; un 403 se ve como error con "Reintentar" (no como "Sin miembros") y reintentar carga; agregar usa `create` con el formulario, muestra el error del servidor y recarga al guardar.
+
+### Verificación
+- **Frontend: 414/414. Typecheck: 0 errores.** Los tests anteriores que pasaban por esta pantalla (F15, nombres accesibles) siguen verdes: stubean `fetch`, que ahora usa `api.ts` por debajo.
+- **Mutación (4):** mostrar el error como lista vacía, no guardar el error, no recargar tras agregar y mandar sin el id: **los 4 mueren**.
+- En Chrome no lo miré esta vez: §89 ya había cargado la pantalla (equipo vacío del seed). El camino de error lo cubre el test.
+
+### Errores propios
+- Ninguno en esta tarea.

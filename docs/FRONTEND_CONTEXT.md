@@ -111,7 +111,7 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 - `NGOOwnProfile.tsx` — perfil de la ONG editable (nombre, descripción, misión, ubicación, categoría).
 - `NGOPublicProfile.tsx` — vista pública del perfil de una ONG (accesible sin login desde `/ngo/:id`), lista sus proyectos activos.
 - `NGOPatrocinios.tsx` — propuestas de patrocinio de empresas sobre los proyectos propios: pendientes (aceptar/rechazar) e historial.
-- `NGOEmpleados.tsx` — gestión de empleados/miembros del equipo de la ONG. **No usa `api.ts`** — `fetch` directo con token manual desde `localStorage` (`api.ts` no tiene un namespace `empleados` todavía).
+- `NGOEmpleados.tsx` — gestión de empleados/miembros del equipo de la ONG, con `api.ngos.empleados` (desde §98; antes `fetch` directo). Un error de carga se muestra con "Reintentar".
 - `NGOKPIs.tsx` — CRUD completo (alta/edición/borrado) de indicadores de impacto por proyecto, con resumen visual. Usa `api.projects.kpis.*`.
 
 ### Pantallas — lado Empresa
@@ -219,7 +219,7 @@ export const api = {
 
 Todos los tipos de dominio (`User`, `Project`, `NGO`, `Empresa`, `Enrollment`, `Notification`, `Faq`, `Patrocinio`, etc.) están definidos como `interface` en este mismo archivo — no hay un módulo `types/` separado.
 
-**Componentes que rompen este patrón** (fetch directo, no vía `api.ts`): `NGOEmpleados.tsx`.
+**Componentes que rompen este patrón:** ninguno desde §98 (el último era `NGOEmpleados.tsx`).
 
 ## 8. Modelos TypeScript (resumen — ver `api.ts` para el detalle campo por campo)
 
@@ -305,7 +305,7 @@ Limitado a `AuthContext`. No hay estado global de UI (temas, filtros persistente
 ## 15. Problemas detectados
 
 1. **`OnboardingScreen.tsx` no está enrutado** — código muerto, o una ruta que falta agregar (ambigüedad a resolver con el dueño del proyecto antes de borrar el archivo).
-2. **`NGOEmpleados.tsx` evita `api.ts`** — sigue pendiente (ver §4/§7).
+2. ~~**`NGOEmpleados.tsx` evita `api.ts`**~~ — **resuelto en `PROJECT_ANALYSIS.md §98`**: usa `api.ngos.empleados`.
 3. **Dos componentes de reseña que hacen lo mismo** (`ReviewModal.tsx` vs `ReviewsModal.tsx`) — ver nota en §4. Candidato a consolidar antes de que alguien edite uno pensando que corrige los dos.
 4. ~~**Sin guardas de rol/ruta en el frontend**~~ — **resuelto en `PROJECT_ANALYSIS.md §97`**: `NGOLayout` y `CompanyLayout` envuelven todo en `<RequireRole role=…>` (`components/RequireRole.tsx`). Mientras se verifica la sesión, "cargando"; sin sesión, al inicio con el login abierto; con otro rol, al inicio de ese rol (`homeFor`). Al cerrar sesión desde el panel no se abre el login. Es solo experiencia de uso: la autorización sigue en el backend (regla 15).
 5. **Sin paginación real en `ExploreScreen.tsx`**: pide el catálogo completo con un `limit` alto fijo (`200`) en vez de "cargar más"/scroll infinito — funciona hoy, pero no escala indefinidamente si el catálogo de proyectos crece mucho. Ver `PROJECT_ANALYSIS.md §29` bug 4.
@@ -318,7 +318,7 @@ Limitado a `AuthContext`. No hay estado global de UI (temas, filtros persistente
 - Extraer un hook `useApi()`/`useFetch()` genérico (loading/error/data) para eliminar la repetición de los tres `useState` en cada pantalla.
 - ~~Agregar un componente `<ProtectedRoute role="ngo">`~~ — hecho como `RequireRole` (§97).
 - Crear una pequeña librería de componentes UI compartidos (`Button`, `Input`, `Card`, `Spinner`, `ErrorBanner`) para reducir la duplicación de clases Tailwind.
-- Migrar `NGOEmpleados.tsx` a `api.ts` (agregar el namespace `empleados` que falta).
+- ~~Migrar `NGOEmpleados.tsx` a `api.ts`~~ — hecho (§98).
 - Consolidar `ReviewModal.tsx` y `ReviewsModal.tsx` en un solo componente.
 - Agregar un `ErrorBoundary` de React a nivel de cada layout (`Root`, `NGOLayout`, `CompanyLayout`) para evitar pantallas en blanco ante errores no capturados.
 - Registrar o eliminar `OnboardingScreen.tsx` según la intención real del equipo.

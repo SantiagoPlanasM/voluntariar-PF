@@ -225,7 +225,7 @@ Ver diagrama de secuencia completo en `BACKEND_CONTEXT.md §4`.
 - **Sin paginación real en `GET /api/projects`** — cualquier pantalla que necesite "todos los proyectos" (como `ExploreScreen.tsx`) tiene que pasar un `limit` explícito alto a mano, o los resultados quedan truncados en silencio al default de 20 (bug real encontrado y arreglado así, ver `PROJECT_ANALYSIS.md §29` bug 4 — pero la causa de fondo, la falta de paginación, sigue sin resolver).
 - **Riesgo de duplicación de helpers de formateo entre routers** — ya pasó dos veces (`follows.js` y `ngos.js` con copias desincronizadas de `fmtProject`, ver `PROJECT_ANALYSIS.md §29`). Se resolvió exportando `fmt` desde `projects.js`, pero cualquier router nuevo que devuelva proyectos tiene que acordarse de importarlo, no copiarlo.
 - Lógica de negocio y validaciones duplicadas en frontend y backend (regex de email/nombre/password, blacklist de palabras) sin una fuente única de verdad — mantenerlas sincronizadas es manual.
-- `NGOEmpleados.tsx` evita el cliente `api.ts` y reimplementa fetch + auth header a mano (ver §7).
+- ~~`NGOEmpleados.tsx` evita el cliente `api.ts`~~ — resuelto en `PROJECT_ANALYSIS.md §98`.
 - ~~Falta de guardas de rol en el frontend para las rutas `/ngo/*` y `/company/*`~~ — **resuelto en `PROJECT_ANALYSIS.md §97`** (`RequireRole` en los layouts).
 - Dependencia de un plan gratuito de Render con expiración de base de datos a los 90 días y "sleep" tras 15 minutos de inactividad — aceptable para una demo académica, no para producción real.
 
