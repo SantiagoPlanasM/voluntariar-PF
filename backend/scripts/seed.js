@@ -1,7 +1,12 @@
 // scripts/seed.js
+//
+// Datos de prueba: 8 cuentas con la contraseña `Password1`, ONGs, empresa, proyectos, inscripciones...
+// SOLO para desarrollo y tests. Con NODE_ENV=production se niega (REVISION S9): esas cuentas quedarían
+// abiertas en producción. La guarda (al final del archivo) va ANTES de cargar el adaptador de la base, así
+// no se abre ninguna conexión ni se crea el archivo de SQLite.
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
-const db = require('../src/db');
+let db;   // se carga recién después de la guarda de producción (ver el final del archivo)
 
 async function seed() {
   console.log('🌱 Insertando datos de prueba...');
@@ -411,10 +416,20 @@ async function seed() {
   console.log('  admin@greencba.org        / Password1  (ONG)');
   console.log('  admin@bancoalimentos.org  / Password1  (ONG)');
   console.log('  admin@techsocial.org      / Password1  (ONG)');
+  console.log('  admin@techcorp.com        / Password1  (empresa)');
   process.exit(0);
 }
 
-seed().catch(err => {
-  console.error('❌ Error en seed:', err.message);
-  process.exit(1);
-});
+if (process.env.NODE_ENV === 'production') {
+  console.error(
+    '❌ El seed no corre en producción (NODE_ENV=production): crearía cuentas de prueba con la contraseña "Password1".\n' +
+    '   Si es tu base local, corrélo con NODE_ENV=development (o sacá NODE_ENV=production de tu .env).'
+  );
+  process.exitCode = 1;
+} else {
+  db = require('../src/db');
+  seed().catch(err => {
+    console.error('❌ Error en seed:', err.message);
+    process.exit(1);
+  });
+}

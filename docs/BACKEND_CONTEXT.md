@@ -35,7 +35,7 @@ backend/
 │       └── index.js        # servidor de WebSocket (chat en tiempo real), colgado del mismo puerto HTTP
 └── scripts/
     ├── migrate.js          # DDL: 31 tablas, 20+ índices, datos base (categorías/roles/habilidades/FAQs)
-    └── seed.js              # datos de demo idempotentes
+    └── seed.js              # datos de demo idempotentes (se niega con NODE_ENV=production)
 ```
 
 Rutas de catálogo de solo lectura (`/api/categorias`, `/api/roles`, `/api/habilidades`) están definidas directamente en `src/index.js`, no en un archivo de ruta propio.

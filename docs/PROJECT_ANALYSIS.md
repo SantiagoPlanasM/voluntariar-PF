@@ -3002,3 +3002,26 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 ### ⚠️ NO verificado
 - No lo probé con un lector de pantalla real (NVDA/VoiceOver): que se anuncie lo deduzco del rol.
 - El `alert` del error de carga envuelve también el botón "Reintentar": un lector de pantalla puede leer "…Revisá tu conexión. Reintentar". Si se prefiere, la alternativa es poner `role="alert"` en el `<p>` de `InlineError` (afecta a las otras seis pantallas; para el coordinador/usuario).
+
+## 116. El seed no corre en producción — REVISION S9
+
+**Contexto.** `backend/scripts/seed.js` crea 8 cuentas (3 voluntarios, 4 ONGs, 1 empresa) con la contraseña `Password1`. `render.yaml` no lo corre (solo `db:migrate`), pero `npm run db:seed` con las variables de producción las dejaría abiertas. Además el resumen final no listaba `admin@techcorp.com`.
+
+**Qué se hizo.**
+- Guarda al final del script: con `NODE_ENV === 'production'` escribe en stderr por qué no corre y cómo sembrar una base local, y deja `process.exitCode = 1`. Va **después** de `dotenv` (un `.env` con `NODE_ENV=production` también lo frena) y **antes** de `require('../src/db')`: el adaptador se carga recién en la rama que siembra, así que en producción no se abre ninguna conexión ni se crea el archivo de SQLite. `exitCode` en vez de `process.exit(1)` para no cortar la salida del mensaje.
+- El resumen final suma `admin@techcorp.com / Password1 (empresa)`.
+- No se tocó `render.yaml`. Doc: `DATABASE_CONTEXT.md §8` y el árbol de `BACKEND_CONTEXT.md`.
+
+**Tests (nuevos: 4)** en `test/integration/seed-production.test.js`. Corren el script de verdad como proceso hijo contra la base temporal de los tests (SQLite, o el schema propio en Postgres: `setupTestDb` + `migrate.js`), con `cwd` en una carpeta sin `.env` para que no se meta el `.env` de desarrollo. (1) `NODE_ENV=production` → código ≠ 0, stderr menciona producción y `NODE_ENV`, no imprime el resumen, y `users`, `ngos`, `empresas`, `voluntarios`, `projects` y `enrollments` siguen con 0 filas; (2) lo mismo con `NODE_ENV=production` solo en un `.env` del `cwd`; (3) con `development` sale con 0 y crea 8 usuarios; (4) los emails del resumen son **exactamente** los de la tabla `users` (y la línea de la empresa existe). Rojo de comportamiento antes del código: 3 de 4 fallaban (sembraba en producción; el resumen no coincidía con la base).
+
+**Verificación (números reales).** `npm test` **487/487**, `npm run test:pg` **489/489**, y los dos con `TZ=America/Argentina/Cordoba`: 487/487 y 489/489; 0 fail, 0 cancelled, exit 0 en las cuatro (incluye S2: 478 + 5 + 4 y 480 + 5 + 4).
+
+**Mutación (solo código nuevo).** 7 mutantes, 7 mueren: guarda que nunca se activa, guarda invertida, salir con 0, sin mensaje, sembrar igual después del aviso, sin la línea de la empresa, y `dotenv` cargado después de la guarda.
+
+**Errores propios.**
+- La primera versión ponía la guarda arriba y llamaba a la función de siembra desde ahí, antes de la línea `const bcrypt = require(...)`: habría fallado por TDZ. Lo vi al releer antes de correrlo y la pasé al final del archivo.
+
+**⚠️ NO verificado.**
+- Correrlo contra la base real de Render (no hay deploy verificado). La guarda depende de que Render defina `NODE_ENV=production` (`render.yaml` lo fija en `production`, línea 13; no se miró el panel de Render).
+- Un `NODE_ENV` con otra grafía (`Production`, `prod`) NO se frena: se compara exacto, como Express.
+- `migrate.js` / `db:reset` no tienen guarda (`db:reset` = migrate + seed: el seed igual se frena, pero migrate corre antes; migrate es idempotente y aditivo).

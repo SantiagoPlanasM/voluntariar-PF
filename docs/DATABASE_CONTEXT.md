@@ -345,6 +345,8 @@ Datos de demostración, **idempotente** (usa `INSERT ... ON CONFLICT DO NOTHING`
 - ~12 proyectos distribuidos entre las 4 ONGs, con requisitos y roles asociados.
 - IDs legibles a mano (`user-vol-1`, `ngo-1`, `project-...`) en vez de UUIDs generados, para que las credenciales de demo sean estables entre corridas.
 
+**No corre en producción (`REVISION.md` S9):** con `NODE_ENV=production` (del entorno o del `.env`) sale con código 1 y un mensaje, **antes** de cargar el adaptador de la base (no abre conexión ni toca nada), porque dejaría las 8 cuentas con `Password1` abiertas. Para sembrar una base local con ese `.env`: `NODE_ENV=development npm run db:seed` en Git Bash, o `$env:NODE_ENV='development'; npm run db:seed` en PowerShell (dotenv no pisa una variable ya definida). Al terminar lista las 8 cuentas creadas, la empresa (`admin@techcorp.com`) incluida. Test: `test/integration/seed-production.test.js` (corre el script como proceso hijo, en los dos motores).
+
 ## 9. Flujo de creación de datos (alta de un proyecto → inscripción → aprobación)
 
 ```mermaid
