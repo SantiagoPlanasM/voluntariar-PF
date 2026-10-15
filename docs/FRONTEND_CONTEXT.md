@@ -25,7 +25,7 @@ frontend/src/
 ├── main.tsx                  # bootstrap: StrictMode + AuthProvider + RouterProvider
 ├── app/
 │   ├── routes.tsx             # todas las rutas (createBrowserRouter)
-│   └── components/            # 48 componentes .tsx (más sus *.test.tsx) — screens + layouts + widgets
+│   └── components/            # 47 componentes .tsx (más sus *.test.tsx) — screens + layouts + widgets
 ├── lib/
 │   ├── api.ts                 # cliente HTTP centralizado + TODOS los tipos TS de dominio (incluye api.posts y el helper de subida multipart)
 │   ├── AuthContext.tsx        # sesión global (Context + Provider + hook useAuth)
@@ -74,7 +74,7 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 
 `OnboardingScreen.tsx` (no enrutado) se borró en `PROJECT_ANALYSIS.md §99`, con OK del usuario.
 
-## 4. Todos los componentes (48, sin contar `*.test.tsx`)
+## 4. Todos los componentes (47, sin contar `*.test.tsx`)
 
 ### Layouts / navegación
 - `Root.tsx` — layout del lado "voluntario/público": `<Outlet/>` + `<BottomNav/>` + `<AuthModal/>` + `<ChatbotWidget/>`.
@@ -96,12 +96,12 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 - `ProjectCard.tsx` — tarjeta reutilizada en feeds; incluye el modal de inscripción rápida.
 - `FeedPostCard.tsx` — tarjeta de post para el feed vertical (like, comentar, inscribirse, calificar vía `ReviewsModal.tsx`).
 - `FeedSidebar.tsx` — sidebar de escritorio del feed, puramente presentacional (recibe todo por props).
-- `MyParticipation.tsx` — historial de inscripciones del voluntario logueado, con estado (pendiente/aprobada/rechazada) y horas acumuladas. Usa el modal de reseña viejo (`ReviewModal.tsx`, ver nota más abajo).
+- `MyParticipation.tsx` — historial de inscripciones del voluntario logueado, con estado (pendiente/aprobada/rechazada) y horas acumuladas. "Reseña" (en las aprobadas) abre `ReviewsModal` con el formulario habilitado (§101).
 - `VolunteerProfile.tsx` — perfil propio editable, incluyendo selección de habilidades (chips desde el catálogo `api.catalog.habilidades()` + nivel por habilidad, guardado vía `api.voluntarios.habilidades.update`).
 - `VolunteerPublicProfile.tsx` — perfil público de otro voluntario, con follow/unfollow.
 - `NotificationsScreen.tsx` — lista de notificaciones, marcar como leídas.
 
-**Nota — dos componentes de reseña que hacen lo mismo:** `ReviewModal.tsx` (105 líneas, usado por `MyParticipation.tsx`) y `ReviewsModal.tsx` (310 líneas, más completo, usado por `FeedPostCard.tsx` y `ProjectDetails.tsx`) califican un proyecto de forma casi idéntica pero son dos archivos independientes — probablemente `ReviewsModal.tsx` es la versión más nueva y debería reemplazar a la otra, pero nadie migró `MyParticipation.tsx` todavía. Candidato a consolidar.
+**Reseñas:** un solo componente, `ReviewsModal.tsx` (reseñas de otros + formulario si `canRate`). Lo usan el feed (`FeedPostCard`) y "Mis participaciones". Hasta `PROJECT_ANALYSIS.md §101` había además un `ReviewModal.tsx` que hacía lo mismo; se borró con OK del usuario.
 
 ### Pantallas — lado ONG
 - `NGODashboard.tsx` — lista de proyectos propios + resumen de inscripciones pendientes por proyecto (una sola llamada agregada a `GET /api/ngos/me`, el N+1 que tenía antes ya se resolvió).
@@ -133,7 +133,7 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 - `ChatThread.tsx` — hilo de una conversación puntual: historial, envío (WS con fallback a REST), marcado automático de leído al abrir.
 
 ### Otros
-- `ReviewModal.tsx` / `ReviewsModal.tsx` — ver nota de duplicación arriba.
+- `ReviewsModal.tsx` — ver la nota de reseñas arriba.
 - `LoadError.tsx` — estados de error de carga con "Reintentar"/"Volver" (`describeLoadError`); ver §12 y `PROJECT_ANALYSIS.md §64–§65`.
 - `Modal.tsx` — modal común accesible (role="dialog", Escape, foco adentro y atrapado, foco devuelto, clic afuera, scroll bloqueado); ver §13 y `PROJECT_ANALYSIS.md §79`.
 
@@ -305,7 +305,7 @@ Limitado a `AuthContext`. No hay estado global de UI (temas, filtros persistente
 
 1. ~~**`OnboardingScreen.tsx` no está enrutado**~~ — borrado en §99.
 2. ~~**`NGOEmpleados.tsx` evita `api.ts`**~~ — **resuelto en `PROJECT_ANALYSIS.md §98`**: usa `api.ngos.empleados`.
-3. **Dos componentes de reseña que hacen lo mismo** (`ReviewModal.tsx` vs `ReviewsModal.tsx`) — ver nota en §4. Candidato a consolidar antes de que alguien edite uno pensando que corrige los dos.
+3. ~~**Dos componentes de reseña que hacen lo mismo**~~ — consolidados en `ReviewsModal` (§101).
 4. ~~**Sin guardas de rol/ruta en el frontend**~~ — **resuelto en `PROJECT_ANALYSIS.md §97`**: `NGOLayout` y `CompanyLayout` envuelven todo en `<RequireRole role=…>` (`components/RequireRole.tsx`). Mientras se verifica la sesión, "cargando"; sin sesión, al inicio con el login abierto; con otro rol, al inicio de ese rol (`homeFor`). Al cerrar sesión desde el panel no se abre el login. Es solo experiencia de uso: la autorización sigue en el backend (regla 15).
 5. **Sin paginación real en `ExploreScreen.tsx`**: pide el catálogo completo con un `limit` alto fijo (`200`) en vez de "cargar más"/scroll infinito — funciona hoy, pero no escala indefinidamente si el catálogo de proyectos crece mucho. Ver `PROJECT_ANALYSIS.md §29` bug 4.
 6. **Validaciones duplicadas** (regex de email/password/nombre en `AuthModal.tsx`, lista de palabras en `lib/badWords.ts`, con su igualdad controlada por un test del backend desde §93) que deben mantenerse sincronizadas con el backend.
@@ -318,7 +318,7 @@ Limitado a `AuthContext`. No hay estado global de UI (temas, filtros persistente
 - ~~Agregar un componente `<ProtectedRoute role="ngo">`~~ — hecho como `RequireRole` (§97).
 - Crear una pequeña librería de componentes UI compartidos (`Button`, `Input`, `Card`, `Spinner`, `ErrorBanner`) para reducir la duplicación de clases Tailwind.
 - ~~Migrar `NGOEmpleados.tsx` a `api.ts`~~ — hecho (§98).
-- Consolidar `ReviewModal.tsx` y `ReviewsModal.tsx` en un solo componente.
+- ~~Consolidar `ReviewModal.tsx` y `ReviewsModal.tsx`~~ — hecho (§101).
 - Agregar un `ErrorBoundary` de React a nivel de cada layout (`Root`, `NGOLayout`, `CompanyLayout`) para evitar pantallas en blanco ante errores no capturados.
 - ~~Registrar o eliminar `OnboardingScreen.tsx`~~ — eliminado (§99).
 - Sumar tests para los componentes grandes listados en el problema 8.

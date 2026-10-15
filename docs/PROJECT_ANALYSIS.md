@@ -2571,3 +2571,22 @@ Lista con `api.ngos.empleados.list('ngo-1')`; un 403 se ve como error con "Reint
 
 ### ⚠️ NO verificado
 - Que ningún cliente fuera del frontend use el envío por socket: no hay otros clientes conocidos.
+
+## 101. Un solo modal de reseñas (decisión del usuario)
+
+**Contexto:** había dos componentes que hacían lo mismo (deuda conocida): `ReviewModal` en "Mis participaciones" (estrellas + comentario) y `ReviewsModal` en el feed (reseñas de otros + el mismo formulario). Una corrección en uno no llegaba al otro. El usuario eligió unificar en `ReviewsModal`.
+
+**Qué se hizo:** "Mis participaciones" abre `ReviewsModal` con `canRate` ("Reseña" solo aparece en inscripciones aprobadas). Se borró `ReviewModal.tsx` y sus casos en los tests de accesibilidad (`A11yNames`, `ModalsA11y`): `ReviewsModal` ya tiene los suyos (§80, §81). **Cambio visible:** desde "Mis participaciones" ahora también se ven las reseñas de los demás y el promedio.
+
+### Tests
+- `MyParticipationReview.test.tsx` (nuevo): "Reseña" abre el diálogo "Reseñas y Calificaciones", se ve la reseña de otro y dejar la propia llama a `api.projects.rate('proj-1', 4, …)`. Rojo antes (abría "Dejar reseña").
+
+### Verificación
+- **Frontend: 413/413** (−2 casos del modal borrado, +1 nuevo). **Typecheck: 0 errores.**
+- **En Chrome** (SQLite descartable, María): Mis participaciones → "Reseña" de Reforestación Urbana → diálogo "Reseñas y Calificaciones" con el promedio (5.0, 2 reseñas), el formulario y la lista. Escape lo cierra.
+
+### Errores propios
+- Ninguno en esta tarea.
+
+### ⚠️ NO verificado
+- No hice mutación aparte: el cambio es reemplazar un componente por otro ya probado; el test nuevo falla si "Mis participaciones" vuelve a abrir otra cosa o si no se puede calificar.

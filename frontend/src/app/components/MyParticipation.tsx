@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { CheckCircle, Clock, XCircle, MapPin, Tag, Loader2, Star, Lock, Sprout } from 'lucide-react';
 import { api, EnrollmentWithProject } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
-import { ReviewModal } from './ReviewModal';
+import { ReviewsModal } from './ReviewsModal';
 
 const STATUS = {
   pending:   { label: 'Pendiente', icon: Clock,        color: 'text-amber-500', bg: 'bg-amber-50' },
@@ -171,11 +171,14 @@ export function MyParticipation() {
 
       {/* Modal de reseña */}
       {reviewTarget && (
-        <ReviewModal
+        // El mismo modal que el feed (antes había un ReviewModal aparte que hacía lo mismo; §101): muestra las
+        // reseñas de otros y, como la inscripción está aprobada, el formulario para dejar la propia.
+        <ReviewsModal
+          isOpen
           projectId={reviewTarget.id}
           projectTitle={reviewTarget.title}
+          canRate
           onClose={() => setReviewTarget(null)}
-          onSaved={() => { setReviewTarget(null); }}
         />
       )}
     </div>

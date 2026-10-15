@@ -93,7 +93,6 @@ vi.mock('../../lib/api', async () => {
 import { AuthModal } from './AuthModal';
 import { ChatbotWidget } from './ChatbotWidget';
 import { ChatThread } from './ChatThread';
-import { ReviewModal } from './ReviewModal';
 import { ReviewsModal } from './ReviewsModal';
 import { NGOKPIs } from './NGOKPIs';
 import { NGODashboard } from './NGODashboard';
@@ -161,15 +160,6 @@ describe('todo botón y campo tiene nombre accesible', () => {
     at('/messages/u-2', '/messages/:userId', <ChatThread />);
     await screen.findByText('Hola');
     expect(screen.getByRole('textbox', { name: 'Mensaje' })).toBeInTheDocument();
-    expect(unnamed()).toEqual([]);
-  });
-
-  test('ReviewModal: cerrar y estrellas con nombre y estado', () => {
-    render(<ReviewModal projectId="p" projectTitle="Plantación" onClose={() => {}} onSaved={() => {}} />);
-    const three = screen.getByRole('button', { name: '3 estrellas' });
-    fireEvent.click(three);
-    expect(three).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: '1 estrella' })).toHaveAttribute('aria-pressed', 'false');
     expect(unnamed()).toEqual([]);
   });
 

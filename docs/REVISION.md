@@ -1,6 +1,6 @@
 # REVISION.md — Revisión de código de VoluntariAR (2026-10-13)
 
-> **Estado (2026-10-14):** este informe se escribió sin tocar el código; después se fueron arreglando ítems en commits separados. Los arreglados tienen ✅ y la sección de `PROJECT_ANALYSIS.md` donde está el detalle (§51–§100). Las correcciones a lo que decía este informe (B2 y B8 tenían menos impacto visible del indicado) están en esas secciones.
+> **Estado (2026-10-14):** este informe se escribió sin tocar el código; después se fueron arreglando ítems en commits separados. Los arreglados tienen ✅ y la sección de `PROJECT_ANALYSIS.md` donde está el detalle (§51–§101). Las correcciones a lo que decía este informe (B2 y B8 tenían menos impacto visible del indicado) están en esas secciones.
 
 **Base revisada:** commit `0d6663a` (`main`). **Método:** tres revisiones de solo lectura en paralelo (backend, frontend, tests+docs) y una verificación propia de los hallazgos de severidad alta. No se modificó ningún archivo del proyecto; este informe es lo único nuevo.
 
@@ -220,7 +220,7 @@ Los ids (B = backend, F = frontend, T = tests, D = docs) son los de cada revisi�
 | `PUT /projects/:id` no parcial | ✅ **Resuelto en §95** (era: sí) | `projects.js:784-796` pisa título, tipo y `status || 'active'`; además la respuesta arma roles/requisitos/categoría con lo que mandó el body (`:808-810`) aunque no los guarda. |
 | `GET /projects` sin paginación | ✅ **Resuelto en §96** (límite acotado, orden estable; era: sí) | `projects.js:62,146,194`: `limit` sin tope, sin desempate en `recent`/`rating`; `limit=abc` → `LIMIT NaN` (500 en Postgres, a confirmar). F6 es una consecuencia nueva. |
 | `fmt` compartido | ✅ **Resuelto en §86** (era: a medias) | El `fmt` de proyectos ya se importa (`follows.js:8`, `ngos.js:10`), pero `follows.js:14-25` tiene una **copia de `fmtNgo`**, `follows.js:12` un `parseJson` sin uso, y `ngos.js:224` devuelve filas sin `fmt`. |
-| `ReviewModal` duplicado | **Sí** | `ReviewModal` en `MyParticipation.tsx:6,174`; `ReviewsModal` en `FeedPostCard.tsx:10,508`. |
+| `ReviewModal` duplicado | ✅ **Resuelto en §101** (era: sí) | `ReviewModal` en `MyParticipation.tsx:6,174`; `ReviewsModal` en `FeedPostCard.tsx:10,508`. |
 | `JWT_SECRET` con fallback | ✅ **Resuelto en §94** (era: sí, en dos lugares) | `middleware/auth.js:4` **y `ws/index.js:19`** (copia nueva para la lista). En Render `render.yaml` usa `generateValue: true`. |
 | Otros conocidos | Siguen | `NGOEmpleados.tsx` con `fetch` directo (✅ resuelto en §98); rutas `/ngo/*` y `/company/*` sin guarda (✅ resuelto en §97) (un voluntario no ve datos ajenos, pero `/ngo/dashboard` le muestra un panel vacío); `OnboardingScreen` sin enrutar (✅ borrado en §99); sin rate limiting en auth. |
 

@@ -6,7 +6,6 @@
 import { describe, test, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router';
-import { ReviewModal } from './ReviewModal';
 import { VolunteerPublicProfile } from './VolunteerPublicProfile';
 import { VolunteerProfile } from './VolunteerProfile';
 
@@ -54,15 +53,6 @@ const at = (path: string, route: string, el: React.ReactElement) =>
   render(<MemoryRouter initialEntries={[path]}><Routes><Route path={route} element={el} /></Routes></MemoryRouter>);
 
 describe('modales accesibles', () => {
-  test('ReviewModal: diálogo "Dejar reseña", el foco entra y Escape cierra', () => {
-    const onClose = vi.fn();
-    render(<ReviewModal projectId="p" projectTitle="Plantación" onClose={onClose} onSaved={() => {}} />);
-    const d = screen.getByRole('dialog', { name: 'Dejar reseña' });
-    expect(d.contains(document.activeElement)).toBe(true);
-    fireEvent.keyDown(document.body, { key: 'Escape' });
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
   test('perfil público: la lista de seguidores es un diálogo con nombre y Escape la cierra', async () => {
     at('/volunteer/user-55', '/volunteer/:id', <VolunteerPublicProfile />);
     fireEvent.click(await screen.findByRole('button', { name: /Seguidores/ }));
