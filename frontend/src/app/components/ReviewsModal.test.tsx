@@ -184,6 +184,17 @@ describe('Volver a calificar: se precarga la reseña propia (S4)', () => {
     expect(within(d2).getByRole('textbox', { name: 'Tu reseña' })).toHaveValue('');
   });
 
+  test('el error al mandar la reseña se anuncia (role="alert"; S10)', async () => {
+    vi.mocked(api.projects.get).mockResolvedValue({ project: { ratings: [] } } as never);
+    vi.mocked(api.projects.rate).mockRejectedValue(new ApiError('El comentario contiene palabras no permitidas', 400));
+    openRating();
+    const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    await waitFor(() => expect(within(d).getByRole('button', { name: /Publicar reseña/ })).toBeEnabled());
+    expect(within(d).queryByRole('alert')).not.toBeInTheDocument();
+    fireEvent.click(within(d).getByRole('button', { name: /Publicar reseña/ }));
+    expect(await within(d).findByRole('alert')).toHaveTextContent('El comentario contiene palabras no permitidas');
+  });
+
   test('mientras cargan las reseñas no se puede mandar (todavía no se sabe si ya calificó)', async () => {
     let resolve!: (v: unknown) => void;
     vi.mocked(api.projects.get).mockReturnValue(new Promise(r => { resolve = r; }) as never);
@@ -203,6 +214,8 @@ describe('ReviewsModal: error al cargar las reseñas (S1)', () => {
     open();
     const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
     expect(await within(d).findByText('Error al obtener el proyecto')).toBeInTheDocument();
+    // Se anuncia a los lectores de pantalla (S10).
+    expect(within(d).getByRole('alert')).toHaveTextContent('Error al obtener el proyecto');
     expect(within(d).queryByText('Sin reseñas todavía')).not.toBeInTheDocument();
     expect(within(d).queryByText(/0 reseñas en total/)).not.toBeInTheDocument();
 

@@ -2978,3 +2978,27 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 - Seguir una ONG sugerida en `MainFeed` no tiene estado "enviando" (de antes): un doble clic manda dos pedidos. No lo cambié.
 - `NGOPublicProfile` sigue tragando el error de `ngoStatus` (`.catch(() => ({ following: false }))`): si falla, muestra "Seguir" aunque ya la sigas. No estaba en S1/S6; lo anoto.
 - **Merge:** el import nuevo de `FeedPostCard.tsx` quedó en la línea siguiente al de `ReviewsModal`; si otro agente toca los imports de ese archivo, puede haber un conflicto trivial.
+
+## 115. Los errores de ReviewsModal se anuncian (role="alert") — REVISION S10
+
+**Contexto:** el error del formulario de `ReviewsModal` ("El comentario contiene palabras no permitidas", un 403, etc.) estaba en un `<p>` sin `role="alert"`, así que un lector de pantalla no lo anunciaba. El resto de los formularios ya lo tienen (§80). El error de carga agregado en S1 (`InlineError`) tampoco lo tenía.
+
+**Qué se hizo:**
+- `<p role="alert">` en el error del formulario.
+- El error de carga va dentro de un `<div role="alert">` en `ReviewsModal`, **no** en `InlineError`: ese componente lo comparten otras seis pantallas (`NGOEmpleados`, `NGOKPIs`, `NGOPatrocinios`, `NGODashboard`, `NotificationsScreen`, `CompanyOwnProfile`) y otros arreglos de S1 lo pueden estar usando en paralelo; cambiarlo ahí es una decisión aparte (ver ⚠️).
+
+### Tests (nuevos: 1, más un assert en un test de S1, `ReviewsModal.test.tsx`)
+- Al mandar, un 400 del servidor → aparece un `alert` con ese texto (y antes de mandar no había ninguno).
+- En el test del 500 al cargar (S1), el mensaje está dentro de un `alert`.
+- **Rojo de comportamiento:** con el código anterior los dos fallaban con "Unable to find role=alert".
+
+### Verificación
+- **Frontend 434/434** (433 + 1), también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.**
+- **Mutación (2):** sacar cada `role="alert"` → **mueren los 2.**
+
+### Errores propios
+- Ninguno en esta tarea.
+
+### ⚠️ NO verificado
+- No lo probé con un lector de pantalla real (NVDA/VoiceOver): que se anuncie lo deduzco del rol.
+- El `alert` del error de carga envuelve también el botón "Reintentar": un lector de pantalla puede leer "…Revisá tu conexión. Reintentar". Si se prefiere, la alternativa es poner `role="alert"` en el `<p>` de `InlineError` (afecta a las otras seis pantallas; para el coordinador/usuario).

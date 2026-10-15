@@ -228,7 +228,7 @@ export function ReviewsModal({
                 />
 
                 {errorMsg && (
-                  <p className="text-xs text-red-600 font-medium">{errorMsg}</p>
+                  <p role="alert" className="text-xs text-red-600 font-medium">{errorMsg}</p>
                 )}
                 {successMsg && (
                   <p className="text-xs text-emerald-700 font-bold flex items-center gap-1">
@@ -262,7 +262,8 @@ export function ReviewsModal({
                 <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
               </div>
             ) : loadError ? (
-              <InlineError message={loadError} onRetry={loadRatings} />
+              // role="alert" acá y no en InlineError, que comparten otras pantallas (REVISION S10).
+              <div role="alert"><InlineError message={loadError} onRetry={loadRatings} /></div>
             ) : ratings.length === 0 ? (
               <div className="py-8 text-center bg-gray-50 rounded-2xl border border-gray-100 p-4">
                 <MessageSquare className="w-8 h-8 text-gray-300 mx-auto mb-2" />
