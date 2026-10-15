@@ -347,7 +347,7 @@ Cada uno con test primero (rojo → verde), SQLite + Postgres + TZ de Córdoba s
 - ✅ **§122** — **Tipo `Rating` vs. el feed** (§112): `api.ts` declara `user_id` obligatorio y `GET /api/follows/feed` no lo manda (regla 2). Agregarlo al SELECT o marcarlo opcional.
 - ✅ **§123** — **`ProjectDetails` tiene su propio formulario de calificación** (no usa `ReviewsModal`): por lectura, el mismo problema de S4.
 - ✅ **§124** — **`InlineError` sin `role="alert"` propio:** cada pantalla nueva lo envuelve en un `<div role="alert">`; ponerlo en el componente lo resolvería para todas.
-- `NGOPublicProfile` traga el error de `ngoStatus` (muestra "Seguir" aunque ya la sigas); seguir una ONG sugerida en Inicio no bloquea el doble clic.
+- ✅ **§125** `NGOPublicProfile` traga el error de `ngoStatus` (muestra "Seguir" aunque ya la sigas); seguir una ONG sugerida en Inicio no bloquea el doble clic.
 - `/api/ngos/me` es pesado para sacar solo el id en `NGOMoments` (§113).
 
 ### Orden propuesto (si los aprobás; un commit cada uno) — hecho en §107–§119

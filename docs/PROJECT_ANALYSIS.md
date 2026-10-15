@@ -3273,3 +3273,41 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 - No lo probé con un lector de pantalla real (NVDA/VoiceOver): que se anuncie lo deduzco del rol. Tampoco que la lectura de "Reintentar" (y de "Volver"/"Ir al inicio" en `LoadError`) resulte molesta.
 - Dos `alert` hermanos (no anidados) pueden coexistir en `NotificationsScreen`, `NGOPatrocinios` y `CompanyOwnProfile` si queda un error de acción visible y después falla una recarga. No lo cambié: son mensajes distintos.
 - Nada visual (el rol no cambia estilos).
+
+## 125. Perfil de ONG: si falla "¿ya la sigo?", ya no dice "Seguir" — pendiente de REVISION (§114)
+
+**Contexto:** `NGOPublicProfile` pedía `api.follows.ngoStatus(id)` junto con el perfil y le ponía `.catch(() => ({ following: false }))`: si fallaba, el botón decía "Seguir" aunque ya siguieras a la ONG (y al tocarlo, el backend respondía que ya la seguías o creaba un estado confuso). Además se consultaba siempre, aun sin sesión (el backend contesta `following: false` sin pensar). Anotado en el ⚠️ de §114 y en `REVISION.md` ("Pendientes que surgieron al arreglarlos").
+
+**Qué se hizo:**
+- **Solo consulta un voluntario** (`canFollow = user?.role === 'volunteer'`). Sin sesión no hay nada que saber (el botón "Seguir" abre el login, como antes); una ONG o empresa logueada no ve el botón, así que tampoco consulta.
+- **La consulta no rechaza nunca** (`fetchFollowStatus` devuelve `{ following, error }`): sigue yendo en el `Promise.all` con el perfil (sin parpadeo de "Seguir" → "Siguiendo"), pero un error ya no tumba el perfil ni se traga.
+- **Con error:** el botón Seguir/Siguiendo **no se muestra** y, en el mismo lugar que el error de §114 (debajo del encabezado, a la derecha), aparece un aviso `role="alert"` con el mensaje (`userMessage(err, 'No pudimos saber si ya seguís a esta organización. Revisá tu conexión.')`) y un botón "Reintentar". El resto del perfil (seguidores, descripción, proyectos) se ve igual.
+- **"Reintentar" solo vuelve a preguntar el estado** (no recarga el perfil), con el mismo `useLatestRequest` del perfil: si cambiás de ONG mientras reintenta, la respuesta vieja se descarta. Mientras reintenta, el botón está deshabilitado; `load()` lo vuelve a habilitar (si no, un reintento de la ONG anterior lo dejaba trabado).
+- No se usó `InlineError` (una tarjeta grande centrada, pensada para un listado): acá es un aviso de una línea junto al encabezado.
+
+### Tests (nuevos: 8, `NGOFollowStatus.test.tsx`)
+- 500 → aviso con el mensaje del servidor, sin botón "Seguir"/"Siguiendo", con nombre, descripción y seguidores normales; "Reintentar" → "Siguiendo", sin aviso, y el perfil no se volvió a pedir.
+- Sin conexión → mensaje propio, no "Failed to fetch".
+- "Reintentar" vuelve a fallar → sigue el aviso (con "Reintentar" habilitado) y no aparece "Seguir".
+- Mientras reintenta, "Reintentar" está deshabilitado: dos clics → un solo pedido más.
+- Cambiar de ONG mientras reintenta: el "Reintentar" de la nueva anda y la respuesta vieja (`following: true`) no la pisa.
+- Control: la consulta anda → "Siguiendo", sin aviso.
+- Sin sesión → no se consulta y está "Seguir". ONG logueada → no se consulta y no hay botón.
+- **Rojo de comportamiento:** con el código anterior fallaban 6 de los 7 primeros (los cuatro de error por no encontrar el `alert`, los dos de "quién consulta" porque `ngoStatus` se llamaba una vez); pasaba el control. El de cambiar de ONG lo agregué después (ver Mutación).
+
+### Verificación
+- **Frontend 513/513** (505 + 8), también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.** `NGOPublicProfile.tsx` sigue en CRLF en la copia de trabajo (diff de 43 líneas agregadas y 7 sacadas). Siguen en verde los tests que ya montaban el perfil (`FollowErrors`, `LoadErrorScreens`, `StaleResponsesById`, `A11yNames`).
+- **Mutación (17 al final, con corrida de control):** primera corrida (18): mueren 13, sobreviven 5:
+  - "`load()` no limpia el error de estado" y "sin la guarda `retryingStatus` en `retryFollowStatus`": **equivalentes** (mientras carga se ve el spinner y la respuesta pisa el error; el botón deshabilitado ya impide el segundo clic). **Saqué las dos líneas.**
+  - "`load()` no rehabilita Reintentar" y "el reintento no mira `isLatest`": **no equivalentes** (cambiar de ONG con un reintento colgado). Agregué el test de cambiar de ONG.
+  - Un mutante mío no cambiaba nada (`'' || userMessage(…)`); lo reemplacé por `error: ''`.
+  - Segunda corrida (17): **mueren 16. Sobrevive 1, equivalente:** con error, `following: true` en vez de `false` — con error el botón no se muestra, y "Reintentar" lo reemplaza por la respuesta nueva.
+
+### Errores propios
+- La primera versión de los tests de "quién consulta" fallaba por un `TypeError` (el mock reseteado devolvía `undefined`), no por el comportamiento. Les puse una respuesta por defecto y el rojo pasó a ser "se llamó 1 vez".
+- Un mutante que no mutaba nada (ver arriba).
+
+### ⚠️ NO verificado
+- Nada visual: el aviso de una línea con "Reintentar" a la derecha, en un celular angosto, puede ocupar dos líneas.
+- **Si iniciás sesión desde el perfil** (tocando "Seguir" sin sesión), el estado no se vuelve a consultar: el botón queda en "Seguir" aunque ya la siguieras (con el código anterior pasaba lo mismo, porque la consulta sin sesión daba `false`). Se resolvería consultando de nuevo cuando cambia `user`; no lo hice (no era parte del pedido).
+- El backend del estado no se tocó (`GET /api/follows/ngo/:id/status`, `optionalAuth`).

@@ -27,29 +27,56 @@ export function NGOPublicProfile() {
   const [togglingFollow, setTogglingFollow] = useState(false);
   const [followError, setFollowError] = useState('');
   const [followersCount, setFollowersCount] = useState(0);
+  // Error al consultar si ya la sigo. Antes se tragaba (`following: false`) y el botón decía "Seguir"
+  // aunque ya la siguieras; ahora el botón no se muestra y hay un aviso con "Reintentar".
+  const [statusError, setStatusError] = useState('');
+  const [retryingStatus, setRetryingStatus] = useState(false);
+  // Solo un voluntario puede seguir: sin sesión (o con otro rol) no hay nada que consultar.
+  const canFollow = user?.role === 'volunteer';
 
   // Solo vale la respuesta del último pedido (al cambiar de :id o reintentar): REVISION F15, §89.
   const latest = useLatestRequest();
   useEffect(() => { load(); }, [id]);
+
+  /** "¿Ya la sigo?" sin rechazar nunca: un error vuelve como mensaje, así no tumba el resto del perfil. */
+  const fetchFollowStatus = (ngoId: string): Promise<{ following: boolean; error: string }> =>
+    !canFollow
+      ? Promise.resolve({ following: false, error: '' })
+      : api.follows.ngoStatus(ngoId).then(
+          (r) => ({ following: r.following, error: '' }),
+          (err) => ({ following: false, error: userMessage(err, 'No pudimos saber si ya seguís a esta organización. Revisá tu conexión.') }),
+        );
 
   const load = () => {
     if (!id) return;
     const req = latest.start();
     setLoading(true);
     setLoadError(null);
-    Promise.all([
-      api.ngos.get(id),
-      api.follows.ngoStatus(id).catch(() => ({ following: false })),
-    ])
-      .then(([{ ngo: n, projects: p }, statusRes]) => {
+    setRetryingStatus(false); // un "Reintentar" de la ONG anterior que quedó en vuelo ya no cuenta
+    Promise.all([api.ngos.get(id), fetchFollowStatus(id)])
+      .then(([{ ngo: n, projects: p }, status]) => {
         if (!latest.isLatest(req)) return;
         setNgo(n);
         setProjects(p);
         setFollowersCount(n.followers || 0);
-        setFollowing(statusRes.following);
+        setFollowing(status.following);
+        setStatusError(status.error);
       })
       .catch((e) => { if (latest.isLatest(req)) setLoadError(describeLoadError(e, 'No encontramos esta organización')); })
       .finally(() => { if (latest.isLatest(req)) setLoading(false); });
+  };
+
+  /** "Reintentar" del aviso: solo vuelve a preguntar si la sigo (no recarga el perfil). */
+  const retryFollowStatus = () => {
+    if (!id) return;
+    const req = latest.start();
+    setRetryingStatus(true);
+    fetchFollowStatus(id).then((status) => {
+      if (!latest.isLatest(req)) return;
+      setFollowing(status.following);
+      setStatusError(status.error);
+      setRetryingStatus(false);
+    });
   };
 
   const handleToggleFollow = async () => {
@@ -124,7 +151,7 @@ export function NGOPublicProfile() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {(!user || user.role === 'volunteer') && (
+            {(!user || user.role === 'volunteer') && !statusError && (
               <button
                 onClick={handleToggleFollow}
                 disabled={togglingFollow}
@@ -157,6 +184,15 @@ export function NGOPublicProfile() {
           </div>
         </div>
         {followError && <p role="alert" className="-mt-2 mb-3 text-xs font-medium text-red-600 text-right">{followError}</p>}
+        {statusError && (
+          <div role="alert" className="-mt-2 mb-3 flex items-center justify-end gap-2 text-xs">
+            <p className="font-medium text-red-600">{statusError}</p>
+            <button onClick={retryFollowStatus} disabled={retryingStatus}
+              className="font-semibold text-emerald-700 hover:underline disabled:opacity-50 flex-shrink-0">
+              Reintentar
+            </button>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-4">
