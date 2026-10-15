@@ -2472,3 +2472,26 @@ Desarrollo/tests sin variable → valor de desarrollo; con variable → esa; pro
 ### ⚠️ NO verificado
 - En Chrome: no hay pantalla que lo use.
 - `PUT` con `latitude`/`longitude` inválidos (texto): se guardan como `NaN`→`null` como antes. No lo cambié.
+
+## 96. `GET /api/projects`: límite acotado y orden estable (deuda conocida, aprobada por el usuario)
+
+**Contexto (confirmado con tests en los dos motores):** `limit` y `offset` iban con `parseInt` directo al SQL. `limit=abc`, `limit=-5` u `offset=abc` daban error (`LIMIT NaN`), y no había tope (`limit=100000`). El orden no tenía desempate: con proyectos empatados (mismo `created_at` y mismo puntaje), **en Postgres dos páginas repetían proyectos y salteaban otros** (los tres órdenes fallaron). En SQLite pasaba de casualidad, porque devuelve en orden de inserción.
+
+**Qué se hizo:**
+- `clampInt` pasó de `posts.js` a `lib/inputs.js` (lo usan `posts` y `projects`, regla 3). `limit`: default 20, entre 1 y **500** (lo máximo que pide hoy el frontend: el selector de patrocinio; Explorar pide 200). `offset` ≥ 0. Inválido → el default.
+- Los tres órdenes (`featured`, `recent`, `rating`) terminan en `p.id`.
+- `API_CONTEXT.md`: la paginación nueva, y la lista de query params corregida (listaba `tipo`, `categoria` "uno o varios ids", `ngo_id`, `page` y un default de `status` que el código nunca tuvo).
+
+### Tests (nuevos: 11, `projects-pagination.test.js`, con 520 proyectos idénticos salvo el id)
+6 combinaciones inválidas de `limit`/`offset` → 200 con defaults; sin `limit` → 20; `limit=100000` → 500; y para cada orden, cuatro páginas de 15 seguidas son exactamente los primeros 60 del listado completo, sin repetidos.
+
+### Verificación
+- **SQLite 463/463 y Postgres 465/465**, también con `TZ=America/Argentina/Cordoba`.
+- **Mutación (6, los dos motores):** sacar el desempate de cada orden, sacar el tope y no acotar `limit`/`offset`: **los 6 mueren** (los de desempate, por Postgres).
+
+### Errores propios
+- Ninguno en esta tarea.
+
+### ⚠️ NO verificado / pendiente
+- **No es paginación "de verdad" en la interfaz:** Explorar y el selector de patrocinio siguen pidiendo un bloque grande. Con más de 500 proyectos activos se cortarían. Haría falta "cargar más" en esas pantallas.
+- En Chrome no lo miré: el camino normal (Explorar con `limit=200`) no cambia; lo cubren los tests.

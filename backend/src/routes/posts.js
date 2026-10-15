@@ -23,6 +23,7 @@ const storage = require('../lib/storage');
 const { requireAuth, optionalAuth, requireRole } = require('../middleware/auth');
 const { toMillis } = require('../lib/time');
 const { hasBadWord } = require('../lib/badWords');
+const { clampInt } = require('../lib/inputs');
 
 const router = express.Router();
 
@@ -73,11 +74,6 @@ function requireStorage(req, res, next) {
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────
-const clampInt = (value, fallback, min, max) => {
-  const n = Number.parseInt(value, 10);
-  if (Number.isNaN(n) || n < min) return fallback;
-  return Math.min(n, max);
-};
 
 const isoDate = (v) => {
   const ms = toMillis(v);

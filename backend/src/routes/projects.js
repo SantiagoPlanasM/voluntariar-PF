@@ -4,7 +4,7 @@ const db = require('../db');
 const { requireAuth, optionalAuth, requireRole } = require('../middleware/auth');
 const { randomUUID } = require('node:crypto');
 const { toMillis } = require('../lib/time');
-const { checkText, firstError } = require('../lib/inputs');
+const { checkText, firstError, clampInt } = require('../lib/inputs');
 const { hasBadWord } = require('../lib/badWords');
 
 const router = express.Router();
@@ -133,14 +133,18 @@ async function loadAssoc(q, projectId) {
 // ── GET /api/projects ─────────────────────────────────────────────────────
 router.get('/', optionalAuth, async (req, res) => {
   try {
-    const { category, type, status, search, modality, modalidad, sort = 'featured', limit = 20, offset = 0 } = req.query;
+    const { category, type, status, search, modality, modalidad, sort = 'featured' } = req.query;
+    // Paginación (deuda conocida, §96): antes limit/offset iban con parseInt directo al SQL (`limit=abc` → LIMIT NaN,
+    // 500 en Postgres) y sin tope. 500 es lo máximo que pide hoy el frontend (CompanyOwnProfile; Explore pide 200).
+    const limit = clampInt(req.query.limit, 20, 1, 500);
+    const offset = clampInt(req.query.offset, 0, 0, Number.MAX_SAFE_INTEGER);
     const modFilter = modality || modalidad;
 
     let orderSql;
     if (sort === 'recent') {
-      orderSql = 'p.created_at DESC';
+      orderSql = 'p.created_at DESC, p.id';
     } else if (sort === 'rating') {
-      orderSql = 'COALESCE(r.avg_rating, 0) DESC, COALESCE(r.ratings_count, 0) DESC, p.created_at DESC';
+      orderSql = 'COALESCE(r.avg_rating, 0) DESC, COALESCE(r.ratings_count, 0) DESC, p.created_at DESC, p.id';
     } else {
       // sort === 'featured' (por defecto): score ponderado por estado activo, participantes, rating y followers
       // Prioridad máxima a los seguidores del voluntariado específico (p.followers * 8) + respaldo secundario por seguidores de la ONG (n.followers * 0.005)
@@ -150,7 +154,7 @@ router.get('/', optionalAuth, async (req, res) => {
         + (COALESCE(r.avg_rating, 0) * (CASE WHEN COALESCE(r.ratings_count, 0) >= 4 THEN 16 WHEN COALESCE(r.ratings_count, 0) >= 2 THEN 10 WHEN COALESCE(r.ratings_count, 0) >= 1 THEN 5 ELSE 0 END))
         + (COALESCE(p.followers, 0) * 8)
         + (CASE WHEN COALESCE(n.followers, 0) > 0 THEN (COALESCE(n.followers, 0) * 0.005) ELSE 0 END)
-      ) DESC, p.created_at DESC`;
+      ) DESC, p.created_at DESC, p.id`; // p.id: desempate, para que las páginas no se pisen (§96)
     }
 
     // Roles y requisitos como arrays de strings, la misma forma que arma la rama SQLite y GET /:id
@@ -219,7 +223,7 @@ router.get('/', optionalAuth, async (req, res) => {
 
     sql += ` GROUP BY p.id, n.nombre, n.foto_perfil, n.followers, c.nombre, r.avg_rating, r.ratings_count`;
     sql += ` ORDER BY ${orderSql} LIMIT $${i++} OFFSET $${i++}`;
-    params.push(parseInt(limit), parseInt(offset));
+    params.push(limit, offset);
 
     // SQLite no soporta JOINs con aggregation igual que PG → fallback simple
     let rows;
@@ -267,7 +271,7 @@ router.get('/', optionalAuth, async (req, res) => {
         simpleParams.push(q, q, q, q); si += 4;
       }
       simpleSql += ` ORDER BY ${orderSql} LIMIT $${si++} OFFSET $${si++}`;
-      simpleParams.push(parseInt(limit), parseInt(offset));
+      simpleParams.push(limit, offset);
       rows = await db.all(simpleSql, simpleParams);
 
       // Enriquecer con roles, requisitos y categoría — en batch (antes era

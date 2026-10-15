@@ -23,7 +23,15 @@ function checkText(value, { label, max, min = 0, required = false, nullable = !r
   return null;
 }
 
+/** Entero de un query param, acotado: inválido o menor que `min` → `fallback`; mayor que `max` → `max`.
+ *  Lo usan los listados paginados (posts, proyectos) para que `limit=abc` no llegue al SQL como NaN. */
+const clampInt = (value, fallback, min, max) => {
+  const n = Number.parseInt(value, 10);
+  if (Number.isNaN(n) || n < min) return fallback;
+  return Math.min(n, max);
+};
+
 /** El primer error de una lista de chequeos, o null. */
 const firstError = (...errors) => errors.find(Boolean) || null;
 
-module.exports = { checkText, firstError };
+module.exports = { checkText, firstError, clampInt };
