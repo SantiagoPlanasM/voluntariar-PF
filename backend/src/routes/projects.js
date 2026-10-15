@@ -14,6 +14,12 @@ const router = express.Router();
 // se devuelve tal cual. Antes se le hacía JSON.parse(array), fallaba y quedaba [] (REVISION B2).
 const parseJson = (val) => { if (Array.isArray(val)) return val; try { return JSON.parse(val || '[]'); } catch { return []; } };
 
+// Forma de una reseña (interface Rating de frontend/src/lib/api.ts). La usan GET /projects/:id y el feed
+// (routes/follows.js): antes cada uno tenía su SELECT y el del feed no traía user_id (REVISION, pendiente de §112).
+// Quien la use agrega su propio WHERE / ORDER BY.
+const RATINGS_SELECT = `SELECT r.id, r.project_id, r.user_id, r.rating, r.comment, r.created_at, u.name AS user_name
+       FROM ratings r JOIN users u ON u.id = r.user_id`;
+
 // Campos que algunos endpoints agregan a la fila ANTES de formatear (el feed, routes/follows.js).
 const PROJECT_EXTRAS = ['ratings', 'recent_comments', 'comments_count', 'my_enrollment_status', 'follow_source', 'follow_label'];
 
@@ -696,9 +702,9 @@ router.get('/:id', optionalAuth, async (req, res) => {
        WHERE c.project_id = $1 ORDER BY c.created_at DESC`, [req.params.id]
     );
     const ratings = await db.all(
-      `SELECT r.id, r.project_id, r.user_id, r.rating, r.comment, r.created_at, u.name AS user_name
-       FROM ratings r JOIN users u ON u.id = r.user_id
-       WHERE r.project_id = $1`, [req.params.id]
+      `${RATINGS_SELECT}
+       WHERE r.project_id = $1
+       ORDER BY r.created_at DESC, r.id`, [req.params.id]
     );
     const avgRating = ratings.length
       ? ratings.reduce((s, r) => s + r.rating, 0) / ratings.length : 0;
@@ -1055,6 +1061,7 @@ module.exports.validateProject = validateProject;
 // reusen la misma función en vez de mantener una copia — evita que las dos
 // queden desincronizadas cuando se agrega un campo nuevo acá.
 module.exports.fmt = fmt;
+module.exports.RATINGS_SELECT = RATINGS_SELECT;
 
 // ── GET /api/projects/:id/kpis ────────────────────────────────────────────
 router.get('/:id/kpis', async (req, res) => {

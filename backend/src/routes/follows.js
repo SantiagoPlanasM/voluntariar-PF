@@ -5,7 +5,7 @@ const { requireAuth, optionalAuth, requireRole } = require('../middleware/auth')
 // Reusa el mismo formateador de proyecto que projects.js (exportado ahí
 // justamente para esto) en vez de mantener una copia acá — la copia anterior
 // se había desincronizado y no traía latitude/longitude/modality.
-const { fmt: fmtProject } = require('./projects');
+const { fmt: fmtProject, RATINGS_SELECT } = require('./projects');
 const { fmtNgo } = require('./ngos');
 
 const router = express.Router();
@@ -280,12 +280,10 @@ router.get('/feed', requireAuth, requireRole('volunteer'), async (req, res) => {
         db.all(`SELECT project_id, descripcion FROM requisitos WHERE project_id IN (${ph})`, ids),
         db.all(`SELECT pc.project_id, c.nombre FROM project_categorias pc JOIN categorias c ON c.id=pc.categoria_id WHERE pc.project_id IN (${ph})`, ids),
         db.all(
-          `SELECT r.id, r.project_id, r.rating, r.comment, r.created_at,
-                  u.name AS user_name, u.avatar AS user_avatar
-           FROM ratings r
-           JOIN users u ON u.id = r.user_id
+          // Las mismas columnas que GET /projects/:id (antes faltaba user_id y sobraba user_avatar, que no leía nadie).
+          `${RATINGS_SELECT}
            WHERE r.project_id IN (${ph})
-           ORDER BY r.created_at DESC`,
+           ORDER BY r.created_at DESC, r.id`,
           ids
         ),
         // Últimos 3 comentarios con info de usuario e indicador de si participó

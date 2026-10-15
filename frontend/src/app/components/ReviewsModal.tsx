@@ -41,8 +41,8 @@ export function ReviewsModal({
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // La reseña propia (el backend hace upsert: una por persona y proyecto). Solo la trae GET /projects/:id: las
-  // reseñas que llegan en el feed no tienen user_id.
+  // La reseña propia (el backend hace upsert: una por persona y proyecto). Se busca en la lista recién pedida a
+  // GET /projects/:id (desde el feed también llega user_id, pero esa lista puede estar vieja: S3).
   const mine = (list: Rating[]) => (user ? list.find(r => r.user_id === user.id) : undefined);
 
   // Lista nueva del servidor; si ya calificó, el formulario arranca con su reseña (REVISION S4). Antes arrancaba

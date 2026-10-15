@@ -344,7 +344,7 @@ Cada uno con test primero (rojo → verde), SQLite + Postgres + TZ de Córdoba s
 
 ### Pendientes que surgieron al arreglarlos (no tocados; necesitan tu decisión)
 - ✅ **§121** — **Barra inferior de la ONG en pantallas públicas** (S7, §117): unificarla con `NGOBottomNav` le saca "Explorar", su único acceso a `/explore` en celular. Opciones: agregar "Explorar" a `NGOBottomNav` o aceptar perderlo. `SidebarNav` de `Root.tsx` (escritorio) tiene una tercera copia de las listas.
-- **Tipo `Rating` vs. el feed** (§112): `api.ts` declara `user_id` obligatorio y `GET /api/follows/feed` no lo manda (regla 2). Agregarlo al SELECT o marcarlo opcional.
+- ✅ **§122** — **Tipo `Rating` vs. el feed** (§112): `api.ts` declara `user_id` obligatorio y `GET /api/follows/feed` no lo manda (regla 2). Agregarlo al SELECT o marcarlo opcional.
 - **`ProjectDetails` tiene su propio formulario de calificación** (no usa `ReviewsModal`): por lectura, el mismo problema de S4.
 - **`InlineError` sin `role="alert"` propio:** cada pantalla nueva lo envuelve en un `<div role="alert">`; ponerlo en el componente lo resolvería para todas.
 - `NGOPublicProfile` traga el error de `ngoStatus` (muestra "Seguir" aunque ya la sigas); seguir una ONG sugerida en Inicio no bloquea el doble clic.

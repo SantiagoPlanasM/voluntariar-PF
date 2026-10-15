@@ -3160,3 +3160,41 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 
 ### ⚠️ NO verificado
 - No lo vi en un celular: 7 botones (6 ítems más "Salir") en la barra del panel pueden quedar apretados en pantallas angostas.
+
+## 122. Reseñas del feed con `user_id` y la misma forma que el detalle — pendiente de §112
+
+**Contexto:**
+- En `REVISION.md`, "Pendientes que surgieron al arreglarlos": el tipo `Rating` de `api.ts` declara `user_id` obligatorio, pero `GET /api/follows/feed` no lo mandaba (regla 2). Lo encontró §112 (por eso `ReviewsModal` no podía usar la lista del feed para saber cuál era la reseña propia). Decisión del usuario: agregarlo en el backend.
+- Al comparar los dos SELECT había **otra diferencia**: el feed mandaba `user_avatar`, que no está en `Rating` ni lo lee ningún componente (los `user_avatar` del frontend son de **comentarios**). Detalle: `{ id, project_id, user_id, rating, comment, created_at, user_name }`; feed: lo mismo sin `user_id` y con `user_avatar`.
+- Regla 10, ¿hay otros endpoints que devuelvan `ratings`? Con grep (`FROM ratings`, `.ratings`, `ratings:` en `backend/src`): solo el detalle y el feed devuelven la lista. `GET /api/projects`, `/recommended` y el resto solo usan agregados (`avg_rating`, `ratings_count`); `PROJECT_EXTRAS` deja pasar `ratings` en `fmt()` pero solo el feed lo carga.
+
+**Qué se hizo:**
+- `routes/projects.js`: constante `RATINGS_SELECT` (columnas + `FROM ratings r JOIN users u`), exportada. La usa `GET /projects/:id` (cada uno agrega su `WHERE`/`ORDER BY`).
+- `routes/follows.js`: el feed la importa en vez de tener su propio SELECT. Ahora manda `user_id` y **ya no manda `user_avatar`** (nadie lo leía; si se quiere el avatar en las reseñas, se agrega en `RATINGS_SELECT` y en `Rating`, y sale en los dos).
+- Frontend: solo el comentario de `ReviewsModal.tsx` que decía "las reseñas del feed no tienen user_id". La lógica no cambia: el modal sigue recargando al abrirse (S3), porque la lista del feed puede estar vieja.
+- `docs/API_CONTEXT.md`: forma de las reseñas del feed.
+
+### Tests (nuevos: 3, `test/integration/feed-ratings-shape.test.js`)
+- Lucía sigue `proj-1` (tiene reseñas en el seed). Las reseñas del feed, ordenadas por id, son `deepEqual` a las de `GET /projects/proj-1` (primero las claves, después todo).
+- Campos y valores, tomados de la base: en el detalle y en el feed, cada reseña tiene exactamente `comment, created_at, id, project_id, rating, user_id, user_name`, y `user_id`, `user_name` (= `users.name`), `rating`, `comment` y `created_at` (con `toMillis`) coinciden con la fila. Se agregó después de la primera corrida de mutación (ver abajo): el primer test solo comparaba un endpoint con el otro.
+- `user_id` es un string no vacío en todas las reseñas del feed.
+- **Rojo de comportamiento:** con el código anterior fallaban el 1 (`user_avatar` en vez de `user_id`) y el 3 (`typeof user_id` era `'undefined'`). El mutante "feed con el SELECT viejo" (abajo) también muere en SQLite y en Postgres, con los tres tests.
+
+### Verificación
+- **Backend:** SQLite **490/490** (487 + 3), Postgres **492/492** (489 + 3); lo mismo con `TZ=America/Argentina/Cordoba`. 0 fail, 0 cancelled, exit 0 en las cuatro.
+- **Frontend:** **503/503** (sin tests nuevos: solo cambió un comentario). **Typecheck: 0 errores** (exit 0).
+- Pasan sin cambios `follows.test.js` y `public-columns.test.js` (que chequea que el feed tenga `ratings` y que las reseñas no expongan columnas no elegidas).
+
+### Mutación (11 mutantes, con `feed-ratings-shape`, `follows`, `public-columns`, `api` y `aggregates-are-numbers`; SQLite y Postgres)
+- Mutantes: sacar cada columna de `RATINGS_SELECT` (7), `user_name` = `u.id`, el feed con el SELECT viejo, el feed con `user_avatar` de más y el detalle con el SELECT viejo sin `user_id`.
+- **Primera corrida (solo con los tests 1 y 3): sobrevivieron 6 en SQLite y 5 en Postgres** — sacar `r.rating`, `r.comment`, `r.created_at`, `user_name` o cambiar `user_name` por `u.id` (y en SQLite también sacar `r.id`). **No equivalentes:** como el SELECT es compartido, los dos endpoints cambian juntos y la comparación entre ellos sigue dando igual, pero el frontend se rompe. Se agregó el test 2 (campos y valores contra la base).
+- **Segunda corrida: 0 sobrevivientes de 11, en SQLite y en Postgres.**
+
+### Errores propios
+1. El primer test solo comparaba el feed con el detalle. Al compartir el SELECT, eso no detecta un campo que desaparece de los dos a la vez: lo mostró la mutación (5–6 sobrevivientes) y se agregó el test contra la base.
+
+### ⚠️ NO verificado
+- La interfaz (no puedo verla): no debería cambiar nada visible, porque ningún componente leía `user_avatar` de una reseña y `user_id` ya se usaba solo con la lista de `GET /projects/:id`.
+- **Orden de las reseñas:** el feed las manda de la más nueva a la más vieja (`ORDER BY r.created_at DESC`); el detalle no tiene `ORDER BY` (en Postgres el orden no está garantizado). No lo toqué: es un cambio de comportamiento que no estaba en el pedido. Si se quiere alinear, sería agregar `ORDER BY r.created_at DESC` al detalle.
+
+**Agregado al integrar (coordinador):** el test compara la lista de reseñas del feed con la del detalle con `deepEqual`, pero el detalle no tenía `ORDER BY` (en Postgres el orden no está garantizado) y el feed ordenaba solo por `created_at`, que en SQLite tiene resolución de 1 s (dos reseñas del mismo segundo empatan). Los dos quedaron con `ORDER BY r.created_at DESC, r.id`: orden determinista y el mismo en los dos endpoints. **Cambio visible:** el detalle muestra las reseñas de la más nueva a la más vieja (antes, el orden que devolviera la base).

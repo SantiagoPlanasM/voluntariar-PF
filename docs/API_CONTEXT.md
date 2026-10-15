@@ -402,7 +402,7 @@
 - `GET /volunteer/:userId/followers` / `GET /volunteer/:userId/following` — listas públicas de otro usuario.
 
 ### Feed
-- `GET /feed` (auth, `volunteer`) — proyectos de las ONGs/proyectos seguidos, con `my_enrollment_status` resuelto por proyecto (batched, sin N+1) y formateados con el mismo `fmt` de `/api/projects` (incluye `latitude`/`longitude`/`modality`).
+- `GET /feed` (auth, `volunteer`) — proyectos de las ONGs/proyectos seguidos, con `my_enrollment_status` resuelto por proyecto (batched, sin N+1) y formateados con el mismo `fmt` de `/api/projects` (incluye `latitude`/`longitude`/`modality`). Cada reseña de `ratings` tiene **la misma forma que en `GET /api/projects/:id`**: `{ id, project_id, user_id, rating, comment, created_at, user_name }` (el SELECT es uno solo, `RATINGS_SELECT` de `routes/projects.js`). Antes el feed no mandaba `user_id` (que el tipo `Rating` de `api.ts` declara obligatorio) y mandaba un `user_avatar` que nadie leía; lo prueba `test/integration/feed-ratings-shape.test.js`. Las del feed vienen de la más nueva a la más vieja; las del detalle, sin `ORDER BY`.
 
 ---
 
