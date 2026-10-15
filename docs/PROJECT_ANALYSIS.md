@@ -2278,3 +2278,25 @@ Además no había `maxPayload` (el default de `ws` es **100 MiB**) y una ráfaga
 - **No probado en Chrome:** no cambió nada visible; el envío normal por socket lo cubren los tests de punta a punta de `insert-returns-own-row.test.js`.
 - `POST /api/messages` sigue sin límite de frecuencia (no hay rate limiting en REST; deuda conocida).
 - El mapa de envíos recientes es en memoria y por proceso (igual que las conexiones, §18).
+
+## 88. KPIs con datos inválidos: 500 o, peor, guardados — seguimiento de REVISION D6 (§78)
+
+**Contexto:** §78 confirmó que el PUT de KPI sin `nombre` daba 500. Al escribir el test con todos los casos inválidos para POST y PUT (rojo en 17 de 19), apareció más:
+- **500 en 9 casos:** PUT sin `nombre` (NOT NULL), `nombre` vacío o que no es texto (`.trim()`), descripción o unidad que no son texto, `tipo_valor` fuera de la lista (CHECK de la base).
+- **7 casos inválidos se GUARDABAN** (201/200): un nombre de 121+ caracteres, `valor: 'mucho'` o `'1e400'` (con `parseFloat`), etc.
+
+**Qué se hizo:** `validateKpi` compartido por POST y PUT, con `checkText` (§76) y topes de largo (nombre 120, descripción 500, unidad 40). `tipo_valor` debe estar en la lista. `valor` tiene que ser un número finito con `Number()` estricto (`'12abc'` ya no pasa como 12, igual que las horas en §75); `null`, `''` o ausente = sin valor. **No se tocó:** que el PUT no sea parcial (deuda conocida, regla 16): sigue exigiendo `nombre` y pisando los demás campos. Tampoco F3 (KPI de tipo "texto", pendiente de decisión): un `valor` no numérico de ese tipo sigue llegando como `null` desde el frontend.
+
+### Tests (nuevos: 21, `kpis-input-validation.test.js`)
+10 casos inválidos × POST y PUT (400 con el mensaje esperado, y la base sin cambios: no se crea nada / el KPI no cambia), más uno de casos válidos (texto recortado, tipo de la lista, `valor` null y `''` → `null`).
+
+### Verificación
+- **SQLite 417/417 y Postgres 419/419**, también con `TZ=America/Argentina/Cordoba`.
+- **Mutación (10, los dos motores):** primera corrida, 8 muertos y **2 sobrevivientes no equivalentes** (`parseFloat` en vez de `Number`, y `''` guardado como 0). Agregué `'12abc'` y `valor: ''` al test: **los 10 mueren**.
+- El formulario (`NGOKPIs.tsx`) manda tipos de la misma lista y `valor` como número o nada: el camino normal no cambia. No lo miré en Chrome (§63 ya lo había verificado y el formulario no cambió). Un nombre de más de 120 caracteres ahora muestra el error del servidor en el formulario (ya existía ese manejo).
+
+### Errores propios
+- Ninguno en esta tarea.
+
+### ⚠️ NO verificado
+- `fecha` sigue sin validarse (texto libre en una columna TEXT; el formulario manda `YYYY-MM-DD`).

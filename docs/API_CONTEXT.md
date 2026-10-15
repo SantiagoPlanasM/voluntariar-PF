@@ -190,10 +190,11 @@
 
 ### `POST /api/projects/:id/kpis` — Auth, role `ngo` (dueño)
 - **Body:** `{ nombre, descripcion?, valor?, tipo_valor?, unidad?, fecha? }`
+- **Validación (`validateKpi`, también en el PUT; `PROJECT_ANALYSIS.md §88`):** `nombre` texto obligatorio ≤ 120; `descripcion` ≤ 500 y `unidad` ≤ 40 (texto o `null`); `tipo_valor` ∈ `numero|porcentaje|texto|booleano` (default `numero`); `valor` número finito (`Number()` estricto: `"12abc"` no pasa) o `null`/`""` = sin valor. Si no → **400**.
 - **Respuesta 201:** `{ kpi }`.
 
 ### `PUT /api/projects/:id/kpis/:kpiId` — Auth, role `ngo` (dueño)
-- **No es parcial:** pisa todos los campos con lo que manda el body (un campo omitido queda en `null`, incluido `tipo_valor`). **Sin `nombre` responde 500** (`Error al actualizar KPI`) por el NOT NULL de la columna: probado en SQLite (`PROJECT_ANALYSIS.md §78`). El frontend siempre lo manda. **Respuesta 200:** `{ kpi }`.
+- **No es parcial:** pisa todos los campos con lo que manda el body (un campo omitido queda en `null`, incluido `tipo_valor`). Sin `nombre` (o con datos inválidos) responde **400** con la misma validación que el POST (antes 500 por el NOT NULL, §78 → arreglado en §88). El frontend siempre lo manda. **Respuesta 200:** `{ kpi }`.
 - **404** si el KPI no existe o no es de ese proyecto (antes respondía 200 con el KPI de otro proyecto, de otra ONG, o con `{}`: `PROJECT_ANALYSIS.md §56`).
 
 ### `DELETE /api/projects/:id/kpis/:kpiId` — Auth, role `ngo` (dueño)

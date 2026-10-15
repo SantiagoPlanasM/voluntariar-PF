@@ -4,6 +4,7 @@ const db = require('../db');
 const { requireAuth, optionalAuth, requireRole } = require('../middleware/auth');
 const { randomUUID } = require('node:crypto');
 const { toMillis } = require('../lib/time');
+const { checkText, firstError } = require('../lib/inputs');
 
 const router = express.Router();
 
@@ -19,6 +20,25 @@ const PROJECT_EXTRAS = ['ratings', 'recent_comments', 'comments_count', 'my_enro
 // `...p` y devolvía TODAS las columnas de la fila (titulo, cupos, roles_json…): la próxima columna que se
 // agregara a projects habría salido sola por los endpoints públicos. Un campo nuevo para el frontend se
 // agrega acá Y en la interface Project de frontend/src/lib/api.ts.
+// ── Validación de KPIs (POST y PUT) ─────────────────────────────────────
+// Antes: `nombre` faltante en el PUT (NOT NULL), un `nombre` que no era string (`.trim()`) o un tipo fuera de la
+// lista (CHECK) daban 500, y valores como `valor: 'mucho'` o un nombre de 1000 caracteres se GUARDABAN
+// (PROJECT_ANALYSIS.md §88). El PUT no es parcial (deuda conocida): exige `nombre` igual que el alta.
+const KPI_TIPOS = ['numero', 'porcentaje', 'texto', 'booleano'];
+function validateKpi({ nombre, descripcion, valor, tipo_valor, unidad }) {
+  const err = firstError(
+    checkText(nombre, { label: 'El nombre del KPI', max: 120, required: true }),
+    checkText(descripcion, { label: 'La descripción', max: 500 }),
+    checkText(unidad, { label: 'La unidad', max: 40 }),
+  );
+  if (err) return err;
+  if (tipo_valor !== undefined && tipo_valor !== null && !KPI_TIPOS.includes(tipo_valor)) return 'Tipo de KPI inválido';
+  if (valor !== undefined && valor !== null && valor !== '' && !Number.isFinite(Number(valor))) return 'El valor tiene que ser un número';
+  return null;
+}
+// null/''/ausente → null; si no, el número (ya validado).
+const kpiValor = (valor) => (valor === undefined || valor === null || valor === '' ? null : Number(valor));
+
 // Columnas de un KPI que devuelve la API (todas las de hoy, pero elegidas: regla 8, REVISION B21).
 const KPI_COLS = 'id, project_id, nombre, descripcion, valor, tipo_valor, unidad, fecha, created_at';
 
@@ -973,7 +993,8 @@ router.post('/:id/kpis', requireAuth, requireRole('ngo'), async (req, res) => {
     if (!project) return res.status(403).json({ error: 'Sin permiso sobre este proyecto' });
 
     const { nombre, descripcion, valor, tipo_valor = 'numero', unidad, fecha } = req.body;
-    if (!nombre?.trim()) return res.status(400).json({ error: 'El nombre del KPI es obligatorio' });
+    const invalid = validateKpi(req.body);
+    if (invalid) return res.status(400).json({ error: invalid });
 
     // id propio: ver POST / (PROJECT_ANALYSIS §40).
     const kpiId = randomUUID();
@@ -981,7 +1002,7 @@ router.post('/:id/kpis', requireAuth, requireRole('ngo'), async (req, res) => {
       `INSERT INTO kpis (id, project_id, nombre, descripcion, valor, tipo_valor, unidad, fecha)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
       [kpiId, req.params.id, nombre.trim(), descripcion?.trim() || null,
-       valor !== undefined ? parseFloat(valor) : null,
+       kpiValor(valor),
        tipo_valor, unidad?.trim() || null, fecha || null]
     );
 
@@ -1001,11 +1022,13 @@ router.put('/:id/kpis/:kpiId', requireAuth, requireRole('ngo'), async (req, res)
     if (!project) return res.status(403).json({ error: 'Sin permiso' });
 
     const { nombre, descripcion, valor, tipo_valor, unidad, fecha } = req.body;
+    const invalid = validateKpi(req.body);
+    if (invalid) return res.status(400).json({ error: invalid });
     const upd = await db.run(
       `UPDATE kpis SET nombre=$1, descripcion=$2, valor=$3, tipo_valor=$4, unidad=$5, fecha=$6
        WHERE id=$7 AND project_id=$8`,
-      [nombre?.trim(), descripcion?.trim() || null,
-       valor !== undefined ? parseFloat(valor) : null,
+      [nombre.trim(), descripcion?.trim() || null,
+       kpiValor(valor),
        tipo_valor, unidad?.trim() || null, fecha || null,
        req.params.kpiId, req.params.id]
     );
