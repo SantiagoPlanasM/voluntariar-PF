@@ -1017,6 +1017,9 @@ router.post('/:id/ratings', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'La calificación tiene que ser un número entero del 1 al 5' });
     if (comment != null && (typeof comment !== 'string' || comment.length > 1000))
       return res.status(400).json({ error: 'El comentario tiene que ser un texto de hasta 1000 caracteres' });
+    // Mismo filtro que los comentarios del proyecto (PROJECT_ANALYSIS §104); antes las reseñas no pasaban por él.
+    if (comment && hasBadWord(comment))
+      return res.status(400).json({ error: 'El comentario contiene palabras no permitidas' });
 
     // Validación de participación aprobada para calificar
     const enrollment = await db.get(

@@ -1,4 +1,5 @@
-// src/lib/badWords.js — palabras no permitidas en comentarios de proyectos y textos de publicaciones.
+// src/lib/badWords.js — palabras no permitidas en comentarios de proyectos, comentarios de calificaciones
+// (PROJECT_ANALYSIS.md §104) y textos de publicaciones.
 //
 // Criterio (REVISION B7, decisión del usuario; PROJECT_ANALYSIS.md §93): palabras COMPLETAS, sin distinguir
 // mayúsculas ni acentos. Antes se comparaba por subcadena y se rechazaban "computadora", "disputa",

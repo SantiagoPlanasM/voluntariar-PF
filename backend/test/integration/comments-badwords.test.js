@@ -30,4 +30,30 @@ describe('Comentarios: filtro por palabras completas', () => {
       assert.deepEqual([r.status, r.body.error], [400, 'El comentario contiene palabras no permitidas'], t);
     }
   });
+
+  // Las calificaciones no pasaban por el filtro (PROJECT_ANALYSIS §104): "Qué imbécil…" se guardaba y se veía
+  // en la pestaña Reseñas. María tiene inscripción aprobada en proj-1, así que puede calificar.
+  describe('comentario de una calificación', () => {
+    const db = () => require('../../src/db');
+    const rate = (body) => fetch(`${server.baseUrl}/api/projects/proj-1/ratings`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }).then(async (r) => ({ status: r.status, body: await r.json() }));
+    const myRating = () => db().get(`SELECT rating, comment FROM ratings WHERE user_id='user-vol-1' AND project_id='proj-1'`);
+
+    test('con una palabra de la lista → 400 y la calificación anterior no cambia', async () => {
+      const before = await myRating();
+      for (const t of ['Qué imbécil el coordinador', 'sos un BOLUDO']) {
+        const r = await rate({ rating: 1, comment: t });
+        assert.deepEqual([r.status, r.body.error], [400, 'El comentario contiene palabras no permitidas'], t);
+      }
+      assert.deepEqual(await myRating(), before);
+    });
+
+    test('"computadora" (contiene "puta") se guarda: mismo criterio de palabra completa', async () => {
+      const r = await rate({ rating: 4, comment: 'Traigan la computadora para el registro' });
+      assert.equal(r.status, 200, JSON.stringify(r.body));
+      assert.equal((await myRating()).comment, 'Traigan la computadora para el registro');
+    });
+  });
 });

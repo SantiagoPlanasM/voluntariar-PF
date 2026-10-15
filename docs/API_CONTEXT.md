@@ -162,7 +162,7 @@
 - **Validación de listas y categoría (`cleanTextList`, `PROJECT_ANALYSIS.md §59`), antes de crear nada:** `roles_needed` y `requirements` ausentes → `[]`; si vienen, tienen que ser **arrays de strings**, a lo sumo **20** cada uno, rol de **2 a 40** caracteres y requisito de **3 a 100** (los mismos límites que `CreateVoluntariado.tsx`; sin la regex de letras del frontend). Se recortan y se sacan repetidos. `category`, si viene, string de hasta 60. Antes un string se recorría letra por letra (creaba los roles "C", "h", "e", "f" en el catálogo) y un no-string daba 500 con el proyecto creado a medias.
 - **Efecto (en una sola `db.transaction()`):** `INSERT` en `projects` (mapeando `volunteers_needed → cupos` internamente); la categoría y los roles se crean en su catálogo si no existen (`ON CONFLICT (nombre) DO NOTHING`) y se asocian; después los `requisitos`. Si algo falla, no queda nada. **Ojo:** cualquier ONG puede crear categorías y roles nuevos en el catálogo global (el frontend manda categorías de una lista fija, pero el backend acepta cualquier texto).
 - **Respuesta 201:** `{ project }`, con `roles_needed`/`requirements`/`category` tal como se guardaron (recortados, sin repetidos), no como vinieron en el body.
-- **Errores:** `400` validación, `404` si el usuario no tiene perfil de ONG asociado. *(No pasa por `hasBadWord()`: eso es solo para comentarios y posts; la doc anterior decía lo contrario.)*
+- **Errores:** `400` validación, `404` si el usuario no tiene perfil de ONG asociado. *(No pasa por `hasBadWord()`: eso es solo para comentarios, reseñas y posts; la doc anterior decía lo contrario.)*
 - **Id propio (`PROJECT_ANALYSIS.md §40`):** el handler genera el id con `crypto.randomUUID()`, lo usa en el `INSERT`, para releer la fila y para asociar categoría/roles/requisitos. *(Antes buscaba "el último proyecto de la ONG" por `created_at`: en SQLite, con resolución de 1 s, dos altas de la misma ONG en el mismo segundo empataban, devolvía el más viejo y le enganchaba las asociaciones.)*
 
 ### `PUT /api/projects/:id` — Auth, role `ngo` (dueño)
@@ -182,10 +182,10 @@
 - **Ojo en el frontend:** `api.ts` tipa esta respuesta como `{ comment: AppComment }` — si se toca este endpoint, no usar `Comment` a secas como tipo (es el tipo global del DOM, no el propio; ya pasó una vez, ver `PROJECT_ANALYSIS.md §29`).
 
 ### `POST /api/projects/:id/ratings` — Auth (cualquier rol)
-- **Body:** `{ rating (1-5), comment? }`. `rating` tiene que ser un **entero** de 1 a 5 (acepta `"4"`); `comment`, si viene, texto de hasta 1000 caracteres. Si no → **400** (antes `"abc"` o `3.5` llegaban a la base y daban 500; `PROJECT_ANALYSIS.md §74`).
+- **Body:** `{ rating (1-5), comment? }`. `rating` tiene que ser un **entero** de 1 a 5 (acepta `"4"`); `comment`, si viene, texto de hasta 1000 caracteres. Si no → **400** (antes `"abc"` o `3.5` llegaban a la base y daban 500; `PROJECT_ANALYSIS.md §74`). El `comment` pasa por `hasBadWord()` igual que los comentarios del proyecto → **400** "El comentario contiene palabras no permitidas" (`§104`; antes las reseñas no se filtraban).
 - **Restricción agregada por el usuario (2026-09):** solo puede calificar quien tenga una `enrollment` con `status='approved'` en ese proyecto — `403` si no. Antes cualquier usuario logueado podía calificar sin haber participado.
 - **Comportamiento:** hace upsert real (`UPDATE` si ya existe una calificación de ese usuario para ese proyecto, `INSERT` si no) — ya no es "calificar una sola vez sin poder editar".
-- **Respuesta 201:** `{ rating }`.
+- **Respuesta 200:** `{ message: 'Calificación guardada' }` (tanto al crear como al actualizar). *(La doc decía `201 { rating }`; corregido en `§104`.)*
 
 ### `GET /api/projects/:id/kpis` — Público
 - **Respuesta 200:** `{ kpis: KPI[] }` de ese proyecto.

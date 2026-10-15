@@ -2421,7 +2421,7 @@ Con un socket simulado "conectado": el envío va por REST y el mensaje guardado 
 
 ### ⚠️ NO verificado
 - En Chrome no lo probé (el formulario y los mensajes no cambiaron; el criterio lo cubren los tests de los dos lados).
-- Los comentarios de las **calificaciones** siguen sin pasar por el filtro (§74): no estaba en el alcance de B7.
+- Los comentarios de las **calificaciones** siguen sin pasar por el filtro (§74): no estaba en el alcance de B7. *(Resuelto en §104.)*
 
 ## 94. `JWT_SECRET` obligatorio en producción (decisión del usuario) — REVISION B19 / regla 17
 
@@ -2634,3 +2634,29 @@ Lista con `api.ngos.empleados.list('ngo-1')`; un 403 se ve como error con "Reint
 - **Que la clave sea por email+IP y no por email solo:** los tests salen todos de la misma IP (localhost), así que esa diferencia no se puede ver en ellos.
 - Es en memoria y por proceso: si se reinicia el servidor, los contadores vuelven a cero; con varias instancias, cada una cuenta lo suyo.
 - No hay CAPTCHA ni bloqueo de cuenta persistente (fuera de alcance).
+
+## 104. Filtro de palabras en los comentarios de las calificaciones (aprobado por el usuario)
+
+**Contexto:** el filtro de palabras (§93) se aplicaba a los comentarios de los proyectos y a los textos de las publicaciones, pero no al comentario de una calificación (`POST /api/projects/:id/ratings`). "Qué imbécil el coordinador" se guardaba y se veía en la pestaña Reseñas y en `ReviewsModal`. Pendiente anotado en §93.
+
+**Qué se hizo:**
+- `routes/projects.js`: después de validar tipo y largo, `hasBadWord(comment)` → **400** "El comentario contiene palabras no permitidas", el mismo mensaje que los comentarios. Mismo criterio de palabra completa ("computadora" pasa).
+- **Frontend sin cambios:** `ProjectDetails.tsx` y `ReviewsModal.tsx` ya muestran el `error` del servidor. No se agregó el chequeo previo en el cliente (que sí tienen los comentarios): la defensa real es la del backend (regla 15) y una más sería otra duplicación.
+- **Datos existentes:** las calificaciones ya guardadas no se tocan. Si una tiene una palabra de la lista, queda así hasta que su autor la edite (el upsert la pasaría por el filtro).
+- Docs: `API_CONTEXT` (validación y **respuesta**: decía `201 { rating }` y el código responde `200 { message: 'Calificación guardada' }`, lo que esperan los tests desde antes), `BACKEND_CONTEXT`, el encabezado de `lib/badWords.js` y una nota en §93.
+
+### Tests (nuevos: 2, en `comments-badwords.test.js`)
+- Calificación con "Qué imbécil…" o "sos un BOLUDO" → 400 con ese mensaje, y la calificación anterior de María en `proj-1` no cambia.
+- Con "Traigan la computadora…" → 200 y se guarda.
+- **Rojo de comportamiento:** con el código anterior, el primero daba `200` en vez de `400`.
+
+### Verificación
+- **SQLite 478/478 y Postgres 480/480**, también con `TZ=America/Argentina/Cordoba`.
+- **Mutación (5):** sacar el chequeo, negarlo, cambiar el mensaje y cambiar el status: **mueren los 4**. **Sobrevive 1, equivalente:** sacar la guarda `comment &&`, porque `hasBadWord(null/undefined)` revisa el texto "null"/"undefined", que no está en la lista.
+
+### Errores propios
+- El primer script de mutación no encontraba el patrón (no tuve en cuenta la línea en blanco), y al arreglarlo con `node -e` se perdieron los escapes. Lo reescribí como archivo. No tocó el código: el script restaura el archivo al terminar, y lo comprobé con `cmp`.
+
+### ⚠️ NO verificado
+- No lo vi en el navegador: que el mensaje aparezca en el formulario de reseñas lo deduzco del código (`setRatingErr(err.message)` / `setErrorMsg(err.message)`), que ya se usa con los otros 400.
+- No revisé si la base local tiene calificaciones viejas con palabras de la lista.
