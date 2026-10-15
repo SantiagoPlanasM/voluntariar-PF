@@ -2714,3 +2714,30 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 ### ⚠️ NO verificado
 - Todos los hallazgos son por lectura, salvo los dos controles marcados como "probado". Ninguno se reprodujo en el navegador.
 - No revisé `API_CONTEXT` campo por campo ni `PROJECT_ANALYSIS`/`BACKEND_ROADMAP_ANALYSIS` contra el código.
+
+## 107. Reseñas: un error de carga ya no se ve como "Sin reseñas todavía" — REVISION S1 (ReviewsModal)
+
+**Contexto:** `ReviewsModal.loadRatings` atrapaba el error de `api.projects.get` y solo lo logueaba. El modal mostraba "Sin reseñas todavía" y "0 reseñas en total", como si nadie hubiera calificado. Es el mismo patrón que F9 (§65) y `NGOEmpleados` (§98). Hallazgo S1 de la segunda pasada (§106), primera pantalla de la lista.
+
+**Qué se hizo:**
+- `ReviewsModal.tsx`: estado `loadError`. En el `catch`, `userMessage(err, 'No pudimos cargar las reseñas. Revisá tu conexión.')`: un `ApiError` muestra el mensaje del servidor y un `TypeError` (sin red) muestra el texto en español, no "Failed to fetch". Se limpia al empezar cada carga.
+- En la lista: `loading` → spinner; `loadError` → `<InlineError>` con "Reintentar" (llama a `loadRatings`); recién después, "Sin reseñas todavía" o la lista. Mismo componente que `NGOEmpleados`, `NGOKPIs`, etc.
+- En el resumen, con error dice "No se pudieron cargar las reseñas" en vez de "0 reseñas en total" (era el mismo "parece vacío" en chico). El promedio sigue mostrando `avgRating` si el padre lo pasó.
+
+### Tests (nuevos: 3, `ReviewsModal.test.tsx`)
+- 500 → se ve el mensaje del servidor y "Reintentar"; no aparecen "Sin reseñas todavía" ni "0 reseñas en total". "Reintentar" vuelve a pedir y muestra la lista; el error y el botón desaparecen (`get` llamado 2 veces).
+- `TypeError('Failed to fetch')` → "No pudimos cargar las reseñas. Revisá tu conexión.", sin el texto técnico.
+- Sin reseñas de verdad (respuesta OK y vacía) → sigue diciendo "Sin reseñas todavía", sin "Reintentar".
+- **Rojo de comportamiento:** con el código anterior fallaban los dos primeros (no encontraban el mensaje de error: se veía "Sin reseñas todavía"). El tercero pasaba antes y después, a propósito (es el caso que no tiene que cambiar).
+
+### Verificación
+- **Frontend 423/423** (420 + 3), también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.** `ReviewsModal.tsx` sigue en CRLF.
+- **Mutación (8, sobre el código nuevo):** sacar `setLoadError(...)` del `catch`, cambiar `userMessage` por `err.message`, `loadError ?` → `false ?` en la lista y en el resumen, "Reintentar" que no hace nada, no limpiar el error al empezar la carga: **mueren 7**. **Sobrevivió 1:** el `setLoadError('')` que había agregado en la rama "vino `initialRatings`" del efecto de apertura. No es equivalente en teoría, pero en la app es inalcanzable (el `initialRatings` de una tarjeta del feed nunca cambia, y la tarea S3 reescribe ese efecto); **saqué la línea** en vez de dejar código sin test.
+
+### Errores propios
+1. El worktree arrancó en un commit viejo (`31f0bee`, sin la "Segunda pasada" ni §98 ni `<Modal>` en `ReviewsModal`). Me di cuenta al no encontrar `InlineError` en `NGOEmpleados`; avancé la rama a `main` (`89818c1`, fast-forward, sin cambios propios todavía) antes de tocar nada.
+2. La primera corrida de mutación salteó un mutante porque el patrón tenía `\n` y el archivo es CRLF. Lo repetí con `\r\n`.
+
+### ⚠️ NO verificado
+- No lo vi en el navegador: cómo queda `InlineError` (pensado para pantallas) dentro del modal de reseñas es por lectura de clases.
+- En esta tarea, con `initialRatings` no vacío (el feed) el modal todavía no pedía nada, así que el error solo podía verse desde "Mis participaciones" o con un proyecto sin reseñas en el feed. Lo cambia S3.

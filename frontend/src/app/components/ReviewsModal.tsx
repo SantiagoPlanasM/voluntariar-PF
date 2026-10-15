@@ -2,7 +2,9 @@ import { useState, useEffect, useId } from 'react';
 import { X, Star, Loader2, MessageSquare, CheckCircle2, UserCheck } from 'lucide-react';
 import { api, Rating } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
+import { userMessage } from '../../lib/format';
 import { Modal } from './Modal';
+import { InlineError } from './LoadError';
 
 interface ReviewsModalProps {
   isOpen: boolean;
@@ -30,6 +32,7 @@ export function ReviewsModal({
   const [ratings, setRatings] = useState<Rating[]>(initialRatings || []);
   const titleId = useId();
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
 
   // Formulario de calificación
   const [userScore, setUserScore] = useState(5);
@@ -42,11 +45,13 @@ export function ReviewsModal({
   const loadRatings = async () => {
     if (!projectId) return;
     setLoading(true);
+    setLoadError('');
     try {
       const res = await api.projects.get(projectId);
       setRatings(res.project?.ratings || []);
     } catch (err) {
-      console.error('Error al cargar reseñas:', err);
+      // Antes solo se logueaba y el modal decía "Sin reseñas todavía" (REVISION S1, como §65 y §98).
+      setLoadError(userMessage(err, 'No pudimos cargar las reseñas. Revisá tu conexión.'));
     } finally {
       setLoading(false);
     }
@@ -148,7 +153,8 @@ export function ReviewsModal({
                   ))}
                 </div>
                 <p className="text-xs text-gray-500 font-medium mt-0.5">
-                  {ratings.length === 1 ? '1 reseña' : `${ratings.length} reseñas`} en total
+                  {loadError ? 'No se pudieron cargar las reseñas'
+                    : ratings.length === 1 ? '1 reseña en total' : `${ratings.length} reseñas en total`}
                 </p>
               </div>
             </div>
@@ -233,6 +239,8 @@ export function ReviewsModal({
               <div className="py-8 flex items-center justify-center text-gray-400">
                 <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
               </div>
+            ) : loadError ? (
+              <InlineError message={loadError} onRetry={loadRatings} />
             ) : ratings.length === 0 ? (
               <div className="py-8 text-center bg-gray-50 rounded-2xl border border-gray-100 p-4">
                 <MessageSquare className="w-8 h-8 text-gray-300 mx-auto mb-2" />
