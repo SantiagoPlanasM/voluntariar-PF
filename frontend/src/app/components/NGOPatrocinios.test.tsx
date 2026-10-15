@@ -68,4 +68,15 @@ describe('<NGOPatrocinios />', () => {
     render(<NGOPatrocinios />);
     await waitFor(() => expect(screen.getByText(/Todavía no recibiste propuestas/)).toBeInTheDocument());
   });
+
+  test('el historial muestra etiqueta y color de cada estado decidido (REVISION S7)', async () => {
+    vi.mocked(api.ngos.patrocinios.list).mockResolvedValue({ patrocinios: [
+      { ...pendiente, estado: 'aceptado', project_id: 'proj-a' },
+      { ...pendiente, estado: 'rechazado', project_id: 'proj-r' },
+    ] });
+    render(<NGOPatrocinios />);
+    const aceptado = await screen.findByText('Aceptado');
+    expect(aceptado.className).toContain('bg-emerald-50 text-emerald-700');
+    expect(screen.getByText('Rechazado').className).toContain('bg-red-50 text-red-600');
+  });
 });

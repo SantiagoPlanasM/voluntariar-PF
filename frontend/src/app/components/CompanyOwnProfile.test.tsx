@@ -142,5 +142,20 @@ describe('<CompanyOwnProfile />', () => {
     fireEvent.click(screen.getByTitle('Retirar propuesta'));
     await waitFor(() => expect(api.empresas.patrocinios.withdraw).toHaveBeenCalledWith('proj-7'));
   });
+
+  test('cada estado de patrocinio tiene su etiqueta y su color (REVISION S7)', async () => {
+    vi.mocked(api.empresas.me).mockResolvedValue({ empresa: baseEmpresa });
+    vi.mocked(api.empresas.patrocinios.list).mockResolvedValue({ patrocinios: [
+      { ...patrocinioAceptado, estado: 'propuesto', project_id: 'proj-p' },
+      { ...patrocinioAceptado, estado: 'aceptado',  project_id: 'proj-a' },
+      { ...patrocinioAceptado, estado: 'rechazado', project_id: 'proj-r' },
+    ] });
+    renderWithProviders(<CompanyOwnProfile />);
+
+    const pendiente = await screen.findByText('Pendiente');
+    expect(pendiente.className).toContain('bg-amber-50 text-amber-700');
+    expect(screen.getByText('Aceptado').className).toContain('bg-emerald-50 text-emerald-700');
+    expect(screen.getByText('Rechazado').className).toContain('bg-red-50 text-red-600');
+  });
 });
 

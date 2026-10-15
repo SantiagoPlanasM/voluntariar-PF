@@ -3,7 +3,9 @@ import { Building2, LayoutDashboard, LogOut, MessageCircle, Search } from 'lucid
 import { useAuth } from '../../lib/AuthContext';
 import { useChat } from '../../lib/ChatContext';
 
-const links = [
+// Única lista de la barra inferior de empresa: la usa también BottomNav (lado público) para que la
+// misma persona vea la misma barra en todas las pantallas (REVISION S7).
+export const COMPANY_NAV_LINKS = [
   { to: '/company/dashboard', icon: LayoutDashboard, label: 'Panel' },
   { to: '/company/profile',  icon: Building2,     label: 'Mi Empresa' },
   { to: '/explore',          icon: Search,        label: 'Explorar' },
@@ -26,7 +28,7 @@ export function CompanyBottomNav() {
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
       <div className="flex items-stretch">
-        {links.map(({ to, icon: Icon, label, chatBadge }) => {
+        {COMPANY_NAV_LINKS.map(({ to, icon: Icon, label, chatBadge }) => {
           const active = pathname === to || pathname.startsWith(to + '/');
           const count = chatBadge ? unreadTotal : 0;
           return (

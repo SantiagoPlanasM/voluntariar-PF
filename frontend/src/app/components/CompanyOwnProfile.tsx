@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { api, Empresa, Patrocinio, Project } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { userMessage } from '../../lib/format';
+import { SPONSORSHIP_BADGE, SPONSORSHIP_LABEL } from '../../lib/sponsorship';
 import { InlineError } from './LoadError';
 
 // Tope del listado de proyectos para proponer. Sin `limit` el backend devuelve 20 y los demás no se podían
@@ -12,15 +13,6 @@ import { InlineError } from './LoadError';
 const MAX_PROPOSABLE = '500';
 
 const CATEGORIES = ['Medio Ambiente','Educación','Salud','Animales','Alimentación','Tecnología','Arte y Cultura','Deportes'];
-
-const ESTADO_BADGE: Record<Patrocinio['estado'], string> = {
-  propuesto: 'bg-amber-50 text-amber-700',
-  aceptado:  'bg-emerald-50 text-emerald-700',
-  rechazado: 'bg-red-50 text-red-600',
-};
-const ESTADO_LABEL: Record<Patrocinio['estado'], string> = {
-  propuesto: 'Pendiente', aceptado: 'Aceptado', rechazado: 'Rechazado',
-};
 
 export function CompanyOwnProfile() {
   const { logout } = useAuth();
@@ -302,8 +294,8 @@ export function CompanyOwnProfile() {
                         <p className="text-sm font-semibold text-gray-900 truncate">{p.project_title}</p>
                         <p className="text-xs text-gray-400 truncate">{p.ngo_name}</p>
                       </div>
-                      <span className={`text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0 ${ESTADO_BADGE[p.estado]}`}>
-                        {ESTADO_LABEL[p.estado]}
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0 ${SPONSORSHIP_BADGE[p.estado]}`}>
+                        {SPONSORSHIP_LABEL[p.estado]}
                       </span>
                       {p.estado === 'propuesto' && (
                         <button onClick={() => handleWithdraw(p.project_id)}

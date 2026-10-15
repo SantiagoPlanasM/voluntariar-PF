@@ -77,6 +77,54 @@ function createPinIcon(bg: string, isSelected: boolean) {
   });
 }
 
+type MappedProject = { project: Project; coords: { lat: number; lng: number }; colors: { bg: string } };
+
+// Redibuja los pines y el punto del usuario. Común al mapa chico y al ampliado (antes copiado en los
+// dos, REVISION S7): quita los marcadores anteriores y devuelve los nuevos para guardarlos en el ref.
+// Lo único que difería es la duración del paneo al tocar un pin (`panDuration`).
+function drawMarkers(
+  map: L.Map,
+  previous: L.Marker[],
+  mappedProjects: MappedProject[],
+  selectedId: string | undefined,
+  userLocation: { lat: number; lng: number } | null,
+  panDuration: number,
+  onPick: (p: Project) => void,
+): L.Marker[] {
+  previous.forEach(m => m.remove());
+  const markers: L.Marker[] = [];
+
+  mappedProjects.forEach(({ project, coords, colors }) => {
+    const customIcon = createPinIcon(colors.bg, selectedId === project.id);
+    const marker = L.marker([coords.lat, coords.lng], { icon: customIcon }).addTo(map);
+
+    marker.on('click', () => {
+      map.panTo([coords.lat, coords.lng], { animate: true, duration: panDuration });
+      onPick(project);
+    });
+
+    markers.push(marker);
+  });
+
+  if (userLocation) {
+    const userHtml = `
+        <div class="relative flex items-center justify-center">
+          <div class="w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-md z-10"></div>
+          <div class="absolute w-8 h-8 bg-emerald-400 rounded-full opacity-40 animate-ping"></div>
+        </div>
+      `;
+    const userIcon = L.divIcon({
+      html: userHtml,
+      className: 'user-loc-pin',
+      iconSize: [16, 16],
+      iconAnchor: [8, 8],
+    });
+    markers.push(L.marker([userLocation.lat, userLocation.lng], { icon: userIcon }).addTo(map));
+  }
+
+  return markers;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPONENTE MODAL / POP-UP DEL MAPA AMPLIADO
 // ─────────────────────────────────────────────────────────────────────────────
@@ -199,39 +247,13 @@ function ProjectMapModal({
     const map = leafletMapRef.current;
     if (!map) return;
 
-    leafletMarkersRef.current.forEach(m => m.remove());
-    leafletMarkersRef.current = [];
-
-    mappedProjects.forEach(({ project, coords, colors }) => {
-      const isSelected = selectedProject?.id === project.id;
-      const customIcon = createPinIcon(colors.bg, isSelected);
-      const marker = L.marker([coords.lat, coords.lng], { icon: customIcon }).addTo(map);
-
-      marker.on('click', () => {
+    leafletMarkersRef.current = drawMarkers(
+      map, leafletMarkersRef.current, mappedProjects, selectedProject?.id, userLocation, 0.4,
+      project => {
         setSelectedProject(project);
-        map.panTo([coords.lat, coords.lng], { animate: true, duration: 0.4 });
         if (onSelectProject) onSelectProject(project);
-      });
-
-      leafletMarkersRef.current.push(marker);
-    });
-
-    if (userLocation) {
-      const userHtml = `
-        <div class="relative flex items-center justify-center">
-          <div class="w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-md z-10"></div>
-          <div class="absolute w-8 h-8 bg-emerald-400 rounded-full opacity-40 animate-ping"></div>
-        </div>
-      `;
-      const userIcon = L.divIcon({
-        html: userHtml,
-        className: 'user-loc-pin',
-        iconSize: [16, 16],
-        iconAnchor: [8, 8],
-      });
-      const userMarker = L.marker([userLocation.lat, userLocation.lng], { icon: userIcon }).addTo(map);
-      leafletMarkersRef.current.push(userMarker);
-    }
+      },
+    );
   }, [mappedProjects, selectedProject, userLocation, onSelectProject]);
 
   // Inicializar Leaflet en el modal
@@ -597,39 +619,13 @@ export function ProjectMap({ projects, className = '', onSelectProject }: Projec
     const map = leafletMapRef.current;
     if (!map) return;
 
-    leafletMarkersRef.current.forEach(m => m.remove());
-    leafletMarkersRef.current = [];
-
-    mappedProjects.forEach(({ project, coords, colors }) => {
-      const isSelected = selectedProject?.id === project.id;
-      const customIcon = createPinIcon(colors.bg, isSelected);
-      const marker = L.marker([coords.lat, coords.lng], { icon: customIcon }).addTo(map);
-
-      marker.on('click', () => {
+    leafletMarkersRef.current = drawMarkers(
+      map, leafletMarkersRef.current, mappedProjects, selectedProject?.id, userLocation, 0.5,
+      project => {
         setSelectedProject(project);
-        map.panTo([coords.lat, coords.lng], { animate: true, duration: 0.5 });
         if (onSelectProject) onSelectProject(project);
-      });
-
-      leafletMarkersRef.current.push(marker);
-    });
-
-    if (userLocation) {
-      const userHtml = `
-        <div class="relative flex items-center justify-center">
-          <div class="w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-md z-10"></div>
-          <div class="absolute w-8 h-8 bg-emerald-400 rounded-full opacity-40 animate-ping"></div>
-        </div>
-      `;
-      const userIcon = L.divIcon({
-        html: userHtml,
-        className: 'user-loc-pin',
-        iconSize: [16, 16],
-        iconAnchor: [8, 8],
-      });
-      const userMarker = L.marker([userLocation.lat, userLocation.lng], { icon: userIcon }).addTo(map);
-      leafletMarkersRef.current.push(userMarker);
-    }
+      },
+    );
   }, [mappedProjects, selectedProject, userLocation, onSelectProject]);
 
   useEffect(() => {

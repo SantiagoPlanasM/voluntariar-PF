@@ -31,7 +31,7 @@ frontend/src/
 │   ├── AuthContext.tsx        # sesión global (Context + Provider + hook useAuth)
 │   ├── ChatContext.tsx        # chat en tiempo real (WebSocket)
 │   ├── format.ts              # timeAgo/formatTime/parseBackendDate (aceptan ISO 8601 y el formato viejo sin zona), truncateText ("ver más"), userMessage (errores para el usuario) y otros formatos
-│   ├── sponsorship.ts         # etiquetas y colores de los estados de un patrocinio
+│   ├── sponsorship.ts         # etiquetas y colores de los estados de un patrocinio (única fuente: CompanyDashboard, CompanyOwnProfile, NGOPatrocinios)
 │   └── imageCompress.ts       # compresión de fotos en el navegador antes de subirlas (Momentos)
 └── styles/
     ├── globals.css             # Tailwind + tema custom (design tokens) + fuentes
@@ -80,9 +80,9 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 - `Root.tsx` — layout del lado "voluntario/público": `<Outlet/>` + `<BottomNav/>` + `<AuthModal/>` + `<ChatbotWidget/>`.
 - `NGOLayout.tsx` — layout del lado "ONG": `<NGOSidebarNav/>` (desktop) + `<NGOBottomNav/>` (mobile) + `<Outlet/>` + `<AuthModal/>` + `<ChatbotWidget/>`.
 - `CompanyLayout.tsx` — layout del lado "Empresa", mismo patrón que `NGOLayout` (`CompanySidebarNav`/`CompanyBottomNav`).
-- `BottomNav.tsx` — navegación inferior mobile del lado voluntario.
+- `BottomNav.tsx` — navegación inferior mobile del lado público (`Root`), según el rol. Para empresa usa `COMPANY_NAV_LINKS`, la misma lista de `CompanyBottomNav` (§117). Para ONG todavía tiene una lista propia (con "Explorar", que `NGOBottomNav` no tiene): pendiente de decisión, §117.
 - `NGOBottomNav.tsx` / `NGOSidebarNav.tsx` — navegación del lado ONG (mobile y desktop respectivamente).
-- `CompanyBottomNav.tsx` / `CompanySidebarNav.tsx` — navegación del lado Empresa.
+- `CompanyBottomNav.tsx` / `CompanySidebarNav.tsx` — navegación del lado Empresa. `CompanyBottomNav` exporta `COMPANY_NAV_LINKS`, la única lista de la barra inferior de empresa (la usa también `BottomNav`).
 - `AuthModal.tsx` — modal de login/registro, controlado por estado global de `AuthContext` (`isAuthModalOpen`, `openAuthModal(mode)`). Único punto de entrada de autenticación en toda la app (no hay páginas `/login` o `/register` dedicadas). Redirige según rol al loguearse: `ngo`→`/ngo/dashboard`, `company`→`/company/profile`, `volunteer`→ se queda donde está.
 - `ChatbotWidget.tsx` — botón flotante + panel del Chatbot FAQ, montado en los tres layouts.
 
@@ -90,7 +90,7 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 - `PublicFeed.tsx` — feed público sin login, con CTA a registro; redirige automáticamente si detecta sesión activa.
 - `MainFeed.tsx` — feed autenticado, arma la lista desde `/api/follows/feed` (lo que el voluntario sigue), no desde el catálogo completo. Si falla el feed de seguidos muestra el error con "Reintentar", no el estado vacío; si fallan las ONGs o "mis ONGs", la barra muestra el error de las sugerencias (§110).
 - `ExploreScreen.tsx` — búsqueda, filtros (`FilterModal.tsx`) y mapa (`ProjectMap.tsx`) del catálogo completo de proyectos.
-- `ProjectMap.tsx` — mapa con Leaflet (gratis, sin API key), pines custom con `L.divIcon`.
+- `ProjectMap.tsx` — mapa con Leaflet (gratis, sin API key), pines custom con `L.divIcon`. El mapa chico y el ampliado dibujan pines y punto del usuario con la misma función, `drawMarkers` (solo cambia la duración del paneo: 0.5 s y 0.4 s; §117).
 - `FilterModal.tsx` — modal de filtros (categoría, tipo, modalidad, costo) + función pura `filterProjects()` exportada, con tests.
 - `ProjectDetails.tsx` — detalle de un proyecto: info completa, botón de inscripción, comentarios (distinguen si el autor participó, `is_participant`), calificación (solo si `my_enrollment_status === 'approved'`, con un formulario propio: no usa `ReviewsModal`). Reimplementa la blacklist de palabras del backend para validar comentarios en el cliente antes de enviarlos.
 - `ProjectCard.tsx` — tarjeta reutilizada en feeds; incluye el modal de inscripción rápida.

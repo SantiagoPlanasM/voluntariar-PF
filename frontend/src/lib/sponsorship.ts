@@ -2,10 +2,9 @@
 //
 // Etiquetas y colores de los 3 estados de un patrocinio (Patrocinio['estado']).
 //
-// Estos dos mapas ya existen copiados, idénticos, en NGOPatrocinios.tsx y
-// CompanyOwnProfile.tsx. Se dejan ahí sin tocar (no era parte de la tarea del
-// Dashboard de Empresa), pero cualquier pantalla nueva debe importar de acá en
-// vez de sumar una tercera copia; migrar esas dos es un cambio trivial.
+// Única fuente: la usan CompanyDashboard.tsx, CompanyOwnProfile.tsx y
+// NGOPatrocinios.tsx (las dos últimas tenían copias idénticas hasta REVISION S7).
+// Cualquier pantalla nueva importa de acá en vez de copiar los mapas.
 import type { Patrocinio } from './api';
 
 export type SponsorshipState = Patrocinio['estado'];

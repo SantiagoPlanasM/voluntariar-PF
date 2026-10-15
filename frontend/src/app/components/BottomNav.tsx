@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router';
-import { Home, Search, ClipboardList, User, MessageCircle, Building2, LayoutDashboard, Plus, Handshake } from 'lucide-react';
+import { Home, Search, ClipboardList, User, MessageCircle, LayoutDashboard, Plus, Handshake } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { COMPANY_NAV_LINKS } from './CompanyBottomNav';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { useChat } from '../../lib/ChatContext';
@@ -31,11 +32,8 @@ export function BottomNav() {
   if (user?.role === 'company') {
     activeBg = 'bg-violet-100';
     activeColor = 'text-violet-600';
-    links = [
-      { to: '/company/profile',  icon: Building2,     label: 'Mi Empresa', chatBadge: false },
-      { to: '/explore',          icon: Search,        label: 'Explorar',   chatBadge: false },
-      { to: '/company/messages', icon: MessageCircle, label: 'Mensajes',   chatBadge: true },
-    ];
+    // La misma lista que la barra del panel de empresa (REVISION S7: antes no tenía "Panel").
+    links = COMPANY_NAV_LINKS.map(l => ({ ...l, chatBadge: !!l.chatBadge }));
   } else if (user?.role === 'ngo') {
     activeBg = 'bg-blue-100';
     activeColor = 'text-blue-600';

@@ -2,16 +2,8 @@ import { useEffect, useState } from 'react';
 import { Loader2, Check, X as XIcon, Handshake } from 'lucide-react';
 import { api, Patrocinio } from '../../lib/api';
 import { userMessage } from '../../lib/format';
+import { SPONSORSHIP_BADGE, SPONSORSHIP_LABEL } from '../../lib/sponsorship';
 import { InlineError } from './LoadError';
-
-const ESTADO_BADGE: Record<Patrocinio['estado'], string> = {
-  propuesto: 'bg-amber-50 text-amber-700',
-  aceptado:  'bg-emerald-50 text-emerald-700',
-  rechazado: 'bg-red-50 text-red-600',
-};
-const ESTADO_LABEL: Record<Patrocinio['estado'], string> = {
-  propuesto: 'Pendiente', aceptado: 'Aceptado', rechazado: 'Rechazado',
-};
 
 export function NGOPatrocinios() {
   const [patrocinios, setPatrocinios] = useState<Patrocinio[]>([]);
@@ -117,8 +109,8 @@ export function NGOPatrocinios() {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-800 truncate">{p.empresa_name} — {p.project_title}</p>
                     </div>
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0 ${ESTADO_BADGE[p.estado]}`}>
-                      {ESTADO_LABEL[p.estado]}
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0 ${SPONSORSHIP_BADGE[p.estado]}`}>
+                      {SPONSORSHIP_LABEL[p.estado]}
                     </span>
                   </div>
                 ))}
