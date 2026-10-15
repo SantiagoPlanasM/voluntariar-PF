@@ -3455,7 +3455,7 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 - **Rojo de comportamiento** en el caso del visitante. El mock de `useAuth` del archivo pasó a ser configurable.
 
 ### Verificación
-- **Frontend 551/551** (con este cambio solo), también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.**
+- **Frontend 555/555 con §130 y §131 juntos**, también con `TZ=America/Argentina/Cordoba` (no corrí la suite con §130 solo). **Typecheck: 0 errores.**
 - **Mutación (3):** condición invertida, "Iniciar sesión" que no abre el login, y siempre "Cerrar sesión". **Mueren los 3.**
 
 ### Errores propios
@@ -3463,3 +3463,31 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 
 ### ⚠️ NO verificado
 - No lo vi en el navegador. Los links de la barra (Participaciones, Mensajes, Mi Perfil) siguen apareciendo para un visitante. No estaba en el pedido, y al tocarlos se pide iniciar sesión.
+
+## 131. Explorar sin proyectos ya no culpa a los filtros (aprobado por el usuario)
+
+**Contexto:** visto en producción con la base vacía. Explorar decía "No encontramos voluntariados con esos filtros — Probá seleccionando otra categoría o limpiando la búsqueda" aunque no hubiera ningún filtro, y ofrecía "Ver todos los proyectos", que no hacía nada.
+
+**Qué se hizo:**
+- **Sin ningún proyecto:** "Todavía no hay voluntariados publicados / Cuando una organización publique uno, va a aparecer acá.", sin botón.
+- **Con proyectos y filtros que no encuentran nada:** el mensaje de siempre, con su botón.
+- La condición usa `allProjects`, no `genericProjects`, que excluye los que ya están en "Para vos". Con `genericProjects`, si todos los proyectos estaban recomendados, habría dicho "todavía no hay" justo debajo de ellos.
+- También aplica con una búsqueda escrita: si no hay ningún proyecto, el problema no son los filtros.
+
+### Tests (nuevos: 4, en `ExploreScreen.test.tsx`)
+- Sin proyectos ni filtros: "todavía no hay", sin el mensaje de filtros y sin el botón.
+- Sin proyectos y con una búsqueda: también "todavía no hay".
+- Todos los proyectos en "Para vos": no dice que no hay ninguno.
+- Búsqueda sin resultados: el mensaje de filtros y su botón, que vuelve a mostrar todo (control).
+- **Rojo de comportamiento** en el primero y en el de "Para vos".
+
+### Verificación
+- **Frontend 555/555**, también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.**
+- **Mutación (3)**, con corrida de control: sin el caso nuevo, con `genericProjects` y "solo sin filtros". **Mueren los 3.**
+
+### Errores propios
+- **Primera versión con `genericProjects`:** fallaba con todos los proyectos en "Para vos". Lo vi releyendo su definición antes de cerrar la tarea; agregué el test y lo corregí.
+- **Mi condición tenía además `!hasActiveFilters`:** el mutante que lo sacaba sobrevivió, y al analizarlo vi que el comportamiento sin esa parte es más correcto. Lo adopté y agregué el test.
+
+### ⚠️ NO verificado
+- No lo vi en el navegador (es el mismo recuadro con otro texto).

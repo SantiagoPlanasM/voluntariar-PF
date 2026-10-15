@@ -119,3 +119,46 @@ describe('ExploreScreen: error al cargar las recomendaciones (secundario)', () =
     expect(screen.getByText('Huerta comunitaria')).toBeInTheDocument();
   });
 });
+
+// §131: sin ningún proyecto (un deploy nuevo) y sin filtros, Explorar decía "No encontramos voluntariados con
+// esos filtros" y ofrecía "Ver todos los proyectos", que no hacía nada. Ahora distingue los dos casos.
+describe('ExploreScreen: catálogo vacío', () => {
+  test('sin proyectos y sin filtros: "todavía no hay", sin hablar de filtros ni botón para limpiarlos', async () => {
+    vi.mocked(api.projects.list).mockReset().mockResolvedValue({ projects: [] } as never);
+    mount();
+    expect(await screen.findByText('Todavía no hay voluntariados publicados')).toBeInTheDocument();
+    expect(screen.queryByText(/con esos filtros/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ver todos los proyectos' })).not.toBeInTheDocument();
+  });
+
+  test('sin ningún proyecto, aunque haya una búsqueda escrita: "todavía no hay" (no culpa a los filtros)', async () => {
+    vi.mocked(api.projects.list).mockReset().mockResolvedValue({ projects: [] } as never);
+    mount();
+    await screen.findByText('Todavía no hay voluntariados publicados');
+    fireEvent.change(screen.getByPlaceholderText(/Buscar por título/), { target: { value: 'huerta' } });
+    expect(await screen.findByText('Todavía no hay voluntariados publicados')).toBeInTheDocument();
+    expect(screen.queryByText(/con esos filtros/)).not.toBeInTheDocument();
+  });
+
+  test('si todos los proyectos están en "Para vos", no dice que no hay ninguno', async () => {
+    vi.mocked(api.projects.list).mockReset().mockResolvedValue({ projects: [project('p1', 'Huerta comunitaria')] } as never);
+    vi.mocked(api.projects.recommended).mockReset().mockResolvedValue({
+      recommendations: [{ ...project('p1', 'Huerta comunitaria'), score: 9, reasons: ['Te puede gustar'] }], based_on_history: true,
+    } as never);
+    mount();
+    await screen.findAllByText('Huerta comunitaria');
+    await waitFor(() => expect(api.projects.recommended).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText('Todavía no hay voluntariados publicados')).not.toBeInTheDocument();
+  });
+
+  test('con una búsqueda que no encuentra nada: el mensaje de filtros y el botón para limpiarlos', async () => {
+    mount();
+    await screen.findByText('Huerta comunitaria');
+    fireEvent.change(screen.getByPlaceholderText(/Buscar por título/), { target: { value: 'xyz-no-existe' } });
+    expect(await screen.findByText('No encontramos voluntariados con esos filtros')).toBeInTheDocument();
+    expect(screen.queryByText('Todavía no hay voluntariados publicados')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ver todos los proyectos' }));
+    expect(await screen.findByText('Huerta comunitaria')).toBeInTheDocument();
+  });
+});

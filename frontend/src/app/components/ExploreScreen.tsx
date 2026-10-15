@@ -557,6 +557,13 @@ export function ExploreScreen() {
             </div>
           ) : loadError ? (
             <InlineError message={loadError} onRetry={loadProjects} />
+          ) : allProjects.length === 0 ? (
+            /* Ningún proyecto (p. ej. un deploy nuevo): aunque haya filtros, el problema no son ellos (§131). Con
+               `allProjects`, no `genericProjects`: este excluye los que ya están en "Para vos". */
+            <div className="bg-gray-50 rounded-2xl p-8 text-center space-y-2 border border-dashed border-gray-200">
+              <p className="text-sm font-bold text-gray-700">Todavía no hay voluntariados publicados</p>
+              <p className="text-xs text-gray-400">Cuando una organización publique uno, va a aparecer acá.</p>
+            </div>
           ) : (hasActiveFilters ? filteredProjects : genericProjects).length === 0 ? (
             <div className="bg-gray-50 rounded-2xl p-8 text-center space-y-2 border border-dashed border-gray-200">
               <p className="text-sm font-bold text-gray-700">No encontramos voluntariados con esos filtros</p>
