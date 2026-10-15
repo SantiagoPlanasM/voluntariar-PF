@@ -28,7 +28,15 @@ const PROJECT_EXTRAS = ['ratings', 'recent_comments', 'comments_count', 'my_enro
 // 'texto' ya no se acepta al crear ni editar (F3, decisión del usuario, §90): kpis.valor es numérica y un KPI
 // de texto se guardaba vacío. El CHECK de la base lo sigue permitiendo para los que ya existían.
 const KPI_TIPOS = ['numero', 'porcentaje', 'booleano'];
-function validateKpi({ nombre, descripcion, valor, tipo_valor, unidad }) {
+// 'AAAA-MM-DD' de una fecha que exista (2026-02-30 no). Se compara contra Date.UTC para no depender del huso horario.
+function isIsoDate(v) {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const [y, m, d] = v.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
+
+function validateKpi({ nombre, descripcion, valor, tipo_valor, unidad, fecha }) {
   const err = firstError(
     checkText(nombre, { label: 'El nombre del KPI', max: 120, required: true }),
     checkText(descripcion, { label: 'La descripción', max: 500 }),
@@ -37,6 +45,8 @@ function validateKpi({ nombre, descripcion, valor, tipo_valor, unidad }) {
   if (err) return err;
   if (tipo_valor !== undefined && tipo_valor !== null && !KPI_TIPOS.includes(tipo_valor)) return 'Tipo de KPI inválido';
   if (valor !== undefined && valor !== null && valor !== '' && !Number.isFinite(Number(valor))) return 'El valor tiene que ser un número';
+  // Antes se guardaba cualquier texto (§102). Vacía o ausente = sin fecha.
+  if (fecha !== undefined && fecha !== null && fecha !== '' && !isIsoDate(fecha)) return 'La fecha tiene que tener el formato AAAA-MM-DD';
   return null;
 }
 // null/''/ausente → null; si no, el número (ya validado).

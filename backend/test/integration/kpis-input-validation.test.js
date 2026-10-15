@@ -41,6 +41,13 @@ describe('KPIs: datos inválidos → 400, no 500', () => {
     ['tipo inválido', { nombre: 'Ok', tipo_valor: 'moneda' }, 'Tipo de KPI inválido'],
     // F3 (decisión del usuario, §90): 'texto' ya no se acepta al crear ni al editar (valor es numérico).
     ['tipo texto', { nombre: 'Ok', tipo_valor: 'texto' }, 'Tipo de KPI inválido'],
+    // fecha (§102): 'AAAA-MM-DD' y una fecha que exista; antes se guardaba cualquier texto.
+    ['fecha en texto libre', { nombre: 'Ok', fecha: 'ayer' }, 'La fecha tiene que tener el formato AAAA-MM-DD'],
+    ['fecha con otro formato', { nombre: 'Ok', fecha: '01/10/2026' }, 'La fecha tiene que tener el formato AAAA-MM-DD'],
+    ['fecha que no existe', { nombre: 'Ok', fecha: '2026-02-30' }, 'La fecha tiene que tener el formato AAAA-MM-DD'],
+    ['mes 13', { nombre: 'Ok', fecha: '2026-13-01' }, 'La fecha tiene que tener el formato AAAA-MM-DD'],
+    ['fecha con un dígito de más', { nombre: 'Ok', fecha: '2026-10-012' }, 'La fecha tiene que tener el formato AAAA-MM-DD'],
+    ['fecha que no es texto', { nombre: 'Ok', fecha: 20261001 }, 'La fecha tiene que tener el formato AAAA-MM-DD'],
     ['valor no numérico', { nombre: 'Ok', valor: 'mucho' }, 'El valor tiene que ser un número'],
     ['valor infinito', { nombre: 'Ok', valor: '1e400' }, 'El valor tiene que ser un número'],
     ['valor con basura al final', { nombre: 'Ok', valor: '12abc' }, 'El valor tiene que ser un número'],
@@ -73,5 +80,9 @@ describe('KPIs: datos inválidos → 400, no 500', () => {
     const e = await call(`/api/projects/proj-1/kpis/${kpiId}`, { token: ngo1, method: 'PUT', body: { nombre: 'Árboles', valor: '' } });
     assert.equal(e.status, 200);
     assert.equal(e.body.kpi.valor, null, 'un valor vacío es "sin valor", no 0');
+    const d = await call(`/api/projects/proj-1/kpis/${kpiId}`, { token: ngo1, method: 'PUT', body: { nombre: 'Árboles', fecha: '2024-02-29' } });
+    assert.deepEqual([d.status, d.body.kpi.fecha], [200, '2024-02-29'], 'un 29 de febrero de año bisiesto es válido');
+    const v = await call(`/api/projects/proj-1/kpis/${kpiId}`, { token: ngo1, method: 'PUT', body: { nombre: 'Árboles', fecha: '' } });
+    assert.deepEqual([v.status, v.body.kpi.fecha], [200, null], 'fecha vacía = sin fecha');
   });
 });

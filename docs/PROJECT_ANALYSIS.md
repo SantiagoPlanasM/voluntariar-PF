@@ -2590,3 +2590,19 @@ Lista con `api.ngos.empleados.list('ngo-1')`; un 403 se ve como error con "Reint
 
 ### ⚠️ NO verificado
 - No hice mutación aparte: el cambio es reemplazar un componente por otro ya probado; el test nuevo falla si "Mis participaciones" vuelve a abrir otra cosa o si no se puede calificar.
+
+## 102. Fecha de los KPIs validada (aprobada por el usuario)
+
+**Contexto:** §88 dejó anotado que `kpis.fecha` (columna `TEXT`) aceptaba cualquier texto ("ayer", "01/10/2026", "2026-02-30"…). `formatDateOnly` (§63) espera `AAAA-MM-DD`. Confirmado con tests (rojo en 10: 5 casos × POST y PUT).
+
+**Qué se hizo:** `validateKpi` exige `AAAA-MM-DD` de una fecha que exista (`isIsoDate`: regex anclada + comparación contra `Date.UTC`, sin depender del huso horario), o vacía/ausente = sin fecha. Error: "La fecha tiene que tener el formato AAAA-MM-DD". El formulario (`<input type="date">`) ya manda ese formato: el camino normal no cambia.
+
+### Tests (+14 en `kpis-input-validation.test.js`)
+6 casos inválidos × POST y PUT (texto libre, otro formato, 30 de febrero, mes 13, número, un dígito de más), y en los válidos: 29 de febrero de un año bisiesto se acepta; fecha vacía queda `null`.
+
+### Verificación
+- **SQLite 466/466 y Postgres 468/468**, también con `TZ=America/Argentina/Cordoba`.
+- **Mutación (4):** solo regex sin chequear que la fecha exista, sin chequeo, `''` como inválida y la regex sin anclar. Esta última sobrevivía: `'2026-10-012'` pasaba como 12 de octubre. Agregué ese caso y **los 4 mueren**.
+
+### Errores propios
+- Al insertar la regex con un `node -e` se perdieron las barras invertidas (`/^d{4}…/`). Lo mostró el test de los casos válidos; lo corregí con la herramienta de edición.
