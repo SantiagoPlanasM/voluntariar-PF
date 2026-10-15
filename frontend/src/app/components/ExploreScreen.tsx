@@ -1,8 +1,10 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, useId } from 'react';
 import { useNavigate } from 'react-router';
-import { Search, SlidersHorizontal, MapPin, X, Laptop, Sparkles, ChevronRight, ChevronLeft, Star, Users, Heart, Globe } from 'lucide-react';
+import { Search, SlidersHorizontal, MapPin, X, Laptop, Sparkles, ChevronRight, ChevronLeft, Star, Users, Heart, Globe, RefreshCw } from 'lucide-react';
 import { api, Project } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
+import { userMessage } from '../../lib/format';
+import { InlineError } from './LoadError';
 import { ProjectMap } from './ProjectMap';
 import { FilterModal, FilterState, DEFAULT_FILTERS, filterProjects } from './FilterModal';
 
@@ -19,10 +21,13 @@ export function ExploreScreen() {
 
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   // Recomendaciones
   const [recommendations, setRecommendations] = useState<RecommendedProject[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
+  const [recsError, setRecsError] = useState('');
+  const recsTitleId = useId();
   const [recsExpanded, setRecsExpanded] = useState(false);
 
   // Scroll horizontal para recomendaciones
@@ -111,40 +116,42 @@ export function ExploreScreen() {
     }
   }, [loading, allProjects, showAllFeatured, hasActiveFilters, checkFeaturedScroll]);
 
-  // Cargar proyectos al montar
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        // limit explícito: sin esto, el backend usa su default (20) y el
-        // buscador/mapa de Explorar queda mudo apenas la plataforma supera
-        // los 20 proyectos activos (bug confirmado con 27 proyectos de prueba).
-        // Fix pragmático — lo prolijo a mediano plazo es paginar de verdad.
-        const res = await api.projects.list({ sort: 'featured', limit: '200' });
-        setAllProjects(res.projects || []);
-      } catch (err) {
-        console.error('Error loading projects in ExploreScreen:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, []);
+  // Cargar proyectos al montar (y con "Reintentar"). Si falla se muestra el error, nunca el catálogo vacío:
+  // antes el error se tragaba y se veía "No encontramos voluntariados" (REVISION S1).
+  const loadProjects = async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      // limit explícito: sin esto, el backend usa su default (20) y el
+      // buscador/mapa de Explorar queda mudo apenas la plataforma supera
+      // los 20 proyectos activos (bug confirmado con 27 proyectos de prueba).
+      // Fix pragmático — lo prolijo a mediano plazo es paginar de verdad.
+      const res = await api.projects.list({ sort: 'featured', limit: '200' });
+      setAllProjects(res.projects || []);
+    } catch (err) {
+      setLoadError(userMessage(err, 'No pudimos cargar los voluntariados. Revisá tu conexión.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => { loadProjects(); }, []);
 
-  // Cargar recomendaciones si el usuario es voluntario
+  // Cargar recomendaciones si el usuario es voluntario. Son secundarias: si fallan, la sección "Para vos"
+  // avisa con su propio "Reintentar" y el catálogo se muestra igual (REVISION S1).
+  const loadRecs = async () => {
+    setLoadingRecs(true);
+    setRecsError('');
+    try {
+      const res = await api.projects.recommended(8);
+      setRecommendations(res.recommendations || []);
+    } catch (err) {
+      setRecsError(userMessage(err, 'No pudimos cargar tus recomendaciones. Revisá tu conexión.'));
+    } finally {
+      setLoadingRecs(false);
+    }
+  };
   useEffect(() => {
     if (!isVolunteer) return;
-    const loadRecs = async () => {
-      setLoadingRecs(true);
-      try {
-        const res = await api.projects.recommended(8);
-        setRecommendations(res.recommendations || []);
-      } catch (err) {
-        console.error('Error loading recommendations:', err);
-      } finally {
-        setLoadingRecs(false);
-      }
-    };
     loadRecs();
   }, [isVolunteer]);
 
@@ -297,17 +304,18 @@ export function ExploreScreen() {
         </div>
 
         {/* ── 3. Mapa Interactivo de Voluntariados ────────────── */}
-        <ProjectMap projects={filteredProjects} />
+        {/* Con error de carga no se dibuja: un mapa sin pines también diría "no hay nada" (REVISION S1). */}
+        {!loadError && <ProjectMap projects={filteredProjects} />}
 
         {/* ── 3b. Sección "Para vos" — Recomendaciones personalizadas ─── */}
         {isVolunteer && !hasActiveFilters && (
-          <div className="space-y-3 pt-1">
+          <section aria-labelledby={recsTitleId} className="space-y-3 pt-1">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm">
                   <Sparkles className="w-3.5 h-3.5 text-white" />
                 </div>
-                <h2 className="text-base font-black text-gray-900 tracking-tight">
+                <h2 id={recsTitleId} className="text-base font-black text-gray-900 tracking-tight">
                   Para vos
                 </h2>
               </div>
@@ -335,6 +343,17 @@ export function ExploreScreen() {
                     </div>
                   </div>
                 ))}
+              </div>
+            ) : recsError ? (
+              /* Aviso chico: las recomendaciones son secundarias, no tapan el catálogo de abajo. */
+              <div className="flex items-center justify-between gap-3 bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3">
+                <p className="text-xs text-gray-600">{recsError}</p>
+                <button
+                  onClick={loadRecs}
+                  className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 cursor-pointer shrink-0"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> Reintentar
+                </button>
               </div>
             ) : recommendations.length > 0 ? (
               recsExpanded ? (
@@ -474,7 +493,7 @@ export function ExploreScreen() {
                 </div>
               )
             ) : null}
-          </div>
+          </section>
         )}
 
         {/* ── 4. Proyectos Destacados / Encontrados ─────────────── */}
@@ -484,7 +503,7 @@ export function ExploreScreen() {
               <h2 className="text-base font-black text-gray-900 tracking-tight">
                 {hasActiveFilters ? 'Proyectos encontrados' : 'Proyectos Destacados'}
               </h2>
-              {hasActiveFilters && (
+              {hasActiveFilters && !loadError && (
                 <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
                   {filteredProjects.length}
                 </span>
@@ -523,6 +542,8 @@ export function ExploreScreen() {
                 </div>
               ))}
             </div>
+          ) : loadError ? (
+            <InlineError message={loadError} onRetry={loadProjects} />
           ) : (hasActiveFilters ? filteredProjects : genericProjects).length === 0 ? (
             <div className="bg-gray-50 rounded-2xl p-8 text-center space-y-2 border border-dashed border-gray-200">
               <p className="text-sm font-bold text-gray-700">No encontramos voluntariados con esos filtros</p>

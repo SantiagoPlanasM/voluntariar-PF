@@ -2840,3 +2840,39 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 - Nada visual. La barra lateral es `hidden lg:block`: en jsdom no se aplica el CSS, así que los tests la ven siempre; no comprobé el aviso en un escritorio real.
 - No revisé el resto de la pantalla en celular (allí la barra no se ve, y las sugerencias del feed vacío solo aparecen si cargaron; con error, el feed vacío no muestra sugerencias ni aviso de sugerencias — solo el del feed si también falló).
 - `loadFollowingFeed` no descarta respuestas viejas (lo llaman la carga inicial, "Reintentar", `onRefresh` de cada tarjeta y seguir una ONG). No lo cambié: no es parte de S1.
+
+## 111. Explorar: error de carga visible con "Reintentar" — REVISION S1 (Explorar)
+
+**Contexto:** en `ExploreScreen.tsx`, si fallaba `api.projects.list` (red caída, 500) el `catch` solo hacía `console.error`. La lista quedaba vacía y la pantalla decía "No encontramos voluntariados con esos filtros", con el mapa sin pines: un error se veía como "no hay proyectos". Las recomendaciones ("Para vos", solo voluntarios) tenían el mismo `catch` silencioso: la sección quedaba con el título y nada abajo.
+
+**Qué se hizo:**
+- **Catálogo:** la carga pasó a una función `loadProjects` (al montar y desde "Reintentar"). Si falla guarda `loadError` con `userMessage(err, 'No pudimos cargar los voluntariados. Revisá tu conexión.')` (el mensaje del servidor tal cual, salvo el `TypeError` de red) y la lista muestra **`<InlineError />`** con "Reintentar", como los listados de §65. Mientras hay error:
+  - **no se dibuja el mapa** (un mapa sin pines también dice "no hay nada");
+  - con una búsqueda escrita, no se muestra el contador "0" de "Proyectos encontrados".
+- **Recomendaciones (decisión: son secundarias):** si fallan, la sección "Para vos" muestra un aviso chico **dentro de la sección** con su propio "Reintentar" (`loadRecs`), y el catálogo de abajo se ve igual. No uso `InlineError` acá porque es un bloque grande, de pantalla de listado: un fallo de algo opcional no debería ocupar el lugar del contenido principal. Sin recomendaciones, el catálogo ya muestra todos los proyectos (no hay ids que excluir), así que no se pierde nada.
+- La sección "Para vos" pasó de `<div>` a `<section aria-labelledby>` con el título (`useId`): la nombra para lectores de pantalla y permite ubicarla en el test.
+
+### Tests (nuevos: 5, `ExploreScreen.test.tsx`, archivo nuevo)
+- 500 al cargar → se ve el mensaje del servidor, no "No encontramos voluntariados" ni el mapa; "Reintentar" carga la lista y el mapa vuelve (con 1 pin).
+- Sin red (`TypeError: Failed to fetch`) → "No pudimos cargar los voluntariados…", nunca "Failed to fetch".
+- Error + búsqueda escrita → sin contador "0".
+- Sin sesión → el error se ve igual y no se piden recomendaciones.
+- Recomendaciones con 500 → el catálogo aparece, "Para vos" muestra el error y su "Reintentar" las carga.
+- **Rojo de comportamiento:** con el código anterior fallaban los 4 primeros que existían (no aparecía el error; el de recomendaciones tampoco encontraba la sección nombrada ni el aviso). El del contador lo agregué después por un mutante (ver Mutación).
+
+### Verificación
+- **Frontend 425/425** (420 + 5), también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.** `A11yNames.test.tsx` (ningún botón sin nombre) sigue pasando.
+
+### Mutación (12, sobre el código nuevo de `ExploreScreen.tsx`)
+- Primera corrida: mueren 9, **sobreviven 3**:
+  - *el `catch` no vacía la lista de proyectos* y *el `catch` no vacía las recomendaciones*: **equivalentes**. "Reintentar" solo existe en el estado de error, donde las listas ya están vacías; la carga del montaje empieza vacía. Saqué esas dos líneas (código que no hacía nada).
+  - *el contador "encontrados" se ve con error*: **no equivalente**. Agregué el test del contador.
+- Segunda corrida: **mueren los 10** que aplican (los 2 de las líneas sacadas ya no aplican).
+
+### Errores propios
+- El worktree arrancó en un commit viejo (`31f0bee`, 31 commits detrás de `main`): `lib/badWords.ts` y el tope de 500 no existían. Me di cuenta al no encontrar archivos que el pedido nombraba; avancé la rama con `git merge --ff-only main` antes de tocar nada.
+- El test de recomendaciones esperaba mi texto de respaldo, pero con un `ApiError` 500 `userMessage` muestra el del servidor ("Error al generar recomendaciones"). Lo corregí en el test; el respaldo se usa solo sin red.
+
+### ⚠️ NO verificado
+- No lo vi en el navegador: ni el `InlineError` en el lugar de la lista, ni el aviso chico de "Para vos", ni que la pantalla sin mapa se vea bien.
+- Doble clic en "Reintentar": el botón desaparece al empezar la carga (`loading`), así que no debería haber dos pedidos en vuelo; no lo probé.
