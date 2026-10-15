@@ -1,6 +1,6 @@
 // src/lib/format.test.ts
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
-import { timeAgo, formatTime, formatDateOnly, truncateText, userMessage } from './format';
+import { timeAgo, formatTime, formatDateOnly, truncateText, userMessage, normalizeText } from './format';
 
 describe('timeAgo', () => {
   beforeEach(() => {
@@ -201,5 +201,22 @@ describe('userMessage', () => {
   test('algo que no es un Error usa el respaldo', () => {
     expect(userMessage('boom', 'fallback')).toBe('fallback');
     expect(userMessage(undefined, 'fallback')).toBe('fallback');
+  });
+});
+
+describe('normalizeText (REVISION S8)', () => {
+  test('saca acentos y diéresis y pasa a minúsculas', () => {
+    expect(normalizeText('Córdoba')).toBe('cordoba');
+    expect(normalizeText('EDUCACIÓN')).toBe('educacion');
+    expect(normalizeText('Pingüino Ñandú')).toBe('pinguino nandu');
+  });
+
+  test('no toca lo demás (espacios, signos, números) y un texto vacío da vacío', () => {
+    expect(normalizeText('  ¡Hola, 2026!  ')).toBe('  ¡hola, 2026!  ');
+    expect(normalizeText('')).toBe('');
+  });
+
+  test('una letra con tilde ya compuesta o descompuesta da lo mismo', () => {
+    expect(normalizeText('é')).toBe(normalizeText('é'));
   });
 });

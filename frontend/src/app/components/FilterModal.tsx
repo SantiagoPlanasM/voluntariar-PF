@@ -2,6 +2,7 @@ import React, { useEffect, useId, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Sparkles, Zap, Calendar, Laptop, MapPin, DollarSign, Check, Globe } from 'lucide-react';
 import { Project } from '../../lib/api';
+import { normalizeText } from '../../lib/format';
 import { CATEGORY_COLORS } from './ProjectMap';
 import { Modal } from './Modal';
 
@@ -31,21 +32,23 @@ interface FilterModalProps {
 
 export function filterProjects(projects: Project[], searchQuery: string, filters: FilterState): Project[] {
   return projects.filter(p => {
-    // 1. Búsqueda de texto
+    // 1. Búsqueda de texto, sin distinguir mayúsculas ni acentos: "cordoba" encuentra "Córdoba" (REVISION S8)
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
+      const q = normalizeText(searchQuery.trim());
+      const has = (field: string | null | undefined) => !!field && normalizeText(field).includes(q);
       const matches =
-        p.title?.toLowerCase().includes(q) ||
-        p.description?.toLowerCase().includes(q) ||
-        p.category?.toLowerCase().includes(q) ||
-        p.location?.toLowerCase().includes(q) ||
-        p.ngo_name?.toLowerCase().includes(q);
+        has(p.title) ||
+        has(p.description) ||
+        has(p.category) ||
+        has(p.location) ||
+        has(p.ngo_name);
       if (!matches) return false;
     }
 
-    // 2. Categorías (multiselección)
+    // 2. Categorías (multiselección), con el mismo criterio: "Educacion" coincide con "Educación"
     if (filters.categories.length > 0) {
-      if (!p.category || !filters.categories.some(c => c.toLowerCase() === p.category?.toLowerCase())) {
+      const cat = normalizeText(p.category || '');
+      if (!cat || !filters.categories.some(c => normalizeText(c) === cat)) {
         return false;
       }
     }

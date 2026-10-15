@@ -45,3 +45,48 @@ describe('filterProjects — filtro de modalidad', () => {
     expect(filterProjects(projects, '', DEFAULT_FILTERS)).toHaveLength(3);
   });
 });
+
+// REVISION S8: la búsqueda comparaba en minúsculas pero CON acentos: "cordoba" no encontraba "Córdoba" ni
+// "educacion" a "Educación". Ahora ignora acentos de los dos lados (como lib/badWords.ts).
+describe('filterProjects — búsqueda sin distinguir acentos', () => {
+  const ids = (q: string, ps: Project[], f = DEFAULT_FILTERS) => filterProjects(ps, q, f).map(p => p.id);
+
+  test('sin tilde encuentra el texto con tilde, en cada campo buscable', () => {
+    const ps = [
+      makeProject({ id: 'loc', location: 'Córdoba Capital', category: 'X' }),
+      makeProject({ id: 'cat', category: 'Educación' }),
+      makeProject({ id: 'tit', title: 'Huerta en el jardín', category: 'X' }),
+      makeProject({ id: 'des', description: 'Apoyo a la nutrición', category: 'X' }),
+      makeProject({ id: 'ngo', ngo_name: 'Fundación Sol', category: 'X' }),
+    ];
+    expect(ids('cordoba', ps)).toEqual(['loc']);
+    expect(ids('educacion', ps)).toEqual(['cat']);
+    expect(ids('jardin', ps)).toEqual(['tit']);
+    expect(ids('nutricion', ps)).toEqual(['des']);
+    expect(ids('fundacion', ps)).toEqual(['ngo']);
+  });
+
+  test('con tilde (o en mayúsculas) encuentra el texto sin tilde', () => {
+    const ps = [makeProject({ id: 'a', location: 'Cordoba', category: 'Educacion' })];
+    expect(ids('Córdoba', ps)).toEqual(['a']);
+    expect(ids('  EDUCACIÓN ', ps)).toEqual(['a']);
+  });
+
+  test('la ñ se compara como n (mismo criterio que badWords) y lo que no coincide sigue afuera', () => {
+    const ps = [makeProject({ id: 'a', title: 'Niños del barrio', category: 'X' })];
+    expect(ids('ninos', ps)).toEqual(['a']);
+    expect(ids('niñas', ps)).toEqual([]);
+  });
+
+  test('el filtro de categorías también ignora acentos y mayúsculas', () => {
+    const ps = [makeProject({ id: 'a', category: 'Educacion' }), makeProject({ id: 'b', category: 'Salud' })];
+    expect(ids('', ps, { ...DEFAULT_FILTERS, categories: ['Educación'] })).toEqual(['a']);
+    expect(ids('', [makeProject({ id: 'c', category: 'EDUCACIÓN' })], { ...DEFAULT_FILTERS, categories: ['educacion'] })).toEqual(['c']);
+  });
+
+  test('un proyecto sin categoría no pasa un filtro de categorías (ni siquiera uno vacío)', () => {
+    const ps = [makeProject({ id: 'a', category: undefined }), makeProject({ id: 'b', category: '' })];
+    expect(ids('', ps, { ...DEFAULT_FILTERS, categories: ['Educación'] })).toEqual([]);
+    expect(ids('', ps, { ...DEFAULT_FILTERS, categories: [''] })).toEqual([]);
+  });
+});

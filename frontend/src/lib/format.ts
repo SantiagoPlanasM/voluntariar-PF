@@ -73,6 +73,13 @@ export function truncateText(text: string, max: number, maxLines = 4): { text: s
   return { text: cut.replace(/\s+$/, '') + '…', truncated: true };
 }
 
+/** Texto para comparar sin distinguir mayúsculas ni acentos: "Córdoba" → "cordoba", "Ñandú" → "nandu".
+ *  Descompone (NFD) y saca las marcas (tildes, diéresis, la virgulilla de la ñ). Lo usan la búsqueda de
+ *  Explorar (REVISION S8) y el filtro de palabras (`badWords.ts`). */
+export function normalizeText(t: string): string {
+  return t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+}
+
 /** Mensaje de error para mostrarle al usuario. Los errores del servidor ya vienen en español y dicen algo
  *  útil ("Publicaste demasiado, esperá un rato"), así que se muestran tal cual. Un fallo de red de `fetch`
  *  es un TypeError en inglés ("Failed to fetch"): ese se reemplaza por `fallback`. */

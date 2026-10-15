@@ -3056,3 +3056,34 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 - No lo vi en el navegador ni en un celular: la barra de empresa con 4 ítems (ancho de cada uno, que entren los textos), los pines y el punto del usuario.
 - **Sin tocar, para decidir:** la barra pública de la ONG (ver arriba). Y `Root.tsx` (`SidebarNav`, desktop) tiene una **tercera copia** de las listas de ONG y empresa: en escritorio, la empresa en pantallas públicas sigue sin "Panel", y los textos de la ONG difieren de `NGOSidebarNav` (allá hay "Momentos" y no "Explorar"). No estaba en S7; es el mismo problema en desktop.
 - `drawMarkers` no se probó con proyectos sin coordenadas (usa `getProjectCoords`, que no cambió).
+
+## 118. La búsqueda de Explorar ignora acentos — REVISION S8
+
+**Contexto:** `filterProjects` (`FilterModal.tsx`) comparaba en minúsculas pero con acentos: "cordoba" no encontraba "Córdoba" ni "educacion" a "Educación", y "Córdoba" no encontraba un "Cordoba" cargado sin tilde. El filtro de categorías tenía el mismo criterio: una categoría cargada como "Educacion" no coincidía con el botón "Educación" del modal (las opciones salen de la tabla fija `CATEGORY_COLORS`). Solo cliente: el backend no cambia (su `ILIKE` tampoco ignora acentos, pero Explorar filtra en el cliente).
+
+**Qué se hizo:**
+- **`normalizeText(t)` en `lib/format.ts` (nuevo):** `t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()`. Es exactamente la normalización que ya hacía `lib/badWords.ts` (§93).
+- **`badWords.ts`** usa `normalizeText` en vez de su copia (regla 3). Mismo comportamiento: sus tests pasan sin cambios. **La forma de `BLACKLIST` no cambió**: el test de sincronía del backend (`backend/test/unit/badWords.test.js`, que lee la lista del archivo del frontend con una regex) pasa (6/6).
+- **`filterProjects`:** la consulta y los cinco campos (título, descripción, categoría, ubicación, ONG) se comparan normalizados. Las categorías también (`normalizeText(c) === normalizeText(p.category)`); un proyecto sin categoría sigue sin pasar un filtro de categorías.
+- Consecuencia: la ñ se compara como n ("ninos" encuentra "Niños"), igual que en `badWords`.
+
+### Tests (nuevos: 8)
+- `format.test.ts` (3): "Córdoba" → "cordoba", "EDUCACIÓN" → "educacion", "Pingüino Ñandú" → "pinguino nandu"; no toca espacios, signos ni números; vacío → vacío; "é" compuesta y descompuesta dan lo mismo.
+- `FilterModal.test.tsx` (5): sin tilde encuentra con tilde en cada uno de los 5 campos (y solo ese proyecto); con tilde y mayúsculas encuentra sin tilde; ñ como n y "niñas" no encuentra "Niños"; categorías sin distinguir acentos ni mayúsculas en los dos sentidos; un proyecto sin categoría (o con `''`) no pasa un filtro de categorías, ni siquiera `['']`.
+- **Rojo de comportamiento:** los 4 primeros de `filterProjects` fallaban con el código anterior (devolvían `[]`). Los de `normalizeText` fallaban por "no es una función" (rojo débil; el comportamiento lo cubren los de `filterProjects`). El de "sin categoría" lo agregué por un mutante.
+
+### Verificación
+- **Frontend 433/433** (425 + 8), también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.**
+- **Backend `node --test test/unit/badWords.test.js`: 6/6** (incluye la igualdad de las listas). No corrí la suite completa del backend: no se tocó código del backend.
+
+### Mutación (15: 11 en `filterProjects`, 4 en `normalizeText`; corriendo `FilterModal`, `format` y `badWords`)
+- Primera corrida: mueren 14. **Sobrevive 1, no equivalente:** sacar la guarda `!cat ||` (proyecto sin categoría). En la app no se nota (las categorías del modal nunca son vacías), pero `filterProjects` es una función exportada: con `categories: ['']` dejaba pasar proyectos sin categoría. Agregué el test.
+- Segunda corrida: **mueren los 15**. Entre los que mueren: consulta o campo sin normalizar, cada uno de los 5 campos sacado, sin NFD, sin quitar marcas, quitar solo la primera marca (sin `g`) y sin minúsculas.
+
+### Errores propios
+- Puse el `import` de `badWords.ts` después de `BLACKLIST` (válido, pero desprolijo); lo moví arriba antes de commitear.
+
+### ⚠️ NO verificado
+- No lo probé en el navegador (escribir "cordoba" en Explorar). Lo cubre el test de la función pura que usa la pantalla.
+- El contador "Mostrar N voluntariados" del modal usa la misma `filterProjects`, así que también ignora acentos; no tiene test propio.
+- La búsqueda del backend (`GET /api/projects?search=`, `ILIKE`) sigue distinguiendo acentos. Explorar no la usa; si otra pantalla la usara, tendría el problema (fuera del pedido: "solo cliente").
