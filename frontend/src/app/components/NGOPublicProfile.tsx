@@ -134,23 +134,26 @@ export function NGOPublicProfile() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4">
-        {/* Avatar + info */}
-        <div className="flex items-end gap-4 -mt-10 mb-4">
+        {/* Avatar + info. `relative` para que se pinte sobre el banner (que es `relative`; antes lo tapaba
+            arriba) y el texto arranca 44 px abajo (pt-11): siempre debajo del banner, aunque el nombre ocupe
+            dos líneas; solo el logo se superpone (§128). */}
+        <div className="relative flex flex-wrap sm:flex-nowrap items-start gap-x-4 gap-y-3 -mt-10 mb-4">
           <div className="w-20 h-20 rounded-2xl bg-white border-4 border-white shadow-xl overflow-hidden flex-shrink-0">
             {ngo.logo
               ? <img src={ngo.logo} alt={ngo.name} className="w-full h-full object-cover" />
               : <div className="w-full h-full bg-emerald-100 flex items-center justify-center text-2xl font-black text-emerald-700">{ngo.name[0]}</div>
             }
           </div>
-          <div className="pb-1 min-w-0 flex-1">
-            <h1 className="text-xl font-black text-gray-900 leading-tight">{ngo.name}</h1>
+          <div className="pt-11 min-w-0 flex-1">
+            <h1 className="text-xl font-black text-gray-900 leading-tight break-words">{ngo.name}</h1>
             {ngo.location && (
               <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
                 <MapPin className="w-3.5 h-3.5" />{ngo.location}
               </p>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          {/* En el celular los botones van en su propia línea, debajo (en la misma fila tapaban el nombre). */}
+          <div className="flex items-center gap-2 w-full sm:w-auto sm:pt-11">
             {(!user || user.role === 'volunteer') && !statusError && (
               <button
                 onClick={handleToggleFollow}

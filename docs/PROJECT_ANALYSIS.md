@@ -3352,7 +3352,7 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 - **§109–§111, con el backend apagado:** Explorar ("No pudimos cargar los voluntariados", con un aviso aparte en "Para vos"), el perfil propio (contadores en "—" y un aviso general) e Inicio ("No pudimos cargar tu feed"). Con el backend prendido, "Reintentar" recuperó las tres pantallas; Inicio quedó en su estado vacío real (María no sigue a nadie en el seed).
 - **§114, error al seguir una ONG** (falla forzada interceptando `fetch` solo para ese pedido): el mensaje aparece debajo del botón, que sigue en "Seguir", y los seguidores no cambian.
 
-### Problemas visuales encontrados (anteriores a estos cambios, no tocados)
+### Problemas visuales encontrados (anteriores a estos cambios; arreglados en §128)
 - **Panel de la ONG en celular:** el encabezado (Equipo, Momentos y Nuevo proyecto) no entra y genera scroll horizontal.
 - **Ancho angosto:** el botón flotante del chatbot tapa parte de los avisos de error de Explorar y del perfil, incluido el "Reintentar" del perfil.
 - **Perfil público de una ONG (escritorio):** el nombre queda medio tapado por el banner verde.
@@ -3361,3 +3361,50 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 - El aviso de "los primeros 500" en Explorar (§119): haría falta tener más de 500 proyectos.
 - El aviso de §125 (falla de "¿ya la sigo?") y el bloqueo del doble clic de §126: necesitan fallas o demoras selectivas. Los cubren sus tests.
 - Un celular real (táctil, teclado en pantalla) y un lector de pantalla.
+
+## 128. Los tres problemas visuales de §127 (aprobado por el usuario)
+
+**Qué se hizo:**
+1. **Encabezado del panel de la ONG en el celular** (`NGODashboard.tsx`): Equipo, Momentos y Nuevo no entraban y la pantalla tenía scroll horizontal. Ahora:
+   - Equipo y Momentos son solo ícono por debajo de `sm`, con `aria-label` para conservar el nombre accesible.
+   - El nombre y "Panel de gestión" se truncan (`min-w-0` y `truncate`).
+   - Los botones no se achican.
+2. **El botón del chatbot tapaba lo último de la pantalla.** La causa real **no era el botón**:
+   - `#root` es un flex en columna, y el `div` exterior de cada layout (`min-h-screen`) se **encogía** al alto de la pantalla. El contenido se desbordaba, así que el padding inferior quedaba en el medio.
+   - Por eso la última tarjeta del panel de la ONG quedaba debajo de la barra inferior y del botón aunque se bajara hasta el final. Lo medí en el navegador: página de 560 px con 856 de contenido.
+   - **Arreglo, en dos partes:**
+     - `flex-shrink-0` en el `div` exterior de `Root`, `NGOLayout` y `CompanyLayout`.
+     - `ChatbotSpacer` (en `ChatbotWidget.tsx`), que cada layout pone después del `<Outlet />`: 80 px con barra inferior, 144 sin barra (portada) y 96 desde `md`. No se dibuja en el hilo de un chat (`/…/messages/:id`), que tiene altura fija.
+3. **Perfil público de una ONG** (`NGOPublicProfile.tsx`):
+   - **Escritorio:** el banner (`relative`) se pintaba sobre la fila del logo y el nombre, que no estaba posicionada, y tapaba la parte de arriba de los dos. Ahora la fila es `relative`, el logo se superpone al banner y el nombre arranca 44 px abajo (`pt-11`), siempre debajo del banner.
+   - **Celular** (encontrado al verificar este arreglo, también anterior): los botones Seguir y Mensaje quedaban **encima del nombre**. La fila hace wrap: en el celular los botones van en su propia línea, y desde `sm` vuelven al costado. El nombre parte palabras largas (`break-words`).
+
+### Tests (nuevos: 12)
+- `ChatbotSpacer.test.tsx` (4): alto con y sin barra y desde `md`; no se dibuja en el hilo de un chat (voluntario, ONG y empresa); sí en la lista de conversaciones y en el resto.
+- `RootLayout.test.tsx` (3), `RequireRole.test.tsx` (+1): los tres layouts tienen `flex-shrink-0` y el espacio va después de la pantalla.
+- `NGODashboard.test.tsx` (+2): `aria-label`, texto solo desde `sm`, `truncate` y botones que no se achican.
+- `NGOFollowStatus.test.tsx` (+2): la fila del perfil y los botones en su propia línea en el celular.
+- **Son tests de clases:** jsdom no aplica Tailwind ni hace layout, así que solo evitan que se pierda el arreglo. **La verificación real fue en el navegador** (abajo).
+- **Rojo:** fallan con el código de `HEAD` (restaurado aparte, sin `stash`): 3 de dashboard y perfil, 3 de `Root` y 1 de los layouts. `ChatbotSpacer` era nuevo (rojo débil).
+- Se actualizó el mock de `ChatbotWidget` en `RequireRole.test.tsx` (no conocía la exportación nueva y rompía 10 tests).
+
+### Verificación
+- **Frontend 544/544**, también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.** Los archivos CRLF siguen en CRLF.
+- **Mutación (20)**, con corrida de control, sobre los tres arreglos: **mueren los 20**. Antes agregué `RootLayout.test.tsx`, porque el `flex-shrink-0` de `Root` no lo cubría ningún test.
+- **Navegador** (app local, base SQLite descartable, iframes de 390 y 330 px y escritorio):
+  - **Sin scroll horizontal:** el panel de la ONG a 390 y a 330 px.
+  - **Fin del contenido medido contra el borde del botón, con el scroll al final:** panel, perfil y patrocinios de la ONG terminan 24 px arriba; Explorar, perfil y participaciones del voluntario, 8 px arriba. Ninguna página se desborda.
+  - **El hilo del chat** no tiene el espacio extra ni scroll (560 de 560 px).
+  - **El perfil de la ONG,** en escritorio y a 390, 330 y 600 px, con nombres de una y de dos líneas.
+
+### Errores propios
+- **Empecé por el código** del encabezado y del perfil y escribí los tests después. Para compensarlo los corrí contra `HEAD` y vi el rojo.
+- **El primer arreglo del chatbot iba a ser solo padding,** que no habría servido: el layout se encogía igual. Lo vi recién al medir en el navegador.
+- **Las primeras mediciones estaban mal hechas:**
+  - contaban el propio espacio de reserva y elementos recortados por listas con scroll propio;
+  - `scroll-behavior: smooth` hacía que `scrollTo` no hubiera terminado al medir.
+  - Pasé a medir el borde de arriba del espacio de reserva, con scroll instantáneo.
+
+### ⚠️ NO verificado
+- Un celular real (barra del navegador que aparece y desaparece, `100vh` contra `100dvh`).
+- Pantallas que no recorrí: crear voluntariado, KPIs, empleados, panel de empresa, mensajes de la ONG. Tienen el mismo layout, así que el arreglo aplica igual, pero no las medí.

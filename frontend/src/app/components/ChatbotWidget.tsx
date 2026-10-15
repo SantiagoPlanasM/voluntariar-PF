@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router';
 import { MessageCircleQuestion, X, Send, Loader2 } from 'lucide-react';
 import { api, Faq } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
@@ -14,6 +15,18 @@ function categoriaPorRol(role?: string): string | undefined {
   if (role === 'ngo') return 'ngo';
   if (role === 'volunteer') return 'voluntario';
   return undefined;
+}
+
+/**
+ * Espacio al final del contenido para que el botón flotante (abajo a la derecha: en el celular a 80 px del
+ * borde y 56 de alto; en escritorio a 24 px) no tape lo último de la pantalla (§128). Va después del <Outlet />
+ * de cada layout. `withBottomNav`: el layout ya reserva 64 px para la barra inferior. No se dibuja en el hilo
+ * de un chat, que tiene altura fija (quedaría un hueco y scroll).
+ */
+export function ChatbotSpacer({ withBottomNav = true }: { withBottomNav?: boolean }) {
+  const { pathname } = useLocation();
+  if (/\/messages\/[^/]+\/?$/.test(pathname)) return null;
+  return <div aria-hidden="true" data-testid="chatbot-spacer" className={`${withBottomNav ? 'h-20' : 'h-36'} md:h-24 flex-shrink-0`} />;
 }
 
 export function ChatbotWidget() {

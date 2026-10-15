@@ -32,6 +32,29 @@ vi.mock('../../lib/api', async () => {
 
 import { NGODashboard } from './NGODashboard';
 
+// §128: en el celular el encabezado (Equipo, Momentos, Nuevo) no entraba y la pantalla tenía scroll horizontal.
+// jsdom no aplica Tailwind: se comprueban las clases que lo resuelven y que los botones sin texto visible
+// conserven su nombre accesible.
+describe('NGODashboard: encabezado en el celular', () => {
+  test('Equipo y Momentos: texto solo desde sm, nombre accesible por aria-label', async () => {
+    render(<MemoryRouter><NGODashboard /></MemoryRouter>);
+    for (const name of ['Equipo', 'Momentos']) {
+      const b = await screen.findByRole('button', { name });
+      expect(b).toHaveAttribute('aria-label', name);
+      expect(within(b).getByText(name).className).toContain('hidden sm:inline');
+    }
+  });
+
+  test('el nombre de la ONG se trunca y los botones no se achican', async () => {
+    render(<MemoryRouter><NGODashboard /></MemoryRouter>);
+    const h1 = await screen.findByRole('heading', { level: 1, name: 'Sustentando' });
+    expect(h1.className).toContain('truncate');
+    expect(h1.parentElement!.className).toContain('min-w-0');
+    expect(h1.parentElement!.parentElement!.className).toContain('min-w-0');
+    expect(screen.getByRole('button', { name: 'Equipo' }).parentElement!.className).toContain('flex-shrink-0');
+  });
+});
+
 describe('NGODashboard: solicitudes pendientes', () => {
   test('cada solicitud muestra a qué voluntariado es', async () => {
     render(<MemoryRouter><NGODashboard /></MemoryRouter>);

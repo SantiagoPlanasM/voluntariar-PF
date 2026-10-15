@@ -20,7 +20,7 @@ vi.mock('./NGOBottomNav', () => ({ NGOBottomNav: () => null }));
 vi.mock('./CompanySidebarNav', () => ({ CompanySidebarNav: () => null }));
 vi.mock('./CompanyBottomNav', () => ({ CompanyBottomNav: () => null }));
 vi.mock('./AuthModal', () => ({ AuthModal: () => null }));
-vi.mock('./ChatbotWidget', () => ({ ChatbotWidget: () => null }));
+vi.mock('./ChatbotWidget', () => ({ ChatbotWidget: () => null, ChatbotSpacer: () => null }));
 
 import { NGOLayout } from './NGOLayout';
 import { CompanyLayout } from './CompanyLayout';
@@ -107,5 +107,20 @@ describe('panel de empresa', () => {
     as(null); app('/company/dashboard');
     expect(screen.getByText('Inicio público')).toBeInTheDocument();
     expect(auth.openAuthModal).toHaveBeenCalledTimes(1);
+  });
+});
+
+// §128: #root es un flex en columna; el div exterior de cada layout (min-h-screen) se encogía al alto de la
+// pantalla y su contenido se desbordaba: la última tarjeta quedaba debajo de la barra inferior y del botón del
+// chatbot aunque se bajara hasta el final. jsdom no hace layout: se comprueba la clase que lo evita.
+describe('los layouts no se encogen dentro de #root', () => {
+  test('ONG y empresa: el contenedor exterior tiene flex-shrink-0', () => {
+    as('ngo');
+    const { unmount } = app('/ngo/dashboard');
+    expect(screen.getByText('Panel ONG').parentElement!.parentElement!.className).toContain('flex-shrink-0');
+    unmount();
+    as('company');
+    app('/company/profile');
+    expect(screen.getByText('Perfil empresa').parentElement!.parentElement!.className).toContain('flex-shrink-0');
   });
 });

@@ -59,21 +59,23 @@ export function NGODashboard() {
       <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between gap-4 mb-3">
-            <div className="flex items-center gap-3">
+            {/* En el celular el nombre se trunca y Equipo/Momentos quedan solo con ícono: antes no entraban y
+                la pantalla tenía scroll horizontal (§128). El nombre accesible lo dan los aria-label. */}
+            <div className="flex items-center gap-3 min-w-0">
               {ngo?.logo && <img src={ngo.logo} alt={ngo.name} className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-100 flex-shrink-0"/>}
-              <div>
-                <h1 className="text-base sm:text-lg font-bold text-gray-900">{ngo?.name}</h1>
-                <p className="text-xs text-gray-400">Panel de gestión</p>
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-lg font-bold text-gray-900 truncate">{ngo?.name}</h1>
+                <p className="text-xs text-gray-400 truncate">Panel de gestión</p>
               </div>
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => ngo && navigate(`/ngo/empleados/${ngo.id}`)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-xs font-semibold hover:bg-gray-50 transition-colors">
-                <Users className="w-3.5 h-3.5"/>Equipo
+            <div className="flex gap-2 flex-shrink-0">
+              <button onClick={() => ngo && navigate(`/ngo/empleados/${ngo.id}`)} aria-label="Equipo"
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-xs font-semibold hover:bg-gray-50 transition-colors">
+                <Users className="w-3.5 h-3.5"/><span className="hidden sm:inline">Equipo</span>
               </button>
-              <button onClick={() => navigate('/ngo/momentos')}
-                className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-xs font-semibold hover:bg-gray-50 transition-colors">
-                <Camera className="w-3.5 h-3.5"/>Momentos
+              <button onClick={() => navigate('/ngo/momentos')} aria-label="Momentos"
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-xs font-semibold hover:bg-gray-50 transition-colors">
+                <Camera className="w-3.5 h-3.5"/><span className="hidden sm:inline">Momentos</span>
               </button>
               <button onClick={() => navigate('/ngo/create')}
                 className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-700 transition-colors flex-shrink-0">

@@ -1,7 +1,7 @@
 import { Outlet, useLocation, Link, useNavigate } from 'react-router';
 import { BottomNav } from './BottomNav';
 import { AuthModal } from './AuthModal';
-import { ChatbotWidget } from './ChatbotWidget';
+import { ChatbotWidget, ChatbotSpacer } from './ChatbotWidget';
 import { useAuth } from '../../lib/AuthContext';
 import { useChat } from '../../lib/ChatContext';
 import { useEffect, useState } from 'react';
@@ -15,9 +15,11 @@ export function Root() {
   const isPublic = useLocation().pathname === '/';
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    // flex-shrink-0: ver NGOLayout (§128).
+    <div className="min-h-screen bg-gray-50 flex flex-col flex-shrink-0">
       <div className={`flex-1 flex flex-col w-full ${!isPublic ? 'pb-16 md:pb-0' : ''}`}>
         <Outlet />
+        <ChatbotSpacer withBottomNav={!isPublic} />
       </div>
       {!isPublic && (
         <>
