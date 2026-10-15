@@ -9,6 +9,9 @@ const { describeStorageConfig } = require('./lib/storage');
 const { errorHandler, corsError } = require('./lib/errorHandler');
 
 const app = express();
+// En producción (Render) hay un proxy delante: sin esto, req.ip sería la IP del proxy y el límite de intentos por IP
+// del login/registro (§103) juntaría a todos los usuarios. Fuera de producción no hay proxy.
+if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
 
 // ── CORS ──────────────────────────────────────────────────────────────────
 const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173')

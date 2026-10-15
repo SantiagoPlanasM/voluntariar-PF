@@ -6,8 +6,21 @@ const db = require('../db');
 const { signToken, requireAuth } = require('../middleware/auth');
 const { checkText, firstError } = require('../lib/inputs');
 const { isUniqueViolation } = require('../lib/dbErrors');
+const { createLimiter } = require('../lib/rateLimit');
 
 const router = express.Router();
+
+// ── Límite de intentos (aprobado por el usuario, PROJECT_ANALYSIS.md §103) ───────────────────────────────
+// Login: solo cuentan los FALLIDOS. Por email+IP (no por email solo: cualquiera podría bloquearle la cuenta a otra
+// persona) y, aparte, por IP (muchos emails desde el mismo lugar). Un login correcto limpia el de email+IP.
+// Registro: por IP. Pasado el límite: 429 sin tocar la base ni bcrypt. En memoria y por proceso (lib/rateLimit).
+const LOGIN_FAILS_PER_ACCOUNT = createLimiter({ max: 10, windowMs: 15 * 60 * 1000 });
+const LOGIN_FAILS_PER_IP      = createLimiter({ max: 50, windowMs: 15 * 60 * 1000 });
+const REGISTERS_PER_IP        = createLimiter({ max: 20, windowMs: 60 * 60 * 1000 });
+const tooMany = (res, seconds) => {
+  res.set('Retry-After', String(seconds));
+  return res.status(429).json({ error: 'Demasiados intentos. Probá de nuevo en unos minutos.' });
+};
 
 // Hash de una contraseña cualquiera, para comparar contra algo cuando el email no existe (ver /login).
 const DUMMY_HASH = bcrypt.hashSync('cuenta-inexistente', 10);
@@ -29,6 +42,10 @@ function validatePassword(v) {
 // ── POST /api/auth/register ────────────────────────────────────────────────
 router.post('/register', async (req, res) => {
   try {
+    const wait = REGISTERS_PER_IP.blocked(req.ip);
+    if (wait) return tooMany(res, wait);
+    REGISTERS_PER_IP.hit(req.ip);
+
     const { name, email, password, role = 'volunteer', apellido } = req.body;
 
     const nameErr  = validateName(name);
@@ -111,6 +128,11 @@ router.post('/login', async (req, res) => {
     const emailErr = validateEmail(email);
     if (emailErr) return res.status(400).json({ error: emailErr });
 
+    // Los errores de validación (arriba) no cuentan como intento; acá ya es un intento de verdad.
+    const accountKey = `${email.trim().toLowerCase()}|${req.ip}`;
+    const wait = Math.max(LOGIN_FAILS_PER_ACCOUNT.blocked(accountKey), LOGIN_FAILS_PER_IP.blocked(req.ip));
+    if (wait) return tooMany(res, wait);
+
     const user = await db.get(
       'SELECT id, name, email, password, role, avatar, bio, location FROM users WHERE email=$1',
       [email.trim().toLowerCase()]
@@ -119,7 +141,12 @@ router.post('/login', async (req, res) => {
     // 'No encontramos una cuenta…' o 'Contraseña incorrecta', y un email inexistente ni calculaba el hash, así
     // que el texto y el tiempo de respuesta permitían averiguar qué emails tienen cuenta.
     const valid = await bcrypt.compare(password, user ? user.password : DUMMY_HASH);
-    if (!user || !valid) return res.status(401).json({ error: 'Email o contraseña incorrectos' });
+    if (!user || !valid) {
+      LOGIN_FAILS_PER_ACCOUNT.hit(accountKey);
+      LOGIN_FAILS_PER_IP.hit(req.ip);
+      return res.status(401).json({ error: 'Email o contraseña incorrectos' });
+    }
+    LOGIN_FAILS_PER_ACCOUNT.reset(accountKey);
 
     const token = signToken(user);
     res.json({

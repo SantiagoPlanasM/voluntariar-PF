@@ -2606,3 +2606,31 @@ Lista con `api.ngos.empleados.list('ngo-1')`; un 403 se ve como error con "Reint
 
 ### Errores propios
 - Al insertar la regex con un `node -e` se perdieron las barras invertidas (`/^d{4}…/`). Lo mostró el test de los casos válidos; lo corregí con la herramienta de edición.
+
+## 103. Límite de intentos en login y registro (aprobado por el usuario)
+
+**Contexto:** no había ningún límite: se podían probar contraseñas sin tope (y con §91 los dos errores del login ya son iguales, así que el límite es la defensa que faltaba contra la fuerza bruta). Confirmado con tests contra un limitador que no limita (rojo en 7).
+
+**Qué se hizo:**
+- **`src/lib/rateLimit.js` (nuevo, sin dependencias, regla 18):** `createLimiter({ max, windowMs })` con ventana deslizante en memoria: `blocked(key)` (segundos hasta liberarse), `hit`, `reset`. Borra las claves vencidas.
+- **Login (`routes/auth.js`):** solo cuentan los fallidos (401). Límite por email+IP (10 cada 15 min): por email solo, cualquiera podría bloquearle la cuenta a otra persona. Límite por IP (50 cada 15 min): muchos emails desde el mismo lugar. Un login correcto limpia el contador de email+IP. Los `400` de validación no cuentan. Bloqueado → **429** "Demasiados intentos. Probá de nuevo en unos minutos." con `Retry-After`, **sin consultar la base ni comparar la contraseña**.
+- **Registro:** 20 por IP por hora (cuentan todos los intentos).
+- **`src/index.js`:** `trust proxy` en producción, para que `req.ip` sea la IP del cliente detrás del proxy de Render (si no, todos compartirían la del proxy y el límite por IP bloquearía a todos juntos).
+- El frontend no cambia: `AuthModal` muestra el mensaje del servidor.
+
+### Tests (nuevos: 10)
+- `test/unit/rateLimit.test.js` (3, reloj a mano): tope y segundos restantes, liberación al pasar la ventana, `reset` y claves independientes.
+- `auth-rate-limit.test.js` (7): 10 contraseñas malas → la 11.ª es 429 aunque sea la correcta, con `Retry-After`; bloqueado no se llama a bcrypt; otra cuenta desde la misma IP entra; un login correcto limpia el contador; los 400 no cuentan; 50 fallidos por IP con emails distintos bloquean; el registro n.º 21 es 429.
+
+### Verificación
+- **SQLite 476/476 y Postgres 478/478**, también con `TZ=America/Argentina/Cordoba`. Ningún test existente llegó a los límites (cada archivo corre en su propio proceso, con el estado limpio).
+- **Mutación (8):** 7 mueren: chequear después de comparar, no limpiar tras un login correcto, sin límite por IP, registro sin límite, sin `Retry-After`, ventana que nunca expira, segundos mal calculados. **1 no se aplicó:** el patrón de "los 400 también cuentan" aparecía dos veces en el archivo. Ese comportamiento lo cubre igual un test, pero ese mutante no lo corrí.
+
+### Errores propios
+- Ninguno en esta tarea (el mutante que no se aplicó es una limitación del script, anotada arriba).
+
+### ⚠️ NO verificado
+- **Detrás del proxy de Render** (`trust proxy` y `req.ip` reales): no hay deploy.
+- **Que la clave sea por email+IP y no por email solo:** los tests salen todos de la misma IP (localhost), así que esa diferencia no se puede ver en ellos.
+- Es en memoria y por proceso: si se reinicia el servidor, los contadores vuelven a cero; con varias instancias, cada una cuenta lo suyo.
+- No hay CAPTCHA ni bloqueo de cuenta persistente (fuera de alcance).

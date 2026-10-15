@@ -103,11 +103,13 @@
 - **Validación:** `validateName` (letras y espacios, 2–50), `validateEmail` (regex), `validatePassword` (mín. 8 caracteres, una mayúscula y un número) — regex duplicadas en `frontend/AuthModal.tsx`. Todos deben ser strings (§76).
 - **Efecto:** crea la fila en `users` (id generado en el código, regla 23) y, según `role`, la de `voluntarios`, `ngos` o `empresas`, **en una sola transacción**: si falla el perfil no queda el usuario (`PROJECT_ANALYSIS.md §85`).
 - **Respuesta 201:** `{ message, token, user }`
+- **Límite (§103):** 20 registros por IP por hora → **429** "Demasiados intentos. Probá de nuevo en unos minutos." con `Retry-After`.
 - **Errores:** `400` validación; **`409`** "Ya existe una cuenta con ese email" (también si dos registros con el mismo email llegan a la vez: el UNIQUE de `users.email` deja pasar a uno, §85).
 
 ### `POST /api/auth/login`
 - **Body:** `{ email, password }`
 - **Respuesta 200:** `{ token, user }`
+- **Límite (§103):** solo cuentan los intentos fallidos (401): 10 por email+IP y 50 por IP, cada 15 minutos. Pasado el límite, **429** "Demasiados intentos. Probá de nuevo en unos minutos." con `Retry-After` (en segundos), sin comparar la contraseña. Un login correcto limpia el contador de ese email+IP. Los `400` no cuentan. En memoria, por proceso. En producción `trust proxy` está activo para que `req.ip` sea la del cliente.
 - **Errores:** `400` faltan datos o email inválido; `401` **"Email o contraseña incorrectos"** tanto si el email no existe como si la contraseña no coincide, y con el mismo trabajo (se compara contra un hash fijo si no hay cuenta), para no revelar qué emails están registrados (`PROJECT_ANALYSIS.md §91`, REVISION B20). *(Hasta §91 eran dos mensajes distintos.)*
 
 ### `GET /api/auth/me` — Auth
@@ -490,7 +492,7 @@ Chat 1 a 1 básico. El historial y el envío tienen doble vía: REST (siempre di
 - **Mensajes entrantes (servidor → cliente):** `{ type: 'message', message: {...} }` cuando alguien te escribe (ya sea que el otro lo haya mandado por REST o por WS).
 - **El socket es solo de recepción** (`PROJECT_ANALYSIS.md §100`, decisión del usuario): lo que mande el cliente se ignora. Hasta §100 aceptaba `{ type: 'send', to, body }` como atajo; desde §92 el cliente web manda siempre por `POST /api/messages`.
 - **Errores:** el socket ya no manda `{ type: 'error' }` (no hay envíos que rechazar). Los errores del envío vuelven en la respuesta de `POST /api/messages` (§92).
-- **Límites:** `maxPayload` 64 KB (§87): un frame más grande cierra la conexión con `1009`. El límite de frecuencia del socket se sacó junto con el envío (§100); `POST /api/messages` no tiene límite de frecuencia (no hay rate limiting en REST; deuda conocida).
+- **Límites:** `maxPayload` 64 KB (§87): un frame más grande cierra la conexión con `1009`. El límite de frecuencia del socket se sacó junto con el envío (§100); `POST /api/messages` no tiene límite de frecuencia (en REST solo login y registro tienen límite, §103).
 - **Multi-dispositivo:** un mismo usuario puede tener varias conexiones abiertas (pestañas/dispositivos); todas reciben los mensajes entrantes.
 - **Límite conocido:** el registro de conexiones es un `Map` en memoria de un solo proceso Node — no hay backplane compartido (Redis u otro) entre instancias. Ver `PROJECT_ANALYSIS.md §18` para el detalle.
 
