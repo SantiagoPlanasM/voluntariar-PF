@@ -9,6 +9,9 @@ const { isUniqueViolation } = require('../lib/dbErrors');
 
 const router = express.Router();
 
+// Hash de una contraseña cualquiera, para comparar contra algo cuando el email no existe (ver /login).
+const DUMMY_HASH = bcrypt.hashSync('cuenta-inexistente', 10);
+
 // ── Validaciones ──────────────────────────────────────────────────────────
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const NAME_RE  = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]{2,50}$/;
@@ -112,10 +115,11 @@ router.post('/login', async (req, res) => {
       'SELECT id, name, email, password, role, avatar, bio, location FROM users WHERE email=$1',
       [email.trim().toLowerCase()]
     );
-    if (!user) return res.status(401).json({ error: 'No encontramos una cuenta con ese email' });
-
-    const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return res.status(401).json({ error: 'Contraseña incorrecta' });
+    // Mismo mensaje y mismo trabajo exista o no la cuenta (REVISION B20, decisión del usuario): antes decía
+    // 'No encontramos una cuenta…' o 'Contraseña incorrecta', y un email inexistente ni calculaba el hash, así
+    // que el texto y el tiempo de respuesta permitían averiguar qué emails tienen cuenta.
+    const valid = await bcrypt.compare(password, user ? user.password : DUMMY_HASH);
+    if (!user || !valid) return res.status(401).json({ error: 'Email o contraseña incorrectos' });
 
     const token = signToken(user);
     res.json({

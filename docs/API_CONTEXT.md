@@ -108,7 +108,7 @@
 ### `POST /api/auth/login`
 - **Body:** `{ email, password }`
 - **Respuesta 200:** `{ token, user }`
-- **Errores:** `400` faltan datos o email inválido; `401` con **dos mensajes distintos**: "No encontramos una cuenta con ese email" y "Contraseña incorrecta". Eso permite averiguar qué emails tienen cuenta (`REVISION.md` B20, **pendiente de decisión** del usuario: es un tema de UX además de seguridad). *(Este doc decía antes que el mensaje era genérico; nunca lo fue.)*
+- **Errores:** `400` faltan datos o email inválido; `401` **"Email o contraseña incorrectos"** tanto si el email no existe como si la contraseña no coincide, y con el mismo trabajo (se compara contra un hash fijo si no hay cuenta), para no revelar qué emails están registrados (`PROJECT_ANALYSIS.md §91`, REVISION B20). *(Hasta §91 eran dos mensajes distintos.)*
 
 ### `GET /api/auth/me` — Auth
 - **Respuesta 200:** `{ user }` (incluye datos de `users` + perfil extendido según rol, vía JOIN a `voluntarios`/`ngos`/`empresas`).

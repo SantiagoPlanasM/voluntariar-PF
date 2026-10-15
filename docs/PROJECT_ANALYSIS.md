@@ -2350,3 +2350,24 @@ Para las seis pantallas, los tres órdenes de llegada: la nueva primero (más un
 ### ⚠️ NO verificado
 - En Chrome no lo miré: es un selector con una opción menos (los tests cubren lo enviado).
 - Si en producción hay KPIs de tipo texto, se ven con "—" (como antes). Para que tengan valor hay que editarlos (pasan a "Número").
+
+## 91. Login: un solo mensaje de error (decisión del usuario) — REVISION B20
+
+**Contexto:** el login respondía "No encontramos una cuenta con ese email" o "Contraseña incorrecta", así que se podía averiguar qué emails tienen cuenta. El usuario eligió el mensaje único. Al revisarlo apareció una segunda vía para lo mismo: con un email inexistente **no se calculaba el hash** (bcrypt, decenas de ms), y el **tiempo** de respuesta también lo delataba.
+
+**Qué se hizo (`routes/auth.js`):** los dos casos responden `401 "Email o contraseña incorrectos"`. Si no hay cuenta, igual se hace `bcrypt.compare` contra `DUMMY_HASH` (un hash fijo que se calcula una vez al arrancar), así el trabajo es el mismo. El frontend no cambia (muestra el mensaje del servidor).
+
+### Tests (nuevos: 3, `login-message.test.js`)
+Misma respuesta (status y cuerpo) para email inexistente y para contraseña incorrecta; con un email inexistente `bcrypt.compare` se llama una vez (mock sobre el mismo módulo); el login correcto sigue andando. Rojo antes en los dos primeros.
+
+### Verificación
+- **SQLite 422/422 y Postgres 424/424**, también con `TZ=America/Argentina/Cordoba`.
+- **Mutación (2):** volver al mensaje distinto y saltear el hash cuando no hay cuenta: los 2 mueren.
+
+### Errores propios
+- Ninguno en esta tarea.
+
+### ⚠️ NO verificado / límites
+- **El tiempo no se midió:** el test verifica que se haga el mismo trabajo (una comparación de bcrypt), no que los tiempos sean iguales (dependen de la máquina y del ruido).
+- **El registro sigue diciendo "Ya existe una cuenta con ese email"** (409, §85): también revela si un email está registrado. Es lo habitual (no hay forma de registrarse sin avisarlo, salvo con verificación por mail). Queda anotado.
+- Sin límite de intentos en el login (no hay rate limiting en REST; deuda conocida).
