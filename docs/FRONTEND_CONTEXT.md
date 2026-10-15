@@ -80,8 +80,8 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 - `Root.tsx` — layout del lado "voluntario/público": `<Outlet/>` + `<BottomNav/>` + `<AuthModal/>` + `<ChatbotWidget/>`.
 - `NGOLayout.tsx` — layout del lado "ONG": `<NGOSidebarNav/>` (desktop) + `<NGOBottomNav/>` (mobile) + `<Outlet/>` + `<AuthModal/>` + `<ChatbotWidget/>`.
 - `CompanyLayout.tsx` — layout del lado "Empresa", mismo patrón que `NGOLayout` (`CompanySidebarNav`/`CompanyBottomNav`).
-- `BottomNav.tsx` — navegación inferior mobile del lado público (`Root`), según el rol. Para empresa usa `COMPANY_NAV_LINKS`, la misma lista de `CompanyBottomNav` (§117). Para ONG todavía tiene una lista propia (con "Explorar", que `NGOBottomNav` no tiene): pendiente de decisión, §117.
-- `NGOBottomNav.tsx` / `NGOSidebarNav.tsx` — navegación del lado ONG (mobile y desktop respectivamente).
+- `BottomNav.tsx` — navegación inferior mobile del lado público (`Root`), según el rol. Para empresa usa `COMPANY_NAV_LINKS`, la misma lista de `CompanyBottomNav` (§117). Para ONG usa `NGO_NAV_LINKS`, la misma lista de `NGOBottomNav` (§121).
+- `NGOBottomNav.tsx` / `NGOSidebarNav.tsx` — navegación del lado ONG (mobile y desktop respectivamente). `NGOBottomNav` exporta `NGO_NAV_LINKS` (Panel, Crear, Sponsors, Explorar, Mensajes, Mi ONG), la única lista de la barra inferior de la ONG (la usa también `BottomNav`; §121). `NGOSidebarNav` (escritorio) no tiene "Explorar".
 - `CompanyBottomNav.tsx` / `CompanySidebarNav.tsx` — navegación del lado Empresa. `CompanyBottomNav` exporta `COMPANY_NAV_LINKS`, la única lista de la barra inferior de empresa (la usa también `BottomNav`).
 - `AuthModal.tsx` — modal de login/registro, controlado por estado global de `AuthContext` (`isAuthModalOpen`, `openAuthModal(mode)`). Único punto de entrada de autenticación en toda la app (no hay páginas `/login` o `/register` dedicadas). Redirige según rol al loguearse: `ngo`→`/ngo/dashboard`, `company`→`/company/profile`, `volunteer`→ se queda donde está.
 - `ChatbotWidget.tsx` — botón flotante + panel del Chatbot FAQ, montado en los tres layouts.

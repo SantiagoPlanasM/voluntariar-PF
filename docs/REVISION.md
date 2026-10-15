@@ -343,7 +343,7 @@ Cada uno con test primero (rojo → verde), SQLite + Postgres + TZ de Córdoba s
 - Nada visual ni táctil: S2, S7 (barras) y S10 son por lectura del código.
 
 ### Pendientes que surgieron al arreglarlos (no tocados; necesitan tu decisión)
-- **Barra inferior de la ONG en pantallas públicas** (S7, §117): unificarla con `NGOBottomNav` le saca "Explorar", su único acceso a `/explore` en celular. Opciones: agregar "Explorar" a `NGOBottomNav` o aceptar perderlo. `SidebarNav` de `Root.tsx` (escritorio) tiene una tercera copia de las listas.
+- ✅ **§121** — **Barra inferior de la ONG en pantallas públicas** (S7, §117): unificarla con `NGOBottomNav` le saca "Explorar", su único acceso a `/explore` en celular. Opciones: agregar "Explorar" a `NGOBottomNav` o aceptar perderlo. `SidebarNav` de `Root.tsx` (escritorio) tiene una tercera copia de las listas.
 - **Tipo `Rating` vs. el feed** (§112): `api.ts` declara `user_id` obligatorio y `GET /api/follows/feed` no lo manda (regla 2). Agregarlo al SELECT o marcarlo opcional.
 - **`ProjectDetails` tiene su propio formulario de calificación** (no usa `ReviewsModal`): por lectura, el mismo problema de S4.
 - **`InlineError` sin `role="alert"` propio:** cada pantalla nueva lo envuelve en un `<div role="alert">`; ponerlo en el componente lo resolvería para todas.

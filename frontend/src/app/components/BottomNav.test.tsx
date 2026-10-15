@@ -36,13 +36,24 @@ describe('<BottomNav /> (lado público) por rol', () => {
     ]);
   });
 
-  test('ONG: sigue con su lista propia, que incluye Explorar (S7 no la cambia, ver PROJECT_ANALYSIS)', () => {
+  test('ONG: Panel, Crear, Sponsors, Explorar, Mensajes, Mi ONG', () => {
     as('ngo');
     renderAt(<BottomNav />, '/explore');
     expect(items()).toEqual([
       ['Panel', '/ngo/dashboard'], ['Crear', '/ngo/create'], ['Sponsors', '/ngo/patrocinios'],
       ['Explorar', '/explore'], ['Mensajes', '/ngo/messages'], ['Mi ONG', '/ngo/profile'],
     ]);
+  });
+
+  // Decisión del usuario (§121): una sola lista para la ONG, la de su panel, que suma "Explorar"
+  // (era su único acceso a /explore en el celular) y se llama "Panel" como en la de empresa.
+  test('ONG: la barra pública y la de panel tienen exactamente los mismos ítems', () => {
+    as('ngo');
+    const { unmount } = renderAt(<BottomNav />, '/explore');
+    const publicItems = items();
+    unmount();
+    renderAt(<NGOBottomNav />, '/ngo/dashboard');
+    expect(items()).toEqual(publicItems);
   });
 
   test('empresa: misma lista que su barra de panel (gana "Panel")', () => {
@@ -78,9 +89,16 @@ describe('<BottomNav /> (lado público) por rol', () => {
     expect(within(screen.getByRole('link', { name: /Mensajes/ })).getByText('9+')).toBeInTheDocument();
     expect(screen.getAllByText('9+')).toHaveLength(1);
   });
+
+  test('ONG: el badge de mensajes sin leer también aparece en su barra pública', () => {
+    as('ngo');
+    chat.unreadTotal = 3;
+    renderAt(<BottomNav />, '/explore');
+    expect(within(screen.getByRole('link', { name: /Mensajes/ })).getByText('3')).toBeInTheDocument();
+  });
 });
 
-describe('barras de panel (sin cambios)', () => {
+describe('barras de panel', () => {
   test('CompanyBottomNav: Panel, Mi Empresa, Explorar, Mensajes y Salir', () => {
     as('company');
     renderAt(<CompanyBottomNav />, '/company/dashboard');
@@ -88,10 +106,19 @@ describe('barras de panel (sin cambios)', () => {
     expect(screen.getByRole('button', { name: 'Salir' })).toBeInTheDocument();
   });
 
-  test('NGOBottomNav: Inicio, Crear, Sponsors, Mensajes, Mi ONG y Salir', () => {
+  test('NGOBottomNav: Panel, Crear, Sponsors, Explorar, Mensajes, Mi ONG y Salir', () => {
     as('ngo');
     renderAt(<NGOBottomNav />, '/ngo/dashboard');
-    expect(items().map(i => i[0])).toEqual(['Inicio', 'Crear', 'Sponsors', 'Mensajes', 'Mi ONG']);
+    expect(items().map(i => i[0])).toEqual(['Panel', 'Crear', 'Sponsors', 'Explorar', 'Mensajes', 'Mi ONG']);
+    expect(screen.getByRole('link', { name: 'Panel' })).toHaveAttribute('href', '/ngo/dashboard');
+    expect(screen.getByRole('link', { name: 'Explorar' })).toHaveAttribute('href', '/explore');
     expect(screen.getByRole('button', { name: 'Salir' })).toBeInTheDocument();
+  });
+
+  test('NGOBottomNav: "Crear" sigue con su botón destacado y Panel se resalta en el panel', () => {
+    as('ngo');
+    renderAt(<NGOBottomNav />, '/ngo/dashboard/project/p1');
+    expect(within(screen.getByRole('link', { name: 'Panel' })).getByText('Panel').className).toContain('text-blue-600');
+    expect(screen.getByRole('link', { name: 'Crear' }).querySelector('.rounded-2xl')).not.toBeNull();
   });
 });

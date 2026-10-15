@@ -1,7 +1,8 @@
 import { Link, useLocation } from 'react-router';
-import { Home, Search, ClipboardList, User, MessageCircle, LayoutDashboard, Plus, Handshake } from 'lucide-react';
+import { Home, Search, ClipboardList, User, MessageCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { COMPANY_NAV_LINKS } from './CompanyBottomNav';
+import { NGO_NAV_LINKS } from './NGOBottomNav';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { useChat } from '../../lib/ChatContext';
@@ -37,14 +38,8 @@ export function BottomNav() {
   } else if (user?.role === 'ngo') {
     activeBg = 'bg-blue-100';
     activeColor = 'text-blue-600';
-    links = [
-      { to: '/ngo/dashboard',    icon: LayoutDashboard, label: 'Panel',    chatBadge: false },
-      { to: '/ngo/create',       icon: Plus,            label: 'Crear',    chatBadge: false },
-      { to: '/ngo/patrocinios',  icon: Handshake,       label: 'Sponsors', chatBadge: false },
-      { to: '/explore',          icon: Search,          label: 'Explorar', chatBadge: false },
-      { to: '/ngo/messages',     icon: MessageCircle,   label: 'Mensajes', chatBadge: true },
-      { to: '/ngo/profile',      icon: User,            label: 'Mi ONG',   chatBadge: false },
-    ];
+    // La misma lista que la barra del panel de la ONG (§121, decisión del usuario).
+    links = NGO_NAV_LINKS.map(l => ({ ...l, chatBadge: !!l.chatBadge }));
   }
 
   return (

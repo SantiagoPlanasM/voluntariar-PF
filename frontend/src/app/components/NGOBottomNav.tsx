@@ -1,15 +1,19 @@
 import { Link, useLocation, useNavigate } from 'react-router';
-import { LayoutDashboard, Plus, User, LogOut, MessageCircle, Handshake } from 'lucide-react';
+import { LayoutDashboard, Plus, User, LogOut, MessageCircle, Handshake, Search } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useChat } from '../../lib/ChatContext';
 
-const links = [
-  { to: '/ngo/dashboard',   icon: LayoutDashboard, label: 'Inicio' },
+// Única lista de la barra inferior de la ONG: la usa también BottomNav en las pantallas públicas (§121,
+// decisión del usuario). "Explorar" es el único acceso de la ONG a /explore en el celular.
+export const NGO_NAV_LINKS = [
+  { to: '/ngo/dashboard',   icon: LayoutDashboard, label: 'Panel' },
   { to: '/ngo/create',      icon: Plus,            label: 'Crear' },
   { to: '/ngo/patrocinios', icon: Handshake,       label: 'Sponsors' },
+  { to: '/explore',         icon: Search,          label: 'Explorar' },
   { to: '/ngo/messages',    icon: MessageCircle,   label: 'Mensajes', chatBadge: true },
   { to: '/ngo/profile',     icon: User,            label: 'Mi ONG' },
 ];
+const links = NGO_NAV_LINKS;
 
 export function NGOBottomNav() {
   const { pathname } = useLocation();

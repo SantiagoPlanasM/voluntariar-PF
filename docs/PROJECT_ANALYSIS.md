@@ -3134,3 +3134,29 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 ### ⚠️ NO verificado
 - Nada visual: los estados de error nuevos, el aviso de los 500, la barra de la empresa con "Panel" y los Momentos de la ONG no se vieron en un navegador.
 - Un agente vio fallar 2 tests de `db-transaction.test.js` en 2 de 6 corridas de Postgres con cinco agentes usando la misma base. En las dos corridas de integración, con la máquina sin otra carga, pasaron. Puede ser un test sensible a los tiempos bajo carga; queda anotado.
+
+## 121. Una sola barra inferior para la ONG, con "Explorar" (decisión del usuario)
+
+**Contexto:** pendiente de §117 (S7). La barra pública (`BottomNav`, en pantallas como `/explore`) tenía su propia lista para la ONG: 6 ítems con "Explorar", y "Panel" como primer ítem. La del panel (`NGOBottomNav`) tenía 5, sin "Explorar", y su primer ítem se llamaba "Inicio". Unificarlas con la del panel le sacaba a la ONG su único acceso a `/explore` en el celular. El usuario eligió **agregar "Explorar" a la barra del panel** y usar esa lista en las dos.
+
+**Qué se hizo:**
+- `NGOBottomNav.tsx` exporta `NGO_NAV_LINKS`: Panel, Crear, Sponsors, Explorar, Mensajes y Mi ONG. `BottomNav` la usa igual que `COMPANY_NAV_LINKS` (badge de mensajes y resaltado sin cambios).
+- **Cambio visible en la barra del panel de la ONG (celular):** suma "Explorar" (6 ítems más "Salir") y su primer ítem pasa de "Inicio" a **"Panel"**, como en la barra de empresa. El nombre lo elegí yo: había que unificarlo y "Panel" es el de la empresa y el que ya usaba la barra pública.
+- La barra lateral de escritorio (`NGOSidebarNav`) no cambia: sigue sin "Explorar" (no estaba en la decisión).
+
+### Tests (nuevos: 3; 1 modificado, en `BottomNav.test.tsx`)
+- La barra pública y la del panel de la ONG tienen exactamente los mismos ítems.
+- `NGOBottomNav` muestra Panel, Crear, Sponsors, Explorar, Mensajes, Mi ONG y Salir, con sus links. Era el test de "Inicio… sin Explorar"; ahora espera la lista nueva.
+- "Crear" conserva su botón destacado, y "Panel" se resalta en las rutas del panel.
+- La ONG ve el badge de mensajes sin leer también en la barra pública.
+- **Rojo de comportamiento:** con el código anterior fallaban 3 (las dos listas distintas y la barra del panel sin "Explorar").
+
+### Verificación
+- **Frontend 506/506**, también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.** `BottomNav.tsx` sigue en CRLF.
+- **Mutación (4)**, con corrida de control: sacar "Explorar", volver a "Inicio", que la barra pública use otra lista y que pierda el badge. **Mueren los 4.** El último sobrevivía en la primera corrida (el badge solo se probaba para empresa); agregué el test de la ONG.
+
+### Errores propios
+- La primera corrida de mutación no arrancó: el script incluía `routes.test.tsx` con una ruta que no existe. La corrida de control lo detectó antes de aplicar ningún mutante.
+
+### ⚠️ NO verificado
+- No lo vi en un celular: 7 botones (6 ítems más "Salir") en la barra del panel pueden quedar apretados en pantallas angostas.
