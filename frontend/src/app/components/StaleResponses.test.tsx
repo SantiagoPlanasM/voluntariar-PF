@@ -14,7 +14,7 @@ const { auth } = vi.hoisted(() => ({
 }));
 vi.mock('../../lib/AuthContext', () => ({ useAuth: () => auth }));
 vi.mock('../../lib/ChatContext', () => ({
-  useChat: () => ({ onMessage: () => () => {}, sendViaSocket: () => false, refreshConversations: () => {} }),
+  useChat: () => ({ onMessage: () => () => {}, refreshConversations: () => {} }),
 }));
 vi.mock('./MomentsGrid', () => ({ MomentsGrid: () => null }));
 vi.mock('../../lib/api', async () => {

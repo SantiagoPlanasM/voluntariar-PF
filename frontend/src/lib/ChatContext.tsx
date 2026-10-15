@@ -10,7 +10,6 @@ interface ChatContextValue {
   /** Se suscribe a mensajes entrantes por WS. Devuelve la función para desuscribirse. */
   onMessage: (cb: (m: ChatMessage) => void) => () => void;
   /** Intenta mandar por el socket abierto; devuelve false si no hay conexión (usar REST como fallback). */
-  sendViaSocket: (to: string, body: string) => boolean;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -95,17 +94,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     return () => listenersRef.current.delete(cb);
   }, []);
 
-  const sendViaSocket = useCallback((to: string, body: string) => {
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== ws.OPEN) return false;
-    ws.send(JSON.stringify({ type: 'send', to, body }));
-    return true;
-  }, []);
-
   const unreadTotal = conversations.reduce((sum, c) => sum + (c.unread || 0), 0);
 
   return (
-    <ChatContext.Provider value={{ conversations, unreadTotal, connected, refreshConversations, onMessage, sendViaSocket }}>
+    <ChatContext.Provider value={{ conversations, unreadTotal, connected, refreshConversations, onMessage }}>
       {children}
     </ChatContext.Provider>
   );

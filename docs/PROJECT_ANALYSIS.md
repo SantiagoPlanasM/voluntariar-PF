@@ -2371,3 +2371,26 @@ Misma respuesta (status y cuerpo) para email inexistente y para contraseña inco
 - **El tiempo no se midió:** el test verifica que se haga el mismo trabajo (una comparación de bcrypt), no que los tiempos sean iguales (dependen de la máquina y del ruido).
 - **El registro sigue diciendo "Ya existe una cuenta con ese email"** (409, §85): también revela si un email está registrado. Es lo habitual (no hay forma de registrarse sin avisarlo, salvo con verificación por mail). Queda anotado.
 - Sin límite de intentos en el login (no hay rate limiting en REST; deuda conocida).
+
+## 92. El chat manda siempre por REST (decisión del usuario) — pendiente de §87
+
+**Contexto:** §87 encontró que, con el WebSocket abierto, `ChatThread` mandaba por el socket y borraba el borrador. Si el servidor rechazaba el envío (error interno, destinatario inválido o el límite de frecuencia nuevo), la respuesta `{ type: 'error' }` no la escuchaba nadie y **el mensaje se perdía sin aviso**. Lo confirmé con un test antes de tocarlo (rojo en 2 de 2: con el socket "conectado" no se llamaba a REST, y un rechazo no se veía). El usuario eligió mandar siempre por REST (en vez de agregar un id de pedido al protocolo del socket).
+
+**Qué se hizo:**
+- `ChatThread`: el envío es siempre `POST /api/messages`. Si falla, se muestra el error y se restaura el borrador (eso ya lo hacía el camino REST). El mensaje guardado se agrega a la lista (sin duplicar por id).
+- `ChatContext`: se quitó `sendViaSocket` (ya no tiene usos). El socket queda para recibir.
+- **No tocado:** el listener `type: 'send'` del servidor. Ningún cliente lo usa, pero está reforzado (§87). Sacarlo sería una limpieza aparte.
+
+### Tests (nuevos: 2, `ChatSend.test.tsx`)
+Con un socket simulado "conectado": el envío va por REST y el mensaje guardado se ve; si el servidor lo rechaza (p. ej. con el texto del límite de frecuencia), el error se ve y el borrador vuelve.
+
+### Verificación
+- **Frontend: 398/398. Typecheck: 0 errores.** (Backend sin cambios.)
+- **Mutación (4):** no agregar el mensaje guardado, no restaurar el borrador y no mostrar el error: mueren. Sobrevive 1, **equivalente**: sacar la deduplicación por id. Por REST, el servidor solo empuja el mensaje al destinatario, así que el propio no puede llegar dos veces a la pantalla; queda como defensa.
+- **En Chrome** (SQLite descartable, María → Juan): el mensaje se envió, se ve **una sola vez**, quedó guardado una vez (`GET /messages/thread`) y el campo se vació.
+
+### Errores propios
+- Ninguno en esta tarea.
+
+### ⚠️ NO verificado
+- El camino de error en Chrome (REST no tiene límite de frecuencia y no forcé un rechazo). Lo cubre el test.

@@ -10,7 +10,7 @@ export function ChatThread() {
   const { userId } = useParams();
   const navigate    = useNavigate();
   const { user }    = useAuth();
-  const { onMessage, sendViaSocket, refreshConversations } = useChat();
+  const { onMessage, refreshConversations } = useChat();
 
   const [other, setOther]       = useState<{ id: string; name: string; avatar?: string } | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -57,11 +57,11 @@ export function ChatThread() {
     setSending(true); setErr('');
     setDraft('');
     try {
-      const sentViaSocket = sendViaSocket(userId, body);
-      if (!sentViaSocket) {
-        const { message } = await api.messages.send(userId, body);
-        setMessages(prev => [...prev, message]);
-      }
+      // Siempre por REST (decisión del usuario, PROJECT_ANALYSIS.md §92): si el servidor rechaza el mensaje, el
+      // error vuelve acá y el borrador se restaura. Antes, con el socket abierto se mandaba por ahí y un rechazo
+      // ({type:'error'}) no lo escuchaba nadie: el mensaje se perdía sin aviso. El socket queda para recibir.
+      const { message } = await api.messages.send(userId, body);
+      setMessages(prev => (prev.some(p => p.id === message.id) ? prev : [...prev, message]));
       refreshConversations();
     } catch (e: any) { setErr(e.message); setDraft(body); }
     finally { setSending(false); }
