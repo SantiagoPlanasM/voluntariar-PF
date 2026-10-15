@@ -3338,3 +3338,26 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 ### ⚠️ NO verificado
 - Nada visual: la opacidad del botón bloqueado (sin texto "Enviando…": el pedido suele tardar poco y el botón cambia a "Siguiendo" o la ONG sale de la lista al terminar).
 - La barra lateral es `hidden lg:block`: en jsdom se ve siempre; no lo probé en un escritorio real (igual que §110).
+
+## 127. Verificación en el navegador de §107–§126 (sin cambios de código)
+
+**Cómo:** Chrome con la app local. El backend corrió sobre una SQLite descartable (migrate + seed) con `RESEND_API_KEY` y `CLOUDINARY_*` vacías: no se mandó ningún mail ni se subió ninguna foto. Vite corrió en 5173. El ancho de celular se simuló con iframes de 390 px (la ventana no se podía achicar); los breakpoints de Tailwind usan el ancho del iframe. Para ver el filtro de Momentos inserté 2 publicaciones en esa base descartable, una de Sustentando y otra de GreenCba, con imágenes SVG en línea. Al terminar se frenaron los servidores por puerto y se borró la base.
+
+### Verificado a ojo
+- **§121, barra de la ONG en celular (390 px):** los 7 botones entran con su nombre, sin cortarse. "Panel" se resalta en el panel y "Explorar" en `/explore`; las dos barras son iguales.
+- **§117, barra de empresa:** la pública y la del panel muestran Panel, Mi Empresa, Explorar y Mensajes.
+- **§113, Momentos de la ONG:** con 2 publicaciones en la plataforma, Sustentando ve solo la de su proyecto (1 tarjeta), con el botón de borrar. La API con `?ngo_id=` vacío responde 400 con un mensaje en español.
+- **§123, detalle del proyecto:** María, que ya había calificado con 5★, ve "Ya calificaste…", sus 5★, su comentario y "Actualizar reseña". La cambié a 3★ y guardé: el formulario quedó en 3/5 con el comentario, apareció el mensaje de éxito y la lista se actualizó.
+- **§112, modal de reseñas desde "Mis participaciones":** se abrió precargado con las 3★ recién guardadas.
+- **§109–§111, con el backend apagado:** Explorar ("No pudimos cargar los voluntariados", con un aviso aparte en "Para vos"), el perfil propio (contadores en "—" y un aviso general) e Inicio ("No pudimos cargar tu feed"). Con el backend prendido, "Reintentar" recuperó las tres pantallas; Inicio quedó en su estado vacío real (María no sigue a nadie en el seed).
+- **§114, error al seguir una ONG** (falla forzada interceptando `fetch` solo para ese pedido): el mensaje aparece debajo del botón, que sigue en "Seguir", y los seguidores no cambian.
+
+### Problemas visuales encontrados (anteriores a estos cambios, no tocados)
+- **Panel de la ONG en celular:** el encabezado (Equipo, Momentos y Nuevo proyecto) no entra y genera scroll horizontal.
+- **Ancho angosto:** el botón flotante del chatbot tapa parte de los avisos de error de Explorar y del perfil, incluido el "Reintentar" del perfil.
+- **Perfil público de una ONG (escritorio):** el nombre queda medio tapado por el banner verde.
+
+### ⚠️ NO verificado
+- El aviso de "los primeros 500" en Explorar (§119): haría falta tener más de 500 proyectos.
+- El aviso de §125 (falla de "¿ya la sigo?") y el bloqueo del doble clic de §126: necesitan fallas o demoras selectivas. Los cubren sus tests.
+- Un celular real (táctil, teclado en pantalla) y un lector de pantalla.
