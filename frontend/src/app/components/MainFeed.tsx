@@ -161,9 +161,7 @@ export function MainFeed() {
               ))}
             </div>
           ) : feedError ? (
-            <div role="alert">
-              <InlineError message={feedError} onRetry={loadFollowingFeed} />
-            </div>
+            <InlineError message={feedError} onRetry={loadFollowingFeed} />
           ) : followingProjects.length === 0 ? (
             /* Estado Vacío de Seguidos */
             <div className="bg-white rounded-3xl border border-gray-200 p-8 text-center space-y-6 shadow-sm">

@@ -3246,3 +3246,30 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 - El orden de las respuestas lo cubre `useLatestRequest` (ya estaba); no agregué un test de respuestas desordenadas que combine la precarga con un `GET` viejo.
 - Si `rate` funciona y el `GET` posterior falla, la pantalla pasa a `LoadError` (comportamiento anterior, no lo toqué).
 - Fuera del pedido, sin tocar: el tipo `Rating` sigue declarando `user_id` obligatorio aunque el feed no lo manda (pendiente de §112).
+
+## 124. `InlineError` y `LoadError` se anuncian solos (role="alert" en el componente) — pendiente de REVISION
+
+**Contexto:** `InlineError` (error de carga dentro de una pantalla, con "Reintentar") no tenía rol. Cuatro pantallas lo envolvían en un `<div role="alert">` (`ReviewsModal` §115, `FollowListModal` §108, `VolunteerProfile` §109, `MainFeed` §110) y las otras ocho (`ExploreScreen`, `NotificationsScreen`, `NGOKPIs`, `NGOEmpleados`, `NGOPatrocinios`, `NGODashboard`, `NGOMoments`, patrocinios de `CompanyOwnProfile`) no se anunciaban. Anotado en `REVISION.md` ("Pendientes que surgieron al arreglarlos") y en el ⚠️ de §115. `LoadError` (pantalla completa) tampoco tenía rol.
+
+**Qué se hizo:**
+- **`InlineError`: `role="alert"` en el contenedor**, no en el `<p>`. Motivos: (1) el aviso aparece y desaparece entero (mensaje + botón), y el contenedor es eso; (2) así quedan iguales los tests existentes, que usan el `alert` como la región que contiene "Reintentar" (`within(alert).getByRole('button', { name: /Reintentar/ })` en `MainFeedErrors` y `VolunteerProfileErrors`). Costo: el lector de pantalla lee "…Revisá tu conexión. Reintentar" (lo que §115 ya señalaba de los envoltorios). La alternativa (rol en el `<p>`) obligaba a cambiar esos tests; no la tomé.
+- **Se sacaron los cuatro envoltorios** (`ReviewsModal`, `FollowListModal`, `VolunteerProfile`, `MainFeed`, con el comentario de §115 que explicaba por qué estaba afuera). Con el envoltorio quedarían dos `alert` anidados: los tests existentes de esas pantallas lo detectan solos (`getByRole('alert')` falla con "multiple elements"; `VolunteerProfileErrors` pide exactamente uno).
+- **`LoadError`: también `role="alert"`, en la tarjeta** (mensaje + "Reintentar"/"Volver"/"Ir al inicio"). Decisión: la pantalla entera pasa de "cargando" al error sin que cambie el foco; sin el rol, un lector de pantalla no se entera de que falló. Se inserta después del spinner (no está en el primer render), así que el anuncio corre. Mismo criterio que `InlineError` (el contenedor).
+- Las ocho pantallas que no se anunciaban pasan a anunciarse sin tocarlas.
+
+### Tests (nuevos: 2, en `LoadError.test.tsx`)
+- `InlineError`: exactamente un `alert`, con el mensaje, y su "Reintentar" (buscado dentro del `alert`) llama a `onRetry`.
+- `LoadError`: exactamente un `alert`, con el mensaje.
+- **Rojo de comportamiento:** con el código anterior los dos fallaban con "Unable to find an accessible element with the role alert". Con el rol puesto y los envoltorios todavía en su lugar, fallaban **13 tests existentes** de `FollowLists`, `MainFeedErrors`, `ReviewsModal` y `VolunteerProfileErrors` (dos `alert` anidados); al sacar los envoltorios, verde.
+
+### Verificación
+- **Frontend 505/505** (503 + 2), también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.** Los seis archivos tocados siguen en CRLF en la copia de trabajo (`git ls-files --eol`: `i/lf w/crlf`, diff solo de las líneas cambiadas).
+- **Mutación (7, con corrida de control en verde):** sacar el rol de `InlineError`, cambiarlo por `role="status"`, sacar el de `LoadError`, y volver a poner el envoltorio en cada una de las cuatro pantallas → **mueren los 7.**
+
+### Errores propios
+- Ninguno en esta tarea.
+
+### ⚠️ NO verificado
+- No lo probé con un lector de pantalla real (NVDA/VoiceOver): que se anuncie lo deduzco del rol. Tampoco que la lectura de "Reintentar" (y de "Volver"/"Ir al inicio" en `LoadError`) resulte molesta.
+- Dos `alert` hermanos (no anidados) pueden coexistir en `NotificationsScreen`, `NGOPatrocinios` y `CompanyOwnProfile` si queda un error de acción visible y después falla una recarga. No lo cambié: son mensajes distintos.
+- Nada visual (el rol no cambia estilos).

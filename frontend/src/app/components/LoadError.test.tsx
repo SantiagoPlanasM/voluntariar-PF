@@ -4,9 +4,9 @@
 // cualquier error, ProjectDetails / NGOPublicProfile / CompanyPublicProfile / NGOProjectDetail hacían
 // `navigate(-1)` y `return null`: abierto desde un link compartido (sin historial) quedaba en blanco.
 import { describe, test, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { LoadError, describeLoadError } from './LoadError';
+import { LoadError, InlineError, describeLoadError } from './LoadError';
 import { ApiError } from '../../lib/api';
 
 describe('describeLoadError', () => {
@@ -63,5 +63,27 @@ describe('<LoadError />', () => {
     window.history.replaceState({ idx: 2 }, '');
     mount();
     expect(screen.getByRole('button', { name: /Volver/ })).toBeInTheDocument();
+  });
+
+  test('se anuncia: un solo alert con el mensaje (aparece en lugar del "cargando")', () => {
+    mount({ message: 'No encontramos esta organización' });
+    const alerts = screen.getAllByRole('alert');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toHaveTextContent('No encontramos esta organización');
+  });
+});
+
+describe('<InlineError /> se anuncia (role="alert" propio)', () => {
+  // Antes no tenía rol: cuatro pantallas lo envolvían en un <div role="alert"> (ReviewsModal, FollowListModal,
+  // VolunteerProfile, MainFeed) y las demás (Explorar, Notificaciones, KPIs, Equipo, Patrocinios, Panel de la
+  // ONG, Momentos de la ONG, perfil de la empresa) no se anunciaban.
+  test('un solo alert con el mensaje, y su "Reintentar" llama a onRetry', () => {
+    const onRetry = vi.fn();
+    render(<InlineError message="No pudimos cargar la lista." onRetry={onRetry} />);
+    const alerts = screen.getAllByRole('alert');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toHaveTextContent('No pudimos cargar la lista.');
+    fireEvent.click(within(alerts[0]).getByRole('button', { name: /Reintentar/ }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });

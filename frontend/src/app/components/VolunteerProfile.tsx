@@ -204,11 +204,7 @@ export function VolunteerProfile() {
       </div>
 
       <div className="max-w-2xl mx-auto px-4 space-y-4 pb-8 relative z-10">
-        {loadErr && (
-          <div role="alert">
-            <InlineError message={loadErr} onRetry={loadAll} />
-          </div>
-        )}
+        {loadErr && <InlineError message={loadErr} onRetry={loadAll} />}
 
         {/* Editar perfil */}
         {editing && (

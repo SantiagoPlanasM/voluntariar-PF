@@ -262,8 +262,7 @@ export function ReviewsModal({
                 <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
               </div>
             ) : loadError ? (
-              // role="alert" acá y no en InlineError, que comparten otras pantallas (REVISION S10).
-              <div role="alert"><InlineError message={loadError} onRetry={loadRatings} /></div>
+              <InlineError message={loadError} onRetry={loadRatings} />
             ) : ratings.length === 0 ? (
               <div className="py-8 text-center bg-gray-50 rounded-2xl border border-gray-100 p-4">
                 <MessageSquare className="w-8 h-8 text-gray-300 mx-auto mb-2" />

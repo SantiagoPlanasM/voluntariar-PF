@@ -59,9 +59,7 @@ export function FollowListModal({ mode, load, emptyText, meId, onClose }: Props)
               <Loader2 className="w-6 h-6 text-emerald-600 animate-spin" />
             </div>
           ) : error ? (
-            <div role="alert">
-              <InlineError message={error} onRetry={() => setAttempt(a => a + 1)} />
-            </div>
+            <InlineError message={error} onRetry={() => setAttempt(a => a + 1)} />
           ) : list.length === 0 ? (
             <div className="text-center py-8">
               <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
