@@ -2541,3 +2541,12 @@ Lista con `api.ngos.empleados.list('ngo-1')`; un 403 se ve como error con "Reint
 
 ### Errores propios
 - Ninguno en esta tarea.
+
+## 99. Se borra `OnboardingScreen.tsx` (decisión del usuario)
+
+**Contexto:** componente de login/registro alternativo que nunca estuvo en `routes.tsx` (código muerto desde el análisis inicial). Tenía su propia copia de las validaciones del registro, que habría que mantener sincronizada. El usuario eligió borrarlo; queda en el historial de git si se quiere recuperar.
+
+**Qué se hizo:** `git rm` del archivo (nada lo importaba: verificado con `grep`). Docs: `FRONTEND_CONTEXT` (lista de componentes, ahora 48, y los ítems de "problemas" y "mejoras"), `PROJECT_CONTEXT` y la tabla de deuda de `REVISION`.
+
+### Verificación
+**Frontend 414/414. Typecheck: 0 errores.** Sin tests propios que borrar (no tenía).

@@ -25,7 +25,7 @@ frontend/src/
 ├── main.tsx                  # bootstrap: StrictMode + AuthProvider + RouterProvider
 ├── app/
 │   ├── routes.tsx             # todas las rutas (createBrowserRouter)
-│   └── components/            # 49 componentes .tsx (más sus *.test.tsx) — screens + layouts + widgets
+│   └── components/            # 48 componentes .tsx (más sus *.test.tsx) — screens + layouts + widgets
 ├── lib/
 │   ├── api.ts                 # cliente HTTP centralizado + TODOS los tipos TS de dominio (incluye api.posts y el helper de subida multipart)
 │   ├── AuthContext.tsx        # sesión global (Context + Provider + hook useAuth)
@@ -72,9 +72,9 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 | `/company/messages` | `MessagesScreen` | `CompanyLayout` | company |
 | `/company/messages/:userId` | `ChatThread` | `CompanyLayout` | company |
 
-`OnboardingScreen.tsx` existe como archivo pero **no está registrado en `routes.tsx`** — código muerto/no alcanzable.
+`OnboardingScreen.tsx` (no enrutado) se borró en `PROJECT_ANALYSIS.md §99`, con OK del usuario.
 
-## 4. Todos los componentes (49, sin contar `*.test.tsx`)
+## 4. Todos los componentes (48, sin contar `*.test.tsx`)
 
 ### Layouts / navegación
 - `Root.tsx` — layout del lado "voluntario/público": `<Outlet/>` + `<BottomNav/>` + `<AuthModal/>` + `<ChatbotWidget/>`.
@@ -100,7 +100,6 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 - `VolunteerProfile.tsx` — perfil propio editable, incluyendo selección de habilidades (chips desde el catálogo `api.catalog.habilidades()` + nivel por habilidad, guardado vía `api.voluntarios.habilidades.update`).
 - `VolunteerPublicProfile.tsx` — perfil público de otro voluntario, con follow/unfollow.
 - `NotificationsScreen.tsx` — lista de notificaciones, marcar como leídas.
-- `OnboardingScreen.tsx` — **no enrutado**, código muerto.
 
 **Nota — dos componentes de reseña que hacen lo mismo:** `ReviewModal.tsx` (105 líneas, usado por `MyParticipation.tsx`) y `ReviewsModal.tsx` (310 líneas, más completo, usado por `FeedPostCard.tsx` y `ProjectDetails.tsx`) califican un proyecto de forma casi idéntica pero son dos archivos independientes — probablemente `ReviewsModal.tsx` es la versión más nueva y debería reemplazar a la otra, pero nadie migró `MyParticipation.tsx` todavía. Candidato a consolidar.
 
@@ -304,14 +303,14 @@ Limitado a `AuthContext`. No hay estado global de UI (temas, filtros persistente
 
 ## 15. Problemas detectados
 
-1. **`OnboardingScreen.tsx` no está enrutado** — código muerto, o una ruta que falta agregar (ambigüedad a resolver con el dueño del proyecto antes de borrar el archivo).
+1. ~~**`OnboardingScreen.tsx` no está enrutado**~~ — borrado en §99.
 2. ~~**`NGOEmpleados.tsx` evita `api.ts`**~~ — **resuelto en `PROJECT_ANALYSIS.md §98`**: usa `api.ngos.empleados`.
 3. **Dos componentes de reseña que hacen lo mismo** (`ReviewModal.tsx` vs `ReviewsModal.tsx`) — ver nota en §4. Candidato a consolidar antes de que alguien edite uno pensando que corrige los dos.
 4. ~~**Sin guardas de rol/ruta en el frontend**~~ — **resuelto en `PROJECT_ANALYSIS.md §97`**: `NGOLayout` y `CompanyLayout` envuelven todo en `<RequireRole role=…>` (`components/RequireRole.tsx`). Mientras se verifica la sesión, "cargando"; sin sesión, al inicio con el login abierto; con otro rol, al inicio de ese rol (`homeFor`). Al cerrar sesión desde el panel no se abre el login. Es solo experiencia de uso: la autorización sigue en el backend (regla 15).
 5. **Sin paginación real en `ExploreScreen.tsx`**: pide el catálogo completo con un `limit` alto fijo (`200`) en vez de "cargar más"/scroll infinito — funciona hoy, pero no escala indefinidamente si el catálogo de proyectos crece mucho. Ver `PROJECT_ANALYSIS.md §29` bug 4.
 6. **Validaciones duplicadas** (regex de email/password/nombre en `AuthModal.tsx`, lista de palabras en `lib/badWords.ts`, con su igualdad controlada por un test del backend desde §93) que deben mantenerse sincronizadas con el backend.
 7. **Sin manejo centralizado de expiración de sesión** — un 401 en medio de la navegación no redirige consistentemente al login en todas las pantallas.
-8. **Componentes sin test propio** (sin `<Componente>.test.tsx`; 29 de 48 al 2026-10-14). Algunos tienen tests de un aspecto puntual en otro archivo (entre paréntesis): `BottomNav`, `ChatThread`, `CompanyBottomNav`, `CompanyLayout`, `CompanySidebarNav`, `CreateVoluntariado`, `ExploreScreen`, `FeedPostCard`, `FeedSidebar`, `MainFeed` (`FeedTabsPlacement`), `MessagesScreen`, `MyParticipation`, `NGOBottomNav`, `NGODashboard` (`SwallowedErrors`), `NGOEmpleados`, `NGOLayout` (`routes`), `NGOOwnProfile`, `NGOProjectDetail` (`LoadErrorScreens`, `MomentsPlacement`), `NGOPublicProfile` (`LoadErrorScreens`, `routes`), `NotificationsScreen` (`NotificationsTime`, `SwallowedErrors`), `OnboardingScreen`, `ProjectDetails` (`EnrollStatusLabel`, `NgoPanelLink`, `SponsorPreselect`, `LoadErrorScreens`, `MomentsPlacement`), `ProjectMap`, `PublicFeed` (`FeedTabsPlacement`), `ReviewModal`, `ReviewsModal`, `Root` (`routes`), `VolunteerProfile`, `VolunteerPublicProfile` (`MomentsPlacement`). Los de más riesgo sin tests de su lógica: `NGOProjectDetail` (aprobar, horas), `CreateVoluntariado`, `MyParticipation`, `NGOEmpleados`.
+8. **Componentes sin test propio** (sin `<Componente>.test.tsx`; 29 de 48 al 2026-10-14). Algunos tienen tests de un aspecto puntual en otro archivo (entre paréntesis): `BottomNav`, `ChatThread`, `CompanyBottomNav`, `CompanyLayout`, `CompanySidebarNav`, `CreateVoluntariado`, `ExploreScreen`, `FeedPostCard`, `FeedSidebar`, `MainFeed` (`FeedTabsPlacement`), `MessagesScreen`, `MyParticipation`, `NGOBottomNav`, `NGODashboard` (`SwallowedErrors`), `NGOEmpleados`, `NGOLayout` (`routes`), `NGOOwnProfile`, `NGOProjectDetail` (`LoadErrorScreens`, `MomentsPlacement`), `NGOPublicProfile` (`LoadErrorScreens`, `routes`), `NotificationsScreen` (`NotificationsTime`, `SwallowedErrors`), `ProjectDetails` (`EnrollStatusLabel`, `NgoPanelLink`, `SponsorPreselect`, `LoadErrorScreens`, `MomentsPlacement`), `ProjectMap`, `PublicFeed` (`FeedTabsPlacement`), `ReviewModal`, `ReviewsModal`, `Root` (`routes`), `VolunteerProfile`, `VolunteerPublicProfile` (`MomentsPlacement`). Los de más riesgo sin tests de su lógica: `NGOProjectDetail` (aprobar, horas), `CreateVoluntariado`, `MyParticipation`, `NGOEmpleados`.
 
 ## 16. Posibles mejoras
 
@@ -321,7 +320,7 @@ Limitado a `AuthContext`. No hay estado global de UI (temas, filtros persistente
 - ~~Migrar `NGOEmpleados.tsx` a `api.ts`~~ — hecho (§98).
 - Consolidar `ReviewModal.tsx` y `ReviewsModal.tsx` en un solo componente.
 - Agregar un `ErrorBoundary` de React a nivel de cada layout (`Root`, `NGOLayout`, `CompanyLayout`) para evitar pantallas en blanco ante errores no capturados.
-- Registrar o eliminar `OnboardingScreen.tsx` según la intención real del equipo.
+- ~~Registrar o eliminar `OnboardingScreen.tsx`~~ — eliminado (§99).
 - Sumar tests para los componentes grandes listados en el problema 8.
 
 ## Momentos (publicaciones con fotos) — estado del frontend

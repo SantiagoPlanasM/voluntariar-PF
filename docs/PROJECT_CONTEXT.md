@@ -133,7 +133,7 @@ flowchart TD
 
 Hay **tres layouts raíz** (`Root.tsx` para `/`, `NGOLayout.tsx` para `/ngo/*` y `CompanyLayout.tsx` para `/company/*`), cada uno con su propia navegación (bottom nav en mobile, sidebar en desktop) y su propio `<AuthModal/>` y `<ChatbotWidget/>` montados.
 
-`OnboardingScreen.tsx` es un componente de login/registro alternativo **que existe en el código pero no está registrado en `routes.tsx`** — no es alcanzable navegando la app (ver `PROJECT_ANALYSIS.md`).
+`OnboardingScreen.tsx` (login/registro alternativo, nunca enrutado) se borró en `PROJECT_ANALYSIS.md §99`.
 
 ## 7. Cómo interactúan frontend y backend
 
@@ -233,5 +233,5 @@ Ver diagrama de secuencia completo en `BACKEND_CONTEXT.md §4`.
 
 - Rutas registradas *después* de `module.exports` en `projects.js`, `ngos.js` y `empresas.js` — funciona por mutación de referencia. Empezó como una señal de organización descuidada, pero pasó a ser el patrón deliberado del proyecto para exportar helpers reutilizables entre routers (`fmt`, `validateProject`, `hasBadWord`) sin crear un módulo aparte — ver `PROJECT_ANALYSIS.md §29`.
 - ~~`multer` declarado y sin usar~~ — **resuelto**: ya lo usa `routes/posts.js` para las fotos de Momentos (Cloudinary, ver `PROJECT_ANALYSIS.md §43`).
-- Un componente completo (`OnboardingScreen.tsx`) que no está enrutado.
+- ~~Un componente completo (`OnboardingScreen.tsx`) que no está enrutado~~ — borrado (§99).
 - Doble definición de la lista de palabras prohibidas en `backend/src/lib/badWords.js` y `frontend/src/lib/badWords.ts` (runtimes separados). Desde §93 un test del backend exige que las dos listas sean iguales, así que olvidarse de una ya rompe la suite.
