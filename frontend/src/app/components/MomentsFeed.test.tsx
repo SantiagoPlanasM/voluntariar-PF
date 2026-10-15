@@ -90,6 +90,15 @@ describe('<MomentsFeed /> — carga inicial', () => {
     expect(list()).toHaveBeenCalledWith({ project_id: 'proj-9', user_id: 'user-3', limit: 12, offset: 0 });
   });
 
+  test('pasa el filtro por ONG (ngo_id) al pedido, también en "Ver más" (REVISION S2)', async () => {
+    list().mockResolvedValueOnce(page(['a'], true)).mockResolvedValueOnce(page(['b']));
+    render(<MomentsFeed pageSize={1} filters={{ ngo_id: 'ngo-1' }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Ver más' }));
+    await waitFor(() => expect(shown()).toEqual(['a', 'b']));
+    expect(list()).toHaveBeenNthCalledWith(1, { ngo_id: 'ngo-1', limit: 1, offset: 0 });
+    expect(list()).toHaveBeenNthCalledWith(2, { ngo_id: 'ngo-1', limit: 1, offset: 1 });
+  });
+
   test('respeta pageSize', async () => {
     list().mockResolvedValue(page(['a']));
     render(<MomentsFeed pageSize={5} />);
@@ -384,6 +393,15 @@ describe('<MomentsFeed /> — cambio de filtros', () => {
     await act(async () => { slowMore.resolve(page(['viejo'], true)); });
     expect(shown()).toEqual(['x']);
     expect(screen.queryByRole('button', { name: 'Ver más' })).not.toBeInTheDocument();   // y no cambia has_more
+  });
+
+  test('al cambiar la ONG del filtro vuelve a cargar con la nueva', async () => {
+    list().mockResolvedValueOnce(page(['a'])).mockResolvedValueOnce(page(['x']));
+    const { rerender } = render(<MomentsFeed filters={{ ngo_id: 'ngo-1' }} />);
+    await screen.findByText('post:a');
+    rerender(<MomentsFeed filters={{ ngo_id: 'ngo-2' }} />);
+    await waitFor(() => expect(shown()).toEqual(['x']));
+    expect(list()).toHaveBeenNthCalledWith(2, { ngo_id: 'ngo-2', limit: 12, offset: 0 });
   });
 
   test('re-renderizar con los mismos filtros (otro objeto) NO vuelve a pedir', async () => {

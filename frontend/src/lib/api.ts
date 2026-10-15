@@ -173,7 +173,7 @@ export const api = {
   },
   // Momentos: publicaciones con fotos de voluntariados (backend: routes/posts.js, PROJECT_ANALYSIS §43)
   posts: {
-    list: (p: { project_id?: string; user_id?: string; limit?: number; offset?: number } = {}) => {
+    list: (p: PostFilters & { limit?: number; offset?: number } = {}) => {
       const q = new URLSearchParams();
       for (const [k, v] of Object.entries(p)) if (v !== undefined && v !== null && v !== '') q.set(k, String(v));
       const qs = q.toString();
@@ -339,6 +339,9 @@ export interface Post {
   photos: PostPhoto[]; likes_count: number; liked_by_me: boolean; can_delete: boolean;
 }
 export interface PostsPage { posts: Post[]; has_more: boolean }
+/** Filtros de GET /api/posts. `ngo_id` es el id de la tabla `ngos` (el de `NGO.id`, no el del usuario de la ONG):
+ *  trae las publicaciones de los proyectos de esa ONG, sea quien sea el autor. */
+export interface PostFilters { project_id?: string; user_id?: string; ngo_id?: string }
 export interface EligibleProject { id: string; title: string }
 
 // GET /api/empresas/me/dashboard — KPIs de patrocinio de la empresa (backend: routes/empresas.js).

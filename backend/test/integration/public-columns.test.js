@@ -44,7 +44,7 @@ describe('Endpoints públicos: solo columnas elegidas (regla 8)', () => {
       '/api/follows/ngo/ngo-1/status', '/api/follows/project/proj-1/status',
       '/api/follows/volunteer/user-vol-1/status', '/api/follows/volunteer/user-vol-1/followers',
       '/api/follows/volunteer/user-vol-1/following',
-      '/api/posts', ...(posts[0] ? [`/api/posts/${posts[0].id}`] : []),
+      '/api/posts', '/api/posts?ngo_id=ngo-1', ...(posts[0] ? [`/api/posts/${posts[0].id}`] : []),
       '/api/faqs', '/api/voluntarios/user-vol-1',
     ];
   };

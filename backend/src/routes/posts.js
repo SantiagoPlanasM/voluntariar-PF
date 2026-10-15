@@ -5,7 +5,7 @@
 //
 //   GET    /api/posts/eligible-projects  — en qué proyectos puede publicar quien está logueado
 //   POST   /api/posts                    — crear (multipart: project_id, caption?, photos[1..5])
-//   GET    /api/posts                    — feed público, paginado (?project_id, ?user_id, ?limit, ?offset)
+//   GET    /api/posts                    — feed público, paginado (?project_id, ?user_id, ?ngo_id, ?limit, ?offset)
 //   GET    /api/posts/:id                — una publicación
 //   POST   /api/posts/:id/like           — dar like (idempotente)
 //   DELETE /api/posts/:id/like           — quitar el like
@@ -23,7 +23,7 @@ const storage = require('../lib/storage');
 const { requireAuth, optionalAuth, requireRole } = require('../middleware/auth');
 const { toMillis } = require('../lib/time');
 const { hasBadWord } = require('../lib/badWords');
-const { clampInt } = require('../lib/inputs');
+const { clampInt, checkText } = require('../lib/inputs');
 
 const router = express.Router();
 
@@ -260,10 +260,19 @@ router.get('/', optionalAuth, async (req, res) => {
     const limit = clampInt(req.query.limit, DEFAULT_LIMIT, 1, MAX_LIMIT);
     const offset = clampInt(req.query.offset, 0, 0, Number.MAX_SAFE_INTEGER);
 
+    // `ngo_id` (id de la tabla `ngos`): publicaciones de los PROYECTOS de esa ONG, sea quien sea el autor
+    // (REVISION S2: el panel de la ONG mostraba el feed de toda la plataforma). A diferencia de project_id y
+    // user_id, si viene vacío o repetido no se ignora: da 400, para que un error del cliente no termine
+    // mostrando el feed general bajo "Fotos de tus voluntariados".
+    const ngoErr = req.query.ngo_id === undefined ? null
+      : checkText(req.query.ngo_id, { label: 'El filtro de ONG', max: 100, required: true });
+    if (ngoErr) return res.status(400).json({ error: ngoErr });
+
     const where = [];
     const params = [];
     if (req.query.project_id) { params.push(String(req.query.project_id)); where.push(`po.project_id = $${params.length}`); }
     if (req.query.user_id)    { params.push(String(req.query.user_id));    where.push(`po.user_id = $${params.length}`); }
+    if (req.query.ngo_id !== undefined) { params.push(req.query.ngo_id.trim()); where.push(`p.ngo_id = $${params.length}`); }
     params.push(limit + 1);
     const limitIdx = params.length;
     params.push(offset);

@@ -15,14 +15,14 @@
 // anónimo: por eso el feed recarga cuando cambia el id del usuario (no cuando cambia su objeto).
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Camera, ImageOff, Loader2 } from 'lucide-react';
-import { api, type Post } from '../../lib/api';
+import { api, type Post, type PostFilters } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { PostCard } from './PostCard';
 import { PostComposer } from './PostComposer';
 
 interface Props {
-  /** Filtros del servidor (galería de un proyecto / de una persona). */
-  filters?: { project_id?: string; user_id?: string };
+  /** Filtros del servidor (galería de un proyecto / de una persona / de los proyectos de una ONG). */
+  filters?: PostFilters;
   /** Mostrar el botón para publicar (solo lo ven voluntarios y ONGs). Por defecto sí. */
   showComposer?: boolean;
   pageSize?: number;
@@ -41,6 +41,7 @@ export function MomentsFeed({ filters, showComposer = true, pageSize = 12 }: Pro
   const { user } = useAuth();
   const projectId = filters?.project_id;
   const userId = filters?.user_id;
+  const ngoId = filters?.ngo_id;
   const viewerId = user?.id ?? null;
 
   const [posts, setPosts] = useState<Post[]>([]);
@@ -55,11 +56,12 @@ export function MomentsFeed({ filters, showComposer = true, pageSize = 12 }: Pro
   const moreInFlight = useRef(false);
 
   const filterParams = useCallback(() => {
-    const params: { project_id?: string; user_id?: string } = {};
+    const params: PostFilters = {};
     if (projectId) params.project_id = projectId;
     if (userId) params.user_id = userId;
+    if (ngoId) params.ngo_id = ngoId;
     return params;
-  }, [projectId, userId]);
+  }, [projectId, userId, ngoId]);
 
   const loadFirst = useCallback(async () => {
     const mine = ++generation.current;
@@ -117,7 +119,9 @@ export function MomentsFeed({ filters, showComposer = true, pageSize = 12 }: Pro
 
   function handleCreated(post: Post) {
     setComposing(false);
-    // Una publicación que no corresponde a esta vista (otro proyecto / otro autor) no se agrega.
+    // Una publicación que no corresponde a esta vista (otro proyecto / otro autor) no se agrega. Con `ngo_id` no
+    // se puede comprobar (el post no trae la ONG del proyecto): hoy ese filtro solo lo usa NGOMoments, y ahí la
+    // ONG solo puede publicar en sus propios proyectos (eligible-projects), así que se agrega.
     if (projectId && post.project.id !== projectId) return;
     if (userId && post.author.id !== userId) return;
     if (posts.some((p) => p.id === post.id)) return;

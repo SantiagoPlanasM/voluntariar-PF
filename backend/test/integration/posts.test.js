@@ -317,6 +317,85 @@ describe('Publicaciones (Momentos)', () => {
     });
   });
 
+  // REVISION S2: el panel de la ONG (/ngo/momentos) mostraba el feed de TODA la plataforma. `ngo_id` es el id de
+  // la tabla `ngos` (el mismo que usa el resto de la API) y filtra por la ONG dueña del PROYECTO, no por el autor:
+  // la publicación de un voluntario en un proyecto de la ONG también es "de sus voluntariados".
+  describe('GET /api/posts?ngo_id: publicaciones de los proyectos de una ONG', () => {
+    let ngo3, own;   // own = { ngo3p3, ngo3p6, juanP3, luciaP4 }: ids de las publicaciones creadas acá
+    const idsOf = (r) => r.body.posts.map((p) => p.id);
+    const projectsOf = async (ngoId) =>
+      new Set((await db.all('SELECT id FROM projects WHERE ngo_id=$1', [ngoId])).map((r) => r.id));
+    const postsOfNgo = async (ngoId) =>
+      (await db.all('SELECT po.id FROM posts po JOIN projects p ON p.id = po.project_id WHERE p.ngo_id=$1', [ngoId])).map((r) => r.id);
+
+    before(async () => {
+      ngo3 = await login('admin@bancoalimentos.org');   // dueña de proj-3, proj-6 y proj-10
+      const mk = async (who, project_id) => {
+        const r = await createPost(who, { project_id, caption: `ngo_id ${project_id}` });
+        assert.equal(r.status, 201, JSON.stringify(r.body));
+        return r.body.post.id;
+      };
+      own = {
+        ngo3p3: await mk(ngo3, 'proj-3'),
+        ngo3p6: await mk(ngo3, 'proj-6'),
+        juanP3: await mk(juan, 'proj-3'),      // un VOLUNTARIO en un proyecto de ngo-3: también cuenta
+        luciaP4: await mk(lucia, 'proj-4'),    // ngo-4: no tiene que aparecer en el de ngo-3
+      };
+    });
+
+    test('devuelve exactamente las publicaciones de los proyectos de esa ONG (también las de voluntarios)', async () => {
+      const r = await list('?ngo_id=ngo-3&limit=30');
+      assert.equal(r.status, 200);
+      const ids = idsOf(r);
+      for (const id of [own.ngo3p3, own.ngo3p6, own.juanP3]) assert.ok(ids.includes(id), `falta ${id}`);
+      assert.deepEqual([...ids].sort(), (await postsOfNgo('ngo-3')).sort());
+      const mine = await projectsOf('ngo-3');
+      assert.ok(r.body.posts.every((p) => mine.has(p.project.id)));
+    });
+
+    test('no mezcla otras ONGs; una ONG sin publicaciones o inexistente da lista vacía (no 404)', async () => {
+      const ids4 = idsOf(await list('?ngo_id=ngo-4&limit=30'));
+      assert.ok(ids4.includes(own.luciaP4));
+      for (const id of [own.ngo3p3, own.ngo3p6, own.juanP3]) assert.ok(!ids4.includes(id), `${id} es de ngo-3`);
+      const theirs = await projectsOf('ngo-4');
+      assert.ok((await list('?ngo_id=ngo-4&limit=30')).body.posts.every((p) => theirs.has(p.project.id)));
+
+      const none = await list('?ngo_id=no-existe');
+      assert.equal(none.status, 200);
+      assert.deepEqual(none.body, { posts: [], has_more: false });
+    });
+
+    test('se combina con user_id y con project_id (todas las condiciones a la vez)', async () => {
+      assert.deepEqual(idsOf(await list(`?ngo_id=ngo-3&user_id=${juan.id}&limit=30`)), [own.juanP3]);
+      assert.deepEqual(idsOf(await list('?ngo_id=ngo-3&project_id=proj-6&limit=30')), [own.ngo3p6]);
+      assert.deepEqual(idsOf(await list('?ngo_id=ngo-4&project_id=proj-3')), [], 'proj-3 no es de ngo-4');
+      assert.deepEqual(idsOf(await list(`?ngo_id=ngo-4&user_id=${juan.id}`)), [], 'juan no publicó en ngo-4');
+    });
+
+    test('se pagina igual que el feed: limit/offset y has_more, sin repetir ni saltear', async () => {
+      const all = idsOf(await list('?ngo_id=ngo-3&limit=30'));
+      assert.equal(all.length, 3);
+      const p1 = (await list('?ngo_id=ngo-3&limit=2&offset=0')).body;
+      const p2 = (await list('?ngo_id=ngo-3&limit=2&offset=2')).body;
+      assert.equal(p1.has_more, true);
+      assert.equal(p2.has_more, false);
+      assert.deepEqual([...p1.posts, ...p2.posts].map((p) => p.id), all);
+    });
+
+    test('un valor inválido da 400 con un mensaje en español (y no devuelve el feed general)', async () => {
+      for (const q of ['?ngo_id=', '?ngo_id=%20%20', '?ngo_id=ngo-3&ngo_id=ngo-4', `?ngo_id=${'x'.repeat(101)}`]) {
+        const r = await list(q);
+        assert.equal(r.status, 400, q);
+        assert.equal(typeof r.body.error, 'string', q);
+        assert.match(r.body.error, /ONG/, q);
+        assert.equal(r.body.posts, undefined, q);
+      }
+      assert.equal((await list(`?ngo_id=${'x'.repeat(100)}`)).status, 200, '100 caracteres es el máximo válido');
+      assert.deepEqual(idsOf(await list('?ngo_id=%20ngo-3%20&limit=30')), idsOf(await list('?ngo_id=ngo-3&limit=30')),
+        'los espacios de los costados se recortan');
+    });
+  });
+
   describe('can_delete: el servidor dice quién puede borrar (el frontend no lo adivina)', () => {
     // Autor: juan (aprobado en proj-8, cuya ONG dueña es ngo-2). Se usa a juan y no a maria para no gastar
     // el límite de 10 publicaciones por hora que comparten los demás tests de este archivo.

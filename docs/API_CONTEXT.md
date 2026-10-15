@@ -434,7 +434,8 @@
 - **Respuesta 201:** `{ post }`.
 
 ### `GET /api/posts` — Auth opcional
-- **Query:** `project_id`, `user_id` (filtros; sirven para la galería de un proyecto y la grilla de un perfil), `limit` (default 12, máx. 30; inválido → default), `offset` (default 0; inválido → 0).
+- **Query:** `project_id`, `user_id` (filtros; sirven para la galería de un proyecto y la grilla de un perfil), `ngo_id`, `limit` (default 12, máx. 30; inválido → default), `offset` (default 0; inválido → 0). Los filtros se combinan entre sí (todos a la vez, `AND`) y con la paginación.
+- **`ngo_id` (`REVISION.md` S2):** id de la tabla `ngos` (el `id` de `GET /api/ngos/me` o de `GET /api/ngos/:id`; **no** el id del usuario de la ONG). Devuelve las publicaciones de los **proyectos** de esa ONG, sea quien sea el autor (voluntarios o la propia ONG). Lo usa el panel de la ONG (`/ngo/momentos`). Una ONG inexistente o sin publicaciones → `200` con `posts: []`. A diferencia de `project_id`/`user_id` (que vacíos se ignoran), un `ngo_id` **vacío o solo espacios, repetido (`?ngo_id=a&ngo_id=b`) o de más de 100 caracteres → `400`** con `{ error }` en español: un error del cliente no tiene que terminar mostrando el feed general. Se recortan los espacios de los costados.
 - **Respuesta 200:** `{ posts: [...], has_more }`. Más nuevas primero (desempate por id). Paginación por `limit/offset`: si entran publicaciones nuevas mientras se pagina pueden correrse las páginas; el cliente debe deduplicar por `id`. `liked_by_me` es `false` sin sesión. Tres consultas por página (no una por publicación).
 
 ### `GET /api/posts/:id` — Auth opcional
