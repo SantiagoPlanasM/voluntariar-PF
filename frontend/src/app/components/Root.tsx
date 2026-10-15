@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import {
   Home, Search, ClipboardList, User, Heart,
-  LogOut, Bell, MessageCircle, Building2, LayoutDashboard, Plus, Handshake
+  LogOut, LogIn, Bell, MessageCircle, Building2, LayoutDashboard, Plus, Handshake
 } from 'lucide-react';
 
 export function Root() {
@@ -36,7 +36,7 @@ export function Root() {
 // ── Sidebar adaptable según rol ───────────────────────────────────────────
 function SidebarNav() {
   const { pathname }      = useLocation();
-  const { user, logout }  = useAuth();
+  const { user, logout, openAuthModal } = useAuth();
   const { unreadTotal }   = useChat();
   const navigate          = useNavigate();
   const [unread, setUnread] = useState(0);
@@ -129,11 +129,20 @@ function SidebarNav() {
             </div>
           </div>
         )}
-        <button onClick={() => { logout(); navigate('/'); }}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-colors">
-          <LogOut className="w-5 h-5" strokeWidth={1.8} />
-          Cerrar sesión
-        </button>
+        {/* Sin sesión, "Iniciar sesión" (antes un visitante veía "Cerrar sesión"; §130). */}
+        {user ? (
+          <button onClick={() => { logout(); navigate('/'); }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-colors">
+            <LogOut className="w-5 h-5" strokeWidth={1.8} />
+            Cerrar sesión
+          </button>
+        ) : (
+          <button onClick={() => openAuthModal()}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-emerald-700 hover:bg-emerald-50 transition-colors">
+            <LogIn className="w-5 h-5" strokeWidth={1.8} />
+            Iniciar sesión
+          </button>
+        )}
       </div>
     </aside>
   );

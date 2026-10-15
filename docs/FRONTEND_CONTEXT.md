@@ -77,7 +77,7 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 ## 4. Todos los componentes (49, sin contar `*.test.tsx`)
 
 ### Layouts / navegación
-- `Root.tsx` — layout del lado "voluntario/público": `<Outlet/>` + `<BottomNav/>` + `<AuthModal/>` + `<ChatbotWidget/>`.
+- `Root.tsx` — layout del lado "voluntario/público": `<Outlet/>` + `<BottomNav/>` + `<AuthModal/>` + `<ChatbotWidget/>`. Su barra lateral de escritorio muestra "Cerrar sesión" solo con sesión; sin sesión, "Iniciar sesión" (abre el login; §130).
 - `NGOLayout.tsx` — layout del lado "ONG": `<NGOSidebarNav/>` (desktop) + `<NGOBottomNav/>` (mobile) + `<Outlet/>` + `<AuthModal/>` + `<ChatbotWidget/>`.
 - `CompanyLayout.tsx` — layout del lado "Empresa", mismo patrón que `NGOLayout` (`CompanySidebarNav`/`CompanyBottomNav`).
 - `BottomNav.tsx` — navegación inferior mobile del lado público (`Root`), según el rol. Para empresa usa `COMPANY_NAV_LINKS`, la misma lista de `CompanyBottomNav` (§117). Para ONG usa `NGO_NAV_LINKS`, la misma lista de `NGOBottomNav` (§121).

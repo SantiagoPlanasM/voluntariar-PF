@@ -3442,3 +3442,24 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 ### ⚠️ NO verificado
 - En producción: hay que redesplegar. Con la base vacía la fila no se ve, que es lo esperado.
 - No lo vi en el navegador (es una fila con el mismo estilo que antes).
+
+## 130. La barra lateral ya no ofrece "Cerrar sesión" a un visitante (aprobado por el usuario)
+
+**Contexto:** visto en producción (Render). En escritorio, un visitante sin sesión veía "Cerrar sesión" en la barra lateral de `Root`: el botón se dibujaba siempre.
+
+**Qué se hizo:** con sesión, "Cerrar sesión" como antes. Sin sesión, "Iniciar sesión", que abre el login (`openAuthModal`). Así un visitante en escritorio también tiene desde la barra una forma de entrar.
+
+### Tests (nuevos: 2, en `RootLayout.test.tsx`)
+- Visitante: no hay "Cerrar sesión" e "Iniciar sesión" abre el login.
+- Con sesión: "Cerrar sesión" cierra la sesión y no hay "Iniciar sesión".
+- **Rojo de comportamiento** en el caso del visitante. El mock de `useAuth` del archivo pasó a ser configurable.
+
+### Verificación
+- **Frontend 551/551** (con este cambio solo), también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.**
+- **Mutación (3):** condición invertida, "Iniciar sesión" que no abre el login, y siempre "Cerrar sesión". **Mueren los 3.**
+
+### Errores propios
+- Ninguno.
+
+### ⚠️ NO verificado
+- No lo vi en el navegador. Los links de la barra (Participaciones, Mensajes, Mi Perfil) siguen apareciendo para un visitante. No estaba en el pedido, y al tocarlos se pide iniciar sesión.
