@@ -6,6 +6,8 @@ import { FeedSidebar } from './FeedSidebar';
 import { FeedTabs } from './FeedTabs';
 import { useAuth } from '../../lib/AuthContext';
 import { useNavigate, Link, useLocation } from 'react-router';
+import { InlineError } from './LoadError';
+import { userMessage } from '../../lib/format';
 
 export function MainFeed() {
   const { user, logout } = useAuth();
@@ -27,16 +29,21 @@ export function MainFeed() {
     api.notifications.list().then(r => setUnread(r.unread)).catch(() => {});
   }, [user, pathname]);
 
+  // Errores de carga (REVISION S1): antes un fallo se veía como el estado vacío ("Tu feed personalizado
+  // está listo" / "¡Ya seguís a todas las organizaciones recomendadas!").
+  const [feedError, setFeedError] = useState('');
+  const [suggestionsError, setSuggestionsError] = useState('');
+
   // Cargar feed de seguidos
   const loadFollowingFeed = async () => {
     if (!isVolunteer) return;
     setLoadingFollowing(true);
+    setFeedError('');
     try {
       const res = await api.follows.feed(30, 0);
       setFollowingProjects(res.projects || []);
     } catch (err) {
-      console.error('Error loading following feed:', err);
-      setFollowingProjects([]);
+      setFeedError(userMessage(err, 'No pudimos cargar tu feed. Revisá tu conexión.'));
     } finally {
       setLoadingFollowing(false);
     }
@@ -45,26 +52,27 @@ export function MainFeed() {
   // Cargar datos para la barra lateral derecha (Sugerencias, Próximas actividades, ONGs seguidas)
   const loadSidebarData = async () => {
     if (!isVolunteer) return;
-    try {
-      const [allNgosRes, myFollowedRes, activeProjectsRes] = await Promise.all([
-        api.ngos.list().catch(() => ({ ngos: [] })),
-        api.follows.myNgos().catch(() => ({ ngos: [] })),
-        api.projects.list({ status: 'active' }).catch(() => ({ projects: [] })),
-      ]);
-
-      const followedIds = new Set((myFollowedRes.ngos || []).map(n => n.id));
+    setSuggestionsError('');
+    // Las sugerencias necesitan las dos listas: sin "mis ONGs" sugeriría las que ya sigo.
+    const [ngosRes, followedRes] = await Promise.allSettled([api.ngos.list(), api.follows.myNgos()]);
+    if (ngosRes.status === 'rejected' || followedRes.status === 'rejected') {
+      const err = ngosRes.status === 'rejected' ? ngosRes.reason : (followedRes as PromiseRejectedResult).reason;
+      setSuggestionsError(userMessage(err, 'No pudimos cargar las sugerencias. Revisá tu conexión.'));
+    } else {
+      const followedIds = new Set((followedRes.value.ngos || []).map(n => n.id));
       setFollowingNgoIds(followedIds);
-
       // Sugerencias: ONGs que aún no sigue
-      const suggestions = (allNgosRes.ngos || []).filter(n => !followedIds.has(n.id));
-      setSuggestedNgos(suggestions.slice(0, 5));
-
-      // Actividades destacadas o urgentes
-      setUrgentProjects((activeProjectsRes.projects || []).slice(0, 3));
-    } catch (err) {
-      console.error('Error loading sidebar data:', err);
+      setSuggestedNgos((ngosRes.value.ngos || []).filter(n => !followedIds.has(n.id)).slice(0, 5));
     }
   };
+
+  // Actividades destacadas o urgentes. Si falla, la sección no se muestra (no tiene texto de "vacío").
+  const loadUrgentProjects = () => {
+    api.projects.list({ status: 'active' })
+      .then(r => setUrgentProjects((r.projects || []).slice(0, 3)))
+      .catch(() => {});
+  };
+  const retrySidebar = () => { loadSidebarData(); loadUrgentProjects(); };
 
   const handleFollowSuggestedNgo = async (ngoId: string) => {
     try {
@@ -80,6 +88,7 @@ export function MainFeed() {
   useEffect(() => {
     if (isVolunteer) {
       loadSidebarData();
+      loadUrgentProjects();
       loadFollowingFeed();
     }
   }, [isVolunteer]);
@@ -146,6 +155,10 @@ export function MainFeed() {
                   </div>
                 </div>
               ))}
+            </div>
+          ) : feedError ? (
+            <div role="alert">
+              <InlineError message={feedError} onRetry={loadFollowingFeed} />
             </div>
           ) : followingProjects.length === 0 ? (
             /* Estado Vacío de Seguidos */
@@ -237,6 +250,8 @@ export function MainFeed() {
             followingNgoIds={followingNgoIds}
             onFollowNgo={handleFollowSuggestedNgo}
             urgentProjects={urgentProjects}
+            suggestionsError={suggestionsError}
+            onRetrySuggestions={retrySidebar}
           />
         </aside>
       </div>

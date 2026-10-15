@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { Sparkles, Users, Check, ArrowRight, Zap, MapPin } from 'lucide-react';
+import { Sparkles, Users, Check, ArrowRight, Zap, MapPin, RefreshCw } from 'lucide-react';
 import { User, NGO, Project } from '../../lib/api';
 
 interface FeedSidebarProps {
@@ -8,6 +8,10 @@ interface FeedSidebarProps {
   followingNgoIds: Set<string>;
   onFollowNgo: (ngoId: string) => Promise<void>;
   urgentProjects?: Project[];
+  /** Si no se pudieron cargar las sugerencias: se muestra esto (con "Reintentar") en vez de
+   *  "¡Ya seguís a todas…!", que se leería como un dato (REVISION S1). */
+  suggestionsError?: string;
+  onRetrySuggestions?: () => void;
 }
 
 export function FeedSidebar({
@@ -16,6 +20,8 @@ export function FeedSidebar({
   followingNgoIds,
   onFollowNgo,
   urgentProjects = [],
+  suggestionsError = '',
+  onRetrySuggestions,
 }: FeedSidebarProps) {
   return (
     <div className="space-y-4 w-full">
@@ -69,7 +75,17 @@ export function FeedSidebar({
           </Link>
         </div>
 
-        {suggestedNgos.length === 0 ? (
+        {suggestionsError ? (
+          <div role="alert" className="py-1 space-y-2">
+            <p className="text-xs text-gray-500">{suggestionsError}</p>
+            {onRetrySuggestions && (
+              <button onClick={onRetrySuggestions}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 hover:text-emerald-700">
+                <RefreshCw className="w-3 h-3" /> Reintentar
+              </button>
+            )}
+          </div>
+        ) : suggestedNgos.length === 0 ? (
           <p className="text-xs text-gray-400 py-1">¡Ya seguís a todas las organizaciones recomendadas!</p>
         ) : (
           <div className="space-y-3">

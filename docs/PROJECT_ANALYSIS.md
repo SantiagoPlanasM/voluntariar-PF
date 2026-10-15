@@ -2807,3 +2807,36 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 - Nada visual: el aviso arriba del contenido, los "—" en la tarjeta de estadísticas, "No se pudo cargar." en cada sección.
 - Las secciones de ONGs y voluntarios **no tienen estado de carga** (de antes): mientras llegan, siguen diciendo "Todavía no…". No lo cambié (no es un error tragado).
 - `handleSave` hace `window.location.reload()`; en jsdom eso imprime "Not implemented: navigation" en la salida de los tests (no falla). No lo stubbeé.
+
+## 110. Inicio: error y vacío ya no se confunden (feed de seguidos y sugerencias) — REVISION S1 (MainFeed)
+
+**Contexto:** en `MainFeed`, `loadSidebarData` envolvía cada pedido en `.catch(() => ({ ngos: [] }))`: si fallaba la lista de ONGs, `FeedSidebar` decía "¡Ya seguís a todas las organizaciones recomendadas!". Si fallaba solo "mis ONGs", sugería ONGs que ya seguís. `loadFollowingFeed` ponía `[]` en el error, y la columna principal mostraba "Tu feed personalizado está listo" (el estado vacío) como si no siguieras nada.
+
+**Qué se hizo:**
+- **Feed de seguidos:** estado `feedError`; en el `catch`, `userMessage(err, 'No pudimos cargar tu feed. Revisá tu conexión.')` y, en la vista, `<InlineError>` en `role="alert"` con "Reintentar" (`loadFollowingFeed`) antes del estado vacío. Se sacó el `console.error`.
+- **Sugerencias:** `loadSidebarData` pide `ngos.list()` y `follows.myNgos()` con `Promise.allSettled`; si falla **cualquiera** de los dos, `suggestionsError` (`userMessage(…, 'No pudimos cargar las sugerencias. Revisá tu conexión.')`). Las dos son necesarias: sin "mis ONGs" las sugerencias incluirían las que ya seguís.
+- **`FeedSidebar`** (sigue siendo presentacional): props nuevas `suggestionsError` y `onRetrySuggestions`. Con error, en la caja "Sugerencias para vos" muestra el mensaje + "Reintentar" (botón chico, como los links de la caja) en un `role="alert"`, en vez de "¡Ya seguís a todas…!".
+- **"Próximas actividades"** (`projects.list`) pasó a su propia función (`loadUrgentProjects`). Si falla, la sección **sigue sin mostrarse**: no tiene texto de vacío, así que no dice nada falso. "Reintentar" de la barra recarga las dos cosas (`retrySidebar`).
+
+### Tests (nuevos: 8, `MainFeedErrors.test.tsx`; `FeedPostCard` mockeado)
+- Feed con 500 → aviso con el mensaje, sin "Tu feed personalizado está listo"; "Reintentar" → aparece la publicación y se va el aviso.
+- Feed sin conexión → "No pudimos cargar tu feed. Revisá tu conexión.", no "Failed to fetch".
+- Feed vacío de verdad → el estado vacío, sin aviso (control).
+- Falla `ngos.list` → en la caja de sugerencias, aviso; no aparece "¡Ya seguís a todas…!"; "Reintentar" → aparece la ONG.
+- Falla `myNgos` → aviso con el mensaje propio, y no sugiere ninguna ONG (ni la que ya sigo ni la otra).
+- Falla solo `projects.list` → sugerencias normales, sin aviso, y sin "Próximas actividades".
+- Sin error y sin sugerencias → "¡Ya seguís a todas…!" (control).
+- "Reintentar" de la barra también recarga los proyectos.
+- **Rojo de comportamiento:** con el código anterior fallaban 5; los 3 que pasaban son los controles (feed vacío, barra vacía, falla solo proyectos).
+
+### Verificación
+- **Frontend 439/439** (431 + 8), también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.** `FeedTabsPlacement` (que monta `MainFeed`) sigue en verde.
+- **Mutación (22 sobre `MainFeed.tsx` y `FeedSidebar.tsx`, con corrida de control):** mueren 21. **Sobrevivió 1, equivalente:** "en el error no se vacían las sugerencias" — la barra solo se recarga con "Reintentar", que solo aparece si ya falló, y la lista arranca vacía. Saqué esa línea del código.
+
+### Errores propios
+- Ninguno en esta tarea, más allá de la línea redundante que mostró la mutación.
+
+### ⚠️ NO verificado
+- Nada visual. La barra lateral es `hidden lg:block`: en jsdom no se aplica el CSS, así que los tests la ven siempre; no comprobé el aviso en un escritorio real.
+- No revisé el resto de la pantalla en celular (allí la barra no se ve, y las sugerencias del feed vacío solo aparecen si cargaron; con error, el feed vacío no muestra sugerencias ni aviso de sugerencias — solo el del feed si también falló).
+- `loadFollowingFeed` no descarta respuestas viejas (lo llaman la carga inicial, "Reintentar", `onRefresh` de cada tarjeta y seguir una ONG). No lo cambié: no es parte de S1.
