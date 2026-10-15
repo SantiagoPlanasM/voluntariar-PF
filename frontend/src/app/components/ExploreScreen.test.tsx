@@ -78,6 +78,32 @@ describe('ExploreScreen: error al cargar el catálogo', () => {
   });
 });
 
+// REVISION S5: Explorar pedía `limit: 200` y con más proyectos los demás desaparecían sin aviso (de la lista,
+// la búsqueda y el mapa). Ahora pide el tope del backend (500, §96) y, si la respuesta viene llena, lo dice.
+describe('ExploreScreen: tope del catálogo', () => {
+  const many = (n: number) => Array.from({ length: n }, (_, i) => project(`p${i}`, `Proyecto ${i}`));
+  const notice = /Se muestran los primeros 500 voluntariados/;
+
+  test('pide hasta el tope del backend (500), no 200', async () => {
+    mount();
+    await waitFor(() => expect(screen.getByText('Huerta comunitaria')).toBeInTheDocument());
+    expect(api.projects.list).toHaveBeenCalledWith(expect.objectContaining({ limit: '500' }));
+  });
+
+  test('si la respuesta viene llena (500), avisa que puede haber más', async () => {
+    vi.mocked(api.projects.list).mockReset().mockResolvedValue({ projects: many(500) } as never);
+    mount();
+    await waitFor(() => expect(screen.getByText(notice)).toBeInTheDocument());
+  });
+
+  test('con menos que el tope no hay aviso', async () => {
+    vi.mocked(api.projects.list).mockReset().mockResolvedValue({ projects: many(499) } as never);
+    mount();
+    await waitFor(() => expect(screen.getByText('Proyecto 0')).toBeInTheDocument());
+    expect(screen.queryByText(notice)).not.toBeInTheDocument();
+  });
+});
+
 describe('ExploreScreen: error al cargar las recomendaciones (secundario)', () => {
   test('el catálogo se muestra igual y "Para vos" avisa con su propio "Reintentar"', async () => {
     vi.mocked(api.projects.recommended).mockReset()

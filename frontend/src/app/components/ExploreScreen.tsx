@@ -8,6 +8,12 @@ import { InlineError } from './LoadError';
 import { ProjectMap } from './ProjectMap';
 import { FilterModal, FilterState, DEFAULT_FILTERS, filterProjects } from './FilterModal';
 
+/** Cuántos proyectos pide Explorar: el tope de `GET /api/projects` (500, PROJECT_ANALYSIS §96). La búsqueda,
+ *  los filtros y el mapa trabajan en el cliente sobre esa lista, y el backend no devuelve el total: si la
+ *  respuesta viene llena se muestra un aviso, porque puede haber más que no aparecen (REVISION S5; antes
+ *  pedía 200 y los demás desaparecían sin aviso). */
+const EXPLORE_LIMIT = 500;
+
 interface RecommendedProject extends Project {
   recommendation_score?: number;
   recommendation_reasons?: string[];
@@ -125,8 +131,8 @@ export function ExploreScreen() {
       // limit explícito: sin esto, el backend usa su default (20) y el
       // buscador/mapa de Explorar queda mudo apenas la plataforma supera
       // los 20 proyectos activos (bug confirmado con 27 proyectos de prueba).
-      // Fix pragmático — lo prolijo a mediano plazo es paginar de verdad.
-      const res = await api.projects.list({ sort: 'featured', limit: '200' });
+      // Se pide el tope del backend; si la respuesta viene llena se avisa (ver EXPLORE_LIMIT).
+      const res = await api.projects.list({ sort: 'featured', limit: String(EXPLORE_LIMIT) });
       setAllProjects(res.projects || []);
     } catch (err) {
       setLoadError(userMessage(err, 'No pudimos cargar los voluntariados. Revisá tu conexión.'));
@@ -304,6 +310,13 @@ export function ExploreScreen() {
         </div>
 
         {/* ── 3. Mapa Interactivo de Voluntariados ────────────── */}
+        {/* Respuesta llena: puede haber más proyectos que los que se buscan y se ven (REVISION S5). */}
+        {allProjects.length >= EXPLORE_LIMIT && (
+          <p role="status" className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 -mt-3">
+            Se muestran los primeros {EXPLORE_LIMIT} voluntariados: la búsqueda, los filtros y el mapa solo incluyen esos.
+          </p>
+        )}
+
         {/* Con error de carga no se dibuja: un mapa sin pines también diría "no hay nada" (REVISION S1). */}
         {!loadError && <ProjectMap projects={filteredProjects} />}
 

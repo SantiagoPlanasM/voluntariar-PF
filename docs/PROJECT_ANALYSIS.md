@@ -3087,3 +3087,34 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 - No lo probé en el navegador (escribir "cordoba" en Explorar). Lo cubre el test de la función pura que usa la pantalla.
 - El contador "Mostrar N voluntariados" del modal usa la misma `filterProjects`, así que también ignora acentos; no tiene test propio.
 - La búsqueda del backend (`GET /api/projects?search=`, `ILIKE`) sigue distinguiendo acentos. Explorar no la usa; si otra pantalla la usara, tendría el problema (fuera del pedido: "solo cliente").
+
+## 119. Explorar: tope de 500 y aviso si hay más — REVISION S5
+
+**Contexto:** `ExploreScreen` pedía `api.projects.list({ sort: 'featured', limit: '200' })` y busca, filtra y arma el mapa en el cliente sobre esa lista. Con más de 200 proyectos, los demás no aparecían en ningún lado y nada lo decía. El backend acepta hasta **500** (`clampInt(req.query.limit, 20, 1, 500)` en `routes/projects.js`, §96).
+
+**Qué se hizo (y por qué así):**
+- Revisé qué devuelve `GET /api/projects`: **solo `{ projects }`**, sin `total` ni `has_more`. Paginar de verdad ("cargar más") pediría cambiar el backend o pedir de a páginas hasta vaciar, y la búsqueda, los filtros y el mapa de Explorar trabajan sobre la lista completa en el cliente: con páginas parciales buscarían en una parte sin decirlo. Elegí lo mínimo correcto que pidió el usuario:
+  - **`EXPLORE_LIMIT = 500`** (constante con comentario que apunta a §96) y se pide eso.
+  - Si la respuesta viene **llena** (`length >= 500`), un aviso discreto (`role="status"`) arriba del mapa: "Se muestran los primeros 500 voluntariados: la búsqueda, los filtros y el mapa solo incluyen esos."
+- Límite conocido del criterio: con **exactamente** 500 proyectos el aviso aparece aunque no haya más (el backend no puede devolver 501 para saberlo). El texto sigue siendo cierto.
+
+### Tests (nuevos: 3, en `ExploreScreen.test.tsx`)
+- Pide `limit: '500'`.
+- Con 500 proyectos en la respuesta → aparece el aviso.
+- Con 499 → no aparece.
+- **Rojo de comportamiento:** con el código anterior fallaban los dos primeros (pedía `'200'` y no había aviso); el de 499 pasaba (no hay aviso en ninguno de los dos casos).
+
+### Verificación
+- **Frontend 436/436** (433 + 3), también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.**
+
+### Mutación (6, sobre el código nuevo)
+- Pedir `'200'` de nuevo, tope 501, tope 499, `>` en vez de `>=`, aviso siempre, aviso nunca: **mueren los 6**.
+- Antes de correrla saqué una guarda `!loadError &&` del aviso: con error la lista siempre está vacía (§119 de S1), así que era un mutante equivalente seguro.
+
+### Errores propios
+- Ninguno en esta tarea.
+
+### ⚠️ NO verificado
+- No lo vi en el navegador: ni el aviso (usa `-mt-3` para pegarse al buscador dentro de `space-y-6`), ni cuánto tarda Explorar con 500 proyectos reales y 500 pines en el mapa. Con los datos de la tesis no se llega a 200.
+- **Comentarios/docs que quedaron desactualizados y no toqué (fuera de "solo código + tests" del frontend):** el comentario de `backend/src/routes/projects.js:148` dice "Explore pide 200"; `docs/BACKEND_ROADMAP_ANALYSIS.md:303` dice "`ExploreScreen` pide `200` (parche)". Conviene actualizarlos a 500.
+- Sigue sin haber paginación real: con más de 500 proyectos activos, los que sobran no se pueden buscar desde Explorar (ahora al menos se avisa).
