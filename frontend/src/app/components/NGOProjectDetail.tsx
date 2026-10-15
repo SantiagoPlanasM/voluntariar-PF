@@ -2,6 +2,7 @@ import { useParams, useNavigate, Link } from 'react-router';
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Users, CheckCircle, Clock, XCircle, Loader2, DollarSign, BarChart2, MessageCircle, Clock3, Save } from 'lucide-react';
 import { api, Project, EnrollmentWithVolunteer } from '../../lib/api';
+import { useLatestRequest } from '../../lib/useLatestRequest';
 import { MomentsFeed } from './MomentsFeed';
 import { LoadError, describeLoadError } from './LoadError';
 
@@ -17,9 +18,12 @@ export function NGOProjectDetail() {
   const [hoursDraft, setHoursDraft] = useState<Record<string, string>>({});
   const [savingHours, setSavingHours] = useState<string | null>(null);
 
+  // Solo vale la respuesta del último pedido (al cambiar de proyecto, reintentar o recargar tras aprobar): F15, §89.
+  const latest = useLatestRequest();
   useEffect(() => { if (projectId) load(); }, [projectId]);
 
   const load = async () => {
+    const req = latest.start();
     setLoading(true);
     setLoadError(null);
     try {
@@ -27,9 +31,10 @@ export function NGOProjectDetail() {
         api.projects.get(projectId!),
         api.enrollments.byProject(projectId!),
       ]);
+      if (!latest.isLatest(req)) return;
       setProject(p); setEnrollments(e);
-    } catch (e) { setLoadError(describeLoadError(e, 'No encontramos este voluntariado')); }
-    finally { setLoading(false); }
+    } catch (e) { if (latest.isLatest(req)) setLoadError(describeLoadError(e, 'No encontramos este voluntariado')); }
+    finally { if (latest.isLatest(req)) setLoading(false); }
   };
 
   const handle = async (id: string, status: 'approved' | 'rejected') => {
@@ -52,7 +57,7 @@ export function NGOProjectDetail() {
 
   const filtered = filter === 'all' ? enrollments : enrollments.filter(e => e.status === filter);
 
-  if (loading) return <div className="flex items-center justify-center h-screen"><Loader2 className="w-8 h-8 animate-spin text-[#0056B3]" /></div>;
+  if (loading) return <div role="status" aria-label="Cargando voluntariado" className="flex items-center justify-center h-screen"><Loader2 className="w-8 h-8 animate-spin text-[#0056B3]" /></div>;
   if (loadError || !project) return (
     <LoadError message={loadError?.message ?? 'No encontramos este voluntariado'}
       onRetry={loadError?.retry ? load : undefined} home="/ngo/dashboard" />

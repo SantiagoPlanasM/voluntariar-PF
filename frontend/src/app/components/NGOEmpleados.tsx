@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft, Plus, Loader2, Users, X } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router';
 import { api } from '../../lib/api';
+import { useLatestRequest } from '../../lib/useLatestRequest';
 import { useAuth } from '../../lib/AuthContext';
 
 interface Empleado {
@@ -22,19 +23,22 @@ export function NGOEmpleados() {
   const [err, setErr]             = useState('');
   const [form, setForm] = useState({ nombre: '', apellido: '', email: '', rol: 'coordinador' });
 
+  // Solo vale la respuesta del último pedido (al cambiar de :id o recargar tras un alta): REVISION F15, §89.
+  const latest = useLatestRequest();
   useEffect(() => { load(); }, [id]);
 
   const load = async () => {
     if (!id) return;
+    const req = latest.start();
     setLoading(true);
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/ngos/${id}/empleados`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('v_token')}` }
       });
       const data = await res.json();
-      setEmpleados(data.empleados || []);
-    } catch { setEmpleados([]); }
-    finally { setLoading(false); }
+      if (latest.isLatest(req)) setEmpleados(data.empleados || []);
+    } catch { if (latest.isLatest(req)) setEmpleados([]); }
+    finally { if (latest.isLatest(req)) setLoading(false); }
   };
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -132,7 +136,7 @@ export function NGOEmpleados() {
 
         {/* Lista */}
         {loading ? (
-          <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-blue-600" /></div>
+          <div role="status" aria-label="Cargando equipo" className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-blue-600" /></div>
         ) : empleados.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
             <Users className="w-10 h-10 text-gray-200 mx-auto mb-3" />

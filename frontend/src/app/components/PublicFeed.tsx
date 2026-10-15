@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Heart, Users, MapPin, Zap, Calendar, Clock, DollarSign, Sparkles, ArrowRight, Compass, Leaf, Apple, BookOpen, PawPrint, HeartPulse } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { api, Project } from '../../lib/api';
+import { useLatestRequest } from '../../lib/useLatestRequest';
 import { useAuth } from '../../lib/AuthContext';
 import { FeedTabs } from './FeedTabs';
 
@@ -53,22 +54,21 @@ export function PublicFeed() {
 
   useEffect(() => { if (!initializing && !user) load(); }, [cat]);
 
-  // Número del último pedido: load() se llama al cambiar de categoría y al buscar, y las respuestas pueden
-  // llegar en cualquier orden. Solo se aplica la del último pedido (antes una vieja podía pisar a la nueva,
-  // REVISION F15).
-  const lastRequest = useRef(0);
+  // load() se llama al cambiar de categoría y al buscar, y las respuestas pueden llegar en cualquier orden:
+  // solo se aplica la del último pedido (antes una vieja podía pisar a la nueva, REVISION F15).
+  const latest = useLatestRequest();
 
   const load = async () => {
-    const request = ++lastRequest.current;
+    const request = latest.start();
     setLoading(true);
     try {
       const params: Record<string, string> = {};
       if (cat !== 'Todos') params.category = cat;
       if (search.trim())   params.search   = search.trim();
       const { projects } = await api.projects.list(params);
-      if (request === lastRequest.current) setProjects(projects);
-    } catch { if (request === lastRequest.current) setProjects([]); }
-    finally { if (request === lastRequest.current) setLoading(false); }
+      if (latest.isLatest(request)) setProjects(projects);
+    } catch { if (latest.isLatest(request)) setProjects([]); }
+    finally { if (latest.isLatest(request)) setLoading(false); }
   };
 
   // Show nothing while auth is being verified to prevent flashing

@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router';
 import { useState, useEffect } from 'react';
 import { ArrowLeft, MapPin, Loader2, MessageCircle, Building2 } from 'lucide-react';
 import { api, Empresa } from '../../lib/api';
+import { useLatestRequest } from '../../lib/useLatestRequest';
 import { LoadError, describeLoadError } from './LoadError';
 import { useAuth } from '../../lib/AuthContext';
 
@@ -13,20 +14,23 @@ export function CompanyPublicProfile() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<{ message: string; retry: boolean } | null>(null);
 
+  // Solo vale la respuesta del último pedido (al cambiar de :id o reintentar): REVISION F15, §89.
+  const latest = useLatestRequest();
   useEffect(() => { load(); }, [id]);
 
   const load = () => {
     if (!id) return;
+    const req = latest.start();
     setLoading(true);
     setLoadError(null);
     api.empresas.get(id)
-      .then(({ empresa: e }) => setEmpresa(e))
-      .catch((e) => setLoadError(describeLoadError(e, 'No encontramos esta empresa')))
-      .finally(() => setLoading(false));
+      .then(({ empresa: e }) => { if (latest.isLatest(req)) setEmpresa(e); })
+      .catch((e) => { if (latest.isLatest(req)) setLoadError(describeLoadError(e, 'No encontramos esta empresa')); })
+      .finally(() => { if (latest.isLatest(req)) setLoading(false); });
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center h-screen">
+    <div role="status" aria-label="Cargando empresa" className="flex items-center justify-center h-screen">
       <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
     </div>
   );

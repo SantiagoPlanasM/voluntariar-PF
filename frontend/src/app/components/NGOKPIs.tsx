@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, Plus, Trash2, Edit2, X, Save, Loader2, BarChart2, TrendingUp } from 'lucide-react';
 import { api, KPI } from '../../lib/api';
+import { useLatestRequest } from '../../lib/useLatestRequest';
 import { formatDateOnly, userMessage } from '../../lib/format';
 import { InlineError } from './LoadError';
 
@@ -38,20 +39,25 @@ export function NGOKPIs() {
   const emptyForm = { nombre: '', descripcion: '', valor: '', tipo_valor: 'numero', unidad: '', fecha: '' };
   const [form, setForm] = useState(emptyForm);
 
+  // Solo vale la respuesta del último pedido (al cambiar de proyecto, reintentar o recargar tras guardar): F15, §89.
+  const latest = useLatestRequest();
   useEffect(() => {
     if (!projectId) return;
-    api.projects.get(projectId).then(({ project }) => setProjectTitle(project.title || '')).catch(() => {});
+    let cancelled = false; // el título del proyecto anterior no pisa al del actual
+    api.projects.get(projectId).then(({ project }) => { if (!cancelled) setProjectTitle(project.title || ''); }).catch(() => {});
     load();
+    return () => { cancelled = true; };
   }, [projectId]);
 
   const load = async () => {
+    const req = latest.start();
     setLoading(true);
     setLoadError('');
     try {
       const { kpis } = await api.projects.kpis.list(projectId!);
-      setKpis(kpis || []);
-    } catch (e) { setKpis([]); setLoadError(userMessage(e, 'No pudimos cargar los KPIs. Revisá tu conexión.')); } // antes: "Sin KPIs todavía" (F9)
-    finally { setLoading(false); }
+      if (latest.isLatest(req)) setKpis(kpis || []);
+    } catch (e) { if (latest.isLatest(req)) { setKpis([]); setLoadError(userMessage(e, 'No pudimos cargar los KPIs. Revisá tu conexión.')); } } // antes: "Sin KPIs todavía" (F9)
+    finally { if (latest.isLatest(req)) setLoading(false); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -210,7 +216,7 @@ export function NGOKPIs() {
 
         {/* Lista de KPIs */}
         {loading ? (
-          <div className="flex justify-center py-12">
+          <div role="status" aria-label="Cargando KPIs" className="flex justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
           </div>
         ) : loadError ? (

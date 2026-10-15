@@ -2300,3 +2300,28 @@ Además no había `maxPayload` (el default de `ws` es **100 MiB**) y una ráfaga
 
 ### ⚠️ NO verificado
 - `fecha` sigue sin validarse (texto libre en una columna TEXT; el formulario manda `YYYY-MM-DD`).
+
+## 89. F15 en las demás pantallas que cargan por `:id` (pendiente de §83)
+
+**Contexto:** §83 arregló el chat, el feed público y el perfil público de voluntario, y dejó anotadas las demás pantallas que cargan según un parámetro de la URL. Revisadas: **seis sin protección**: `ProjectDetails`, `NGOPublicProfile`, `CompanyPublicProfile`, `NGOProjectDetail` (inscriptos), `NGOKPIs` y `NGOEmpleados`. Todas cargan desde varios lugares (el effect del parámetro, "Reintentar" y recargas después de una acción: inscribirse, comentar, aprobar, guardar un KPI, agregar a alguien al equipo), así que el `cancelled` de un effect no alcanza. **Confirmado con tests antes de tocarlas (rojo 7 de 7):** al pasar de A a B en la misma ruta (otro link o atrás/adelante), si la respuesta de A llegaba última, se mostraba A bajo la URL de B.
+
+**Qué se hizo:**
+- **`lib/useLatestRequest.ts` (nuevo):** `start()` / `isLatest(req)`. Es el patrón de número de pedido de `PublicFeed` (§83), hecho hook para no repetirlo en siete lugares (regla 3). `PublicFeed` pasa a usarlo.
+- En las seis pantallas, `isLatest` antes de cada `set…` del resultado, del error y del fin de carga. `NGOKPIs` además cancela en su effect el pedido del título del proyecto.
+- Los indicadores de carga de las seis tienen `role="status"` con nombre ("Cargando voluntariado", "Cargando organización"…), igual que en §83: lo anuncia un lector de pantalla y el test lo busca por rol.
+- `NGOEmpleados` sigue con su `fetch` directo (deuda conocida, regla 4): solo se le agregó la guarda.
+
+### Tests (nuevos: 19, `StaleResponsesById.test.tsx`)
+Para las seis pantallas, los tres órdenes de llegada: la nueva primero (más un caso de error en el detalle de proyecto), la vieja **falla** al final (no tapa ni vacía la pantalla nueva), y la vieja llega primero con la nueva en vuelo (sigue "cargando", sin datos viejos).
+
+### Verificación
+- **Frontend: 393/393**, también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.**
+- **Mutación (20: el hook y cada guarda de cada pantalla):** la primera corrida, con solo el orden "la nueva primero", dejó **11 sobrevivientes no equivalentes** (todas las guardas de `catch` y `finally` salvo una). Agregué los otros dos órdenes: **0 sobrevivientes**.
+- **En Chrome** (SQLite descartable, como Sustentando), el camino normal de las seis: detalle de proyecto, inscriptos, KPIs, equipo, perfil público de Green Córdoba y de TechCorp. Cargan, sin "undefined" y sin quedarse en "cargando".
+
+### Errores propios
+- Un heredoc de bash con comillas y backticks anidados no se pudo ejecutar (`unexpected EOF`); no llegó a escribir nada (lo comprobé con `git status`). Hice los cambios con la herramienta de edición.
+- La primera versión del test cubría un solo orden de llegada: el mismo error que en §83 (lo mostró de nuevo la mutación).
+
+### ⚠️ NO verificado
+- La carrera en el navegador real (no hay forma de agregar latencia desde la extensión), y el cambio de `:id` sin desmontar en Chrome. Las navegaciones de la extensión recargan la página entera.

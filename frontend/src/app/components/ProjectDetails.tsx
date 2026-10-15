@@ -6,6 +6,7 @@ import {
   Laptop, Globe
 } from 'lucide-react';
 import { api, ProjectDetail } from '../../lib/api';
+import { useLatestRequest } from '../../lib/useLatestRequest';
 import { LoadError, describeLoadError } from './LoadError';
 import { useAuth } from '../../lib/AuthContext';
 import { MomentsGrid } from './MomentsGrid';
@@ -41,9 +42,12 @@ export function ProjectDetails() {
   const [ratingMsg, setRatingMsg] = useState('');
   const [ratingErr, setRatingErr] = useState('');
 
+  // Solo vale la respuesta del último pedido (al cambiar de :id, reintentar o recargar tras una acción): REVISION F15, §89.
+  const latest = useLatestRequest();
   useEffect(() => { if (id) load(id); }, [id]);
 
   const load = async (pid: string) => {
+    const req = latest.start();
     setLoading(true);
     setLoadError(null);
     try {
@@ -51,11 +55,12 @@ export function ProjectDetails() {
         api.projects.get(pid),
         api.follows.projectStatus(pid).catch(() => ({ following: false })),
       ]);
+      if (!latest.isLatest(req)) return;
       setProject(projRes.project);
       setIsFollowing(followRes.following);
     }
-    catch (e) { setLoadError(describeLoadError(e, 'No encontramos este voluntariado')); }
-    finally { setLoading(false); }
+    catch (e) { if (latest.isLatest(req)) setLoadError(describeLoadError(e, 'No encontramos este voluntariado')); }
+    finally { if (latest.isLatest(req)) setLoading(false); }
   };
 
   const handleToggleFollow = async () => {
@@ -120,7 +125,7 @@ export function ProjectDetails() {
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center h-screen">
+    <div role="status" aria-label="Cargando voluntariado" className="flex items-center justify-center h-screen">
       <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
     </div>
   );

@@ -2,6 +2,7 @@ import { useParams, useNavigate, Link } from 'react-router';
 import { useState, useEffect } from 'react';
 import { ArrowLeft, MapPin, Users, Sprout, Loader2, Calendar, MessageCircle, UserPlus, Check } from 'lucide-react';
 import { api, NGO, Project } from '../../lib/api';
+import { useLatestRequest } from '../../lib/useLatestRequest';
 import { LoadError, describeLoadError } from './LoadError';
 import { useAuth } from '../../lib/AuthContext';
 
@@ -25,10 +26,13 @@ export function NGOPublicProfile() {
   const [togglingFollow, setTogglingFollow] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
 
+  // Solo vale la respuesta del último pedido (al cambiar de :id o reintentar): REVISION F15, §89.
+  const latest = useLatestRequest();
   useEffect(() => { load(); }, [id]);
 
   const load = () => {
     if (!id) return;
+    const req = latest.start();
     setLoading(true);
     setLoadError(null);
     Promise.all([
@@ -36,13 +40,14 @@ export function NGOPublicProfile() {
       api.follows.ngoStatus(id).catch(() => ({ following: false })),
     ])
       .then(([{ ngo: n, projects: p }, statusRes]) => {
+        if (!latest.isLatest(req)) return;
         setNgo(n);
         setProjects(p);
         setFollowersCount(n.followers || 0);
         setFollowing(statusRes.following);
       })
-      .catch((e) => setLoadError(describeLoadError(e, 'No encontramos esta organización')))
-      .finally(() => setLoading(false));
+      .catch((e) => { if (latest.isLatest(req)) setLoadError(describeLoadError(e, 'No encontramos esta organización')); })
+      .finally(() => { if (latest.isLatest(req)) setLoading(false); });
   };
 
   const handleToggleFollow = async () => {
@@ -71,7 +76,7 @@ export function NGOPublicProfile() {
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center h-screen">
+    <div role="status" aria-label="Cargando organización" className="flex items-center justify-center h-screen">
       <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
     </div>
   );
