@@ -2495,3 +2495,28 @@ Desarrollo/tests sin variable → valor de desarrollo; con variable → esa; pro
 ### ⚠️ NO verificado / pendiente
 - **No es paginación "de verdad" en la interfaz:** Explorar y el selector de patrocinio siguen pidiendo un bloque grande. Con más de 500 proyectos activos se cortarían. Haría falta "cargar más" en esas pantallas.
 - En Chrome no lo miré: el camino normal (Explorar con `limit=200`) no cambia; lo cubren los tests.
+
+## 97. Guardas de rol en el frontend (deuda conocida, aprobada por el usuario)
+
+**Contexto:** `/ngo/*` y `/company/*` se abrían con cualquier rol o sin sesión. El backend rechazaba los datos, pero la interfaz mostraba un panel vacío (un voluntario en `/ngo/dashboard` veía "No hay proyectos"). Confirmado con tests antes de tocar (rojo en 7 de 9).
+
+**Qué se hizo:**
+- **`components/RequireRole.tsx` (nuevo):** mientras se verifica la sesión muestra "Verificando sesión" (`role="status"`). Sin sesión va al inicio y abre el login. Con otro rol va al inicio de ese rol (`homeFor`: ONG → `/ngo/dashboard`, empresa → `/company/profile`, voluntario → `/feed`; los mismos destinos que el login).
+- `NGOLayout` y `CompanyLayout` envuelven todo en la guarda. Va **dentro del layout** y no en `routes.tsx`, así no cambia el árbol de rutas (lo usa `routes.test.tsx`) y los perfiles públicos `/ngo/:id` y `/company/:id` (bajo `Root`) siguen abiertos para todos.
+- **Cerrar sesión desde el panel no abre el login:** todos los botones hacen `logout(); navigate('/')`. Si el layout llega a dibujarse sin sesión entre las dos cosas, la guarda lo interpretaría como "alguien sin sesión quiere entrar". Recuerda si en ese panel ya hubo sesión y en ese caso solo redirige. Lo encontré pensando el flujo, no por un error; el test que lo cubre dio rojo antes del arreglo.
+- Es solo experiencia de uso: la autorización real sigue en el backend (AI_RULES regla 15).
+
+### Tests (nuevos: 10, `RequireRole.test.tsx`, con los layouts reales)
+ONG y empresa ven su panel; voluntario y la otra organización van a su inicio; sin sesión, al inicio con el login; durante la verificación, "cargando" sin redirigir ni abrir nada; y perder la sesión estando adentro no abre el login.
+
+### Verificación
+- **Frontend: 411/411. Typecheck: 0 errores.** (Backend sin cambios.)
+- **Mutación (6):** sin chequear el rol, sin redirigir sin sesión, sin esperar la verificación, abrir el login aunque se haya cerrado sesión, no abrirlo nunca, y el destino de la empresa cambiado: **los 6 mueren**.
+- **En Chrome** (SQLite descartable): visitante en `/ngo/dashboard` → `/` con el diálogo "Iniciar sesión"; María (voluntaria) en `/ngo/dashboard` y `/company/dashboard` → `/feed`; María en `/ngo/ngo-1` (perfil público) → lo ve; Sustentando en `/ngo/dashboard` → su panel; "Cerrar sesión" desde el menú lateral → `/`, **sin** diálogo, y la barra muestra "Entrar".
+
+### Errores propios
+- Ninguno en esta tarea.
+
+### ⚠️ NO verificado
+- Los botones de cerrar sesión del menú inferior (móvil) usan `window.confirm`, que bloquea la extensión de Chrome: no los probé ahí. Hacen lo mismo que el lateral (`logout(); navigate('/')`).
+- Un usuario de una empresa en el panel de ONG: lo cubre el test. En Chrome probé voluntaria y visitante.

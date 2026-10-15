@@ -58,11 +58,11 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 | `/ngo/:id` | `NGOPublicProfile` | `Root` | público |
 | `/company/:id` | `CompanyPublicProfile` | `Root` | público |
 | `/ngo/dashboard` | `NGODashboard` | `NGOLayout` | ngo |
-| `/ngo/create` | `CreateVoluntariado` | `NGOLayout` | ngo (sin guarda en frontend) |
+| `/ngo/create` | `CreateVoluntariado` | `NGOLayout` | ngo (guarda `RequireRole` en el layout, §97) |
 | `/ngo/dashboard/project/:id` | `NGOProjectDetail` | `NGOLayout` | ngo |
 | `/ngo/profile` | `NGOOwnProfile` | `NGOLayout` | ngo |
 | `/ngo/patrocinios` | `NGOPatrocinios` | `NGOLayout` | ngo |
-| `/ngo/momentos` | `NGOMoments` | `NGOLayout` | ngo (sin guarda en frontend) |
+| `/ngo/momentos` | `NGOMoments` | `NGOLayout` | ngo (guarda `RequireRole` en el layout, §97) |
 | `/ngo/empleados/:id` | `NGOEmpleados` | `NGOLayout` | ngo |
 | `/ngo/kpis/:projectId` | `NGOKPIs` | `NGOLayout` | ngo |
 | `/ngo/messages` | `MessagesScreen` | `NGOLayout` | ngo |
@@ -307,7 +307,7 @@ Limitado a `AuthContext`. No hay estado global de UI (temas, filtros persistente
 1. **`OnboardingScreen.tsx` no está enrutado** — código muerto, o una ruta que falta agregar (ambigüedad a resolver con el dueño del proyecto antes de borrar el archivo).
 2. **`NGOEmpleados.tsx` evita `api.ts`** — sigue pendiente (ver §4/§7).
 3. **Dos componentes de reseña que hacen lo mismo** (`ReviewModal.tsx` vs `ReviewsModal.tsx`) — ver nota en §4. Candidato a consolidar antes de que alguien edite uno pensando que corrige los dos.
-4. **Sin guardas de rol/ruta en el frontend**: cualquier usuario (incluso sin sesión) puede navegar a `/ngo/*` o `/company/*` y ver la UI (los `fetch` internos fallarán con 401/403 del backend y se mostrará un error, pero la experiencia no es una redirección limpia).
+4. ~~**Sin guardas de rol/ruta en el frontend**~~ — **resuelto en `PROJECT_ANALYSIS.md §97`**: `NGOLayout` y `CompanyLayout` envuelven todo en `<RequireRole role=…>` (`components/RequireRole.tsx`). Mientras se verifica la sesión, "cargando"; sin sesión, al inicio con el login abierto; con otro rol, al inicio de ese rol (`homeFor`). Al cerrar sesión desde el panel no se abre el login. Es solo experiencia de uso: la autorización sigue en el backend (regla 15).
 5. **Sin paginación real en `ExploreScreen.tsx`**: pide el catálogo completo con un `limit` alto fijo (`200`) en vez de "cargar más"/scroll infinito — funciona hoy, pero no escala indefinidamente si el catálogo de proyectos crece mucho. Ver `PROJECT_ANALYSIS.md §29` bug 4.
 6. **Validaciones duplicadas** (regex de email/password/nombre en `AuthModal.tsx`, lista de palabras en `lib/badWords.ts`, con su igualdad controlada por un test del backend desde §93) que deben mantenerse sincronizadas con el backend.
 7. **Sin manejo centralizado de expiración de sesión** — un 401 en medio de la navegación no redirige consistentemente al login en todas las pantallas.
@@ -316,7 +316,7 @@ Limitado a `AuthContext`. No hay estado global de UI (temas, filtros persistente
 ## 16. Posibles mejoras
 
 - Extraer un hook `useApi()`/`useFetch()` genérico (loading/error/data) para eliminar la repetición de los tres `useState` en cada pantalla.
-- Agregar un componente `<ProtectedRoute role="ngo">` (y equivalente para `company`) que envuelva las rutas de `NGOLayout`/`CompanyLayout` y redirija limpiamente si el rol no coincide, en vez de depender solo del rechazo del backend.
+- ~~Agregar un componente `<ProtectedRoute role="ngo">`~~ — hecho como `RequireRole` (§97).
 - Crear una pequeña librería de componentes UI compartidos (`Button`, `Input`, `Card`, `Spinner`, `ErrorBanner`) para reducir la duplicación de clases Tailwind.
 - Migrar `NGOEmpleados.tsx` a `api.ts` (agregar el namespace `empleados` que falta).
 - Consolidar `ReviewModal.tsx` y `ReviewsModal.tsx` en un solo componente.

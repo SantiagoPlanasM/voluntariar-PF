@@ -226,7 +226,7 @@ Ver diagrama de secuencia completo en `BACKEND_CONTEXT.md §4`.
 - **Riesgo de duplicación de helpers de formateo entre routers** — ya pasó dos veces (`follows.js` y `ngos.js` con copias desincronizadas de `fmtProject`, ver `PROJECT_ANALYSIS.md §29`). Se resolvió exportando `fmt` desde `projects.js`, pero cualquier router nuevo que devuelva proyectos tiene que acordarse de importarlo, no copiarlo.
 - Lógica de negocio y validaciones duplicadas en frontend y backend (regex de email/nombre/password, blacklist de palabras) sin una fuente única de verdad — mantenerlas sincronizadas es manual.
 - `NGOEmpleados.tsx` evita el cliente `api.ts` y reimplementa fetch + auth header a mano (ver §7).
-- Falta de guardas de rol en el frontend para las rutas `/ngo/*` y `/company/*` — cualquier usuario autenticado (o no autenticado) puede navegar a esas URLs; solo el backend rechaza las acciones.
+- ~~Falta de guardas de rol en el frontend para las rutas `/ngo/*` y `/company/*`~~ — **resuelto en `PROJECT_ANALYSIS.md §97`** (`RequireRole` en los layouts).
 - Dependencia de un plan gratuito de Render con expiración de base de datos a los 90 días y "sleep" tras 15 minutos de inactividad — aceptable para una demo académica, no para producción real.
 
 ## 15. Deuda técnica encontrada (resumen — detalle en `PROJECT_ANALYSIS.md`)
