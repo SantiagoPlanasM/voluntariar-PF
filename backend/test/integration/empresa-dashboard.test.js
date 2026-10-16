@@ -124,6 +124,8 @@ describe('Dashboard de Empresa (KPIs de patrocinio)', () => {
         token: ngo1, method: 'PATCH', body: { estado: 'aceptado' },
       });
       assert.equal(d.status, 200, `aceptar ${project_id}`);
+      // "Propuesta" es femenino: antes decía "Propuesta aceptado" (§151).
+      assert.equal(d.body.message, 'Propuesta aceptada');
     }
 
     const r = await dashboard(techcorp);
@@ -146,6 +148,7 @@ describe('Dashboard de Empresa (KPIs de patrocinio)', () => {
       token: ngo3, method: 'PATCH', body: { estado: 'rechazado' },
     });
     assert.equal(d.status, 200);
+    assert.equal(d.body.message, 'Propuesta rechazada');
 
     const r = await dashboard(techcorp);
     assert.deepEqual(r.body.stats, { sponsored_projects: 2, pending_proposals: 0, rejected_proposals: 1 });

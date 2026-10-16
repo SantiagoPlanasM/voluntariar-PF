@@ -374,7 +374,7 @@
 - `409` si la propuesta ya fue decidida antes (no se puede revertir una decisión por acá).
 - **Concurrencia (`PROJECT_ANALYSIS.md §77`):** el `UPDATE` es compare-and-swap (`... AND estado='propuesto'`). Si dos decisiones llegan a la vez, solo una cambia la fila (200); la otra responde el mismo `409` y no notifica.
 - Notifica a la empresa (in-app + email), solo la decisión que ganó.
-- **Respuesta 200:** `{ message }`, armado como `` `Propuesta ${estado}` ``: sale **"Propuesta aceptado"** / **"Propuesta rechazado"** (falla de concordancia del texto; `NGOPatrocinios.tsx` descarta la respuesta y no lo muestra).
+- **Respuesta 200:** `{ message }`: **"Propuesta aceptada"** o **"Propuesta rechazada"** según `estado` (antes interpolaba el valor de la DB y decía "Propuesta aceptado"/"rechazado"; `PROJECT_ANALYSIS.md §153`). `NGOPatrocinios.tsx` descarta la respuesta y no lo muestra.
 
 ---
 

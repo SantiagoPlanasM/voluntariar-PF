@@ -477,7 +477,8 @@ router.patch('/me/patrocinios/:empresaId/:projectId', requireAuth, requireRole('
     });
     sendEmail({ to: patrocinio.empresa_email, subject, html }).catch(() => {});
 
-    res.json({ message: `Propuesta ${estado}` });
+    // "Propuesta" es femenino; `estado` es el valor de la DB (masculino), no el texto (§151).
+    res.json({ message: estado === 'aceptado' ? 'Propuesta aceptada' : 'Propuesta rechazada' });
   } catch (err) {
     console.error('PATCH /ngos/me/patrocinios/:empresaId/:projectId error:', err);
     res.status(500).json({ error: 'Error al actualizar propuesta' });

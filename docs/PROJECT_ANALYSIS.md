@@ -4238,3 +4238,22 @@ Re-calificar sigue pisando nota y comentario (el comentario omitido queda en `nu
 
 ### Otros hallazgos (no arreglados, regla 16)
 - `frontend/src/app/components/MyParticipationReview.test.tsx:37` mockea `api.projects.rate` con `{ rating: {} }`, que no es la forma real (`{ message }`); ningún componente lee el cuerpo, así que hoy no esconde nada, pero el mock contradice el contrato (la doc vieja decía `201 { rating }`, corregida en §104).
+
+## 153. Patrocinio: "Propuesta aceptada" / "Propuesta rechazada" (aprobado por el usuario)
+
+**Qué se hizo:** `PATCH /api/ngos/me/patrocinios/:empresaId/:projectId` (el pedido decía `PUT`: es `PATCH`) respondía `` { message: `Propuesta ${estado}` } ``, que interpola el valor de la DB (`aceptado`/`rechazado`, masculino): "Propuesta aceptado". Ahora elige el texto según el estado: **"Propuesta aceptada"** / **"Propuesta rechazada"**. El frontend no muestra ni compara ese mensaje (`NGOPatrocinios.tsx` descarta la respuesta de `api.ngos.patrocinios.decide`; grep de "Propuesta" en `frontend/src`: solo títulos y KPIs que no tienen que ver), así que no cambia.
+
+### Tests (ninguno nuevo; 2 aserciones nuevas y 1 cambiada)
+- `empresa-dashboard.test.js`: al aceptar, `message` = "Propuesta aceptada"; al rechazar, "Propuesta rechazada". **Rojo de comportamiento:** llegaba "Propuesta aceptado"/"Propuesta rechazado".
+- `follows-sponsorship-concurrency.test.js` fijaba el texto viejo (`` `Propuesta ${final}` ``): ahora espera el femenino según el estado guardado.
+
+### Verificación
+- SQLite **592/592**, también con `TZ=America/Argentina/Cordoba`; 0 cancelled, salida 0.
+- Postgres **594/594** sin TZ y con TZ Córdoba, salida 0. La primera corrida dio fallas solo en `db-transaction.test.js` (2 sin TZ: "colgada de una promesa…" y "AISLAMIENTO…"; 1 con TZ: "colgada…"), con el Postgres compartido con otros agentes; repetidas: **594/594** las dos. Es el test frágil ya anotado en §142–§146.
+- **Mutación (7)**, control sin mutar primero: `!==`, condición siempre `true`/`false`, `'aceptado'` → `''`, cada texto vacío y la vuelta al template viejo. **Mueren los 7.** Archivo restaurado byte a byte.
+
+### Errores propios
+- Ninguno que haya llegado al código.
+
+### ⚠️ NO verificado
+- Nada visual (el mensaje no se muestra en ninguna pantalla). Postgres en prod (Render).

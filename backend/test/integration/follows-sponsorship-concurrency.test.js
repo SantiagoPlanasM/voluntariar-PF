@@ -137,7 +137,8 @@ describe('Concurrencia en follows y en la decisión de patrocinio', () => {
       assert.ok(rs.every((r) => r.status === 200 || r.status === 409), statuses(rs));
 
       const final = await estado('proj-1');
-      assert.equal(ok[0].body.message, `Propuesta ${final}`, 'el estado guardado es el de la decisión que respondió 200');
+      const esperado = final === 'aceptado' ? 'Propuesta aceptada' : 'Propuesta rechazada';
+      assert.equal(ok[0].body.message, esperado, 'el estado guardado es el de la decisión que respondió 200');
       const notifs = await decisionNotifs('proj-1');
       assert.equal(notifs.length, 1, 'la empresa recibe una sola notificación');
       assert.equal(notifs[0].type, final === 'aceptado' ? 'sponsor_accepted' : 'sponsor_rejected');
