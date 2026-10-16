@@ -39,6 +39,38 @@ function fmtNgo(n) {
   };
 }
 
+// ── Proyectos de una ONG, ya formateados ──────────────────────────────────
+// REVISION A1: GET /api/ngos/:id tenía un SELECT propio de 8 campos (sin duration ni hours_per_week: un
+// sostenido mostraba "h/semana" sin número en NGOPublicProfile) y el JOIN con categorías repetía el proyecto
+// que tuviera dos. Ahora, la misma forma que GET /api/projects: fmt (lista blanca, regla 8) con las mismas
+// columnas extra (ONG, rating) y roles/requisitos/categoría en 3 consultas fijas.
+// REVISION B4: lo usan también GET /api/ngos/me (antes `SELECT * FROM projects`: sin categoría, roles ni
+// requisitos) y GET /api/ngos/:id/projects (antes la categoría con alias `category`, que fmt no lee: salía '';
+// y el mismo JOIN duplicado). `status` opcional: el filtro de /:id/projects.
+async function ngoProjects(ngoId, status) {
+  const params = [ngoId];
+  let where = 'p.ngo_id=$1';
+  if (status) { where += ' AND p.status=$2'; params.push(status); }
+  const projects = await db.all(
+    `SELECT p.*, n.nombre AS ngo_name, n.foto_perfil AS ngo_logo,
+            COALESCE(n.followers, 0) AS ngo_followers,
+            COALESCE(r.avg_rating, 0) AS avg_rating,
+            COALESCE(r.ratings_count, 0) AS ratings_count
+     FROM projects p
+     JOIN ngos n ON n.id = p.ngo_id
+     LEFT JOIN (
+       SELECT project_id, AVG(rating) AS avg_rating, COUNT(*) AS ratings_count
+       FROM ratings
+       GROUP BY project_id
+     ) r ON r.project_id = p.id
+     WHERE ${where}
+     ORDER BY p.created_at DESC, p.id`,
+    params
+  );
+  await attachAssoc(db, projects);
+  return projects.map(fmtProject);
+}
+
 // ── GET /api/ngos ─────────────────────────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
@@ -70,10 +102,8 @@ router.get('/me', requireAuth, requireRole('ngo'), async (req, res) => {
     );
     if (!ngo) return res.status(404).json({ error: 'Perfil ONG no encontrado' });
 
-    const projects = await db.all(
-      'SELECT * FROM projects WHERE ngo_id=$1 ORDER BY created_at DESC',
-      [ngo.id]
-    );
+    // REVISION B4: la misma forma que GET /api/projects y el perfil público (ver ngoProjects).
+    const projects = await ngoProjects(ngo.id);
 
     // Stats calculadas en SQL
     const statsRow = await db.get(
@@ -113,7 +143,7 @@ router.get('/me', requireAuth, requireRole('ngo'), async (req, res) => {
       pending_enrollments: pendingEnrollments.length,
     };
 
-    res.json({ ngo: fmtNgo(ngo), projects: projects.map(fmtProject), stats, pending_enrollments: pendingEnrollments });
+    res.json({ ngo: fmtNgo(ngo), projects, stats, pending_enrollments: pendingEnrollments });
   } catch (err) {
     console.error('GET /ngos/me error:', err);
     res.status(500).json({ error: 'Error al obtener perfil' });
@@ -133,29 +163,7 @@ router.get('/:id', async (req, res) => {
     );
     if (!ngo) return res.status(404).json({ error: 'ONG no encontrada' });
 
-    // REVISION A1: antes era un SELECT propio de 8 campos (sin duration ni hours_per_week: un sostenido mostraba
-    // "h/semana" sin número en NGOPublicProfile) y el JOIN con categorías repetía el proyecto que tuviera dos.
-    // Ahora, la misma forma que GET /api/projects: fmt (lista blanca, regla 8) con las mismas columnas extra
-    // (ONG, rating) y roles/requisitos/categoría en 3 consultas fijas.
-    const projects = await db.all(
-      `SELECT p.*, n.nombre AS ngo_name, n.foto_perfil AS ngo_logo,
-              COALESCE(n.followers, 0) AS ngo_followers,
-              COALESCE(r.avg_rating, 0) AS avg_rating,
-              COALESCE(r.ratings_count, 0) AS ratings_count
-       FROM projects p
-       JOIN ngos n ON n.id = p.ngo_id
-       LEFT JOIN (
-         SELECT project_id, AVG(rating) AS avg_rating, COUNT(*) AS ratings_count
-         FROM ratings
-         GROUP BY project_id
-       ) r ON r.project_id = p.id
-       WHERE p.ngo_id=$1
-       ORDER BY p.created_at DESC, p.id`,
-      [req.params.id]
-    );
-    await attachAssoc(db, projects);
-
-    res.json({ ngo: fmtNgo(ngo), projects: projects.map(fmtProject) });
+    res.json({ ngo: fmtNgo(ngo), projects: await ngoProjects(req.params.id) });
   } catch (err) {
     console.error('GET /ngos/:id error:', err);
     res.status(500).json({ error: 'Error al obtener ONG' });
@@ -249,21 +257,10 @@ router.put('/me', requireAuth, requireRole('ngo'), async (req, res) => {
 // ── GET /api/ngos/:id/projects ────────────────────────────────────────────
 router.get('/:id/projects', async (req, res) => {
   try {
-    const { status } = req.query;
-    let sql = `
-      SELECT p.*, COALESCE(c.nombre,'') AS category
-      FROM projects p
-      LEFT JOIN project_categorias pc ON pc.project_id = p.id
-      LEFT JOIN categorias c ON c.id = pc.categoria_id
-      WHERE p.ngo_id=$1
-    `;
-    const params = [req.params.id];
-    if (status) { sql += ' AND p.status=$2'; params.push(status); }
-    sql += ' ORDER BY p.created_at DESC';
-
-    const projects = await db.all(sql, params);
     // Antes devolvía las filas crudas (solo con nombres de columna en español). Ninguna pantalla lo usa hoy.
-    res.json({ projects: projects.map(fmtProject) });
+    // REVISION B4: la misma forma que GET /api/projects (ver ngoProjects); antes salía `category: ''`.
+    const { status } = req.query;
+    res.json({ projects: await ngoProjects(req.params.id, status) });
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener proyectos de ONG' });
   }

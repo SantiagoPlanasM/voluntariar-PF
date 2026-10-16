@@ -3979,3 +3979,36 @@ No se tocó código; el razonamiento quedó en `REVISION.md`.
 - `"0x10"` se rechaza como entero, pero como coordenada `Number("0x10")` vale 16 y se acepta. Lo dejé así.
 - `toStrictInt` acepta ceros a la izquierda (`"007"` → 7).
 - No lo vi en el navegador.
+
+## 144. Panel de la ONG: los proyectos con la forma del listado — REVISION B4
+
+### Contexto
+`GET /api/ngos/me` armaba sus proyectos con `SELECT * FROM projects WHERE ngo_id=$1`: sin JOIN a categorías ni roles/requisitos, así que `fmt` devolvía `category: ''`, `roles_needed: []`, `requirements: []`, sin `ngo_name`/`ngo_logo`, `ngo_followers: 0` y `avg_rating: null`/`ratings_count: 0` aunque hubiera reseñas. `NGODashboard` muestra `{p.category} · Fugaz` (salía " · Fugaz") y `NGOOwnProfile` muestra `p.category` (salía vacío). `GET /api/ngos/:id/projects` traía la categoría con el alias `category`, que `fmt` no lee (lee `category_name`/`categoria`): también `''`, y el `LEFT JOIN project_categorias` repetía el proyecto que tuviera dos categorías. Es el mismo problema que A1 (§134) resolvió en `GET /api/ngos/:id`. Reglas 4, 7 y 10 (mismo recurso, misma forma) y 2 (no cambiar claves que lee el frontend).
+
+### Qué se hizo
+- `backend/src/routes/ngos.js`: la consulta de §134 (proyectos + ONG + rating, `ORDER BY p.created_at DESC, p.id`, `attachAssoc` para roles/requisitos/categoría, `fmt`) pasó a una función `ngoProjects(ngoId, status?)`. La usan los tres endpoints: `GET /api/ngos/:id` (sin cambio de comportamiento), `GET /api/ngos/me` y `GET /api/ngos/:id/projects` (con el filtro `?status=` como antes).
+- No se tocaron `projects.js`, `auth.js` ni `lib/projectAssoc.js`. No cambió ninguna clave: `fmt` ya era el formateador; ahora las claves traen valores (y se suman `ngo_name`/`ngo_logo`, que el tipo `Project` ya declara como opcionales). El frontend no necesitó cambios.
+- Orden: `/me` y `/:id/projects` ordenaban solo por `created_at DESC`; ahora desempatan por `id` como el perfil público y el listado.
+
+### Tests (nuevos: 7, más 2 aserciones en un test existente)
+- `backend/test/integration/ngo-own-projects-shape.test.js` (7): `/ngos/me` y `/ngos/:id/projects` iguales (campos y valores, `deepEqual`) al mismo proyecto en `GET /api/projects`, con roles, requisitos, categoría y reseñas no vacíos; los tres endpoints de la ONG con los mismos proyectos en el mismo orden; un proyecto con dos categorías aparece una sola vez en `/ngos/:id/projects` y en `/ngos/me`; `?status=` sigue filtrando (completed/active) con la misma forma; ONG sin proyectos → `[]`; con la misma fecha desempata por id (insertados al revés del orden de los ids).
+- `public-columns.test.js` (regla 8): `GET /api/ngos/:id/projects` ya estaba en los públicos del centinela; se agregó el chequeo de claves que espera el frontend (`PROJECT` + `duration`, `hours_per_week`, `ngo_name`) para `/ngos/:id/projects` y para los proyectos de `/ngos/me`.
+- Rojo de comportamiento antes del cambio (SQLite): `category: ''` y listas vacías en los dos endpoints, `proj-1` repetido en `/ngos/:id/projects` (`proj-5, proj-7, proj-1, proj-1`), `category` vacía con `?status=completed`, y "falta ngo_name" en public-columns.
+
+### Verificación
+- Backend SQLite: `npm test` → 561 pass, 0 fail, 0 cancelled, exit 0 (base 554 + 7). Con `TZ=America/Argentina/Cordoba`: 561/0/0, exit 0.
+- Backend Postgres: `npm run test:pg` → 563 pass, 0 fail, 0 cancelled, exit 0 (base 556 + 7). Con `TZ=America/Argentina/Cordoba`: una corrida dio 2 fallos y otra 1, siempre en `db-transaction.test.js` (tests de tiempos con `sleep(20)`/`sleep(15)`: "una llamada db.* colgada… sí funciona" y "AISLAMIENTO…"), que no tocan las ONGs; ese archivo solo dio 12/12 cinco veces seguidas (3 con TZ, 2 sin) y la tercera corrida completa con TZ dio 563/0/0, exit 0. Lo atribuyo a carga en el Postgres compartido (otras tareas corrían a la vez); no lo investigué más.
+- Frontend (sin cambios): `npm test` → 560 pass (60 archivos); `npm run typecheck` → 0 errores.
+
+### Mutación
+Script descartable sobre `ngoProjects` y sus dos llamadas nuevas (12 mutantes), contra `ngo-own-projects-shape`, `ngo-profile-projects-shape` y `public-columns`, en SQLite y en Postgres; control sin mutar verde en los dos, archivo restaurado byte a byte en `finally`.
+- Muertos 10/12 en los dos motores: sin filtro de status, `<>` en vez de `=`, sin `push` del status, sin `attachAssoc`, orden ASC, sin desempate por id (sobrevivía en la primera corrida: se agregó el test de desempate), sin `ngo_name`, `/me` con `user_id`, `/:id/projects` sin status, `/:id/projects` con status fijo.
+- Sobrevivieron 2, equivalentes: `COALESCE(r.avg_rating, 0)` → `r.avg_rating` (`fmt` convierte `null` y `0` en `null`), y `JOIN ngos` → `LEFT JOIN ngos` (`projects.ngo_id` es `NOT NULL REFERENCES ngos(id)` y se filtra por `ngo_id`: no puede haber proyecto sin ONG).
+
+### Errores propios
+- La primera tanda de mutación dejó vivo el desempate por id (los tests de orden usaban fechas distintas); lo maté con un test que inserta tres proyectos con la misma fecha al revés del orden de los ids.
+
+### ⚠️ NO verificado
+- Lo visual: que `NGODashboard` muestre "Medio Ambiente · Fugaz" y `NGOOwnProfile` la categoría de cada proyecto (no puedo ver la interfaz; no hay test de componente que lo cubra).
+- `GET /api/ngos/:id/dashboard` tiene el mismo `SELECT * FROM projects` (mismas listas vacías y `category: ''`). Quedó afuera porque la tarea nombraba dos endpoints; ningún componente lo llama hoy (`api.ts` no lo expone). Pasarlo a `ngoProjects` es una línea: queda para decidir.
+- Postgres en prod (Render): no verificado.

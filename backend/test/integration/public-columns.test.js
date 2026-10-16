@@ -116,7 +116,11 @@ describe('Endpoints públicos: solo columnas elegidas (regla 8)', () => {
       has(ngoProfile.ngo, NGO, 'GET /ngos/:id');
       // REVISION A1: los proyectos del perfil público salen por fmt (antes, un SELECT de 8 campos).
       has(ngoProfile.projects[0], [...PROJECT, 'duration', 'hours_per_week', 'ngo_name'], 'GET /ngos/:id (proyectos)');
-      has((await call('/api/ngos/me', await login('admin@sustentando.org'))).ngo, NGO, 'GET /ngos/me');
+      // REVISION B4: /ngos/:id/projects y /ngos/me, con la misma forma (antes sin categoría, roles ni requisitos).
+      has((await call('/api/ngos/ngo-1/projects')).projects[0], [...PROJECT, 'duration', 'hours_per_week', 'ngo_name'], 'GET /ngos/:id/projects');
+      const ngoMe = await call('/api/ngos/me', await login('admin@sustentando.org'));
+      has(ngoMe.ngo, NGO, 'GET /ngos/me');
+      has(ngoMe.projects[0], [...PROJECT, 'duration', 'hours_per_week', 'ngo_name'], 'GET /ngos/me (proyectos)');
       const empresa = (await call('/api/empresas')).empresas[0];
       has(empresa, EMPRESA, 'GET /empresas');
       has((await call(`/api/empresas/${empresa.id}`)).empresa, EMPRESA, 'GET /empresas/:id');
