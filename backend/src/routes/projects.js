@@ -4,7 +4,7 @@ const db = require('../db');
 const { requireAuth, optionalAuth, requireRole } = require('../middleware/auth');
 const { randomUUID } = require('node:crypto');
 const { toMillis } = require('../lib/time');
-const { checkText, firstError, clampInt } = require('../lib/inputs');
+const { checkText, firstError, clampInt, toStrictInt } = require('../lib/inputs');
 const { hasBadWord } = require('../lib/badWords');
 
 const router = express.Router();
@@ -109,11 +109,33 @@ const MAX_HORAS_SEMANALES = 168;
 
 // Campos de texto del body (alta y edición): si vienen y no son null, tienen que ser string. Antes un número
 // o un objeto reventaba en `.trim()`/`.toLowerCase()` (500) o se guardaba tal cual (REVISION A3).
+// Largos máximos (B3; antes no había): el título, 80, lo que anuncia CreateVoluntariado ("n/80 caracteres"). El
+// resto no tiene límite en el frontend: descripción 1000, descripción completa 5000, ubicación 150 (la de perfiles),
+// duración 100 e imagen 1000 (la de logos y avatares). Solo se mira lo que viene en el body: en el PUT, un valor
+// viejo más largo no impide editar otros campos.
 const PROJECT_TEXT_FIELDS = [
-  ['title', 'El título'], ['description', 'La descripción'], ['location', 'La ubicación'],
-  ['full_description', 'La descripción completa'], ['image', 'La imagen'], ['duration', 'La duración'],
+  ['title', 'El título', 80], ['description', 'La descripción', 1000], ['location', 'La ubicación', 150],
+  ['full_description', 'La descripción completa', 5000], ['image', 'La imagen', 1000], ['duration', 'La duración', 100],
 ];
-const projectTextError = (b) => firstError(...PROJECT_TEXT_FIELDS.map(([k, label]) => checkText(b[k], { label, max: Infinity })));
+const projectTextError = (b) => firstError(...PROJECT_TEXT_FIELDS.map(([k, label, max]) => checkText(b[k], { label, max })));
+
+// modality y modalidad (alta y edición): si vienen y no están vacías, de la lista. Antes el PUT no lo miraba y un
+// objeto daba 500 en SQLite (B3).
+const modalityError = (b) => ([b.modality, b.modalidad].some((m) => m != null && m !== '' && !MODALITIES.includes(m))
+  ? 'Modalidad inválida: tiene que ser presencial, remoto o hibrido' : null);
+
+// Una coordenada del body: null o '' = sin coordenada; si no, número (o texto numérico) finito en [-lim, lim].
+// Antes `parseFloat`: "abc" o {} quedaban null sin aviso y 500 se guardaba (B3).
+function parseCoord(value, label, lim) {
+  if (value === null || value === '') return { value: null };
+  // Number('  ') es 0: un texto en blanco no es una coordenada.
+  const n = typeof value === 'number' || (typeof value === 'string' && value.trim() !== '') ? Number(value) : NaN;
+  // NaN e ±Infinity no pasan el rango (NaN >= x es false), así que no hace falta Number.isFinite.
+  return n >= -lim && n <= lim
+    ? { value: n } : { error: `${label} tiene que ser un número entre -${lim} y ${lim}` };
+}
+const parseLat = (v) => parseCoord(v, 'La latitud', 90);
+const parseLng = (v) => parseCoord(v, 'La longitud', 180);
 
 // Un monto del body: null o '' = 0; si no, número finito >= 0 (antes un negativo daba 500 por el CHECK de la
 // base y "abc" se guardaba como 0). Lo usan el alta y la edición.
@@ -130,13 +152,18 @@ function validateProject(body) {
   if (!description?.trim() || description.trim().length < 10) return 'La descripción debe tener al menos 10 caracteres';
   if (!location?.trim())                                return 'La ubicación es obligatoria (podés poner "Remoto")';
   if (tipo === 'fugaz' && !duracion?.trim())            return 'La duración es obligatoria para proyectos fugaces';
+  // Cupos y horas: enteros estrictos (toStrictInt; antes parseInt leía 3.7 como 3 y "1e21" como 1, B3).
   if (tipo === 'sostenido') {
-    const h = parseInt(horas_semanales);
-    if (!horas_semanales || isNaN(h) || h < 1)         return 'Las horas semanales deben ser un número positivo';
+    const h = toStrictInt(horas_semanales);
+    if (!horas_semanales)                               return 'Las horas semanales deben ser un número positivo';
+    if (Number.isNaN(h))                                return 'Las horas semanales tienen que ser un número entero';
+    if (h < 1)                                          return 'Las horas semanales deben ser un número positivo';
     if (h > MAX_HORAS_SEMANALES)                        return `Las horas semanales pueden ser hasta ${MAX_HORAS_SEMANALES}`;
   }
-  const v = parseInt(volunteers_needed);
-  if (!volunteers_needed || isNaN(v) || v < 1)         return 'Los cupos deben ser un número positivo';
+  const v = toStrictInt(volunteers_needed);
+  if (!volunteers_needed)                               return 'Los cupos deben ser un número positivo';
+  if (Number.isNaN(v))                                  return 'Los cupos tienen que ser un número entero';
+  if (v < 1)                                            return 'Los cupos deben ser un número positivo';
   if (v > MAX_CUPOS)                                    return `Los cupos pueden ser hasta ${MAX_CUPOS}`;
   return null;
 }
@@ -800,9 +827,13 @@ router.post('/', requireAuth, requireRole('ngo'), async (req, res) => {
       horas_semanales: hours_per_week, volunteers_needed
     });
     if (err) return res.status(400).json({ error: err });
-    for (const m of [modality, modalidad])
-      if (m != null && m !== '' && !MODALITIES.includes(m))
-        return res.status(400).json({ error: 'Modalidad inválida: tiene que ser presencial, remoto o hibrido' });
+    const modErr = modalityError(req.body);
+    if (modErr) return res.status(400).json({ error: modErr });
+    // Coordenadas: `latitude` o, si no viene (o es null), `latitud`; ausentes = sin coordenadas.
+    const lat = parseLat(latitude ?? latitud ?? null);
+    if (lat.error) return res.status(400).json({ error: lat.error });
+    const lng = parseLng(longitude ?? longitud ?? null);
+    if (lng.error) return res.status(400).json({ error: lng.error });
     const meta = funding_goal === undefined ? { value: 0 } : parseMoney(funding_goal, 'La meta de financiamiento');
     if (meta.error) return res.status(400).json({ error: meta.error });
     const costo = cost_per_person === undefined ? { value: 0 } : parseMoney(cost_per_person, 'El costo por persona');
@@ -817,9 +848,6 @@ router.post('/', requireAuth, requireRole('ngo'), async (req, res) => {
     if (category != null && (typeof category !== 'string' || category.trim().length > 60))
       return res.status(400).json({ error: 'Categoría inválida' });
     const categoryName = category?.trim() || '';
-
-    const lat = latitude != null ? parseFloat(latitude) : (latitud != null ? parseFloat(latitud) : null);
-    const lng = longitude != null ? parseFloat(longitude) : (longitud != null ? parseFloat(longitud) : null);
 
     // El id se genera acá (UUID v4: mismo formato que el default de la base en ambos motores) y se
     // usa para releer la fila y para todas las asociaciones. Antes se hacía el INSERT y después
@@ -840,10 +868,10 @@ router.post('/', requireAuth, requireRole('ngo'), async (req, res) => {
          VALUES ($1,$2,$3,$4,$5,$6,$7,'active',$8,$9,$10,0,$11,0,$12,$13,$14,$15,$16)`,
         [projectId, ngo.id, title.trim(), description.trim(), full_description?.trim() || null,
          image || null, tipo, location.trim(), duration?.trim() || null,
-         parseInt(volunteers_needed) || 0, meta.value,
+         toStrictInt(volunteers_needed), meta.value,
          costo.value,
-         tipo === 'sostenido' ? parseInt(hours_per_week) : null,
-         lat, lng, mod]
+         tipo === 'sostenido' ? toStrictInt(hours_per_week) : null,
+         lat.value, lng.value, mod]
       );
 
       // Categoría y roles: se crean en el catálogo si no existen (ON CONFLICT: otra alta concurrente
@@ -911,7 +939,17 @@ router.put('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
     const invalid = validateProject({ title: m.titulo, description: m.descripcion, location: m.ubicacion, tipo: m.tipo,
       duracion: m.duracion, horas_semanales: m.horas, volunteers_needed: m.cupos });
     if (invalid) return res.status(400).json({ error: invalid });
-    const newCupos = Number.parseInt(m.cupos, 10);
+    const newCupos = toStrictInt(m.cupos);
+    const modErr = modalityError(b);
+    if (modErr) return res.status(400).json({ error: modErr });
+    // Coordenadas: si vienen (`latitude` o, si no, `latitud`) se validan como en el alta y null/'' las borra; si
+    // no viene ninguna, se conserva la actual.
+    const coord = (en, es, current, parse) => (b[en] !== undefined ? parse(b[en])
+      : b[es] !== undefined ? parse(b[es]) : { value: current });
+    const lat = coord('latitude', 'latitud', project.latitud, parseLat);
+    if (lat.error) return res.status(400).json({ error: lat.error });
+    const lng = coord('longitude', 'longitud', project.longitud, parseLng);
+    if (lng.error) return res.status(400).json({ error: lng.error });
 
     // Montos: si vienen, número finito >= 0 (null = 0); si no, se conservan.
     const money = (k, current, label) => (has(k) ? parseMoney(b[k], label) : { value: current });
@@ -929,12 +967,7 @@ router.put('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
     if (has('category') && b.category !== null && (typeof b.category !== 'string' || b.category.trim().length > 60))
       return res.status(400).json({ error: 'Categoría inválida' });
 
-    const { latitude, longitude, latitud, longitud, modality, modalidad } = b;
-    const lat = latitude !== undefined ? (latitude != null ? parseFloat(latitude) : null)
-              : (latitud !== undefined ? (latitud != null ? parseFloat(latitud) : null) : project.latitud);
-    const lng = longitude !== undefined ? (longitude != null ? parseFloat(longitude) : null)
-              : (longitud !== undefined ? (longitud != null ? parseFloat(longitud) : null) : project.longitud);
-    const mod = modality || modalidad || project.modalidad ||
+    const mod = b.modality || b.modalidad || project.modalidad ||
               (m.ubicacion && (m.ubicacion.toLowerCase().includes('remoto') || m.ubicacion.toLowerCase().includes('virtual')) ? 'remoto' : 'presencial');
 
     // Proyecto + asociaciones en UNA transacción (regla 21): si algo falla, no queda nada a medias.
@@ -951,8 +984,8 @@ router.put('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
          has('image') ? (b.image || null) : project.foto_perfil,
          m.ubicacion.trim(), m.tipo, b.status != null ? b.status : project.status, m.duracion,
          newCupos, meta.value, costo.value,
-         m.tipo === 'sostenido' ? parseInt(m.horas) : null,
-         lat, lng, mod,
+         m.tipo === 'sostenido' ? toStrictInt(m.horas) : null,
+         lat.value, lng.value, mod,
          req.params.id]
       );
       if (upd.changes === 0) return { capacity: true };
@@ -1052,7 +1085,8 @@ router.post('/:id/ratings', requireAuth, async (req, res) => {
     const { comment } = req.body;
     // Entero de 1 a 5 (también llega como "4" desde un form). Antes "abc" pasaba la validación ("abc" < 1 es
     // false) y reventaba en el CHECK; 3.5 lo guardaba SQLite y en Postgres (INTEGER) daba 500. REVISION B10.
-    const rating = typeof req.body.rating === 'string' && /^\d+$/.test(req.body.rating) ? Number(req.body.rating) : req.body.rating;
+    // toStrictInt (lib/inputs.js) es la misma regla, compartida con los cupos y horas de proyectos (B3).
+    const rating = toStrictInt(req.body.rating);
     if (!Number.isInteger(rating) || rating < 1 || rating > 5)
       return res.status(400).json({ error: 'La calificación tiene que ser un número entero del 1 al 5' });
     if (comment != null && (typeof comment !== 'string' || comment.length > 1000))

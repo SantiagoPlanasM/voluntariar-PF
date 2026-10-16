@@ -3910,3 +3910,72 @@ No se tocó código; el razonamiento quedó en `REVISION.md`.
 - No hay interfaz que mande `apellido` en el registro, así que no hay nada que ver en el navegador.
 - Los apellidos con letras de otros alfabetos (ç, ø, å, etc.) se rechazan, igual que en el nombre: `NAME_RE` solo acepta letras ASCII más tildes, ñ y ü. Lo heredan de la regla del nombre; no lo cambié.
 - El test intermitente de `db-transaction.test.js` (ver Errores propios): queda para decidir.
+
+## 143. Alta y edición de proyectos estrictas: enteros, coordenadas, largos y modalidad (B3, decisión del usuario)
+
+**Contexto:** §137 dejó anotados, sin arreglar, cuatro pendientes de `POST`/`PUT /api/projects`. Los confirmé con tests antes de tocar el código:
+- **Cupos y horas con `parseInt` laxo:** se aceptaba `3.7` → 3, `"5 personas"` → 5, `[5]` → 5. Además, `1e21` llegaba como `"1e+21"` y `parseInt` lo leía como **1**: se creaba un proyecto de 1 cupo.
+- **Coordenadas:** `"abc"` quedaba `null` sin aviso, y `latitude: 500` se guardaba.
+- **Largos:** ningún texto del proyecto tenía largo máximo. Un título de 81 caracteres se guardaba aunque el formulario muestra "n/80".
+- **PUT sin validar `modality`:** `{ a: 1 }` daba **500** en SQLite, y `"otra"` se guardaba.
+
+**Qué se hizo:**
+- **`lib/inputs.js`:** helper nuevo `toStrictInt(value)`. Acepta un número entero o un texto de dígitos con signo opcional; cualquier otra cosa da `NaN`. Las reseñas (§74) tenían la misma regla escrita a mano y ahora la usan (regla 3). Es equivalente: `"-1"` sigue siendo inválido para una reseña.
+- **`validateProject`:** cupos y horas pasan por `toStrictInt`. Si falta el valor o es menor que 1, el mensaje es el de siempre ("…deben ser un número positivo"). Si no es entero: **"Los cupos tienen que ser un número entero"** o **"Las horas semanales tienen que ser un número entero"**. Los topes de §137 (100000 y 168) no cambian, y `1e21` como número ahora choca con el tope. El `INSERT` y el `UPDATE` usan el mismo valor (`toStrictInt`) en vez de `parseInt`.
+- **Coordenadas (`parseCoord`/`parseLat`/`parseLng`):**
+  - `null`, `''` o ausente → sin coordenada.
+  - Si no, tiene que ser un número (o un texto numérico) dentro del rango: latitud de −90 a 90 y longitud de −180 a 180. Si no → 400: "La latitud tiene que ser un número entre -90 y 90" (y lo mismo para la longitud).
+  - Se rechazan objetos, arrays, booleanos, `"Infinity"`, `"1e400"` y un texto en blanco (`Number('  ')` es 0).
+  - Alta: `latitude ?? latitud` (la misma precedencia que antes). PUT: si viene alguna, se valida, y `null`/`''` la borra; si no viene ninguna, se conserva la actual.
+- **Largos máximos (en `PROJECT_TEXT_FIELDS`, igual en el alta y en el PUT; mensaje de `checkText`: "<Campo> puede tener hasta N caracteres"):**
+
+  | Campo | Máximo | Por qué |
+  |---|---|---|
+  | `title` | **80** | es lo que anuncia `CreateVoluntariado` ("n/80 caracteres") |
+  | `description` | **1000** | el frontend no limita; lo elegí yo |
+  | `full_description` | **5000** | el frontend no limita; lo elegí yo |
+  | `location` | **150** | el mismo que la ubicación de los perfiles |
+  | `duration` | **100** | el frontend no limita; lo elegí yo |
+  | `image` | **1000** | el mismo que logos y avatares |
+
+  En el PUT solo se mira lo que viene en el body: un valor viejo más largo no impide editar otros campos.
+- **Modalidad:** `modalityError(body)` es la regla que ya tenía el alta (`modality`/`modalidad`, si vienen y no están vacías, `presencial|remoto|hibrido`). Ahora también la usa el PUT. `modality: ''` en el PUT conserva la actual (como antes).
+
+### Tests (nuevos: 17, `projects-strict-inputs.test.js`)
+- **POST, 400 sin crear nada (6):**
+  - cupos y horas no enteros: `3.7`, `"3.7"`, `"5 personas"`, `[5]`, `"1e21"`, `true`, `{}`, `" 5"`, `"0x10"`;
+  - `1e21` como número choca con el tope;
+  - negativos en texto (`"-3"`) y valores ausentes mantienen el mensaje "positivo";
+  - coordenadas inválidas o fuera de rango (`latitude`/`latitud` y `longitude`/`longitud`);
+  - cada texto con un carácter de más.
+- **POST, lo válido (3):** cupos y horas como número o texto de dígitos (`7.0` también vale); coordenadas en rango, incluidos los extremos y los textos numéricos; `null`, vacías o ausentes = sin coordenadas; textos justo en el máximo.
+- **PUT, 400 sin cambiar nada (4, fila comparada entera, con coordenadas y modalidad):** cupos y horas no enteros; 5 modalidades inválidas; coordenadas inválidas; textos largos.
+- **PUT, lo válido (4):** cupos y horas en texto de dígitos; las modalidades, y vacía conserva la actual; las coordenadas se guardan, `null`/`''` las borran y ausentes se conservan; textos en el máximo.
+- **Rojo de comportamiento:** los 9 tests de rechazo que existían antes de los ajustes por mutación fallaban: con 201/200 (se creaba o se guardaba) y con **500** en "modalidad `{a:1}`" del PUT. Los 7 de lo válido pasaban antes: son de no regresión. El de "negativos y ausentes" lo agregué para la mutación (ver abajo) y también pasaba antes.
+
+### Verificación
+- **Backend:**
+  - SQLite **571/571** (554 + 17), también con `TZ=America/Argentina/Cordoba`.
+  - Postgres **573/573**, también con Córdoba. 0 cancelled, exit 0.
+- **Postgres, dos fallas fuera de este cambio:** las dos primeras corridas de `npm run test:pg` dieron 2 fallas en `db-transaction.test.js`: "colgada de una promesa…" y "AISLAMIENTO…". Son las mismas que en §137. Ese archivo solo pasó 3 de 3 veces y las dos corridas siguientes de la suite completa dieron 573/573. Lo atribuyo a la carga del Postgres compartido (otros worktrees corriendo a la vez). No toca proyectos.
+- **Frontend:** no lo toqué, así que no corrí sus tests.
+- **Regla 10, revisado con grep:** `CreateVoluntariado` manda `volunteers_needed`/`hours_per_week` con `parseInt` (enteros) y `modality` de una lista fija. No manda coordenadas ni imagen. `api.projects.update` no lo usa ninguna pantalla (no hay edición de proyectos en la interfaz).
+
+### Mutación (35 mutantes, control sin mutar primero, restauración en `finally`)
+- **SQLite:** mueren **34**. **Sobrevive 1, equivalente:** `parseInt(volunteers_needed) || 0` en lugar de `toStrictInt(...)` en el `INSERT`. Después de `validateProject` el valor ya es un entero válido y los dos dan lo mismo.
+- **Postgres**, los 9 que dependen del motor (tipos de `toStrictInt`, chequeo de entero de cupos y horas, coordenadas de cualquier tipo o `NaN`, máximo de rango, `parseInt` en el `INSERT`): mueren 8 y sobrevive el mismo equivalente.
+- **Primera pasada: otro sobreviviente, equivalente.** `Number.isFinite` en `parseCoord` sobraba, porque `NaN` e `±Infinity` ya fallan la comparación de rango. Lo saqué y dejé un comentario. En su lugar puse el mutante "acepta `NaN`", que muere.
+- El test de negativos en texto y valores ausentes lo agregué **antes** de correr la mutación, al planear dos mutantes: sacar el chequeo de "ausente" y sacar el signo de la regex. Sin ese test, esos dos habrían sobrevivido. Los dos mueren.
+
+### Errores propios
+- **Un caso de test que no probaba nada:** puse `NaN` como coordenada inválida, pero `JSON.stringify` lo manda como `null`, que es válido. Lo cambié por `'-Infinity'` antes de la primera corrida.
+- **Comandos rechazados por el aislamiento del worktree:** la herramienta rechazó un comando con `tee` + `git status` y un `sed -i` sobre el script de mutación. Los separé, o edité con `Edit`.
+
+### ⚠️ NO verificado / para decidir
+- **Título de 80:** `CreateVoluntariado` muestra "n/80 caracteres" pero **no limita** el input (no tiene `maxLength`). Con 81 o más, el alta ahora da 400 al enviar, en el paso 3, y el mensaje aparece arriba ("El título puede tener hasta 80 caracteres"). Antes se guardaba. Lo mismo pasa con una descripción de más de 1000 caracteres, aunque es improbable. Arreglarlo en el frontend (un `maxLength={80}` o validarlo en el paso 1) queda fuera de este commit, que es solo backend.
+- **Límites elegidos por mí:** 1000, 5000 y 100 (descripción, descripción completa y duración).
+- `image` sigue sin validarse como URL.
+- **Valores viejos no se revalidan:** un proyecto viejo con coordenadas fuera de rango o un texto más largo que el máximo se puede seguir editando (solo se valida lo que viene en el body), pero no se corrige solo.
+- `"0x10"` se rechaza como entero, pero como coordenada `Number("0x10")` vale 16 y se acepta. Lo dejé así.
+- `toStrictInt` acepta ceros a la izquierda (`"007"` → 7).
+- No lo vi en el navegador.

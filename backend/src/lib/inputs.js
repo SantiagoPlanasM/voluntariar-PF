@@ -31,7 +31,16 @@ const clampInt = (value, fallback, min, max) => {
   return Math.min(n, max);
 };
 
+/** Entero ESTRICTO del body: un número entero, o un texto de dígitos (con signo opcional, así llega de un form).
+ *  Cualquier otra cosa → NaN: 3.7, "3.7", "5 personas", [5], true, "1e21", " 5". `parseInt` aceptaba todo eso
+ *  recortándolo (3.7 → 3, "1e21" → 1). Lo usan las reseñas (§74) y los cupos/horas de proyectos (B3). */
+const toStrictInt = (value) => {
+  if (typeof value === 'number') return Number.isInteger(value) ? value : NaN;
+  if (typeof value === 'string' && /^-?\d+$/.test(value)) return Number(value);
+  return NaN;
+};
+
 /** El primer error de una lista de chequeos, o null. */
 const firstError = (...errors) => errors.find(Boolean) || null;
 
-module.exports = { checkText, firstError, clampInt };
+module.exports = { checkText, firstError, clampInt, toStrictInt };
