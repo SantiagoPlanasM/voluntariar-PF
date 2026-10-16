@@ -71,6 +71,34 @@ describe('Registro: validación de apellido', () => {
     });
   }
 
+  // Misma regla que el nombre (NAME_RE: letras, espacios, ' y -, de 2 a 50). Antes aceptaba dígitos (§138).
+  const SOLO_LETRAS = 'El apellido solo puede tener letras y espacios, mínimo 2 caracteres';
+  for (const [label, apellido] of [['con un número', 'García2'], ['de una letra', 'P'], ['con símbolos', '@@'], ['con un número y espacios', '  Pérez 3 ']]) {
+    test(`apellido ${label} → 400 (solo letras, como el nombre) y no se crea nada`, async () => {
+      const email = `apellido-letras-${label.replace(/\W/g, '')}@test.com`;
+      const r = await register({ ...base(email), apellido });
+      assert.equal(r.status, 400, JSON.stringify(r.body));
+      assert.equal(r.body.error, SOLO_LETRAS);
+      assert.equal(await usersWith(email), 0);
+    });
+  }
+
+  test("apellido con tildes, ñ, apóstrofo y guion → 201 y se guarda", async () => {
+    const apellido = "O'Brien-Núñez Güemes";
+    const r = await register({ ...base('apellido-letras-ok@test.com'), apellido });
+    assert.equal(r.status, 201, JSON.stringify(r.body));
+    const v = await db.get('SELECT apellido FROM voluntarios WHERE user_id=$1', [r.body.user.id]);
+    assert.equal(v.apellido, apellido);
+  });
+
+  test('ONG con apellido con números también da 400', async () => {
+    const email = 'ong-apellido-letras@test.com';
+    const r = await register({ ...base(email), role: 'ngo', apellido: 'Abc123' });
+    assert.equal(r.status, 400, JSON.stringify(r.body));
+    assert.equal(r.body.error, SOLO_LETRAS);
+    assert.equal(await usersWith(email), 0);
+  });
+
   test('ONG con apellido inválido también da 400 (se valida antes de mirar el rol)', async () => {
     const email = 'ong-apellido@test.com';
     const r = await register({ ...base(email), role: 'ngo', apellido: 7 });

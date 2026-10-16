@@ -64,6 +64,9 @@ router.post('/register', async (req, res) => {
     // era texto reventaba en `.trim()` dentro de la transacción: 500 (REVISION A4). 50, como el nombre.
     const apellidoErr = checkText(apellido, { label: 'El apellido', max: 50 });
     if (apellidoErr) return res.status(400).json({ error: apellidoErr });
+    // Si viene con algo, la misma regla que el nombre (validateName/NAME_RE); antes aceptaba dígitos (§138).
+    if (apellido?.trim() && validateName(apellido))
+      return res.status(400).json({ error: 'El apellido solo puede tener letras y espacios, mínimo 2 caracteres' });
 
     if (!['volunteer', 'ngo', 'company'].includes(role))
       return res.status(400).json({ error: 'Rol inválido' });

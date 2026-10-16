@@ -3870,3 +3870,43 @@ No se tocó código; el razonamiento quedó en `REVISION.md`.
 - No vi el formulario en el navegador: el mensaje aparece debajo del campo, como los otros errores de contraseña. Eso lo dice el test, no una pantalla.
 - `TextEncoder` en navegadores viejos: existe en todos los actuales y en jsdom; no lo probé en un dispositivo.
 - El indicador de fortaleza (`PasswordStrength`) no muestra el máximo: solo aparece el error al enviar.
+
+## 142. Registro: apellido solo letras, como el nombre — decisión del usuario sobre §138
+
+**Contexto:** §138 validó que `apellido` fuera texto y de hasta 50 caracteres, pero dejó a decisión del usuario aplicarle la regla del nombre: aceptaba dígitos y símbolos ("García2", "@@"). El usuario decidió que use la misma regla.
+
+**Qué se hizo:**
+- `routes/auth.js`: después de `checkText` (que sigue dando los 400 de tipo y de largo), si el apellido trae algo además de espacios pasa por **`validateName`**, la misma función (y la misma `NAME_RE`) del nombre. No copié la regex. Si no cumple → **400** "El apellido solo puede tener letras y espacios, mínimo 2 caracteres". El mensaje nombra el campo, porque el de `validateName` no lo hace y el body tiene dos campos con esa regla.
+- La regla es la de `NAME_RE`: letras (con tildes, ñ y ü), espacios, apóstrofo y guion, de 2 a 50. "O'Brien-Núñez Güemes" pasa.
+- **Sin cambios:**
+  - si el apellido falta, viene `null` o vacío (también solo espacios), se toma del nombre completo, como en §138;
+  - se valida con cualquier rol, aunque solo lo use el voluntario.
+- **Frontend:** no cambia. `AuthModal.tsx` no tiene campo de apellido y `api.auth.register` no lo manda: lo verifiqué con grep. El único `apellido` del frontend es el de `NGOEmpleados.tsx`, que es otro endpoint (`routes/ngos.js`, empleados) y no se tocó.
+
+### Tests (nuevos: 6)
+- `register-input-validation.test.js` (6):
+  - apellido con un número, de una letra, con símbolos, o con un número y espacios alrededor → 400 con el mensaje exacto y sin usuario creado (4);
+  - con tildes, ñ, ü, apóstrofo y guion → 201 y se guarda tal cual;
+  - con rol ONG y números también da 400 con el mismo mensaje.
+- **Rojo de comportamiento:** fallaban 5 (201 "Cuenta creada" en vez de 400). El de tildes/apóstrofo/guion ya pasaba: deja fijado que la regla nueva no rechaza apellidos reales.
+
+### Verificación
+- SQLite **566/566** y Postgres **568/568**, también con `TZ=America/Argentina/Cordoba`, 0 cancelled y salida 0. Era 560/562 después de §141 (+6).
+- Frontend sin cambios: **564/564** y typecheck en 0.
+- **Mutación (7)**, con corrida de control sin mutar:
+  - sin el `if`;
+  - sin la guarda de vacío;
+  - sin `trim` en la guarda;
+  - validar `name` en vez de `apellido`;
+  - `||` en vez de `&&`;
+  - otro mensaje;
+  - 201 en vez de 400.
+  **Mueren los 7**; archivo restaurado.
+
+### Errores propios
+- En la primera corrida de Postgres de esta tarea fallaron 2 tests y no guardé la salida, así que no sé cuáles fueron. Corrí la suite 5 veces más. En una falló 1 test que ya existía y no toqué: `db-transaction.test.js`, "una llamada db.* colgada de una promesa creada DENTRO de la tx…". Ese test espera 20 ms (`sleep(20)`) y supone que en ese tiempo el COMMIT ya terminó. Con el Postgres compartido y cargado (otros agentes corriendo a la vez), el `db.run` se ejecuta con la tx todavía abierta y salta el guard. Las otras 4 corridas dieron 568/568 con salida 0, y las de Córdoba también. No lo arreglé: queda fuera de esta tarea (regla 16).
+
+### ⚠️ NO verificado
+- No hay interfaz que mande `apellido` en el registro, así que no hay nada que ver en el navegador.
+- Los apellidos con letras de otros alfabetos (ç, ø, å, etc.) se rechazan, igual que en el nombre: `NAME_RE` solo acepta letras ASCII más tildes, ñ y ü. Lo heredan de la regla del nombre; no lo cambié.
+- El test intermitente de `db-transaction.test.js` (ver Errores propios): queda para decidir.
