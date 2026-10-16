@@ -4372,3 +4372,12 @@ Revisando otros lugares que cuentan no leídas (pedido de la tarea): **`Notifica
 
 ### ⚠️ NO verificado
 - Si la tabla de producción tuviera una columna que no está en `migrate.js`, antes salía y ahora no (ningún componente lee otra cosa que `AppNotification`).
+
+## 160. Verificación de §157–§159 sobre `main`
+
+- Backend SQLite **625/625** (622 + 1 + 2), también con `TZ=America/Argentina/Cordoba`; Postgres **627/627**, también con TZ. 0 fail, 0 cancelled, salida 0. Postgres corrió en paralelo con las otras suites, sin fallas de `db-transaction.test.js` (§150).
+- Frontend **576/576**, también con TZ (§157 no suma tests); `npm run typecheck` 0 errores.
+- Conteos de CLAUDE.md al día.
+
+### ⚠️ NO verificado
+- §157–§159 todavía no están desplegados en Render.
