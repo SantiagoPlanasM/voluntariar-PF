@@ -4464,3 +4464,33 @@ Sigue la regla 24 en orden: sesión → límite de **10 subidas por hora** por u
 - **La FAQ del chatbot** dice "tocá el ícono de lápiz para editar tu foto" (datos de `migrate.js`). La foto se cambia con "Cambiar foto", no con el lápiz, y la FAQ no la cambié.
 - Otras pantallas que muestran fotos de voluntarios con otra fuente: no las revisé todas, solo las tres que leían `foto_perfil`.
 - Producción: no se desplegó.
+
+## 164. CV: PDF privados en Cloudinary con link de descarga que vence (`lib/storage.js`, PLAN_FALTANTE.md, Etapa 3)
+
+**Qué se hizo:** cuatro funciones nuevas en `lib/storage.js`, sin dependencias (`fetch` y `crypto`, como §43). **Ningún endpoint las usa todavía** (Etapa 4).
+- `detectPdf(buf)`: la cabecera real tiene que empezar con `%PDF-`, y tiene que ser un `Buffer`.
+- `uploadPdf(buf)` → `{ publicId }`: `POST /raw/upload` con `type=private` (firmado junto con `timestamp` y `folder` si hay). Un asset privado **no tiene URL pública**: aunque alguien consiga el `public_id`, no puede abrirlo.
+- `pdfDownloadUrl(publicId, { ttlSeconds = 600 })` → `{ url, expiresAt }`: link `GET /raw/download` con `timestamp`, `public_id`, `type` y `expires_at` firmados más `api_key` y `signature`. Se arma sin llamar a la red y vence a los 10 minutos.
+- `deletePdf(publicId)`: `POST /raw/destroy` con `type=private`. "not found" cuenta como éxito; es para cumplir la decisión C3 del usuario (al reemplazar o borrar el CV se borra el anterior).
+
+**De dónde salen las rutas (verificado el 2026-10-16):** la documentación oficial del Upload API confirma `POST /:resource_type/upload` con `raw` y `type` ∈ `upload | private | authenticated`, y remite a `private_download_url` para entregar los privados. La documentación **no** detalla el endpoint REST de descarga, así que lo saqué del **código fuente del SDK oficial de Node** (`cloudinary@2.5.1`, `lib/utils/index.js`): `api_url("download", { resource_type })` más los parámetros firmados con el mismo algoritmo que `signParams`, ya anclado al vector oficial en `storage.test.js`.
+
+### Verificación
+- `test/unit/storage-pdf.test.js` (16): cabecera real (incluidos `%PDFX…`, el string `'%PDF-'` y buffers cortos), subida (URL, `type`, firma con y sin carpeta, MIME y nombre del archivo, respuesta sin `public_id`, error HTTP, sin credenciales), link (ruta, claves exactas, firma, vencimiento por defecto y con TTL, `public_id` con carpeta y espacios, que el secreto no aparezca, sin credenciales) y borrado (ruta, `type`, firma, "not found", errores).
+- Rojo antes de implementar: "detectPdf is not a function". Es un rojo débil; los rojos fuertes los dio la mutación.
+- Backend SQLite **654/654** y con `TZ=America/Argentina/Cordoba` 654/654; Postgres **656/656** y con TZ 656/656. 0 fail, 0 cancelled, salida 0. `npm audit` 0.
+- **Mutación** (control en verde): **23 mutantes, sobrevive 1, equivalente**. Es "`detectPdf` sin largo mínimo": sobre un buffer corto, `toString('latin1', 0, 5)` devuelve menos de 5 caracteres y la comparación da falso igual. En la primera tanda sobrevivieron dos más que **no** eran equivalentes, y sumé los tests que los matan: "compara 4 bytes" (aceptaría `%PDFX`) y "acepta strings" (aceptaría el string `'%PDF-'` exacto).
+
+### Errores propios
+- Los dos casos de `detectPdf` que faltaban: el test original tenía un caso por cada rechazo, pero ninguno distinguía "sin guion" de "corto", ni un string con la cabecera exacta. Los encontró la mutación.
+
+### ⚠️ NO verificado
+- **Nada contra la cuenta real de Cloudinary:**
+  - que `raw` + `private` suba bien;
+  - qué `public_id` devuelve para un raw (los tests suponen que trae la extensión, `….pdf`, y el link lo usa tal cual: si no la trajera, puede hacer falta mandar `format=pdf`);
+  - que el link firmado descargue;
+  - que vence a los 10 minutos.
+  
+  En un foro de Cloudinary hay reportes inconsistentes con `format` en los raw. Se prueba en Render en la Etapa 5.
+- **La restricción de entrega de PDF de las cuentas nuevas** (Settings → Security, del roadmap §1.3): no sé si afecta a un raw privado servido por `/download`. Si en producción da 401, ver eso primero.
+- Si el navegador abre el PDF o lo descarga: no se manda `attachment`, así que lo decide Cloudinary (el SDK lo deja opcional).

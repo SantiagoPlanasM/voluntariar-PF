@@ -71,7 +71,8 @@ Las marcadas con ⭐ bloquean una etapa imprescindible: hay que contestarlas **a
 - **C2. ¿Cómo se entrega el PDF?** Propuesta: guardarlo en Cloudinary como asset privado (no público) y que la API
   devuelva un **link de descarga que vence** (minutos). La alternativa es que el backend sirva el archivo, que
   es más simple de razonar pero pasa los bytes por la API gratuita.
-- **C3. Al reemplazar una foto o un CV, ¿se borra el archivo viejo de Cloudinary?** Hace falta guardar el
+- ✅ **C3 (CV, decisión del usuario del 2026-10-16): al reemplazar o borrar el CV, se borra el anterior de Cloudinary.** Para las fotos sigue abierto.
+- *(texto original)* **C3. Al reemplazar una foto o un CV, ¿se borra el archivo viejo de Cloudinary?** Hace falta guardar el
   `public_id` (columnas nuevas). Hoy borrar usuarios o proyectos tampoco borra archivos (pendiente conocido).
   Propuesta: sí para el CV (es un dato personal), opcional para las fotos.
 
@@ -232,9 +233,9 @@ nunca llaman a Cloudinary ni a Mercado Pago de verdad (dobles).
 
 - **Esquema:** `voluntarios.cv_url` ya existe: guardar ahí el **`public_id`**, nunca una URL pública. Hay que
   documentar que el nombre engaña. Opcional: `cv_nombre` y `cv_subido` (`addColumnIfNotExists`).
-- **Storage:** funciones nuevas en `storage.js`: `uploadPdf(buffer)` (recurso `raw`, privado), `cvDownloadUrl(publicId)`
-  (link firmado que vence) y `deleteRaw(publicId)`. **Verificar contra la documentación oficial de Cloudinary** el
-  tipo de entrega y el algoritmo del link que vence, como se hizo con la firma en §43. Cabecera real: `%PDF-`.
+- **Storage (✅ §164):** `detectPdf`, `uploadPdf` (recurso `raw`, `type=private`), `pdfDownloadUrl` (link firmado que
+  vence a los 10 min) y `deletePdf`. Las rutas y los parámetros salen de la doc oficial del Upload API y del código del
+  SDK oficial (`private_download_url`). Falta probarlo con la cuenta real (Etapa 5).
 - **Endpoints:**
   - `PUT /api/voluntarios/me/cv` (voluntario; multipart `cv`; tope de 5 MB) → `{ has_cv: true }`;
   - `DELETE /api/voluntarios/me/cv`;
@@ -315,7 +316,7 @@ nunca llaman a Cloudinary ni a Mercado Pago de verdad (dobles).
 | **0** | En Mercado Pago Developers, crear la aplicación, sacar las credenciales de prueba y crear dos usuarios de prueba; contestar P2, P5, C1 y F2 | **Vos** (yo te paso los comandos) | — |
 | 1 | ✅ Fotos: backend + tests (SQLite, PG, TZ) + docs. Quedó un solo endpoint para los tres roles, `PUT /api/auth/me/photo` (§162) | yo | 1 |
 | 2 | ✅ Fotos: frontend (3 pantallas, `api.ts`, `AuthContext`) + F2 + tests + typecheck (§163) | yo | 1 |
-| 3 | CV: `storage.uploadPdf/cvDownloadUrl/deleteRaw` contra la doc oficial + tests unitarios | yo | 1 |
+| 3 | ✅ CV: `storage.detectPdf/uploadPdf/pdfDownloadUrl/deletePdf` contra la doc oficial y el SDK + tests unitarios (§164) | yo | 1 |
 | 4 | CV: endpoints + autorización + `ownership`/`public-columns` | yo | 1 |
 | 5 | CV: frontend (perfil del voluntario + "Ver CV" en la ONG). **Deploy manual + prueba real de un PDF en prod** (vos) | yo + vos | 1 |
 | 6 | MP: verificar la API contra la doc oficial; `lib/payments.js` + tests unitarios (firma); reescribir el roadmap §1.4 para Mercado Pago | yo | 1 |

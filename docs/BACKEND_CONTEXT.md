@@ -106,6 +106,8 @@ Ambas diferencias devolvían 500 solo en producción (Render) y pasaban todos lo
 
 `routes/posts.js` (Momentos) y `routes/auth.js` (foto de perfil, `PUT /api/auth/me/photo`, `PROJECT_ANALYSIS.md §162`; un archivo de hasta 8 MB) llaman a `storage.uploadImage(...)`/`storage.deleteImage(...)` **accediendo a la propiedad en cada llamada** (no desestructurado), para que los tests puedan reemplazarlas sin tocar Cloudinary. Las fotos pasan por `multer` con `memoryStorage` (quedan en memoria solo durante el request, máx. 5 × 8 MB; no se escribe nada en el disco). Reglas del módulo en `AI_RULES.md` regla 24.
 
+**PDF privados para el CV (`PROJECT_ANALYSIS.md §164`):** `storage.detectPdf(buf)` (cabecera real `%PDF-`), `storage.uploadPdf(buf)` → `{ publicId }` (`POST /raw/upload` con `type=private`: **no tiene URL pública**), `storage.pdfDownloadUrl(publicId, { ttlSeconds = 600 })` → `{ url, expiresAt }` (link `GET /raw/download` firmado con `expires_at`; no llama a la red) y `storage.deletePdf(publicId)` (`POST /raw/destroy` con `type=private`; "not found" cuenta como éxito). Las rutas vienen sacadas de la doc oficial del Upload API y del código de `private_download_url` del SDK oficial (cloudinary@2.5.1); la firma es la de `signParams`. Tests: `test/unit/storage-pdf.test.js`. Ningún endpoint los usa todavía (Etapa 4).
+
 ### Emails (Resend) y modo prueba
 `lib/email.js` manda por la API de Resend con `fetch` nativo; nunca lanza ni bloquea la respuesta HTTP (fire-and-forget). Eventos que mandan email: nueva inscripción (a la ONG), aprobación y rechazo de inscripción (al voluntario), propuesta de patrocinio (a la ONG) y su respuesta (a la empresa). La configuración se **lee en cada envío** (no al cargar el módulo).
 

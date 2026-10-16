@@ -144,6 +144,75 @@ async function deleteImage(publicId) {
   throw new StorageError(`Cloudinary no pudo borrar la imagen (result: ${data?.result})`, { code: 'bad_response' });
 }
 
+// ── CV en PDF (PLAN_FALTANTE.md, Etapa 3) ─────────────────────────────────────────────────────────────────
+// Recurso `raw` con delivery type `private`: no tiene URL pública. Se entrega con un link de descarga FIRMADO
+// que vence. Fuentes (verificadas el 2026-10-16): el Upload API oficial (`POST /raw/upload`, `type` private) y
+// el código de `private_download_url` del SDK oficial de Node (cloudinary@2.5.1, lib/utils/index.js): GET a
+// `/v1_1/<cloud>/raw/download` con timestamp, public_id, type y expires_at firmados con signParams, más api_key
+// y signature. Ver test/unit/storage-pdf.test.js.
+const PDF_TYPE = 'private';
+const PDF_LINK_TTL_SECONDS = 10 * 60;
+
+/** ¿La cabecera real es de un PDF? ("%PDF-" al principio). El mimetype del cliente no sirve para decidir. */
+function detectPdf(buf) {
+  return Buffer.isBuffer(buf) && buf.length >= 5 && buf.toString('latin1', 0, 5) === '%PDF-';
+}
+
+/** Sube un PDF privado. Devuelve { publicId } (no hay URL pública) o lanza StorageError. */
+async function uploadPdf(buffer) {
+  const cfg = getConfig();
+  if (!isConfigured()) throw new StorageError('Cloudinary no está configurado', { code: 'not_configured' });
+
+  const timestamp = Math.floor(Date.now() / 1000);
+  const form = new FormData();
+  form.append('file', new Blob([buffer], { type: 'application/pdf' }), 'cv.pdf');
+  form.append('api_key', cfg.apiKey);
+  form.append('timestamp', String(timestamp));
+  form.append('type', PDF_TYPE);
+  if (cfg.folder) form.append('folder', cfg.folder);
+  form.append('signature', signParams({ timestamp, type: PDF_TYPE, folder: cfg.folder || undefined }, cfg.apiSecret));
+
+  const data = await post('/raw/upload', form, cfg);
+  if (!data?.public_id) {
+    throw new StorageError('Cloudinary devolvió una respuesta inesperada (sin public_id)', { code: 'bad_response' });
+  }
+  return { publicId: data.public_id };
+}
+
+/** Link firmado para descargar un PDF privado, que vence en `ttlSeconds`. No llama a la red. */
+function pdfDownloadUrl(publicId, { ttlSeconds = PDF_LINK_TTL_SECONDS } = {}) {
+  const cfg = getConfig();
+  if (!isConfigured()) throw new StorageError('Cloudinary no está configurado', { code: 'not_configured' });
+
+  const timestamp = Math.floor(Date.now() / 1000);
+  const expiresAt = timestamp + ttlSeconds;
+  const params = { timestamp, public_id: publicId, type: PDF_TYPE, expires_at: expiresAt };
+  const query = new URLSearchParams({
+    ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
+    signature: signParams(params, cfg.apiSecret),
+    api_key: cfg.apiKey,
+  });
+  return { url: `${API}/${cfg.cloudName}/raw/download?${query}`, expiresAt: new Date(expiresAt * 1000).toISOString() };
+}
+
+/** Borra un PDF privado por su public_id. Borrar algo que ya no existe cuenta como éxito. */
+async function deletePdf(publicId) {
+  const cfg = getConfig();
+  if (!isConfigured()) throw new StorageError('Cloudinary no está configurado', { code: 'not_configured' });
+
+  const timestamp = Math.floor(Date.now() / 1000);
+  const form = new FormData();
+  form.append('public_id', publicId);
+  form.append('type', PDF_TYPE);
+  form.append('api_key', cfg.apiKey);
+  form.append('timestamp', String(timestamp));
+  form.append('signature', signParams({ public_id: publicId, timestamp, type: PDF_TYPE }, cfg.apiSecret));
+
+  const data = await post('/raw/destroy', form, cfg);
+  if (data?.result === 'ok' || data?.result === 'not found') return true;
+  throw new StorageError(`Cloudinary no pudo borrar el PDF (result: ${data?.result})`, { code: 'bad_response' });
+}
+
 /** Una línea para el log de arranque. Nunca incluye la key ni el secreto. */
 function describeStorageConfig() {
   const { cloudName } = getConfig();
@@ -155,4 +224,5 @@ function describeStorageConfig() {
 module.exports = {
   StorageError, isConfigured, signParams, detectImageType,
   feedUrl, thumbUrl, uploadImage, deleteImage, describeStorageConfig,
+  detectPdf, uploadPdf, pdfDownloadUrl, deletePdf,
 };
