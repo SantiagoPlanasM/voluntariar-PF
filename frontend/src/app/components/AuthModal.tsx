@@ -21,8 +21,13 @@ function validateName(v: string) {
   if (!NAME_RE.test(v.trim())) return 'Solo letras y espacios';
   return '';
 }
+// bcrypt usa solo los primeros 72 bytes: mismo límite y mismo mensaje que el backend (routes/auth.js).
+// Bytes UTF-8, no caracteres: la ñ ocupa 2 y un emoji 4.
+const PASSWORD_MAX_BYTES = 72;
 function validatePassword(v: string) {
   if (v.length < 8)         return 'Mínimo 8 caracteres';
+  if (new TextEncoder().encode(v).length > PASSWORD_MAX_BYTES)
+    return 'Máximo 72 caracteres (los acentos, la ñ y los emojis cuentan como más de uno)';
   if (!/[A-Z]/.test(v))    return 'Necesita al menos una mayúscula';
   if (!/[0-9]/.test(v))    return 'Necesita al menos un número';
   return '';

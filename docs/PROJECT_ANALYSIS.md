@@ -3832,3 +3832,41 @@ No se tocó código; el razonamiento quedó en `REVISION.md`.
 - No lo vi en la interfaz de la empresa.
 - Que la ONG ya no reciba dos emails lo deduzco de que la ruta corta antes del `sendEmail`: los tests solo cuentan las notificaciones in-app.
 - `DELETE /api/empresas/me/patrocinios/:projectId` y la decisión de la ONG no se tocaron: la decisión ya tenía CAS (§77).
+
+## 141. Registro: contraseña de hasta 72 bytes — decisión del usuario sobre §138
+
+**Contexto:** §138 dejó anotado, sin arreglarlo (regla 16), que `password` no tenía largo máximo y que `bcryptjs` usa solo los primeros 72 bytes: dos contraseñas que coinciden en esos 72 bytes valen como la misma. El usuario decidió poner el límite al **fijar** una contraseña, sin cambiar el login.
+
+**Qué se hizo:**
+- `routes/auth.js`: `validatePassword` suma `Buffer.byteLength(v, 'utf8') > PASSWORD_MAX_BYTES` (72), después del mínimo de 8. Si pasa → **400** "Máximo 72 caracteres (los acentos, la ñ y los emojis cuentan como más de uno)". Cuenta **bytes UTF-8**, no caracteres: la ñ ocupa 2 y un emoji 4. El mensaje lo explica sin hablar de bytes (regla 19).
+- **Dónde se fija una contraseña:** solo en `POST /api/auth/register`. Busqué `bcrypt` y `password` en `src/`: no hay cambio ni recuperación de contraseña, y `PUT /api/auth/me` no la toca. `scripts/seed.js` usa `bcrypt.hashSync` con contraseñas fijas y cortas: no hacía falta tocarlo.
+- **El login no cambia:** no llama a `validatePassword`. Una cuenta vieja con una contraseña de más de 72 bytes sigue entrando, y una contraseña larga equivocada da el 401 de siempre.
+- `AuthModal.tsx`: el formulario ya validaba la contraseña en el cliente, así que suma el mismo límite con el mismo mensaje (regla 3), con `new TextEncoder().encode(v).length` (en el navegador no hay `Buffer`). Sigue siendo una regla duplicada back/front, como las demás de `AuthModal`; no hay módulo compartido entre los dos paquetes.
+
+### Tests (nuevos: 10)
+- `register-password-max.test.js` (6):
+  - 73 caracteres ASCII → 400 con el mensaje exacto y sin usuario creado;
+  - exactamente 72 ASCII → 201, y después el login con esa contraseña da 200;
+  - 38 caracteres con ñ (74 bytes) → 400: cuenta bytes, no caracteres;
+  - con ñ hasta 72 bytes justos → 201;
+  - una contraseña corta sigue dando "Mínimo 8 caracteres";
+  - login sin cambios: una cuenta insertada a mano con una contraseña de 80 bytes entra (200), y una larga equivocada da 401 "Email o contraseña incorrectos".
+- `AuthModal.test.tsx`, bloque "registro: contraseña de hasta 72 bytes" (4):
+  - 73 caracteres → se ve el mensaje y no se llama a `api.auth.register`;
+  - 38 caracteres con ñ (74 bytes) → lo mismo;
+  - 72 bytes justos con ñ → se llama a `register` con el body exacto;
+  - si el servidor igual lo rechaza, se ve su mensaje.
+- **Rojo de comportamiento:** en el backend fallaban 2 (73 ASCII y 74 bytes con ñ: 201 "Cuenta creada" en vez de 400). En el frontend, los 2 equivalentes (no aparecía el mensaje). Los otros ya pasaban: dejan fijado el borde de 72, el mínimo, el login y el mensaje del servidor.
+
+### Verificación
+- SQLite **560/560** y Postgres **562/562**, también con `TZ=America/Argentina/Cordoba`, 0 cancelled y salida 0. Era 554/556 (+6).
+- Frontend **564/564** (era 560, +4); `npm run typecheck` **0 errores**.
+- **Mutación (12)**, con corrida de control sin mutar. Backend y frontend, 6 cada uno: sin el `if`, máximo 73, máximo 71, `length` en vez de bytes, `>=` en vez de `>` y otro mensaje. **Mueren los 12**; los dos lados restaurados.
+
+### Errores propios
+- Ninguno que haya llegado al código.
+
+### ⚠️ NO verificado
+- No vi el formulario en el navegador: el mensaje aparece debajo del campo, como los otros errores de contraseña. Eso lo dice el test, no una pantalla.
+- `TextEncoder` en navegadores viejos: existe en todos los actuales y en jsdom; no lo probé en un dispositivo.
+- El indicador de fortaleza (`PasswordStrength`) no muestra el máximo: solo aparece el error al enviar.

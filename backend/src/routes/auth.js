@@ -32,8 +32,14 @@ const NAME_RE  = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]{2,50}$/;
 // `typeof v !== 'string'` primero: antes un número o un array reventaba en `.trim()` y daba 500 (REVISION B13).
 function validateEmail(v)    { if (typeof v !== 'string' || !EMAIL_RE.test(v.trim())) return 'Email inválido'; return null; }
 function validateName(v)     { if (typeof v !== 'string' || !NAME_RE.test(v.trim()))  return 'Solo letras y espacios, mínimo 2 caracteres'; return null; }
+// bcryptjs usa solo los primeros 72 bytes: dos contraseñas iguales en esos bytes valdrían como la misma. Se
+// cuentan bytes UTF-8, no caracteres (la ñ ocupa 2, un emoji 4). Solo se aplica al FIJARLA: el login no la
+// llama, así que una cuenta vieja con una contraseña más larga sigue entrando. Mismo límite en AuthModal.tsx.
+const PASSWORD_MAX_BYTES = 72;
 function validatePassword(v) {
   if (typeof v !== 'string' || v.length < 8) return 'Mínimo 8 caracteres';
+  if (Buffer.byteLength(v, 'utf8') > PASSWORD_MAX_BYTES)
+    return 'Máximo 72 caracteres (los acentos, la ñ y los emojis cuentan como más de uno)';
   if (!/[A-Z]/.test(v))       return 'Necesita al menos una mayúscula';
   if (!/[0-9]/.test(v))       return 'Necesita al menos un número';
   return null;
