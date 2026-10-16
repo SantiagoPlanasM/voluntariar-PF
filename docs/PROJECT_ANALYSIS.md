@@ -4399,3 +4399,32 @@ Revisando otros lugares que cuentan no leídas (pedido de la tarea): **`Notifica
 - "Propuesta aceptada/rechazada" (§153): no hay propuestas de patrocinio para decidir.
 - `profile: null` sin fila (§158): no hay cuentas así.
 - La reseña de prueba quedó en producción (visible en el proyecto); el usuario decide si la edita o la borra.
+
+## 162. Foto de perfil subida como archivo: `PUT /api/auth/me/photo` (PLAN_FALTANTE.md, Etapa 1)
+
+**Qué se hizo:** un endpoint nuevo en `routes/auth.js` para subir la foto de perfil a Cloudinary (multipart, campo `photo`, JPEG/PNG/WebP, hasta 8 MB). Es **uno solo para los tres roles**, así no hay tres copias del manejo de la subida:
+- la miniatura cuadrada (`storage.thumbUrl`, 480 px) va siempre a `users.avatar`, que es la foto que leen el chat, Momentos, comentarios, reseñas e inscripciones;
+- si es ONG o empresa, en la **misma transacción** va también a `ngos.foto_perfil` / `empresas.foto_perfil` (el `logo` de su perfil);
+- `voluntarios.foto_perfil` no se toca (decisión F2 del usuario: `users.avatar` es la única foto del voluntario).
+
+Sigue la regla 24 en orden: sesión → límite de **10 subidas por hora** por usuario (`lib/rateLimit.js`) → 503 sin Cloudinary → `multer` (tipo declarado, tamaño, un solo archivo) → **cabecera real** (`storage.detectImageType`) → existencia del perfil → subida fuera de la transacción → transacción → si la base falla, se borra lo subido. Detalle en `API_CONTEXT.md`.
+
+**Hallazgo al resolver F2 (no arreglado acá, va en la Etapa 2):** `voluntarios.foto_perfil` se escribe solo en el registro (el avatar de iniciales) y nada la actualiza, pero `VolunteerPublicProfile.tsx:99`, `FollowListModal.tsx:77` y `VolunteerProfile.tsx:375` muestran `foto_perfil || avatar`. Por eso, si un voluntario cambia su foto, en el perfil público y en las listas de seguidores sigue viéndose la de iniciales.
+
+### Verificación
+- Test nuevo `test/integration/profile-photo.test.js` (15): camino feliz de los tres roles (incluidos `GET /auth/me` y los perfiles públicos de ONG y empresa), sin sesión, sin archivo, GIF, JPEG falso (cabecera de PDF), más de 8 MB, otro nombre de campo, sin Cloudinary, Cloudinary caído, ONG sin fila de perfil, falla de la base en la segunda escritura (se borra lo subido y no cambia ni `users` ni `ngos`) y el límite de 10 por hora.
+- Rojo antes de implementar: los 15 fallaban con 404 porque la ruta no existía, que es un rojo débil. Los rojos fuertes los dio la mutación.
+- Backend SQLite **640/640** y con `TZ=America/Argentina/Cordoba` 640/640; Postgres **642/642** y con TZ 642/642. 0 fail, 0 cancelled, salida 0 en las cuatro.
+- **Mutación** (script en el scratchpad; la corrida de control sin mutar pasó): **16 mutantes, 0 sobrevivientes**. Se mutaron el filtro de tipo, el 413, el tope de tamaño, el chequeo y el registro del límite, el valor del límite, el 503, la falta de archivo, la cabecera real, el chequeo de perfil, la tabla de empresa, la miniatura, la escritura del logo, la limpieza, el 502 y la transacción.
+- `auth.js` sigue en CRLF (352/352 líneas, contado con Node).
+
+### Errores propios
+- El primer borrador del test "ONG sin fila de perfil" borraba la fila de `ngo-1` del seed. Como `projects.ngo_id` es `ON DELETE CASCADE`, eso se llevaba sus proyectos. Lo cambié antes de correrlo, por una ONG registrada en el test y sin proyectos.
+- Un `grep -c $'\r$'` de Git Bash dio 0 CR en `auth.js` y pensé que la edición lo había pasado a LF. Era el `grep`: con `od` y Node el archivo está entero en CRLF.
+
+### ⚠️ NO verificado
+- **La subida real a Cloudinary y un multipart mandado por un navegador:** los tests usan dobles y `FormData` de Node. No hay pantalla todavía (Etapa 2).
+- **El mutante "sin transacción" muere por otra razón:** sin `db.transaction`, el doble que inyecta la falla no se activa y el test ve 200 en vez de 500. Que el rollback deshaga `users.avatar` lo prueba el test (la foto vuelve a la anterior), no ese mutante.
+- **Las fotos anteriores quedan en Cloudinary** (no se borran al reemplazarlas: decisión C3 abierta, igual que el pendiente conocido de borrar usuarios o proyectos).
+- El límite de frecuencia es en memoria y por proceso: se reinicia con el servidor, igual que el del login (§103).
+- Producción (Render): no se desplegó.

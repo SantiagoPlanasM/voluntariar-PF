@@ -7,6 +7,8 @@ const { signToken, requireAuth } = require('../middleware/auth');
 const { checkText, firstError } = require('../lib/inputs');
 const { isUniqueViolation } = require('../lib/dbErrors');
 const { createLimiter } = require('../lib/rateLimit');
+const multer = require('multer');
+const storage = require('../lib/storage');   // por propiedad (storage.uploadImage), para poder reemplazarlo en tests
 
 const router = express.Router();
 
@@ -253,6 +255,91 @@ router.put('/me', requireAuth, async (req, res) => {
     res.json({ user: updated });
   } catch (err) {
     console.error('PUT /auth/me error:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── PUT /api/auth/me/photo ─────────────────────────────────────────────────
+// Foto de perfil subida como archivo (multipart, campo `photo`), a Cloudinary (lib/storage.js). Un solo endpoint
+// para los tres roles: la foto va siempre a users.avatar (la que muestran chat, Momentos, comentarios y reseñas) y,
+// si es ONG o empresa, también a ngos/empresas.foto_perfil (el logo de su perfil). voluntarios.foto_perfil no se
+// toca: users.avatar es la única foto del voluntario (PLAN_FALTANTE.md, decisión F2).
+// Orden de la regla 24 de AI_RULES: sesión → límite → validar todo (cabecera real incluida) → subir fuera de la
+// transacción → guardar en una transacción → si falla, borrar lo subido.
+const PHOTO_MAX_BYTES = 8 * 1024 * 1024;   // como Momentos (el frontend comprime antes de subir)
+const PHOTO_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const PHOTO_CHANGES_PER_USER = createLimiter({ max: 10, windowMs: 60 * 60 * 1000 });   // cada subida gasta cuota
+const PROFILE_TABLE = { ngo: 'ngos', company: 'empresas' };   // tablas fijas, nunca texto del cliente
+
+class PhotoRejected extends Error {}
+const photoUpload = multer({
+  storage: multer.memoryStorage(),   // nada al disco: el de Render es efímero
+  limits: { fileSize: PHOTO_MAX_BYTES, files: 1, fields: 5, parts: 6 },
+  fileFilter: (req, file, cb) => {
+    if (!PHOTO_MIME.has(file.mimetype)) return cb(new PhotoRejected('Solo se aceptan fotos JPEG, PNG o WebP'));
+    cb(null, true);
+  },
+}).single('photo');
+
+function parsePhoto(req, res, next) {
+  photoUpload(req, res, (err) => {
+    if (!err) return next();
+    if (err instanceof PhotoRejected) return res.status(400).json({ error: err.message });
+    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ error: 'La foto puede pesar hasta 8 MB' });
+    }
+    return res.status(400).json({ error: 'Elegí una foto' });   // campo con otro nombre, más de un archivo, etc.
+  });
+}
+
+router.put('/me/photo', requireAuth, (req, res, next) => {
+  const wait = PHOTO_CHANGES_PER_USER.blocked(req.user.id);
+  if (wait) {
+    res.set('Retry-After', String(wait));
+    return res.status(429).json({ error: 'Cambiaste la foto muchas veces seguidas. Esperá un rato e intentá de nuevo.' });
+  }
+  if (!storage.isConfigured()) {
+    return res.status(503).json({ error: 'La subida de fotos no está disponible por el momento' });
+  }
+  next();
+}, parsePhoto, async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Elegí una foto' });
+    if (!storage.detectImageType(req.file.buffer)) {
+      return res.status(400).json({ error: 'El archivo no es una imagen válida (JPEG, PNG o WebP)' });
+    }
+    const table = PROFILE_TABLE[req.user.role];
+    const exists = await db.get('SELECT id FROM users WHERE id=$1', [req.user.id]);
+    const profile = table ? await db.get(`SELECT id FROM ${table} WHERE user_id=$1`, [req.user.id]) : true;
+    if (!exists || !profile) return res.status(404).json({ error: 'Perfil no encontrado' });
+
+    PHOTO_CHANGES_PER_USER.hit(req.user.id);
+    let uploaded;
+    try {
+      uploaded = await storage.uploadImage(req.file.buffer);
+    } catch (err) {
+      console.error('PUT /auth/me/photo: falló la subida a Cloudinary:', err.message);
+      return res.status(502).json({ error: 'No pudimos subir la foto. Probá de nuevo en un momento.' });
+    }
+
+    const url = storage.thumbUrl(uploaded.url);   // cuadrada, 480 px: alcanza para avatares y logos
+    try {
+      await db.transaction(async (tx) => {
+        await tx.run('UPDATE users SET avatar=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [url, req.user.id]);
+        if (table) {
+          await tx.run(`UPDATE ${table} SET foto_perfil=$1, updated_at=CURRENT_TIMESTAMP WHERE user_id=$2`, [url, req.user.id]);
+        }
+      });
+    } catch (err) {
+      console.error('PUT /auth/me/photo: no se pudo guardar:', err);
+      await storage.deleteImage(uploaded.publicId).catch((e) => console.error('PUT /auth/me/photo: no se pudo borrar lo subido:', e.message));
+      return res.status(500).json({ error: 'Error al guardar la foto' });
+    }
+
+    const user = await db.get('SELECT id, name, email, role, avatar, bio, location FROM users WHERE id=$1', [req.user.id]);
+    res.json({ user });
+  } catch (err) {
+    console.error('PUT /auth/me/photo error:', err);
     res.status(500).json({ error: 'Error interno' });
   }
 });

@@ -61,7 +61,7 @@ Todas las claves primarias son `TEXT` (UUID v4-like), no enteros autoincremental
 | email | TEXT | NOT NULL, UNIQUE |
 | password | TEXT | NOT NULL (hash bcrypt) |
 | role | TEXT | NOT NULL, DEFAULT `'volunteer'`, CHECK IN (`volunteer`,`ngo`,`company`) |
-| avatar | TEXT | |
+| avatar | TEXT | La foto de la persona (chat, Momentos, comentarios, reseñas). La escriben `PUT /api/auth/me` y `PUT /api/auth/me/photo` (§162) |
 | bio | TEXT | |
 | location | TEXT | |
 | created_at / updated_at | TIMESTAMP | DEFAULT now |
@@ -90,6 +90,8 @@ Igual forma que `ngos` pero con `industria` en vez de `alias`/`founded`. id · u
 
 ### `voluntarios`
 id · user_id (UNIQUE FK→users) · nombre · apellido · descripcion · ubicacion · foto_perfil · banner · cv_url · created_at · updated_at.
+
+> **`foto_perfil` es una copia vieja:** se escribe una sola vez, en el registro (el avatar de iniciales), y nada la actualiza. La foto del voluntario es **`users.avatar`** (decisión F2 de `PLAN_FALTANTE.md`, `PROJECT_ANALYSIS.md §162`). `GET /api/voluntarios/:userId` y las listas de seguidores la siguen devolviendo; el frontend deja de preferirla en la Etapa 2.
 
 ### `empleados`
 id · ngo_id (FK→ngos, CASCADE) · nombre · apellido · email · foto_perfil · rol (CHECK IN `coordinador`,`comunicador`,`admin`,`otro`, default `coordinador`) · created_at.

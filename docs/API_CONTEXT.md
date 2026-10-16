@@ -20,6 +20,7 @@
 | POST | `/api/auth/login` | No | — | `routes/auth.js` |
 | GET | `/api/auth/me` | Sí | cualquiera | `routes/auth.js` |
 | PUT | `/api/auth/me` | Sí | cualquiera | `routes/auth.js` |
+| PUT | `/api/auth/me/photo` | Sí | cualquiera | `routes/auth.js` |
 | GET | `/api/projects` | Opcional | — | `routes/projects.js` |
 | GET | `/api/projects/recommended` | Sí | volunteer | `routes/projects.js` |
 | GET | `/api/projects/:id` | Opcional | — | `routes/projects.js` |
@@ -127,6 +128,15 @@
 - **Validación (`PROJECT_ANALYSIS.md §76`):** `name`, si viene (también `""` o `null`), pasa por `validateName` y se guarda recortado; `bio` ≤ 500, `location` ≤ 150, `avatar` ≤ 1000, todos texto o `null`. Si no → **400**.
 - **Body:** `{ name?, bio?, location?, avatar? }` — solo lee esos cuatro, todos de `users` (no toca la tabla del rol). Parcial: un campo que no viene conserva su valor.
 - **Respuesta 200:** `{ user }` actualizado (`id, name, email, role, avatar, bio, location`). `404` si el usuario ya no existe.
+
+### `PUT /api/auth/me/photo` — Auth (cualquier rol)
+> Agregado en `PROJECT_ANALYSIS.md §162` (`PLAN_FALTANTE.md`, Etapa 1). Foto de perfil subida como archivo a Cloudinary (`lib/storage.js`).
+- **Body:** `multipart/form-data` con **un** archivo en el campo `photo` (JPEG, PNG o WebP; hasta 8 MB). El cliente no fija `Content-Type` (lo pone el navegador con el boundary).
+- **Qué guarda:** la miniatura cuadrada de Cloudinary (`storage.thumbUrl`, 480 px) en **`users.avatar`**, que es la foto que muestran el chat, Momentos, comentarios y reseñas. Si el rol es `ngo` o `company`, la misma URL va también a `ngos.foto_perfil` / `empresas.foto_perfil` (el `logo` de `fmtNgo`/`fmtEmpresa`), en la misma transacción. **`voluntarios.foto_perfil` no se toca**: la foto del voluntario es `users.avatar` (decisión F2 de `PLAN_FALTANTE.md`).
+- **Respuesta 200:** `{ user }` con las mismas claves que `PUT /api/auth/me`.
+- **Errores (en este orden, sin subir nada antes de validar):** `401` sin sesión · `429` (con `Retry-After`) pasadas **10 subidas por hora** por usuario (en memoria, por proceso, `lib/rateLimit.js`) · `503` si Cloudinary no está configurado · `400` "Solo se aceptan fotos JPEG, PNG o WebP" (tipo declarado), "Elegí una foto" (sin archivo, o en otro campo) o "El archivo no es una imagen válida (JPEG, PNG o WebP)" (la **cabecera real** no es de imagen) · `413` más de 8 MB · `404` "Perfil no encontrado" (ONG/empresa sin fila de perfil) · `502` si falla Cloudinary (la foto anterior sigue) · `500` "Error al guardar la foto" si falla la base después de subir: se borra de Cloudinary lo subido y no cambia nada.
+- **No borra la foto anterior de Cloudinary** (como borrar un usuario o un proyecto, pendiente conocido; decisión C3 abierta en `PLAN_FALTANTE.md`).
+- Tests: `test/integration/profile-photo.test.js`.
 
 ---
 

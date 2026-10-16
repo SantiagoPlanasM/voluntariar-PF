@@ -200,7 +200,7 @@ No hay separación entre "componentes de presentación" y "componentes contenedo
 ## 11. Dependencias importantes a tener en cuenta
 
 - `frontend/vite.config.ts` incluye un plugin custom `figmaAssetResolver` y un comentario explícito ("required for Make, even if Tailwind is not being actively used") que indica que el frontend fue generado/scaffoldeado con una herramienta de diseño-a-código (probablemente Figma Make). Esto explica el estilo muy uniforme de Tailwind inline y la ausencia de componentes reutilizables abstraídos.
-- La única subida de archivos son las fotos de Momentos (`multer` en `routes/posts.js`, guardadas en Cloudinary; `PROJECT_ANALYSIS.md §43`). Los demás campos de imagen (proyecto, perfiles) se llenan con URLs externas, p. ej. avatares generados por `dicebear.com`. (`uuid` se eliminó por no usarse.)
+- Las subidas de archivos son las fotos de Momentos (`multer` en `routes/posts.js`, guardadas en Cloudinary; `PROJECT_ANALYSIS.md §43`) y la foto de perfil (`PUT /api/auth/me/photo` en `routes/auth.js`: va a `users.avatar` y, para ONG y empresa, también al logo; §162). Los demás campos de imagen (proyectos) se llenan con URLs externas, p. ej. avatares generados por `dicebear.com`. (`uuid` se eliminó por no usarse.)
 
 ## 12. Flujo de autenticación
 
