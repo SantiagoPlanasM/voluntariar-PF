@@ -69,10 +69,15 @@ export function CreateVoluntariado() {
   const validateStep = (s: number) => {
     const e: Record<string, string> = {};
     if (s === 1) {
+      // Topes iguales a los del backend (§143); maxLength los impone al escribir, esto cubre lo pegado (§145).
       if (!form.title.trim() || form.title.trim().length < 3)
         e.title = 'Mínimo 3 caracteres';
+      else if (form.title.trim().length > 80)
+        e.title = 'Máximo 80 caracteres';
       if (!form.description.trim() || form.description.trim().length < 10)
         e.description = 'Mínimo 10 caracteres';
+      else if (form.description.trim().length > 1000)
+        e.description = 'Máximo 1000 caracteres';
     }
     if (s === 2) {
       if (form.modality !== 'remoto' && !form.location.trim())
@@ -247,7 +252,7 @@ export function CreateVoluntariado() {
               <div id="field-title">
                 <label className={lbl}>Título del voluntariado *</label>
                 <input className={inp('title')} placeholder="Ej: Jornada de limpieza en el río"
-                  aria-label="Título del voluntariado" value={form.title} onChange={e => set('title', e.target.value)} />
+                  aria-label="Título del voluntariado" maxLength={80} value={form.title} onChange={e => set('title', e.target.value)} />
                 <p className={hint}>{form.title.length}/80 caracteres</p>
                 {err('title')}
               </div>
@@ -256,8 +261,8 @@ export function CreateVoluntariado() {
                 <label className={lbl}>Descripción corta *</label>
                 <textarea className={inp('description') + ' resize-none'} rows={3}
                   placeholder="Contá en pocas palabras qué harán los voluntarios y por qué es importante..."
-                  aria-label="Descripción corta" value={form.description} onChange={e => set('description', e.target.value)} />
-                <p className={hint}>{form.description.length} caracteres · mínimo 10</p>
+                  aria-label="Descripción corta" maxLength={1000} value={form.description} onChange={e => set('description', e.target.value)} />
+                <p className={hint}>{form.description.length}/1000 caracteres · mínimo 10</p>
                 {err('description')}
               </div>
             </div>
@@ -405,7 +410,7 @@ export function CreateVoluntariado() {
                 </label>
                 <textarea className={inp('full_description') + ' resize-none'} rows={4}
                   placeholder="Agregá más detalles: horarios, qué deben traer, cómo será el día..."
-                  aria-label="Descripción completa" value={form.full_description} onChange={e => set('full_description', e.target.value)} />
+                  aria-label="Descripción completa" maxLength={5000} value={form.full_description} onChange={e => set('full_description', e.target.value)} />
               </div>
 
               <div className="grid grid-cols-2 gap-3">

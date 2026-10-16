@@ -4012,3 +4012,16 @@ Script descartable sobre `ngoProjects` y sus dos llamadas nuevas (12 mutantes), 
 - Lo visual: que `NGODashboard` muestre "Medio Ambiente · Fugaz" y `NGOOwnProfile` la categoría de cada proyecto (no puedo ver la interfaz; no hay test de componente que lo cubra).
 - `GET /api/ngos/:id/dashboard` tiene el mismo `SELECT * FROM projects` (mismas listas vacías y `category: ''`). Quedó afuera porque la tarea nombraba dos endpoints; ningún componente lo llama hoy (`api.ts` no lo expone). Pasarlo a `ngoProjects` es una línea: queda para decidir.
 - Postgres en prod (Render): no verificado.
+
+## 145. Crear voluntariado: los topes del backend también en el formulario (regla 10, aviso de §143)
+
+**Qué se hizo:** desde §143 el backend limita el título a 80 caracteres, la descripción corta a 1000 y la completa a 5000. El formulario mostraba "n/80", pero no limitaba nada, así que un título largo daba error recién al publicar. Ahora los tres campos tienen `maxLength` con esos topes, y el paso 1 valida título y descripción con su propio mensaje ("Máximo 80/1000 caracteres"), por si el texto entra pegado o autocompletado.
+
+### Tests (nuevos: 2, `CreateVoluntariadoLimits.test.tsx`)
+- Los dos fallan con el formulario anterior (verificado restaurando el archivo aparte, sin `stash`).
+
+### Verificación
+- **Frontend 566/566. Typecheck: 0 errores.**
+
+### ⚠️ NO verificado
+- No lo vi en el navegador. No corrí la mutación ni la suite con `TZ=America/Argentina/Cordoba`: la sesión se cortó por falta de tokens.
