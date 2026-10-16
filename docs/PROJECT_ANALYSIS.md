@@ -4355,3 +4355,20 @@ Revisando otros lugares que cuentan no leídas (pedido de la tarea): **`Notifica
 
 ### ⚠️ NO verificado
 - En producción no debería haber usuarios con rol y sin perfil (el registro los crea en una transacción, §85); no lo consulté.
+
+## 159. `GET /api/notifications`: lista blanca de columnas (hallazgo de §155, aprobado por el usuario)
+
+**Qué se hizo:** la lista de notificaciones salía de un `SELECT *`. Es un endpoint con sesión que devuelve solo filas propias, pero una columna nueva de `notifications` habría salido sola (regla 8). Ahora selecciona `id, user_id, type, title, body, read, data, created_at`: exactamente las columnas de `migrate.js`, así que la forma no cambia. El contador `unread` (§154) no se tocó.
+
+### Tests (nuevos: 2, `notifications-columns.test.js`)
+- Con una columna centinela agregada a la tabla: no sale en la respuesta, y cada notificación tiene exactamente las 8 claves de antes con sus valores. **Rojo de comportamiento:** los dos fallaban (salía `secreto_159`).
+
+### Verificación
+- **Mutación (9)**, control sin mutar primero, en SQLite y en Postgres: sacar cada una de las 8 columnas y volver a `SELECT *`. **Mueren los 9 en los dos motores.** Archivo restaurado byte a byte.
+- Suites: ver §160.
+
+### Errores propios
+- Ninguno.
+
+### ⚠️ NO verificado
+- Si la tabla de producción tuviera una columna que no está en `migrate.js`, antes salía y ahora no (ningún componente lee otra cosa que `AppNotification`).

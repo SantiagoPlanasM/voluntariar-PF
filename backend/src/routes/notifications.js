@@ -8,8 +8,10 @@ const router = express.Router();
 // ── GET /api/notifications ────────────────────────────────────────────────
 router.get('/', requireAuth, async (req, res) => {
   try {
+    // Lista blanca (regla 8, §159): antes `SELECT *` y una columna nueva salía sola. Son las mismas de hoy.
     const notifications = await db.all(
-      `SELECT * FROM notifications WHERE user_id=$1 ORDER BY created_at DESC LIMIT 50`,
+      `SELECT id, user_id, type, title, body, read, data, created_at
+       FROM notifications WHERE user_id=$1 ORDER BY created_at DESC LIMIT 50`,
       [req.user.id]
     );
     // Contador sobre TODAS las del usuario, no sobre las 50 de la lista (antes quedaba en ≤50; §152).
