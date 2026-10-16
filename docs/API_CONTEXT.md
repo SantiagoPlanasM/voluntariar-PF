@@ -100,11 +100,11 @@
 ## Auth (`routes/auth.js`)
 
 ### `POST /api/auth/register`
-- **Body:** `{ name, email, password, role: 'volunteer'|'ngo'|'company', ...(campos específicos por rol) }`
-- **Validación:** `validateName` (letras y espacios, 2–50), `validateEmail` (regex), `validatePassword` (mín. 8 caracteres, una mayúscula y un número) — regex duplicadas en `frontend/AuthModal.tsx`. Todos deben ser strings (§76).
+- **Body:** `{ name, email, password, role: 'volunteer'|'ngo'|'company', apellido? }` (no lee otros campos; `role` ausente = `volunteer`, fuera de la lista → **400** "Rol inválido").
+- **Validación:** `validateName` (letras y espacios, 2–50), `validateEmail` (regex), `validatePassword` (mín. 8 caracteres, una mayúscula y un número) — regex duplicadas en `frontend/AuthModal.tsx`. Todos deben ser strings (§76). `apellido` es opcional: si viene, tiene que ser texto de hasta 50 caracteres (`checkText`, `PROJECT_ANALYSIS.md §138`; antes uno que no era texto daba 500). Si falta o viene vacío, se toma del nombre completo (todo lo que va después de la primera palabra). Solo se guarda en `voluntarios`, pero se valida con cualquier rol.
 - **Efecto:** crea la fila en `users` (id generado en el código, regla 23) y, según `role`, la de `voluntarios`, `ngos` o `empresas`, **en una sola transacción**: si falla el perfil no queda el usuario (`PROJECT_ANALYSIS.md §85`).
 - **Respuesta 201:** `{ message, token, user }`
-- **Límite (§103):** 20 registros por IP por hora → **429** "Demasiados intentos. Probá de nuevo en unos minutos." con `Retry-After`.
+- **Límite (§103):** 20 registros por IP por hora → **429** "Demasiados intentos. Probá de nuevo en unos minutos." con `Retry-After`. Cuenta **todos** los pedidos, también los que terminan en `400` o `409` (el intento se anota antes de validar; a diferencia del login, donde solo cuentan los fallidos).
 - **Errores:** `400` validación; **`409`** "Ya existe una cuenta con ese email" (también si dos registros con el mismo email llegan a la vez: el UNIQUE de `users.email` deja pasar a uno, §85).
 
 ### `POST /api/auth/login`
@@ -114,13 +114,13 @@
 - **Errores:** `400` faltan datos o email inválido; `401` **"Email o contraseña incorrectos"** tanto si el email no existe como si la contraseña no coincide, y con el mismo trabajo (se compara contra un hash fijo si no hay cuenta), para no revelar qué emails están registrados (`PROJECT_ANALYSIS.md §91`, REVISION B20). *(Hasta §91 eran dos mensajes distintos.)*
 
 ### `GET /api/auth/me` — Auth
-- **Respuesta 200:** `{ user }` (incluye datos de `users` + perfil extendido según rol, vía JOIN a `voluntarios`/`ngos`/`empresas`).
-- **Errores:** `401` sin token o token inválido.
+- **Respuesta 200:** `{ user, profile }`. `user`: `id, name, email, role, avatar, bio, location, created_at` de `users`. `profile`: la fila de `voluntarios`, `ngos` o `empresas` según el rol (consulta aparte, no un JOIN; `SELECT *`, con los nombres de columna en español), o `null`.
+- **Errores:** `401` sin token o token inválido; `404` si el usuario del token ya no existe.
 
 ### `PUT /api/auth/me` — Auth
 - **Validación (`PROJECT_ANALYSIS.md §76`):** `name`, si viene (también `""` o `null`), pasa por `validateName` y se guarda recortado; `bio` ≤ 500, `location` ≤ 150, `avatar` ≤ 1000, todos texto o `null`. Si no → **400**.
-- **Body:** campos actualizables del perfil extendido (`bio`, `location`, `avatar`, y campos propios de la tabla de rol).
-- **Respuesta 200:** `{ user }` actualizado.
+- **Body:** `{ name?, bio?, location?, avatar? }` — solo lee esos cuatro, todos de `users` (no toca la tabla del rol). Parcial: un campo que no viene conserva su valor.
+- **Respuesta 200:** `{ user }` actualizado (`id, name, email, role, avatar, bio, location`). `404` si el usuario ya no existe.
 
 ---
 
@@ -132,12 +132,13 @@
 - **Comportamiento:** filtra dinámicamente según los params presentes. **Bifurca implementación según motor de DB** (ver `BACKEND_CONTEXT.md §2`, §10.6):
   - Postgres: una sola query con `json_agg` para traer roles/requisitos/categoría agregados. Los dos `json_agg` agregan **strings** (`DISTINCT ro.nombre`, `DISTINCT req.descripcion`), la misma forma que la rama SQLite y que `GET /:id`; `pg` los entrega ya parseados y `parseJson` los devuelve tal cual. Antes los roles salían como objetos y `parseJson` tiraba todo a `[]` (`PROJECT_ANALYSIS.md §52`). Test: `test/integration/projects-list-shape.test.js` (listado vs. detalle, en los dos motores).
   - SQLite: query base + 3 queries en batch (no N+1) para roles, requisitos y categoría — usando la traducción de `translatePg()`.
+  - **`search` busca en los mismos campos en los dos motores:** título, descripción, nombre de la ONG, **nombre de la categoría** y ubicación. En SQLite la categoría va por subconsulta, porque esa rama no hace JOIN con `categorias`. Antes, en SQLite, faltaba la categoría (`PROJECT_ANALYSIS.md §136`, REVISION A7).
   - **`search` y el filtro de modalidad no distinguen mayúsculas en ninguno de los dos motores:** usan `ILIKE` (`translatePg` lo vuelve `LIKE` en SQLite). En SQLite eso vale solo para letras ASCII: "MARATÓN" no encuentra "Maratón" en dev, sí en Postgres. Ninguno de los dos ignora tildes ("maraton" no encuentra "Maratón"). `modality=remoto` incluye las ubicaciones con "remoto"/"virtual" en cualquier combinación de mayúsculas (`PROJECT_ANALYSIS.md §54`). Test: `test/integration/projects-search.test.js`. Hoy solo la portada (`PublicFeed`) usa `search`; Explorar filtra en el navegador y ninguna pantalla manda `modality`.
-- **Respuesta 200:** `{ projects: Project[], total, page, limit }`, cada `Project` pasado por `fmt()` (incluye `latitude`/`longitude`/`modality`, agregados por el usuario 2026-09).
-- Si hay usuario autenticado (`optionalAuth`), cada proyecto incluye `my_enrollment` si el usuario ya está inscripto.
+- **Respuesta 200:** `{ projects: Project[] }`, solo la lista (sin `total`, `page` ni `limit`), cada `Project` pasado por `fmt()` (incluye `latitude`/`longitude`/`modality`, agregados por el usuario 2026-09, más `ngo_name`/`ngo_logo`/`ngo_followers`, `avg_rating` y `ratings_count`).
+- Aunque la ruta usa `optionalAuth`, la respuesta **no cambia con la sesión**: no trae `my_enrollment` (esta doc decía que sí; la inscripción propia está solo en `GET /api/projects/:id` y en el feed, como `my_enrollment_status`).
 
 ### `GET /api/projects/recommended` — Auth, role `volunteer`
-- **Query params:** `limit` (default 10, máx. 30).
+- **Query params:** `limit` (default 10, máx. 30; `Math.min(parseInt(limit) || 10, 30)`, sin `clampInt`: un negativo no se acota por abajo).
 - **Comportamiento (reescrito por el usuario 2026-09 — bastante más rico que un ranking simple):** scoring por 9 señales independientes, cada una suma puntos y agrega un `tag`/`reason` visible en la UI si aplica:
   1. Afinidad de categoría con el historial de inscripciones.
   2. Match de habilidades del voluntario contra los roles buscados del proyecto.
@@ -148,18 +149,21 @@
   7. Rating promedio del proyecto.
   8. Popularidad (`project_follows` del proyecto).
   9. Señal social: contactos que el voluntario sigue (`volunteer_follows`) y que están inscriptos/aprobados en ese proyecto.
-  - Con historial vacío ("cold start"), cae a señales 4-8 (sin las que dependen de historial de inscripción/habilidades).
+  - **"Arranque en frío"** (`is_cold_start: true`): sin historial de inscripciones, sin ONGs/proyectos seguidos, sin habilidades que matcheen roles y sin voluntarios seguidos. No se saca ninguna señal (las que dependen de esos datos simplemente no suman): se **multiplican** las de cupos (×2), novedad (×2) y rating (×3), y un proyecto sin ningún motivo lleva el tag "🌟 Destacado".
 - **IMPORTANTE — orden de rutas:** esta ruta está declarada antes de `GET /:id` en `projects.js`. Si se moviera después, Express interpretaría `recommended` como el parámetro `:id` y la ruta dejaría de ser alcanzable — cualquier ruta nueva de `projects.js` sin parámetro debe declararse antes de `/:id`.
-- **Respuesta 200:** `{ recommendations: Project[], is_cold_start: boolean }`, cada `Project` con `recommendation_score` (número), `recommendation_reasons` (array de strings) y `recommendation_tags` (array de strings cortos con emoji, para chips en la UI).
+- **Respuesta 200:** `{ recommendations: Project[], based_on_history: boolean, is_cold_start: boolean }` (`based_on_history`: el voluntario tiene inscripciones en proyectos con categoría; es lo único de los dos que tipa `api.ts`), cada `Project` con `recommendation_score` (número), `recommendation_reasons` (array de strings) y `recommendation_tags` (array de strings cortos con emoji, para chips en la UI).
 - **Errores:** `401` sin token, `403` si el rol no es `volunteer`.
 
 ### `GET /api/projects/:id` — Auth opcional
-- **Respuesta 200:** `{ project }` con roles, requisitos, categoría, comentarios recientes, rating promedio, (si hay sesión) `my_enrollment`, y **`can_manage: boolean`**: `true` solo si quien pide es la ONG dueña (consulta aparte a `ngos`, sin exponer el `user_id` de la ONG). Lo usa `ProjectDetails` para mostrar "Ver en panel ONG" (`PROJECT_ANALYSIS.md §73`).
+- **Respuesta 200:** `{ project }` con roles, requisitos, categoría, `comments` (todos, del más nuevo al más viejo), `ratings`, `kpis`, rating promedio, (si hay sesión) `my_enrollment`, y **`can_manage: boolean`**: `true` solo si quien pide es la ONG dueña (consulta aparte a `ngos`, sin exponer el `user_id` de la ONG). Lo usa `ProjectDetails` para mostrar "Ver en panel ONG" (`PROJECT_ANALYSIS.md §73`).
+- **Reseñas (`ratings`):** `{ id, project_id, user_id, rating, comment, created_at, user_name, user_avatar }` (`RATINGS_SELECT`, el mismo que el feed). `user_avatar` es la foto de quien calificó, o `null` (`PROJECT_ANALYSIS.md §133`). Vienen ordenadas `r.created_at DESC, r.id`: de la más nueva a la más vieja, con desempate fijo (§122).
+- **`my_enrollment`** (`null` sin sesión o sin inscripción) sale con los **nombres de columna crudos**: `{ id, user_id, project_id, status, mensaje, horas_realizadas, created_at, updated_at }` (no `message`/`hours_logged` como en `/api/enrollments/*`). El frontend solo lee `status`.
 - **Errores:** `404` si no existe. *(Esta doc decía también "o `status='cancelled'` y el requester no es la ONG dueña": el código no hace eso, corregido en §73.)*
 
 ### `POST /api/projects` — Auth, role `ngo`
-- **Body real (en inglés — a diferencia de otros endpoints, acá el body ya viaja con los mismos nombres que usa el frontend, no en español):** `{ title, description, full_description?, image?, category?, location, type: 'fugaz'|'sostenido', duration?(si fugaz), hours_per_week?(si sostenido), volunteers_needed, funding_goal?, cost_per_person?, roles_needed?: string[], requirements?: string[] }`
-- **Validación (`validateProject`):** título (≥3) y descripción (≥10) no vacíos, `volunteers_needed > 0`, duración obligatoria si `type='fugaz'`, `hours_per_week` obligatorio y `>0` si `type='sostenido'`. *(Corregido — hasta hace poco el backend validaba/leía `cupos` en vez de `volunteers_needed`, lo que hacía fallar siempre la creación de proyectos con "Los cupos deben ser un número positivo". Ver `PROJECT_ANALYSIS.md §13`, bug B5.)*
+- **Body real (en inglés — a diferencia de otros endpoints, acá el body ya viaja con los mismos nombres que usa el frontend, no en español):** `{ title, description, full_description?, image?, category?, location, type?: 'fugaz'|'sostenido' (ausente o null = 'fugaz'), duration?(si fugaz), hours_per_week?(si sostenido), volunteers_needed, funding_goal?, cost_per_person?, modality?|modalidad?: 'presencial'|'remoto'|'hibrido' (ausente o '' = se deduce de la ubicación), latitude?|latitud?, longitude?|longitud?, roles_needed?: string[], requirements?: string[] }`
+- **Validación (`validateProject`):** `type` en `fugaz|sostenido` (→ 400 `"Tipo inválido: tiene que ser fugaz o sostenido"`; antes 500 por el `CHECK`), título (≥3) y descripción (≥10) no vacíos, ubicación no vacía, `volunteers_needed` entre 1 y **100000**, duración obligatoria si el tipo es fugaz (también si `type` no vino), `hours_per_week` obligatorio, entre 1 y **168**, si `type='sostenido'`. Antes, por encima de esos topes, Postgres daba 500 por desborde del INTEGER. *(Corregido — hasta hace poco el backend validaba/leía `cupos` en vez de `volunteers_needed`, lo que hacía fallar siempre la creación de proyectos con "Los cupos deben ser un número positivo". Ver `PROJECT_ANALYSIS.md §13`, bug B5.)*
+- **Tipos y montos (`PROJECT_ANALYSIS.md §137`, REVISION A3), antes de crear nada:** `title`, `description`, `location`, `full_description`, `image` y `duration`, si vienen y no son `null`, tienen que ser texto (→ 400 `"<Campo> tiene que ser un texto"`; antes 500 en `.trim()`/`.toLowerCase()`). `modality`/`modalidad` fuera de la lista → 400. `funding_goal` y `cost_per_person`: ausentes, `null` o `''` = 0; si no, número finito ≥ 0 (→ 400; antes un negativo daba 500 y `"abc"` se guardaba como 0). Es la misma regla que el PUT (`parseMoney`). `latitude`/`longitude` no se validan: pasan por `parseFloat`, y un valor no numérico da `NaN`, que en la respuesta JSON sale `null` (qué guarda cada motor en la columna `REAL` no se verificó: SQLite probablemente `NULL`, Postgres acepta `'NaN'`).
 - **Validación de listas y categoría (`cleanTextList`, `PROJECT_ANALYSIS.md §59`), antes de crear nada:** `roles_needed` y `requirements` ausentes → `[]`; si vienen, tienen que ser **arrays de strings**, a lo sumo **20** cada uno, rol de **2 a 40** caracteres y requisito de **3 a 100** (los mismos límites que `CreateVoluntariado.tsx`; sin la regex de letras del frontend). Se recortan y se sacan repetidos. `category`, si viene, string de hasta 60. Antes un string se recorría letra por letra (creaba los roles "C", "h", "e", "f" en el catálogo) y un no-string daba 500 con el proyecto creado a medias.
 - **Efecto (en una sola `db.transaction()`):** `INSERT` en `projects` (mapeando `volunteers_needed → cupos` internamente); la categoría y los roles se crean en su catálogo si no existen (`ON CONFLICT (nombre) DO NOTHING`) y se asocian; después los `requisitos`. Si algo falla, no queda nada. **Ojo:** cualquier ONG puede crear categorías y roles nuevos en el catálogo global (el frontend manda categorías de una lista fija, pero el backend acepta cualquier texto).
 - **Respuesta 201:** `{ project }`, con `roles_needed`/`requirements`/`category` tal como se guardaron (recortados, sin repetidos), no como vinieron en el body.
@@ -168,24 +172,24 @@
 
 ### `PUT /api/projects/:id` — Auth, role `ngo` (dueño)
 - Verifica `ngo_id` de la sesión contra el `ngo_id` del proyecto (join implícito vía `WHERE id=$1 AND ngo_id=$2`).
-- **Parcial (`PROJECT_ANALYSIS.md §95`):** cada campo que **no viene conserva su valor**: `title`, `description`, `full_description`, `image`, `location`, `type`, `duration`, `volunteers_needed`, `funding_goal`, `cost_per_person`, `hours_per_week`, `status`, `latitude`/`longitude`, `modality`, `roles_needed`, `requirements`, `category`. `null` o `""` borra los opcionales (`full_description`, `image`, `duration`; montos → 0). El resultado combinado se valida como el alta (`validateProject`, textos como string, tipo `fugaz|sostenido`, montos finitos ≥ 0); si no → **400** sin cambiar nada. `roles_needed`, `requirements` y `category`, si vienen, se validan como en el alta y **reemplazan** a los actuales (listas vacías o `""` los borran), en la misma transacción. *(Antes se pisaba todo lo no enviado —un status omitido reactivaba un proyecto terminado— y la respuesta devolvía roles/requisitos/categoría del body sin guardarlos.)*
-- **Capacidad (`PROJECT_ANALYSIS.md §40`):** `volunteers_needed` **omitido o `null` conserva la capacidad actual** (antes se pisaba con `0`); un valor explícito debe ser un entero ≥ 1 (**400** `"Los cupos deben ser un número positivo"`, igual que al crear; antes un negativo violaba el `CHECK(cupos >= 0)` y devolvía 500). **No se puede bajar por debajo de las inscripciones aprobadas**: **400** `"No podés bajar la capacidad a N: ya hay M voluntarios aprobados."`. La condición va dentro del propio `UPDATE` (`... AND cupos_ocupados <= $9`), así que es atómica frente a aprobaciones concurrentes. **No es una actualización parcial real**: el resto de los campos omitidos no se conserva (p. ej. `status` omitido vuelve a `'active'`); no se verificó qué hace cada uno. Ninguna pantalla del frontend usa hoy este endpoint.
+- **Parcial (`PROJECT_ANALYSIS.md §95`):** cada campo que **no viene conserva su valor**: `title`, `description`, `full_description`, `image`, `location`, `type`, `duration`, `volunteers_needed`, `funding_goal`, `cost_per_person`, `hours_per_week`, `status`, `latitude`/`longitude`, `modality`, `roles_needed`, `requirements`, `category`. `null` o `""` borra los opcionales (`full_description`, `image`, `duration`; montos → 0). El resultado combinado se valida como el alta (`validateProject`, con los mismos topes de 100000 cupos y 168 horas; textos como string; tipo `fugaz|sostenido`, `null` incluido; montos finitos ≥ 0, con `parseMoney`); si no → **400** sin cambiar nada. `modality` y `latitude`/`longitude` no se validan en el PUT. `roles_needed`, `requirements` y `category`, si vienen, se validan como en el alta y **reemplazan** a los actuales (listas vacías o `""` los borran), en la misma transacción. *(Antes se pisaba todo lo no enviado —un status omitido reactivaba un proyecto terminado— y la respuesta devolvía roles/requisitos/categoría del body sin guardarlos.)*
+- **Capacidad (`PROJECT_ANALYSIS.md §40`):** `volunteers_needed` **omitido o `null` conserva la capacidad actual** (antes se pisaba con `0`); un valor explícito debe ser un entero ≥ 1 (**400** `"Los cupos deben ser un número positivo"`, igual que al crear; antes un negativo violaba el `CHECK(cupos >= 0)` y devolvía 500). **No se puede bajar por debajo de las inscripciones aprobadas**: **400** `"No podés bajar la capacidad a N: ya hay M voluntarios aprobados."`. La condición va dentro del propio `UPDATE` (`... AND cupos_ocupados <= $9`), así que es atómica frente a aprobaciones concurrentes. Ninguna pantalla del frontend usa hoy este endpoint. *(Esta viñeta decía además que "no es una actualización parcial real" y que un `status` omitido volvía a `'active'`: era de antes de §95 y contradecía la viñeta de arriba. El código es parcial, también para `status`.)*
 - **`status`**, si viene, tiene que ser `active`, `completed` o `cancelled` → si no, **400** (antes 500 por el `CHECK`; `§74`).
 - **Respuesta 200:** `{ project }` releído de la base (con sus roles, requisitos y categoría guardados). **Errores:** `400` validación o capacidad; `404` si el proyecto no existe o no pertenece a la ONG del usuario (no distingue "no existe" de "no es tuyo", por diseño). No lo usa ninguna pantalla (no hay edición de proyectos en la interfaz).
 
 ### `DELETE /api/projects/:id` — Auth, role `ngo` (dueño)
 - Borra el proyecto (cascada elimina requisitos, roles, comentarios, ratings, kpis, enrollments asociados — ver `DATABASE_CONTEXT.md §5`).
-- **Respuesta 200:** `{ success: true }`.
+- **Respuesta 200:** `{ message: 'Proyecto eliminado' }` (esta doc decía `{ success: true }`). **404** si no existe o no es de la ONG de la sesión.
 
 ### `POST /api/projects/:id/comments` — Auth (cualquier rol)
-- **Body:** `{ comment }`. Pasa por `hasBadWord()`. **404** si el proyecto no existe (antes 500 por la FK, `§56`).
-- **Respuesta 201:** `{ comment }` (incluye datos del autor vía JOIN a `users`, más `is_participant: boolean` — agregado por el usuario 2026-09, para que el frontend distinga si quien comenta participó del proyecto o no).
+- **Body:** `{ comment }`. Recortado, menos de 3 caracteres (o vacío) → **400** "Comentario muy corto". Pasa por `hasBadWord()` → **400**. **404** si el proyecto no existe (antes 500 por la FK, `§56`).
+- **Respuesta 201:** `{ comment }` (incluye `user_name`/`user_avatar` vía JOIN a `users`, más `is_participant` — agregado por el usuario 2026-09, para que el frontend distinga si quien comenta participó del proyecto o no). `is_participant` es **`1`/`0`** (un `CASE`), no `true`/`false`, igual que en el detalle y en el feed; `AppComment` acepta los dos.
 - **Ojo en el frontend:** `api.ts` tipa esta respuesta como `{ comment: AppComment }` — si se toca este endpoint, no usar `Comment` a secas como tipo (es el tipo global del DOM, no el propio; ya pasó una vez, ver `PROJECT_ANALYSIS.md §29`).
 
 ### `POST /api/projects/:id/ratings` — Auth (cualquier rol)
 - **Body:** `{ rating (1-5), comment? }`. `rating` tiene que ser un **entero** de 1 a 5 (acepta `"4"`); `comment`, si viene, texto de hasta 1000 caracteres. Si no → **400** (antes `"abc"` o `3.5` llegaban a la base y daban 500; `PROJECT_ANALYSIS.md §74`). El `comment` pasa por `hasBadWord()` igual que los comentarios del proyecto → **400** "El comentario contiene palabras no permitidas" (`§104`; antes las reseñas no se filtraban).
 - **Restricción agregada por el usuario (2026-09):** solo puede calificar quien tenga una `enrollment` con `status='approved'` en ese proyecto — `403` si no. Antes cualquier usuario logueado podía calificar sin haber participado.
-- **Comportamiento:** hace upsert real (`UPDATE` si ya existe una calificación de ese usuario para ese proyecto, `INSERT` si no) — ya no es "calificar una sola vez sin poder editar".
+- **Comportamiento:** hace upsert real (`UPDATE` si ya existe una calificación de ese usuario para ese proyecto, `INSERT` si no) — ya no es "calificar una sola vez sin poder editar". Al editar se conserva el `created_at` original (así que una reseña editada no sube en el orden `created_at DESC` de las listas). El upsert es "leer y después escribir", sin `isUniqueViolation`: dos primeras calificaciones simultáneas del mismo usuario chocarían con el `UNIQUE(user_id, project_id)` (no verificado).
 - **Respuesta 200:** `{ message: 'Calificación guardada' }` (tanto al crear como al actualizar). *(La doc decía `201 { rating }`; corregido en `§104`.)*
 
 ### `GET /api/projects/:id/kpis` — Público
@@ -195,6 +199,7 @@
 - **Body:** `{ nombre, descripcion?, valor?, tipo_valor?, unidad?, fecha? }`
 - **Validación (`validateKpi`, también en el PUT; `PROJECT_ANALYSIS.md §88`):** `nombre` texto obligatorio ≤ 120; `descripcion` ≤ 500 y `unidad` ≤ 40 (texto o `null`); `tipo_valor` ∈ `numero|porcentaje|booleano` (default `numero`; **`texto` ya no se acepta**, §90); `valor` número finito (`Number()` estricto: `"12abc"` no pasa) o `null`/`""` = sin valor; `fecha` `AAAA-MM-DD` de una fecha que exista (`2026-02-30` no) o vacía = sin fecha (§102). Si no → **400**.
 - **Respuesta 201:** `{ kpi }`.
+- **403** "Sin permiso sobre este proyecto" si el proyecto no existe o no es de la ONG de la sesión (lo mismo en el `PUT` y el `DELETE`, con "Sin permiso"). El 404 de esos dos es solo para el KPI.
 
 ### `PUT /api/projects/:id/kpis/:kpiId` — Auth, role `ngo` (dueño)
 - **No es parcial:** pisa todos los campos con lo que manda el body (un campo omitido queda en `null`, incluido `tipo_valor`). Sin `nombre` (o con datos inválidos) responde **400** con la misma validación que el POST (antes 500 por el NOT NULL, §78 → arreglado en §88). El frontend siempre lo manda. **Respuesta 200:** `{ kpi }`.
@@ -211,14 +216,15 @@
 - **Body esperado por el backend:** `{ project_id, message }`. *(Corregido — antes el backend leía `mensaje`, hoy lee `message`, igual que lo envía el frontend; se guarda en la columna `mensaje` de la DB y se expone como `message` en todas las lecturas. Ver `PROJECT_ANALYSIS.md §13`.)*
 - **Validación:** proyecto debe existir, `status='active'`, `cupos_ocupados < cupos`, y no debe existir ya una fila `(user_id, project_id)` (constraint `UNIQUE`).
 - **Efecto:** `INSERT` en `enrollments` con `status='pending'`; notificación fire-and-forget a la ONG dueña del proyecto.
-- **Respuesta 201:** `{ enrollment }`. **Errores:** `400` (ya inscripto / sin cupos / proyecto no activo), `404` (proyecto no existe).
+- **Respuesta 201:** `{ enrollment, message }`. **Errores:** `400` solo si falta `project_id`; `404` "Proyecto no encontrado o inactivo" (no existe o no está `active`); `409` "El proyecto no tiene cupos disponibles" y `409` "Ya estás inscripto en este proyecto" (también si dos altas iguales llegan a la vez: `isUniqueViolation`). *(Esta doc decía 400 para ya inscripto, sin cupos y no activo.)*
 
 ### `GET /api/enrollments/my` — Auth
 - **Respuesta 200:** `{ enrollments: Enrollment[] }` del usuario logueado, con datos del proyecto embebidos (JOIN).
 
 ### `GET /api/enrollments/project/:projectId` — Auth, role `ngo` (dueño del proyecto)
-- **Respuesta 200:** `{ enrollments: Enrollment[] }` de ese proyecto, con datos del voluntario embebidos.
-- **Errores:** `404` si el proyecto no pertenece a la ONG de la sesión.
+- **Query:** `status` opcional (`pending`/`approved`/`rejected`): filtra por estado; sin él, todas.
+- **Respuesta 200:** `{ enrollments: Enrollment[] }` de ese proyecto, del más nuevo al más viejo, con datos del voluntario embebidos (`volunteer_name`, `volunteer_email`, `volunteer_avatar`, `volunteer_bio`).
+- **Errores:** **`403`** "Sin permiso sobre este proyecto" si el proyecto no existe o no pertenece a la ONG de la sesión (esta doc decía 404).
 
 ### `PATCH /api/enrollments/:id` — Auth, role `ngo` (dueño del proyecto de la inscripción)
 - **Body:** `{ status: 'approved'|'rejected' }`.
@@ -237,7 +243,6 @@
 - **Body:** `{ horas }`: número (o string numérico) **finito entre 0 y 10000**; si no → **400** (antes `"1e400"` se guardaba como Infinity y `"12abc"` como 12; `PROJECT_ANALYSIS.md §75`).
 - **UI:** `NGOProjectDetail.tsx`, un input + botón por cada inscripto aprobado. El voluntario ve el valor ya cargado (solo lectura) en `MyParticipation.tsx`.
 - **Respuesta 200:** `{ message, horas }`. **Errores:** `403` si no sos ONG, `404` si la inscripción no existe, no está aprobada, o el proyecto no es tuyo.
-- **Respuesta 200:** `{ enrollment }`.
 
 **Alertas por email:** `POST /` y `PATCH /:id` (aprobar/rechazar) además disparan un email (fire-and-forget, vía `lib/email.js` + Resend) a la ONG o al voluntario según corresponda, al lado de la notificación in-app que ya existía. Sin `RESEND_API_KEY` configurada, el envío se omite silenciosamente — nunca bloquea ni rompe la respuesta del endpoint. Ver `PROJECT_ANALYSIS.md §19`.
 
@@ -246,22 +251,25 @@
 ## NGOs (`routes/ngos.js`)
 
 ### `GET /api/ngos` — Público
-- **Query params:** `search`, `categoria`, `ubicacion`, `page`, `limit`.
-- Hace `JOIN` con `ngo_categorias`/`categorias`, expone `categoria_nombre` en el resultado crudo, y `fmtNgo()` lo mapea a `category` en la respuesta final.
-- **Respuesta 200:** `{ ngos: NGO[], total, page, limit }`.
+- **No lee parámetros** (ni filtros ni paginación): devuelve todas las ONGs, de la más seguida a la menos (`ORDER BY followers DESC`). *(Esta doc listaba `search`, `categoria`, `ubicacion`, `page` y `limit`: el código no los tiene.)*
+- Hace `LEFT JOIN` con `ngo_categorias`/`categorias`, expone `categoria_nombre` en el resultado crudo, y `fmtNgo()` lo mapea a `category` en la respuesta final.
+- **Respuesta 200:** `{ ngos: NGO[] }`, solo la lista (sin `total`/`page`/`limit`).
+- **`fmtNgo`** (todas las rutas de ONG y `GET /api/follows/ngo`) devuelve `id, user_id, followers, founded, name, logo, cover_image, description, mission, location, category`. **No devuelve `alias`**, aunque `PUT /api/ngos/me` lo guarda.
 
 ### `GET /api/ngos/me` — Auth, role `ngo`
 - Devuelve el perfil completo de la ONG de la sesión, incluyendo `category` (mismo JOIN que `GET /api/ngos`; corregido — antes no lo incluía, ver `PROJECT_ANALYSIS.md §13`).
 - **Respuesta 200:** `{ ngo, projects, stats, pending_enrollments }`. Cada solicitud pendiente trae la inscripción, `volunteer_name`/`volunteer_email`/`volunteer_avatar` y **`project_title`** (tipo `PendingEnrollment` en `api.ts`; `NGODashboard` lo muestra, `PROJECT_ANALYSIS.md §82`).
 
 ### `GET /api/ngos/:id` — Público
-- Perfil público de una ONG por id, incluyendo `category` (corregido — antes no lo incluía) y la lista de proyectos de esa ONG con su categoría. *(Corregido — la subquery de proyectos tenía una columna `id` ambigua entre `projects` y `categorias` que causaba un `500` en todos los casos. Ver `PROJECT_ANALYSIS.md §16`, bug B6.)*
+- Perfil público de una ONG por id, incluyendo `category` (corregido — antes no lo incluía). *(Corregido — la subquery de proyectos tenía una columna `id` ambigua entre `projects` y `categorias` que causaba un `500` en todos los casos. Ver `PROJECT_ANALYSIS.md §16`, bug B6.)*
+- **Respuesta 200:** `{ ngo, projects: Project[] }`. Los proyectos (todos los estados, del más nuevo al más viejo) tienen **la misma forma que en `GET /api/projects`**: pasan por `fmt` e incluyen `duration`, `hours_per_week`, roles, requisitos, categoría, `ngo_name`/`ngo_logo`, `avg_rating` y `ratings_count` (`PROJECT_ANALYSIS.md §134`, REVISION A1; antes eran 8 campos sin duración ni horas, y un proyecto con dos categorías salía repetido).
 - **Errores:** `404` si no existe.
 
 ### `PUT /api/ngos/me` — Auth, role `ngo`
 - **Validación (`§76`, `lib/inputs.js`):** `name` (si viene) texto de 2 a 100 caracteres sin contar espacios, guardado recortado (antes `""` se guardaba vacío); `description` ≤ 2000, `mission` ≤ 1000, `location` ≤ 150, `logo`/`cover_image` ≤ 1000, `alias` ≤ 50, `founded` ≤ 20, `category` ≤ 60, todos texto. Si no → **400** (antes un número daba 500).
-- **Body:** campos escalares de `ngos` (`nombre`, `descripcion`, `foto_perfil`, `banner`, `mision`, `ubicacion`, etc.) más `category` (nombre de categoría, ej. `"Educación"`). *(Corregido — antes no persistía la categoría; ahora busca el `id` en `categorias` por nombre y reemplaza la fila correspondiente en `ngo_categorias`. Si el nombre no matchea ninguna categoría existente, el resto del perfil se guarda igual y la categoría simplemente no cambia.)*
-- **Respuesta 200:** `{ ngo }` (incluye `category` actualizada).
+- **Body (en inglés, como lo manda `api.ts`):** `{ name?, description?, mission?, location?, logo?, cover_image?, alias?, founded?, category? }` — se guardan en `nombre`, `descripcion`, `mision`, `ubicacion`, `foto_perfil`, `banner`, `alias` y `founded`. Parcial: un campo que no viene conserva su valor. *(Esta doc listaba los nombres en español de las columnas; el código no los lee.)* `category` es el nombre de una categoría (ej. `"Educación"`). *(Corregido — antes no persistía la categoría; ahora busca el `id` en `categorias` por nombre y reemplaza la fila correspondiente en `ngo_categorias`. Si el nombre no matchea ninguna categoría existente, el resto del perfil se guarda igual y la categoría simplemente no cambia.)*
+- **Respuesta 200:** `{ ngo }` (incluye `category` actualizada; no incluye `alias`, ver `fmtNgo` arriba).
+- **Errores:** `400` validación; **`409`** "El alias ya está en uso" si otra ONG ya tiene ese `alias`; `404` sin perfil de ONG.
 
 ### `GET /api/ngos/:id/projects` — Público
 - **Query params:** `status` opcional (si no se manda, devuelve todos los estados).
@@ -270,9 +278,11 @@
 
 ### `GET /api/ngos/:id/dashboard` — Auth, role `ngo` (dueño)
 - **Respuesta 200:** agregados para el dashboard: total de proyectos, proyectos activos, total de inscripciones, inscripciones pendientes, etc. (No se llama una vez por el frontend para todo — `NGODashboard.tsx` complementa esto con requests individuales por proyecto, ver `FRONTEND_CONTEXT.md §15.5`.)
+- **Errores:** **`403`** "Sin acceso" si la ONG `:id` no existe o no es la de la sesión.
 
 ### `GET /api/ngos/:id/empleados` — Auth, role `ngo` (dueño)
 - **Respuesta 200:** `{ empleados: Empleado[] }`.
+- **Errores:** **`403`** "Sin acceso" si la ONG `:id` no es la de la sesión (lo mismo en el `POST`).
 
 ### `POST /api/ngos/:id/empleados` — Auth, role `ngo` (dueño)
 - **Validación (`§76`):** `nombre` y `apellido` obligatorios (texto ≤ 100), `email` con formato válido, `rol` en `coordinador`/`comunicador`/`admin`/`otro` (default `coordinador`). Si no → **400** (antes un `rol` fuera de la lista o un `nombre` no-string daban 500).
@@ -337,8 +347,9 @@
 > Agregado 2026-09 (roadmap punto 5). Usa `empresa_voluntariados`, que existía sin API — ahora con columnas `estado` (`propuesto`/`aceptado`/`rechazado`), `mensaje` y `updated_at` agregadas vía `ALTER TABLE` en `scripts/migrate.js`.
 
 ### `POST /api/empresas/me/patrocinios` — Auth, role `company`
-- **Body:** `{ project_id, mensaje? }`. El proyecto debe existir y estar `active`.
-- Crea la propuesta en estado `propuesto`. Si ya existe una propuesta **rechazada** con ese proyecto, la reutiliza (resetea a `propuesto`) en vez de fallar — así se puede volver a proponer. Si ya existe una `propuesta`/`aceptada` sin decidir o vigente, `409`.
+- **Body:** `{ project_id, mensaje? }`. El proyecto debe existir y estar `active` (si no, `404`). `project_id` falta → **400** "project_id requerido"; no es texto → **400** "project_id inválido". `mensaje` opcional, texto de hasta 1000 caracteres (`checkText`; si no → **400**); `null` o vacío se guarda como `null` (`PROJECT_ANALYSIS.md §140`).
+- Crea la propuesta en estado `propuesto`. Si ya existe una propuesta **rechazada** con ese proyecto, la reutiliza (resetea a `propuesto`) en vez de fallar — así se puede volver a proponer. Si ya existe una `propuesta`/`aceptada` sin decidir o vigente, `409` "Ya existe una propuesta de patrocinio con este proyecto".
+- **Concurrencia (`PROJECT_ANALYSIS.md §140`, regla 21):** dos propuestas simultáneas al mismo proyecto → una 201 y la otra **409** (el INSERT protegido con `isUniqueViolation`; antes 500 en Postgres). Al re-proponer tras un rechazo, el UPDATE es compare-and-swap (`AND estado='rechazado'`, mirando `changes`): solo una pasa a `propuesto` y solo esa notifica; las demás, 409.
 - Notifica a la ONG (in-app + email, fire-and-forget).
 - **Respuesta 201:** `{ message }`.
 
@@ -357,6 +368,7 @@
 - `409` si la propuesta ya fue decidida antes (no se puede revertir una decisión por acá).
 - **Concurrencia (`PROJECT_ANALYSIS.md §77`):** el `UPDATE` es compare-and-swap (`... AND estado='propuesto'`). Si dos decisiones llegan a la vez, solo una cambia la fila (200); la otra responde el mismo `409` y no notifica.
 - Notifica a la empresa (in-app + email), solo la decisión que ganó.
+- **Respuesta 200:** `{ message }`, armado como `` `Propuesta ${estado}` ``: sale **"Propuesta aceptado"** / **"Propuesta rechazado"** (falla de concordancia del texto; `NGOPatrocinios.tsx` descarta la respuesta y no lo muestra).
 
 ---
 
@@ -373,7 +385,7 @@
 - Trae todo el pool de FAQs activas (tabla chica por diseño, sin pre-filtro SQL) y puntúa por coincidencia de keywords en JS (substring bidireccional, sin heurísticas de prefijo — ver comentarios en el código sobre por qué se descartó esa idea).
 - **Respuesta 200 con match:** `{ matched: true, best: Faq, alternatives: Faq[] }`.
 - **Respuesta 200 sin match:** `{ matched: false, suggestions: [{id, pregunta}] }` (nunca deja al frontend sin nada que mostrar).
-- **400** si `question` tiene menos de 3 caracteres.
+- **400** si `question` falta o tiene menos de 3 caracteres ("La pregunta es muy corta"), si `question` o `categoria` no son texto, o si `question` pasa de 500 caracteres o `categoria` de 50 (`checkText`, `PROJECT_ANALYSIS.md §139`; antes un `question` que no era texto daba 500 en los dos motores, y un `categoria` objeto también en SQLite).
 - Solo FAQs con `activo` verdadero, en las dos rutas. El filtro es `activo=true` (no `activo=1`: en Postgres la columna es BOOLEAN y daba 500 siempre, `PROJECT_ANALYSIS.md §51`). Tests: `test/integration/faqs.test.js`.
 
 ---
@@ -387,23 +399,26 @@
 **Seguir / dejar de seguir (los 3 tipos) es idempotente y seguro bajo concurrencia (`PROJECT_ANALYSIS.md §77`):** el helper `toggleFollow` hace, en una transacción, `INSERT ... ON CONFLICT DO NOTHING` (o el `DELETE`) y mueve el contador `followers` **solo si la fila cambió** (`changes === 1`). Repetir el pedido, o mandarlo varias veces a la vez, responde 200 sin tocar el contador. La notificación `new_follower` sale después del COMMIT y solo por un follow real.
 
 ### ONG (`ngo_follows`)
-- `POST /ngo/:ngoId` / `DELETE /ngo/:ngoId` — seguir/dejar de seguir (auth, `volunteer`).
+- `POST /ngo/:ngoId` / `DELETE /ngo/:ngoId` — seguir/dejar de seguir (auth, `volunteer`). El `POST` da **404** si la ONG no existe (el `DELETE` no lo chequea: 200 igual).
 - `GET /ngo` — mis ONGs seguidas (auth, `volunteer`).
 - `GET /ngo/:ngoId/status` — ¿la sigo? (público, `optionalAuth`).
 
 ### Proyecto (`project_follows`)
-- `POST /project/:projectId` / `DELETE /project/:projectId` — seguir/dejar de seguir (auth, `volunteer`).
+- `POST /project/:projectId` / `DELETE /project/:projectId` — seguir/dejar de seguir (auth, `volunteer`). El `POST` da **404** si el proyecto no existe.
 - `GET /project` — mis proyectos seguidos (auth, `volunteer`).
 - `GET /project/:projectId/status` — ¿lo sigo? (público, `optionalAuth`).
 
 ### Voluntario (`volunteer_follows`)
-- `POST /volunteer/:userId` / `DELETE /volunteer/:userId` — seguir/dejar de seguir a otro voluntario (auth, `volunteer`; no se puede auto-seguir, CHECK en DB).
+- `POST /volunteer/:userId` / `DELETE /volunteer/:userId` — seguir/dejar de seguir a otro voluntario (auth, `volunteer`). Seguirse a sí mismo → **400** "No podés seguirte a vos mismo" (lo corta el handler antes del CHECK de la base); un usuario que no existe o no es voluntario → **404** "Voluntario no encontrado".
 - `GET /volunteer/following` / `GET /volunteer/followers` — mis seguidos/seguidores (auth, `volunteer`; otro rol → 403).
 - `GET /volunteer/:userId/status` — ¿lo sigo? (público).
 - `GET /volunteer/:userId/followers` / `GET /volunteer/:userId/following` — listas públicas de otro usuario.
 
 ### Feed
-- `GET /feed` (auth, `volunteer`) — proyectos de las ONGs/proyectos seguidos, con `my_enrollment_status` resuelto por proyecto (batched, sin N+1) y formateados con el mismo `fmt` de `/api/projects` (incluye `latitude`/`longitude`/`modality`). Cada reseña de `ratings` tiene **la misma forma que en `GET /api/projects/:id`**: `{ id, project_id, user_id, rating, comment, created_at, user_name }` (el SELECT es uno solo, `RATINGS_SELECT` de `routes/projects.js`). Antes el feed no mandaba `user_id` (que el tipo `Rating` de `api.ts` declara obligatorio) y mandaba un `user_avatar` que nadie leía; lo prueba `test/integration/feed-ratings-shape.test.js`. Las del feed vienen de la más nueva a la más vieja; las del detalle, sin `ORDER BY`.
+- `GET /feed` (auth, `volunteer`) — proyectos de las ONGs/proyectos seguidos, con `my_enrollment_status` resuelto por proyecto (batched, sin N+1) y formateados con el mismo `fmt` de `/api/projects` (incluye `latitude`/`longitude`/`modality`). Cada reseña de `ratings` tiene **la misma forma que en `GET /api/projects/:id`**: `{ id, project_id, user_id, rating, comment, created_at, user_name, user_avatar }` (el SELECT es uno solo, `RATINGS_SELECT` de `routes/projects.js`). Antes el feed no mandaba `user_id` (que el tipo `Rating` de `api.ts` declara obligatorio); lo prueba `test/integration/feed-ratings-shape.test.js`. `user_avatar` se había sacado porque nadie lo leía y volvió en §133 (la foto en `ReviewsModal`; `null` si no tiene). En los dos lugares vienen ordenadas `r.created_at DESC, r.id` (§122).
+- **Paginación:** `limit` (default 20, máx. 50) y `offset` (default 0) por query; no se acotan por abajo (un negativo no da error: la sonda de la tercera pasada dio 200 en los dos motores). **Respuesta 200:** `{ projects, total }`, donde `total` es la cantidad de proyectos distintos del feed sin paginar (`Number()`, en Postgres el `COUNT` llega como string). Sin follows: `{ projects: [], total: 0 }`.
+- **`recent_comments`:** los 3 comentarios más nuevos del proyecto, con **la misma forma que `comments` de `GET /api/projects/:id`** (interface `AppComment`): `id`, `project_id`, `user_id`, `comment`, `created_at`, `user_name`, `user_avatar` e `is_participant` (`1` si quien comentó tiene la inscripción aprobada en ese proyecto, `0` si no). `comments_count` es el total. *(REVISION A2, `PROJECT_ANALYSIS.md §135`: antes faltaban `user_id` y `project_id` —el link al autor en `FeedPostCard` iba a `/volunteer/undefined`— e `is_participant` salía `true`/`false`.)*
+- Además de `fmt`, cada proyecto trae `my_enrollment_status` (o `null`), `follow_source` (`ngo_follow`/`project_follow`/`both`) y `follow_label`.
 
 ---
 
@@ -446,7 +461,7 @@
 - **Respuesta 200:** `{ liked: true|false, likes_count }`. **Idempotentes**: repetir el like (doble click, pedidos simultáneos) no suma ni falla; quitar uno que no existe no deja el contador en negativo. `404` si el post no existe.
 
 ### `DELETE /api/posts/:id` — Auth
-- **Quién:** el autor, o la **ONG dueña del proyecto** (moderación: puede borrar cualquier publicación de él). Otro voluntario, una ONG ajena o una empresa → `403`.
+- **Quién:** el autor, o la **ONG dueña del proyecto** (moderación: puede borrar cualquier publicación de él). Otro voluntario, una ONG ajena o una empresa → `403`. Una publicación que no existe → **`404`** "Publicación no encontrada".
 - **Efecto:** borra post, fotos y likes en una transacción; **después del COMMIT** y sin esperar, borra los archivos de Cloudinary (mejor esfuerzo: si falla, el post se borra igual y se loguea). **Respuesta 200:** `{ message }`.
 
 ## Voluntarios (`routes/voluntarios.js`)
@@ -463,6 +478,7 @@
 
 ### `GET /api/voluntarios/:userId` — Público
 - Agregado por el usuario (2026-09). Perfil público de un voluntario: datos básicos + `followers`/`following_count` + últimas participaciones (`LIMIT 20`). Sin auth requerida.
+- **Respuesta 200:** `{ volunteer, habilidades, stats, participaciones }`. `habilidades`: `[{ id, nombre, descripcion, nivel }]` (como `GET /me/habilidades`). `stats`: `{ total_enrollments, approved_enrollments, total_horas }`, normalizados con `Number()`. `participaciones`: solo inscripciones aprobadas, con datos del proyecto y la ONG (nombres de columna crudos: `titulo`, `ubicacion`, `tipo`, `horas_realizadas`…). **404** si el usuario no existe o no es voluntario.
 - Nota: mezcla campos en inglés (`name`, `avatar`, `bio`, `location`) con algunos crudos en español (`nombre`, `apellido`, `descripcion`) en la misma respuesta — no es un bug, pero al tocar este endpoint conviene normalizar del todo a inglés en vez de sumar más campos híbridos.
 
 ---
@@ -480,7 +496,7 @@ Chat 1 a 1 básico. El historial y el envío tienen doble vía: REST (siempre di
 
 ### `POST /api/messages` — Auth
 - **Body:** `{ to, body }`.
-- **Validación:** `to` string (si no, "Destinatario inválido"), `body` no vacío, máx. 2000 caracteres, no podés mandarte a vos mismo, el destinatario debe existir. Esos errores son `MessageInputError` (`routes/messages.js`): los únicos cuyo texto se le muestra al usuario, por REST y por WebSocket (`PROJECT_ANALYSIS.md §87`).
+- **Validación:** `to` ausente o vacío → **400** "Falta el destinatario" (lo corta el handler REST); `to` que no es string → "Destinatario inválido"; `body` no vacío, máx. 2000 caracteres, no podés mandarte a vos mismo, el destinatario debe existir. Esos errores son `MessageInputError` (`routes/messages.js`): los únicos cuyo texto se le muestra al usuario, por REST y por WebSocket (`PROJECT_ANALYSIS.md §87`).
 - **Efecto:** persiste el mensaje; si el destinatario tiene una conexión de WebSocket abierta, se lo empuja en tiempo real (`sendToUser`).
 - **Respuesta 201:** `{ message: {...} }`. **Errores:** `400` con el mensaje de la validación (también "Destinatario no encontrado": este doc decía 404, el código siempre dio 400); `500` genérico ante cualquier error interno.
 
@@ -503,15 +519,15 @@ Chat 1 a 1 básico. El historial y el envío tienen doble vía: REST (siempre di
 ## Notifications (`routes/notifications.js`)
 
 ### `GET /api/notifications` — Auth
-- **Respuesta 200:** `{ notifications: Notification[] }` del usuario, más recientes primero.
+- **Respuesta 200:** `{ notifications: Notification[], unread }` del usuario, más recientes primero y **a lo sumo 50**. `unread` es cuántas de **esas 50** no están leídas (se cuenta en JS, no en SQL: con más de 50 notificaciones puede quedar corto).
 
 ### `PATCH /api/notifications/:id/read` — Auth (dueño)
 - Marca una notificación puntual como leída. **Nota de implementación:** el `UPDATE` usa el literal SQL `read=true` (no un parámetro bindeado) — funciona porque SQLite moderno (bundlado por `better-sqlite3`) soporta el literal `TRUE`, pero es una inconsistencia de estilo respecto al resto del código, que siempre usa placeholders `$n`.
-- **Respuesta 200:** `{ success: true }`.
+- **Respuesta 200:** `{ message: 'Marcada como leída' }` (esta doc decía `{ success: true }`). Una notificación inexistente o ajena también da 200 (no toca nada).
 
 ### `PATCH /api/notifications/read-all` — Auth
 - Marca todas las notificaciones del usuario logueado como leídas.
-- **Respuesta 200:** `{ success: true }`.
+- **Respuesta 200:** `{ message: 'Todas marcadas como leídas' }` (esta doc decía `{ success: true }`).
 
 ---
 
@@ -542,4 +558,4 @@ Las tablas `donaciones` y `reuniones` **existen en el esquema de base de datos p
 
 1. **Ninguna ruta está técnicamente duplicada** (no hay dos endpoints con el mismo método+path). Las inconsistencias de contrato que existían entre `POST /api/enrollments` (`mensaje` vs `message`) y entre las tres rutas de NGO respecto a `category` fueron corregidas — ver `PROJECT_ANALYSIS.md §13`.
 2. **Falta de endpoint de edición/borrado de empleados** (`empleados` solo tiene `GET`/`POST`, no `PUT`/`DELETE`), inconsistente con el resto de recursos del sistema que sí ofrecen CRUD completo (proyectos, KPIs).
-3. **Falta de endpoint para editar una calificación (`rating`) existente** — solo se puede crear una vez (`UNIQUE` constraint) y no hay `PUT /api/projects/:id/ratings/:ratingId`.
+3. **Calificaciones (`ratings`):** no hace falta un `PUT /api/projects/:id/ratings/:ratingId` para editar: `POST /api/projects/:id/ratings` es un upsert y volver a mandarlo actualiza la reseña propia (el `UNIQUE(user_id, project_id)` garantiza una por persona y proyecto). Lo que falta es **borrar** una reseña: no hay `DELETE`. *(Esta viñeta decía "solo se puede crear una vez", lo que contradecía el upsert.)*
