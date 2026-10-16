@@ -33,6 +33,7 @@ frontend/src/
 │   ├── format.ts              # timeAgo/formatTime/parseBackendDate (aceptan ISO 8601 y el formato viejo sin zona), truncateText ("ver más"), userMessage (errores para el usuario), normalizeText (comparar sin mayúsculas ni acentos) y otros formatos
 │   ├── sponsorship.ts         # etiquetas y colores de los estados de un patrocinio (única fuente: CompanyDashboard, CompanyOwnProfile, NGOPatrocinios)
 │   ├── imageCompress.ts       # compresión de fotos en el navegador antes de subirlas (Momentos y foto de perfil)
+│   ├── donations.ts           # donaciones: checkDonationAmount (pesos enteros 100–500.000, mensajes del backend), formatPesos y readReturnParams (URL de vuelta de Mercado Pago) — §172
 │   └── cv.ts                  # CV: checkCvFile (PDF, 5 MB, mismos mensajes que el backend) y openCv (link que vence) — §166
 └── styles/
     ├── globals.css             # Tailwind + tema custom (design tokens) + fuentes
@@ -56,6 +57,7 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 | `/messages/:userId` | `ChatThread` | `Root` | cualquiera logueado |
 | `/profile` | `VolunteerProfile` | `Root` | volunteer |
 | `/volunteer/:id` | `VolunteerPublicProfile` | `Root` | público |
+| `/donaciones/vuelta` | `DonationReturn` | `Root` | con sesión (si no hay, pide iniciarla). Adonde vuelve Mercado Pago (§172) |
 | `/ngo/:id` | `NGOPublicProfile` | `Root` | público |
 | `/company/:id` | `CompanyPublicProfile` | `Root` | público |
 | `/ngo/dashboard` | `NGODashboard` | `NGOLayout` | ngo |
@@ -109,6 +111,9 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 - `NGODashboard.tsx` — lista de proyectos propios + resumen de inscripciones pendientes por proyecto (una sola llamada agregada a `GET /api/ngos/me`, el N+1 que tenía antes ya se resolvió). Cada proyecto muestra su categoría (`{p.category} · Fugaz/Sostenido`); hasta §144 `GET /api/ngos/me` la mandaba vacía y se veía " · Fugaz". En el celular, Equipo y Momentos del encabezado son solo ícono (con `aria-label`) y el nombre se trunca: antes no entraban y había scroll horizontal (§128).
 - `CreateVoluntariado.tsx` — formulario de alta/edición de proyecto (mismo componente sirve para crear y editar, diferenciado por `projectId` en query string). Pide modalidad (presencial/remoto/híbrido) y, según la modalidad, ubicación física y/o plataforma digital. Reimplementa validaciones de fecha/cupos/duración ya presentes en el backend. Título, descripción corta y completa tienen los topes del backend (`maxLength` 80, 1000 y 5000), y el paso 1 valida título y descripción también contra lo pegado (§145, §147).
 - `NGOProjectDetail.tsx` — detalle de proyecto desde la óptica de la ONG: lista de inscriptos, aprobar/rechazar, cargar horas. El botón "Ver CV de <nombre>" (`openCv(e.user_id)`, §166) aparece solo si la inscripción trae `has_cv: true` (pendiente o aprobada, y con CV; §168). Antes aparecía en todas las pendientes y aprobadas y, sin CV, se abría y cerraba una pestaña vacía. Si el CV se borró después de cargar la lista (404), la fila dice "<nombre> no cargó su CV." con `role="alert"`, sin `alert()`.
+- `DonateModal.tsx` — modal "Donar a <proyecto>" (§172; usa `<Modal>`). Tiene atajos ($500, $1.000 y $5.000) y un campo libre que se valida con `checkDonationAmount` antes de mandar. Llama a `api.donaciones.create` y redirige a `checkout_url` (la redirección se inyecta con `go`, para los tests). Mientras espera dice "Preparando el pago…"; los errores van con `role="alert"`. Avisa que es modo prueba.
+- `DonationReturn.tsx` — `/donaciones/vuelta` (§172). Lee `external_reference` y `payment_id` de la URL (`readReturnParams`) y le pregunta al backend (`api.donaciones.get`), que concilia con Mercado Pago. **Lo que se muestra lo decide el backend**: con `completed` dice "¡Gracias!" con el monto y el proyecto; con `failed`, o con `pending` cuando Mercado Pago avisó rechazo o falta de pago, dice "El pago no se completó"; con `pending`, "Estamos confirmando tu pago". Mientras está pendiente vuelve a preguntar hasta 5 veces cada 3 segundos y después ofrece "Actualizar". También muestra "No encontramos esta donación" (404) y "Iniciá sesión para ver tu donación", y espera a que termine de verificarse la sesión.
+- `ProjectDetails.tsx` — además: botón **"Donar a este proyecto"** en la tarjeta "Progreso del proyecto" (§172), solo si el proyecto está `active` y quien mira no es una ONG. Aparece aunque no haya meta de financiamiento. Un visitante ve "Iniciá sesión para donar"; voluntario o empresa abren `DonateModal`.
 - `CvSection.tsx` — "Mi CV" en `VolunteerProfile` (§166; se oculta mientras se edita el perfil). Si hay CV sale de `profile.has_cv` de `GET /auth/me`. Permite subir o reemplazar (valida con `checkCvFile` antes de subir), ver (`openCv`) y borrar, con una confirmación en la pantalla (`role="group"` "¿Borrar tu CV?"), sin `window.confirm`. Los avisos van con `role="alert"` y el éxito con `role="status"`. Si no se puede saber si hay CV, dice "No se pudo cargar." y no muestra botones.
 - `NGOOwnProfile.tsx` — perfil de la ONG editable (nombre, descripción, misión, ubicación, categoría). Lista sus proyectos con la categoría de cada uno (de `GET /api/ngos/me`, vacía hasta §144).
 - `NGOPublicProfile.tsx` — vista pública del perfil de una ONG (accesible sin login desde `/ngo/:id`), lista sus proyectos activos. "¿Ya la sigo?" (`follows.ngoStatus`) solo lo consulta un voluntario, y se vuelve a cargar si la sesión cambia estando en el perfil (§132); si falla, no muestra el botón Seguir/Siguiendo (sería un "Seguir" falso) sino un aviso `role="alert"` con "Reintentar", que vuelve a preguntar solo eso (§125).
@@ -215,6 +220,7 @@ export const api = {
   ngos: { list, get, me, updateMe, employees, patrocinios: { list, decide }... },
   empresas: { me, get, update, dashboard, patrocinios: { list, propose, withdraw } },
   follows: { ngo, project, volunteer, feed... },
+  donaciones: { create, get },   // §172: get(id, paymentId?) concilia con Mercado Pago
   voluntarios: { cv: { upload, remove, link }, habilidades, getProfile },   // cv: §166 (upload es PUT multipart, campo `cv`)
   faqs: { list, ask },
   notifications: { list, markRead },

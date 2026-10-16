@@ -4731,3 +4731,42 @@ Sigue la regla 24 en orden: sesión → límite de **10 subidas por hora** por u
 ### ⚠️ NO verificado
 - **Qué avisos manda Mercado Pago de verdad** a la `notification_url` de una preferencia (webhook firmado, IPN o los dos), y si llegan firmados con la clave de la aplicación. Se ve en la Etapa 10, en los logs de Render.
 - Que la URL de vuelta de Checkout Pro traiga `payment_id`: es lo que documentan las `back_urls`, pero no lo probé.
+
+## 172. Donaciones en el frontend: "Donar", el modal y `/donaciones/vuelta` (PLAN_FALTANTE.md, Etapa 9)
+
+**Qué se hizo:**
+- **`lib/donations.ts`** (nuevo):
+  - `checkDonationAmount` usa los mismos topes y mensajes que el backend: pesos enteros de 100 a 500.000 (§170);
+  - `formatPesos` formatea en `es-AR`, sin decimales;
+  - `readReturnParams` lee la URL de vuelta de Checkout Pro: `external_reference`, `payment_id` (o `collection_id`) y `status` (o `collection_status`), y toma `"null"` como ausente.
+- **`api.ts`:** `api.donaciones.{ create, get(id, paymentId?) }`, con el id y el `payment_id` codificados, y el tipo `Donation` (regla 6).
+- **`DonateModal.tsx`** (nuevo, con `<Modal>`): atajos y campo libre, validación previa, `create` y redirección a `checkout_url`. Avisa que es **modo prueba**.
+- **`DonationReturn.tsx`** (nuevo, ruta `/donaciones/vuelta` bajo `Root`): le pregunta al backend, que concilia con Mercado Pago (§171).
+  - **El estado lo decide el backend.** El `status` de la URL solo cambia el texto mientras el backend dice `pending`: con un rechazo o "sin pago" dice "El pago no se completó" en vez de "confirmando".
+  - Mientras está pendiente vuelve a preguntar hasta 5 veces cada 3 segundos y después ofrece "Actualizar".
+  - También tiene "No encontramos esta donación" (404), "Iniciá sesión…" y "Reintentar" ante un error de red.
+- **`ProjectDetails.tsx`:** botón "Donar a este proyecto" en la tarjeta de progreso, solo para un proyecto `active` y si quien mira no es una ONG (lo mismo que acepta el backend). El visitante primero inicia sesión.
+
+### Verificación
+- Tests nuevos:
+  - `lib/donations.test.ts` (12): la API (método, cuerpo, codificación, `payment_id` opcional), los topes, 8 entradas inválidas, los bordes, el formato y la URL de vuelta;
+  - `DonateModal.test.tsx` (8);
+  - `DonationReturn.test.tsx` (12): incluye **"la URL dice approved y el backend pending o failed: no dice ¡Gracias!"**, el reintento hasta 5 veces, que no vuelva a preguntar ante un rechazo, 404, red, sin sesión y la sesión verificándose;
+  - `ProjectDetailsDonate.test.tsx` (6): voluntario, empresa, visitante, ONG, proyecto inactivo y sin meta.
+- Rojo: los módulos no existían, y en `ProjectDetails` faltaba el botón (4 de 6 fallaban).
+- Frontend **659/659** (antes 622, +37), también con `TZ=America/Argentina/Cordoba`; `typecheck` 0; `npm audit` 0. CRLF conservados.
+- **Mutación** (control en verde): **34 mutantes; en la primera tanda sobrevivieron 2, no equivalentes**, y sumé el test que mata a cada uno:
+  - "sigue preguntando aunque Mercado Pago avisó un rechazo" (4 pedidos de más);
+  - "`failed` del backend tratado como pendiente", que se escondía porque el test de `failed` no traía `status` en la URL.
+  
+  Quedó en **0 de 34**.
+
+### Errores propios
+- Un test de 404 con dos montajes usaba `findAllByRole`, que vuelve apenas encuentra uno. Pasé a `waitFor(... toHaveLength(2))`.
+- Los dos huecos de tests que encontró la mutación.
+
+### ⚠️ NO verificado
+- **Todo el flujo real con Mercado Pago:** que el checkout abra, que el comprador de prueba pueda pagar, que la vuelta traiga `external_reference` y `payment_id`, y que `auto_return` funcione. Va en la Etapa 10.
+- Nada visual: el botón rosa en la tarjeta de progreso, el modal y las cuatro pantallas de la vuelta.
+- `formatPesos` depende del `Intl` del navegador (`es-AR`): en jsdom da `$1.500`; en un navegador viejo podría variar.
+- `ProjectDetails` sigue con su propio `safeMoney` (hay otras copias en `ProjectCard`, `FeedPostCard` y `PublicFeed`; deuda vista, no tocada).

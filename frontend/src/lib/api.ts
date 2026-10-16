@@ -144,6 +144,13 @@ export const api = {
         req<{ message: string }>(`/empresas/me/patrocinios/${projectId}`, { method: 'DELETE' }),
     },
   },
+  // Donaciones con Mercado Pago (§170–§172). `get` con `paymentId` concilia con Mercado Pago (lo que trae la URL de vuelta).
+  donaciones: {
+    create: (b: { project_id: string; amount: number }) =>
+      req<{ donation_id: string; checkout_url: string }>('/donaciones', { method: 'POST', body: JSON.stringify(b) }),
+    get: (id: string, paymentId?: string) =>
+      req<{ donation: Donation }>(`/donaciones/${encodeURIComponent(id)}${paymentId ? `?payment_id=${encodeURIComponent(paymentId)}` : ''}`),
+  },
   voluntarios: {
     // CV (§165–§166): PDF privado; `link` devuelve un link firmado que vence a los 10 minutos (pedirlo cada vez).
     cv: {
@@ -302,6 +309,11 @@ export interface Enrollment {
 export interface EnrollmentWithProject extends Enrollment {
   title: string; image?: string; category: string; type: string;
   location: string; project_status: string; ngo_name: string; ngo_logo?: string;
+}
+/** GET /donaciones/:id (§171). `status` lo decide el backend tras consultar a Mercado Pago. */
+export interface Donation {
+  id: string; status: 'pending' | 'completed' | 'failed' | 'refunded';
+  amount: number; currency: string; project_id: string | null; project_title: string | null;
 }
 export interface EnrollmentWithVolunteer extends Enrollment {
   volunteer_name: string; volunteer_email: string;

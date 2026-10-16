@@ -597,7 +597,7 @@ Chat 1 a 1 básico. El historial y el envío tienen doble vía: REST (siempre di
 
 ## Donaciones (`routes/donaciones.js`) — Mercado Pago, modo prueba (`PROJECT_ANALYSIS.md §170`)
 
-> Backend completo desde §171 (alta, aviso y conciliación); el frontend va en la Etapa 9 de `PLAN_FALTANTE.md`. Diseño en `BACKEND_ROADMAP_ANALYSIS.md §1.4`.
+> Backend completo desde §171 (alta, aviso y conciliación); frontend desde §172 (`DonateModal`, `/donaciones/vuelta`). Falta la prueba real (Etapa 10 de `PLAN_FALTANTE.md`). Diseño en `BACKEND_ROADMAP_ANALYSIS.md §1.4`.
 
 ### `POST /api/donaciones` — Auth, role `volunteer` o `company`
 - **Body:** `{ project_id, amount }`. `amount` es un **número entero de pesos** entre **100** y **500.000**: un string, un decimal, un booleano o un array dan **400**. Se exige entero porque `monto` y `recaudado` son `REAL`, que en Postgres es `float4` (~7 dígitos), y con centavos "lo pagado coincide con lo donado" fallaría por redondeo.

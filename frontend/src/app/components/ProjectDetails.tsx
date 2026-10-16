@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft, MapPin, Clock, Users, DollarSign, Calendar,
   Star, Briefcase, Loader2, Send, Zap, BarChart3, Bookmark, Check,
-  Laptop, Globe
+  Laptop, Globe, Heart
 } from 'lucide-react';
 import { api, ProjectDetail } from '../../lib/api';
 import { useLatestRequest } from '../../lib/useLatestRequest';
@@ -11,6 +11,7 @@ import { hasBadWord } from '../../lib/badWords';
 import { LoadError, describeLoadError } from './LoadError';
 import { useAuth } from '../../lib/AuthContext';
 import { MomentsGrid } from './MomentsGrid';
+import { DonateModal } from './DonateModal';
 
 type Tab = 'details' | 'ratings' | 'comments';
 const safePct = (a: any, b: any) => { const na=parseFloat(a),nb=parseFloat(b); if(!nb||isNaN(na)||isNaN(nb)) return 0; return Math.min(100,Math.round((na/nb)*100)); };
@@ -26,6 +27,7 @@ export function ProjectDetails() {
   const [tab, setTab]             = useState<Tab>('details');
   const [enrolling, setEnrolling] = useState(false);
   const [enrollMsg, setEnrollMsg] = useState('');
+  const [showDonate, setShowDonate] = useState(false);   // modal "Donar" (§172)
   const [comment, setComment]     = useState('');
   const [commenting, setCommenting] = useState(false);
   const [commentErr, setCommentErr] = useState('');
@@ -332,6 +334,14 @@ export function ProjectDetails() {
                   <p className="text-xs text-gray-400 mt-1">Meta: {safeMoney(project.funding_goal)}</p>
                 </div>
               )}
+              {/* Donar (§172): el backend deja a voluntarios y empresas en proyectos activos; un visitante inicia sesión. */}
+              {project.status === 'active' && user?.role !== 'ngo' && (
+                <button type="button"
+                  onClick={() => (user ? setShowDonate(true) : openAuthModal('Iniciá sesión para donar'))}
+                  className="w-full py-2.5 rounded-xl text-sm font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors flex items-center justify-center gap-1.5">
+                  <Heart className="w-4 h-4" aria-hidden="true" />Donar a este proyecto
+                </button>
+              )}
               <div>
                 <div className="flex justify-between text-xs mb-1.5">
                   <span className="text-gray-500 flex items-center gap-1"><Users className="w-3 h-3" />Voluntarios</span>
@@ -623,6 +633,9 @@ export function ProjectDetails() {
         )}
         <EnrollButton />
       </div>
+      {showDonate && (
+        <DonateModal projectId={project.id} projectTitle={project.title} onClose={() => setShowDonate(false)} />
+      )}
     </div>
   );
 }

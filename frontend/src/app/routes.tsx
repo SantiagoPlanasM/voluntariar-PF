@@ -7,6 +7,7 @@ import { MainFeed } from './components/MainFeed';
 import { ProjectDetails } from './components/ProjectDetails';
 import { VolunteerProfile } from './components/VolunteerProfile';
 import { VolunteerPublicProfile } from './components/VolunteerPublicProfile';
+import { DonationReturn } from './components/DonationReturn';
 import { NGODashboard } from './components/NGODashboard';
 import { NGOProjectDetail } from './components/NGOProjectDetail';
 import { CreateVoluntariado } from './components/CreateVoluntariado';
@@ -45,6 +46,7 @@ export const router = createBrowserRouter([
       { path: 'ngo/:id',         Component: NGOPublicProfile },
       { path: 'company/:id',     Component: CompanyPublicProfile },
       { path: 'volunteer/:id',   Component: VolunteerPublicProfile },
+      { path: 'donaciones/vuelta', Component: DonationReturn },   // vuelta desde Mercado Pago (§172)
     ],
   },
   {
