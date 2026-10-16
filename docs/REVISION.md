@@ -366,16 +366,16 @@ Cada uno con test primero (rojo → verde), SQLite + Postgres + TZ de Córdoba s
 
 **Método:** un subagente leyó los 81 endpoints de la tabla y comparó auth, body, query, respuesta, errores y efectos contra el código, sin modificar nada. Después, **verifiqué yo** los posibles bugs: los visibles leyendo el código, y los "da 500" con una sonda descartable contra el servidor real, en **SQLite y en Postgres** (3 corridas en Postgres, con el mismo resultado). **45 endpoints coinciden sin observaciones.** Los nombres de campos que manda `api.ts` coinciden con lo que lee el backend en todos los casos (regla 10).
 
-### Bugs confirmados (sin arreglar; necesitan tu OK)
+### Bugs confirmados — todos arreglados con OK del usuario (§134–§140)
 | Id | Qué | Cómo se confirmó |
 |---|---|---|
-| A1 | **Perfil público de ONG:** los proyectos no traen `duration` ni `hours_per_week` (SELECT propio en `ngos.js:135`, no `fmt`). Un sostenido muestra "h/semana" sin el número. | sonda: `hours_per_week` → `undefined` |
-| A2 | **Feed:** los comentarios recientes no traen `user_id` (`follows.js:290`, `:328`). El link del autor en `FeedPostCard.tsx:414` va a `/volunteer/undefined`. | lectura |
-| A3 | **`POST /api/projects`:** `type` fuera de fugaz/sostenido, o `title`/`description` que no son texto → **500** (el CHECK de la base; el PUT sí valida). | sonda: 500 en los dos motores |
-| A4 | **`POST /api/auth/register`:** `apellido` que no es texto → **500**. | sonda: 500 en los dos motores |
-| A5 | **`POST /api/faqs/ask`:** `question` que no es texto → **500**. | sonda: 500 en los dos motores |
-| A6 | **Dos propuestas de patrocinio simultáneas** (misma empresa y proyecto) → la segunda da **500 en Postgres** (409 en SQLite). Falta `isUniqueViolation` (regla 21). | sonda: 201/500 en Postgres, 3 de 3 |
-| A7 | El buscador de proyectos no busca por categoría en **SQLite** (`projects.js:288`), sí en Postgres. Solo afecta a desarrollo. | lectura |
+| A1 ✅ §134 | **Perfil público de ONG:** los proyectos no traen `duration` ni `hours_per_week` (SELECT propio en `ngos.js:135`, no `fmt`). Un sostenido muestra "h/semana" sin el número. | sonda: `hours_per_week` → `undefined` |
+| A2 ✅ §135 | **Feed:** los comentarios recientes no traen `user_id` (`follows.js:290`, `:328`). El link del autor en `FeedPostCard.tsx:414` va a `/volunteer/undefined`. | lectura |
+| A3 ✅ §137 | **`POST /api/projects`:** `type` fuera de fugaz/sostenido, o `title`/`description` que no son texto → **500** (el CHECK de la base; el PUT sí valida). | sonda: 500 en los dos motores |
+| A4 ✅ §138 | **`POST /api/auth/register`:** `apellido` que no es texto → **500**. | sonda: 500 en los dos motores |
+| A5 ✅ §139 | **`POST /api/faqs/ask`:** `question` que no es texto → **500**. | sonda: 500 en los dos motores |
+| A6 ✅ §140 | **Dos propuestas de patrocinio simultáneas** (misma empresa y proyecto) → la segunda da **500 en Postgres** (409 en SQLite). Falta `isUniqueViolation` (regla 21). | sonda: 201/500 en Postgres, 3 de 3 |
+| A7 ✅ §136 | El buscador de proyectos no busca por categoría en **SQLite** (`projects.js:288`), sí en Postgres. Solo afecta a desarrollo. | lectura |
 
 **Descartados con la sonda:** `limit`/`offset` negativos en el feed (200 en los dos motores) y la reseña sin comentario (200).
 
