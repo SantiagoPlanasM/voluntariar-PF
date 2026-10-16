@@ -204,7 +204,7 @@ router.get('/:userId/perfil-completo', requireAuth, async (req, res) => {
 
 > **Historial:** hasta el 2026-10-16 esta sección diseñaba Stripe Checkout (decisión de `PROJECT_ANALYSIS.md §30`). Se cambió a **Mercado Pago** por decisión del usuario (`PLAN_FALTANTE.md`): funciona con cuentas de Argentina y cobra en **pesos**, la misma unidad que `projects.recaudado`/`meta_financiera` y el seed. El diseño completo y las decisiones (P1–P6) están en `PLAN_FALTANTE.md §2` y `§5.3`; acá queda el resumen técnico.
 
-**Estado:** ✅ `src/lib/payments.js` (§169: preferencia, consulta de pago y firma del webhook, sin dependencias). ⏳ Migración, endpoints y frontend (Etapas 7–10 de `PLAN_FALTANTE.md`).
+**Estado:** ✅ `src/lib/payments.js` (§169), ✅ migración, `POST /api/donaciones` y `applyPayment` (§170), ✅ aviso y conciliación (§171). ⏳ Frontend y prueba real (Etapas 9–10 de `PLAN_FALTANTE.md`).
 
 **API usada (verificada el 2026-10-16 contra el código del SDK oficial `mercadopago@3.6.1`, porque la documentación web carga esas partes con JavaScript):**
 - Base `https://api.mercadopago.com`, `Authorization: Bearer <MP_ACCESS_TOKEN>`.

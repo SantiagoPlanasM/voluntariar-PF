@@ -4702,3 +4702,32 @@ Sigue la regla 24 en orden: sesión → límite de **10 subidas por hora** por u
 - **El límite es por usuario y en memoria**: varias pestañas cuentan juntas, y se reinicia con el servidor.
 - **`recaudado` como `float4`:** con más de 16.777.216 pesos acumulados en un proyecto, la suma deja de ser exacta. Para la tesis alcanza; para producción real habría que pasarla a `NUMERIC` (no es una migración aditiva: no lo hice).
 - Las donaciones `pendiente` que nunca se pagan quedan así para siempre (no vencen). No molestan: no suman a nada.
+
+## 171. Donaciones: aviso de Mercado Pago (`POST /webhook`) y conciliación (`GET /:id`) — PLAN_FALTANTE.md, Etapa 8
+
+**Qué se hizo:** dos rutas más en `routes/donaciones.js`. Con estas, el backend de donaciones queda completo. Detalle en `API_CONTEXT.md`.
+- **`POST /api/donaciones/webhook`** (público):
+  - para el formato webhook (`?type=payment&data.id=…`), verifica la firma con el `data.id` de la **query**, que es lo que Mercado Pago firma (el del cuerpo podría venir cambiado), y llama a `applyPayment`;
+  - responde 200 si se procesó o no hay nada que hacer, 401 si la firma no vale y **500 si falló Mercado Pago o la base**, para que Mercado Pago reintente (es idempotente);
+  - **los avisos IPN (`?topic=…&id=…`) se responden 200 sin procesar.**
+- **`GET /api/donaciones/:id`** (solo quien donó; si es de otra persona da 404, también para la ONG): devuelve el estado en inglés. Con `?payment_id=` (que Mercado Pago agrega a la URL de vuelta), concilia con `applyPayment(…, { expectDonationId })`.
+
+**Por qué se ignoran los IPN:** la documentación oficial dice que los IPN "no permiten la validación mediante la clave secreta". Sobre cómo pedirle a Mercado Pago que mande solo webhooks a una `notification_url` (`source_news`), la documentación se contradice: una página dice que `source_news=ipn` hace recibir solo webhooks, y otra, que hace recibir solo IPN. Así que no agregué ese parámetro y diseñé para que funcione con cualquiera de los dos. Si solo llegaran IPN, la donación igual se acredita por la conciliación en cuanto el comprador vuelve a la app (`auto_return: 'approved'`).
+
+### Verificación
+- Test nuevo `test/integration/donaciones-webhook.test.js` (20). **La firma se verifica de verdad** (`MP_WEBHOOK_SECRET` de prueba); solo `getPayment` es un doble.
+  - Aviso: firmado y aprobado; repetido 3 veces (una sola acreditación); firma inválida en cuatro variantes más sin secreto (401, sin consultar nada); el **id del cuerpo cambiado no hace consultar otro pago**; otro tipo; IPN; firmado sin `data.id` (400); pago inexistente en Mercado Pago (200); Mercado Pago caído (500) y el reintento que acredita; que no exponga nada.
+  - Conciliación: sin `payment_id`; con uno aprobado de esta donación; **con uno de otra donación** (no acredita ninguna); ya completada (no vuelve a consultar); rechazado; `payment_id` no numérico, con `../` o con más de 30 dígitos (no se consulta); Mercado Pago caído o sin configurar; otra persona, la ONG o sin sesión (404/401, sin consultar); estados en inglés.
+- `ownership.test.js` (+1): ni la ONG que recibe la donación, ni otra ONG, ni una empresa la ven; la dueña sí (regla 15).
+- Rojo: los 20 fallaban (no existían las rutas).
+- Backend SQLite **762/762** y con TZ 762/762; Postgres **764/764** y con TZ 764/764. 0 fail, 0 cancelled. `npm audit` 0.
+- **Mutación** (control en verde): **19 mutantes, sobrevive 1, equivalente en los dos motores**: "el monto sin `Number()`". En SQLite `REAL` ya llega como número, y en Postgres `pg` convierte `float4` en número; lo corrí también contra Postgres con el mutante aplicado y pasa. Quedó por si la columna cambia a `NUMERIC`, que llegaría como string.
+
+### Errores propios
+- En el test "firmado pero sin `data.id`", la primera versión sacaba `id:;` de un header ya firmado (el `replace` no cambiaba nada). Lo armé a mano con el manifiesto sin la parte `id`.
+- Un chequeo de la restauración del mutante con `md5sum | uniq` dio "2 hashes distintos": era la `\` que `md5sum` antepone a las rutas con barras invertidas. Los hashes eran iguales.
+- Un `heredoc` de bash con comillas mezcladas falló al documentar (bash lo rechazó sin ejecutar nada). Pasé los textos a archivos.
+
+### ⚠️ NO verificado
+- **Qué avisos manda Mercado Pago de verdad** a la `notification_url` de una preferencia (webhook firmado, IPN o los dos), y si llegan firmados con la clave de la aplicación. Se ve en la Etapa 10, en los logs de Render.
+- Que la URL de vuelta de Checkout Pro traiga `payment_id`: es lo que documentan las `back_urls`, pero no lo probé.

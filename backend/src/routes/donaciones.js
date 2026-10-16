@@ -159,5 +159,76 @@ async function applyPayment(paymentId, { expectDonationId } = {}) {
   return { result: 'credited', donationId: d.id };
 }
 
+// ── POST /api/donaciones/webhook — aviso de Mercado Pago (§171) ────────────
+// Público: Mercado Pago no manda sesión. Formatos (doc oficial de notificaciones):
+//   - webhook: `?type=payment&data.id=<id>` + headers `x-signature`/`x-request-id` → se verifica la firma (el id que se
+//     usa es el de la QUERY, que es lo firmado; nunca el del cuerpo) y se llama a applyPayment;
+//   - IPN: `?topic=payment&id=<id>`. Según la doc, no se puede validar con la clave: se responde 200 y no se procesa
+//     (la acreditación llega por el webhook o por la conciliación de GET /:id).
+// Respuestas: 200 si se procesó o no hay nada que hacer; 401 firma inválida; 500 si falló Mercado Pago o la base, para
+// que Mercado Pago reintente (lo hace cada 15 minutos). applyPayment es idempotente: un reintento no suma dos veces.
+router.post('/webhook', async (req, res) => {
+  const q = req.query || {};
+  if (q.topic !== undefined && q.type === undefined) return res.json({ received: true });   // IPN: sin firma posible
+
+  const dataId = typeof q['data.id'] === 'string' ? q['data.id'].trim() : '';
+  const valid = payments.verifyWebhookSignature({
+    xSignature: req.get('x-signature'), xRequestId: req.get('x-request-id'), dataId,
+  });
+  if (!valid) return res.status(401).json({ error: 'Firma inválida' });
+  if (q.type !== 'payment') return res.json({ received: true });   // merchant_order, chargebacks, …: no se usan
+  if (!dataId) return res.status(400).json({ error: 'Falta el id del pago' });
+
+  try {
+    await applyPayment(dataId);
+  } catch (err) {
+    if (err?.code === 'not_found') return res.json({ received: true });   // reintentar no lo va a encontrar
+    console.error('POST /donaciones/webhook: no se pudo procesar el aviso:', err.message);
+    return res.status(500).json({ error: 'No pudimos procesar el aviso' });
+  }
+  res.json({ received: true });
+});
+
+// ── GET /api/donaciones/:id?payment_id=… — estado y conciliación (§171) ────
+// Solo quien donó (otra persona → 404, igual que si no existiera). Si sigue pendiente y viene `payment_id` (Mercado
+// Pago lo agrega a la URL de vuelta), se le pregunta a Mercado Pago por ESE pago y applyPayment comprueba que sea de
+// ESTA donación. Cubre el aviso perdido (la API gratuita de Render se duerme). Nunca se usa el `status` de la URL.
+const STATUS_EN = { pendiente: 'pending', completada: 'completed', fallida: 'failed', reembolsada: 'refunded' };
+router.get('/:id', requireAuth, async (req, res) => {
+  try {
+    const load = () => db.get(
+      `SELECT d.id, d.estado, d.monto, d.moneda, d.project_id, p.titulo AS project_title
+       FROM donaciones d LEFT JOIN projects p ON p.id = d.project_id
+       WHERE d.id = $1 AND d.user_id = $2`,
+      [req.params.id, req.user.id]
+    );
+    let d = await load();
+    if (!d) return res.status(404).json({ error: 'Donación no encontrada' });
+
+    const paymentId = req.query.payment_id;
+    if (d.estado === 'pendiente' && typeof paymentId === 'string' && /^\d{1,30}$/.test(paymentId) && payments.isConfigured()) {
+      try {
+        await applyPayment(paymentId, { expectDonationId: d.id });
+        d = await load();
+      } catch (err) {
+        console.error('GET /donaciones/:id: no se pudo conciliar:', err.message);   // se responde el estado actual
+      }
+    }
+    res.json({
+      donation: {
+        id: d.id,
+        status: STATUS_EN[d.estado] ?? d.estado,
+        amount: Number(d.monto),
+        currency: d.moneda || payments.CURRENCY,
+        project_id: d.project_id,
+        project_title: d.project_title ?? null,
+      },
+    });
+  } catch (err) {
+    console.error('GET /donaciones/:id error:', err);
+    res.status(500).json({ error: 'Error al obtener la donación' });
+  }
+});
+
 module.exports = router;
 module.exports.applyPayment = applyPayment;   // mismo patrón de exports que projects.js

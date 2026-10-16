@@ -195,6 +195,23 @@ describe('Autorización por dueño entre ONGs', () => {
         await db.run(`UPDATE voluntarios SET cv_url=NULL WHERE user_id='user-vol-1'`);
       }
     });
+
+    // §171: GET /api/donaciones/:id filtra por `user_id`. Ni la ONG que la recibe ni otra persona la ven; la dueña sí.
+    test('ver una donación de otra persona (ni siquiera la ONG que la recibe), y la dueña sí', async () => {
+      await db.run(`INSERT INTO donaciones (id, user_id, project_id, ngo_id, monto, estado, moneda)
+                    VALUES ('don-own-1','user-vol-1','proj-1','ngo-1',1500,'pendiente','ARS')`);
+      try {
+        for (const token of [owner, other, company]) {
+          const r = await api('/api/donaciones/don-own-1', { token });
+          assert.equal(r.status, 404);
+          assert.ok(!JSON.stringify(r.body).includes('1500'));
+        }
+        const maria = await login('maria@example.com');
+        assert.equal((await api('/api/donaciones/don-own-1', { token: maria })).status, 200);
+      } finally {
+        await db.run(`DELETE FROM donaciones WHERE id='don-own-1'`);
+      }
+    });
   });
 
   // Control: con los MISMOS ids, la dueña sí puede. Va después de los rechazos porque modifica los datos.

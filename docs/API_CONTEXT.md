@@ -74,6 +74,8 @@
 | GET | `/api/follows/volunteer/:userId/following` | No | — | `routes/follows.js` |
 | GET | `/api/follows/feed` | Sí | volunteer | `routes/follows.js` |
 | POST | `/api/donaciones` | Sí | volunteer, company | `routes/donaciones.js` |
+| POST | `/api/donaciones/webhook` | No (firma de Mercado Pago) | — | `routes/donaciones.js` |
+| GET | `/api/donaciones/:id` | Sí | quien donó | `routes/donaciones.js` |
 | GET | `/api/posts/eligible-projects` | Sí | volunteer, ngo | `routes/posts.js` |
 | POST | `/api/posts` | Sí | volunteer, ngo | `routes/posts.js` |
 | GET | `/api/posts` | Opcional | — | `routes/posts.js` |
@@ -595,13 +597,23 @@ Chat 1 a 1 básico. El historial y el envío tienen doble vía: REST (siempre di
 
 ## Donaciones (`routes/donaciones.js`) — Mercado Pago, modo prueba (`PROJECT_ANALYSIS.md §170`)
 
-> En construcción (`PLAN_FALTANTE.md`, Etapas 7–10). Hoy existe solo `POST /api/donaciones`; el aviso (`/webhook`) y la conciliación (`GET /:id`) van en la Etapa 8. Diseño en `BACKEND_ROADMAP_ANALYSIS.md §1.4`.
+> Backend completo desde §171 (alta, aviso y conciliación); el frontend va en la Etapa 9 de `PLAN_FALTANTE.md`. Diseño en `BACKEND_ROADMAP_ANALYSIS.md §1.4`.
 
 ### `POST /api/donaciones` — Auth, role `volunteer` o `company`
 - **Body:** `{ project_id, amount }`. `amount` es un **número entero de pesos** entre **100** y **500.000**: un string, un decimal, un booleano o un array dan **400**. Se exige entero porque `monto` y `recaudado` son `REAL`, que en Postgres es `float4` (~7 dígitos), y con centavos "lo pagado coincide con lo donado" fallaría por redondeo.
 - **Efecto:** inserta la donación con estado **`pendiente`** (explícito: el `DEFAULT` de la tabla es `'completada'`), `moneda='ARS'`, `ngo_id` del proyecto y el id generado en el código (regla 23). Después crea la preferencia de Checkout Pro (`payments.createPreference`): `external_reference` es el id de la donación, la vuelta es `APP_URL/donaciones/vuelta` y el aviso, `<API pública>/api/donaciones/webhook`. La API pública es `API_PUBLIC_URL` o `RENDER_EXTERNAL_URL`, que Render define solo; en local no hay y no se manda aviso. Guarda el id de la preferencia en `external_id`. **No suma nada a `recaudado`**: eso pasa solo cuando Mercado Pago confirma el pago (`applyPayment`).
 - **Respuesta 201:** `{ donation_id, checkout_url }`. El frontend redirige a `checkout_url`.
 - **Errores:** `401` · `403` (ONG) · `429` con `Retry-After`, pasadas **10 donaciones por hora** por usuario (en memoria) · `503` "Las donaciones no están disponibles por el momento" (sin `MP_ACCESS_TOKEN`) · `400` "Falta el proyecto", "El monto tiene que ser un número entero de pesos", "El monto mínimo es de $100" o "El monto máximo es de $500.000" · `404` "Proyecto no encontrado o no recibe donaciones" (no existe o no está `active`) · `502` "No pudimos iniciar el pago…" si Mercado Pago falla: la donación queda `fallida` con `external_status='preference_error'`.
+
+### `POST /api/donaciones/webhook` — Público (aviso de Mercado Pago, §171)
+- **Webhook** `?type=payment&data.id=<id>` con los headers `x-signature` y `x-request-id`: se verifica la firma (`payments.verifyWebhookSignature`, con `MP_WEBHOOK_SECRET`). El id que se usa es el de la **query**, que es lo firmado, **nunca el del cuerpo**. Después se llama a `applyPayment(data.id)`.
+- **IPN** `?topic=…&id=…`: según la doc oficial, no se puede validar con la clave. Se responde **200 sin procesarlo**, y la acreditación llega por el webhook o por la conciliación.
+- **Respuestas:** `200 { received: true }` si se procesó, si es de otro tipo (`merchant_order`, etc.) o si Mercado Pago no encuentra el pago (reintentar no serviría) · `401 { error: "Firma inválida" }` (también si falta `MP_WEBHOOK_SECRET`) · `400` firmado pero sin `data.id` · **`500`** "No pudimos procesar el aviso" si falló Mercado Pago o la base, **para que Mercado Pago reintente** (cada 15 minutos; `applyPayment` es idempotente). No devuelve nada de la donación.
+
+### `GET /api/donaciones/:id` — Auth (solo quien donó, §171)
+- **Respuesta 200:** `{ donation: { id, status, amount, currency, project_id, project_title } }`. `status` va en inglés: `pending`, `completed`, `failed` o `refunded`.
+- **Conciliación:** con `?payment_id=<id>` (Mercado Pago lo agrega a la URL de vuelta), si la donación sigue pendiente, el id es numérico (hasta 30 dígitos) y Mercado Pago está configurado, se llama a `applyPayment(payment_id, { expectDonationId })`. Eso solo acredita si el pago es **de esta donación**. Cubre el aviso perdido, por ejemplo con la API dormida. Si Mercado Pago falla, responde igual el estado actual. **Nunca** se usa el `status` de la URL de vuelta.
+- **Errores:** `401` · `404` "Donación no encontrada" si no existe **o es de otra persona** (incluida la ONG que la recibe). Ese caso está en `ownership.test.js`.
 
 ### `applyPayment(paymentId, { expectDonationId? })` — exportada por `routes/donaciones.js` (no es un endpoint)
 La **única** transición de una donación; la van a usar el aviso y la conciliación.
