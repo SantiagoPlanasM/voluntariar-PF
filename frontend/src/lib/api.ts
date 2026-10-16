@@ -68,7 +68,8 @@ export const api = {
       req<{ token: string; user: User }>('/auth/register', { method: 'POST', body: JSON.stringify(b) }),
     login: (b: { email: string; password: string }) =>
       req<{ token: string; user: User }>('/auth/login', { method: 'POST', body: JSON.stringify(b) }),
-    me: () => req<{ user: User }>('/auth/me'),
+    // `profile` es la fila del rol; del voluntario solo se lee `has_cv` (§165). Puede ser null.
+    me: () => req<{ user: User; profile?: { has_cv?: boolean } | null }>('/auth/me'),
     updateMe: (b: { name?: string; bio?: string; location?: string; avatar?: string }) =>
       req<{ user: User }>('/auth/me', { method: 'PUT', body: JSON.stringify(b) }),
     // Foto de perfil (multipart, campo `photo`): va a users.avatar y, para ONG y empresa, también al logo (§162).
@@ -144,6 +145,12 @@ export const api = {
     },
   },
   voluntarios: {
+    // CV (§165–§166): PDF privado; `link` devuelve un link firmado que vence a los 10 minutos (pedirlo cada vez).
+    cv: {
+      upload: (form: FormData) => upload<{ has_cv: boolean }>('/voluntarios/me/cv', form, 'PUT'),
+      remove: () => req<{ has_cv: boolean }>('/voluntarios/me/cv', { method: 'DELETE' }),
+      link: (userId: string) => req<{ url: string; expires_at: string }>(`/voluntarios/${encodeURIComponent(userId)}/cv`),
+    },
     habilidades: {
       list: () => req<{ habilidades: VolunteerSkill[] }>('/voluntarios/me/habilidades'),
       update: (habilidades: { habilidad_id: string; nivel?: string }[]) =>

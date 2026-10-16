@@ -1,7 +1,9 @@
 import { useParams, useNavigate, Link } from 'react-router';
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Users, CheckCircle, Clock, XCircle, Loader2, DollarSign, BarChart2, MessageCircle, Clock3, Save } from 'lucide-react';
-import { api, Project, EnrollmentWithVolunteer } from '../../lib/api';
+import { ArrowLeft, Users, CheckCircle, Clock, XCircle, Loader2, DollarSign, BarChart2, MessageCircle, Clock3, Save, FileText } from 'lucide-react';
+import { api, ApiError, Project, EnrollmentWithVolunteer } from '../../lib/api';
+import { openCv } from '../../lib/cv';
+import { userMessage } from '../../lib/format';
 import { useLatestRequest } from '../../lib/useLatestRequest';
 import { MomentsFeed } from './MomentsFeed';
 import { LoadError, describeLoadError } from './LoadError';
@@ -17,6 +19,8 @@ export function NGOProjectDetail() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [hoursDraft, setHoursDraft] = useState<Record<string, string>>({});
   const [savingHours, setSavingHours] = useState<string | null>(null);
+  // "Ver CV" (§166): el aviso es por inscripción, debajo de su fila (sin alert).
+  const [cvError, setCvError] = useState<Record<string, string>>({});
 
   // Solo vale la respuesta del último pedido (al cambiar de proyecto, reintentar o recargar tras aprobar): F15, §89.
   const latest = useLatestRequest();
@@ -53,6 +57,17 @@ export function NGOProjectDetail() {
       setEnrollments(prev => prev.map(e => e.id === id ? { ...e, hours_logged: val } : e));
     } catch (e: any) { alert(e.message); }
     finally { setSavingHours(null); }
+  };
+
+  const viewCv = async (e: EnrollmentWithVolunteer) => {
+    setCvError(m => { const { [e.id]: _, ...rest } = m; return rest; });
+    try { await openCv(e.user_id); }
+    catch (err) {
+      const msg = err instanceof ApiError && err.status === 404
+        ? `${e.volunteer_name} no cargó su CV.`
+        : userMessage(err, 'No pudimos conectarnos. Revisá tu conexión y probá de nuevo.');
+      setCvError(m => ({ ...m, [e.id]: msg }));
+    }
   };
 
   const filtered = filter === 'all' ? enrollments : enrollments.filter(e => e.status === filter);
@@ -141,6 +156,13 @@ export function NGOProjectDetail() {
                             : 'bg-red-50 text-red-500'}`}>
                             {e.status === 'approved' ? 'Aprobado' : e.status === 'pending' ? 'Pendiente' : 'Rechazado'}
                           </span>
+                          {(e.status === 'pending' || e.status === 'approved') && (
+                            <button onClick={() => viewCv(e)} aria-label={`Ver CV de ${e.volunteer_name}`}
+                              className="w-7 h-7 rounded-full bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center transition-colors"
+                              title={`CV de ${e.volunteer_name}`}>
+                              <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                            </button>
+                          )}
                           <button onClick={() => navigate(`/ngo/messages/${e.user_id}`)}
                             className="w-7 h-7 rounded-full bg-blue-50 hover:bg-blue-100 flex items-center justify-center transition-colors"
                             title={`Mensaje a ${e.volunteer_name}`}>
@@ -150,6 +172,7 @@ export function NGOProjectDetail() {
                       </div>
                       <p className="text-xs text-gray-400">{e.volunteer_email}</p>
                       {e.message && <p className="text-xs text-gray-500 italic mt-1">"{e.message}"</p>}
+                      {cvError[e.id] && <p role="alert" className="text-xs text-red-600 mt-1">{cvError[e.id]}</p>}
                     </div>
                   </div>
                   {e.status === 'pending' && (

@@ -20,7 +20,8 @@ vi.mock('../../lib/api', async () => {
     ...actual,
     api: {
       ...actual.api,
-      auth: { ...actual.api.auth, updateMe: vi.fn() },
+      // `me`: lo pide la sección "Mi CV" (§166), que tiene su propio aviso; acá no es lo que se prueba.
+      auth: { ...actual.api.auth, updateMe: vi.fn(), me: vi.fn().mockResolvedValue({ user: {}, profile: { has_cv: false } }) },
       enrollments: { ...actual.api.enrollments, my: vi.fn() },
       catalog: { ...actual.api.catalog, habilidades: vi.fn() },
       follows: { ...actual.api.follows, myNgos: vi.fn(), myFollowing: vi.fn(), myFollowers: vi.fn() },

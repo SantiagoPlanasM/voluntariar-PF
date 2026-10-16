@@ -6,6 +6,7 @@ import { api, EnrollmentWithProject, SkillCatalogItem, VolunteerSkill, NGO, Volu
 import { FollowListModal, FollowListMode } from './FollowListModal';
 import { InlineError } from './LoadError';
 import { ProfilePhotoPicker } from './ProfilePhotoPicker';
+import { CvSection } from './CvSection';
 import { userMessage } from '../../lib/format';
 import { useLatestRequest } from '../../lib/useLatestRequest';
 
@@ -303,6 +304,9 @@ export function VolunteerProfile() {
             </div>
           </div>
         )}
+
+        {/* Mi CV (§166) */}
+        {!editing && <CvSection userId={user.id} />}
 
         {/* Mis ONGs seguidas */}
         <div>

@@ -4531,3 +4531,40 @@ Sigue la regla 24 en orden: sesión → límite de **10 subidas por hora** por u
 - **Nada contra Cloudinary real**, igual que en §164: el formato del `public_id` raw, que el link descargue y que venza. Va en la Etapa 5, en Render.
 - El límite de 10 por hora es en memoria y por proceso.
 - No hay pantalla todavía (Etapa 5).
+
+## 166. CV en el frontend: "Mi CV" del voluntario y "Ver CV" en el panel de la ONG (PLAN_FALTANTE.md, Etapa 5)
+
+**Qué se hizo:**
+- **`lib/cv.ts`** (nuevo):
+  - `checkCvFile(file)` usa los mismos topes y mensajes que el backend (PDF, 5 MB) y chequea antes de subir.
+  - `openCv(userId)` abre el link que vence. **Primero abre la pestaña y después hace el pedido**: abierta después de un `await`, el navegador la bloquea como ventana emergente. Si el pedido falla, cierra la pestaña vacía y relanza el error. Si el navegador no dejó abrirla, va al link en la misma pestaña.
+- **`api.ts`:** `api.voluntarios.cv.{ upload (PUT multipart, campo cv), remove (DELETE), link (GET, id codificado) }`. `api.auth.me` tipa también `profile?.has_cv` (regla 6).
+- **`CvSection.tsx`** (nuevo), en `VolunteerProfile` debajo de "Habilidades" (se oculta mientras se edita el perfil):
+  - dice si hay CV (`has_cv` de `/auth/me`) y aclara quién lo ve;
+  - permite subir, reemplazar y ver;
+  - para borrar pide confirmación **en la pantalla**, no con `window.confirm` (que además bloquea la verificación con Chrome);
+  - los avisos van con `role="alert"`, el éxito con `role="status"` y, mientras sube, el botón dice "Subiendo…";
+  - si no se puede saber si hay CV, dice "No se pudo cargar." y no muestra botones engañosos.
+- **`NGOProjectDetail.tsx`:** botón "Ver CV de <nombre>" en las inscripciones **pendientes y aprobadas**, las mismas que deja el backend (C1). Si responde 404, la fila dice "<nombre> no cargó su CV."; con otro error muestra su mensaje o uno de conexión. Todo en la fila, sin `alert()`.
+
+### Verificación
+- Tests nuevos:
+  - `lib/cv.test.ts` (12): los tres métodos de la API, `checkCvFile` con el borde exacto de 5 MB, y `openCv` (que abra antes de pedir, el cierre si falla, el fallback sin pestaña);
+  - `CvSection.test.tsx` (13);
+  - `NGOProjectDetailCv.test.tsx` (5).
+  
+  Además, `VolunteerProfileErrors.test.tsx` simula `api.auth.me`, la dependencia nueva de la pantalla (ver Errores propios).
+- Rojo: los tres archivos fallaban porque los módulos no existían, que es un rojo débil. Los rojos fuertes los dio la mutación.
+- Frontend **621/621** (antes 594, +27), también con `TZ=America/Argentina/Cordoba`; `npm run typecheck` 0; `npm audit` 0. Finales de línea conservados (contados con Node).
+- **Mutación** (control en verde): **28 mutantes; en la primera tanda sobrevivió 1, no equivalente**: "no se limpia el aviso de la fila antes de reintentar" (un intento exitoso dejaba el error viejo). Sumé ese test y quedó en **0 de 28**.
+
+### Errores propios
+- Al sumar `CvSection` a `VolunteerProfile` fallaron 2 tests de `VolunteerProfileErrors`: la sección pide `/auth/me`, que ahí no estaba simulado, y su "No se pudo cargar." chocaba con lo que esos tests verifican. Lo simulé en el test (es una dependencia nueva legítima, no un cambio del comportamiento probado).
+- El primer fixture de proyecto de `NGOProjectDetailCv.test.tsx` no tenía los campos numéricos que la pantalla formatea (`toLocaleString` sobre `undefined`).
+- La mutación encontró el test que faltaba del aviso por fila.
+
+### ⚠️ NO verificado
+- **Nada contra Cloudinary real ni en un navegador:** subir un PDF de verdad, que el link descargue o muestre el PDF, que venza, y que el truco de la pestaña previa no lo bloquee algún navegador (Safari en iPhone en particular). **Lo tenés que probar vos en Render** (ver la respuesta de esta sesión).
+- Nada visual: la tarjeta "Mi CV", la confirmación de borrado y el ícono en las filas de la ONG.
+- `NGODashboard` (las solicitudes pendientes del panel principal) no tiene "Ver CV": solo el detalle de cada proyecto.
+- El recuadro "Mi CV" no se recarga con el "Reintentar" general de la pantalla (tiene su propia carga).

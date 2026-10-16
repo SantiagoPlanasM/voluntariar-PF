@@ -32,7 +32,8 @@ frontend/src/
 │   ├── ChatContext.tsx        # chat en tiempo real (WebSocket)
 │   ├── format.ts              # timeAgo/formatTime/parseBackendDate (aceptan ISO 8601 y el formato viejo sin zona), truncateText ("ver más"), userMessage (errores para el usuario), normalizeText (comparar sin mayúsculas ni acentos) y otros formatos
 │   ├── sponsorship.ts         # etiquetas y colores de los estados de un patrocinio (única fuente: CompanyDashboard, CompanyOwnProfile, NGOPatrocinios)
-│   └── imageCompress.ts       # compresión de fotos en el navegador antes de subirlas (Momentos)
+│   ├── imageCompress.ts       # compresión de fotos en el navegador antes de subirlas (Momentos y foto de perfil)
+│   └── cv.ts                  # CV: checkCvFile (PDF, 5 MB, mismos mensajes que el backend) y openCv (link que vence) — §166
 └── styles/
     ├── globals.css             # Tailwind + tema custom (design tokens) + fuentes
     └── (assets, fonts)
@@ -107,7 +108,8 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 ### Pantallas — lado ONG
 - `NGODashboard.tsx` — lista de proyectos propios + resumen de inscripciones pendientes por proyecto (una sola llamada agregada a `GET /api/ngos/me`, el N+1 que tenía antes ya se resolvió). Cada proyecto muestra su categoría (`{p.category} · Fugaz/Sostenido`); hasta §144 `GET /api/ngos/me` la mandaba vacía y se veía " · Fugaz". En el celular, Equipo y Momentos del encabezado son solo ícono (con `aria-label`) y el nombre se trunca: antes no entraban y había scroll horizontal (§128).
 - `CreateVoluntariado.tsx` — formulario de alta/edición de proyecto (mismo componente sirve para crear y editar, diferenciado por `projectId` en query string). Pide modalidad (presencial/remoto/híbrido) y, según la modalidad, ubicación física y/o plataforma digital. Reimplementa validaciones de fecha/cupos/duración ya presentes en el backend. Título, descripción corta y completa tienen los topes del backend (`maxLength` 80, 1000 y 5000), y el paso 1 valida título y descripción también contra lo pegado (§145, §147).
-- `NGOProjectDetail.tsx` — detalle de proyecto desde la óptica de la ONG: lista de inscriptos, aprobar/rechazar, cargar horas.
+- `NGOProjectDetail.tsx` — detalle de proyecto desde la óptica de la ONG: lista de inscriptos, aprobar/rechazar, cargar horas. En las inscripciones **pendientes y aprobadas** hay un botón "Ver CV de <nombre>" (`openCv(e.user_id)`, §166). Si el voluntario no cargó CV (404), la fila dice "<nombre> no cargó su CV." con `role="alert"`, sin `alert()`.
+- `CvSection.tsx` — "Mi CV" en `VolunteerProfile` (§166; se oculta mientras se edita el perfil). Si hay CV sale de `profile.has_cv` de `GET /auth/me`. Permite subir o reemplazar (valida con `checkCvFile` antes de subir), ver (`openCv`) y borrar, con una confirmación en la pantalla (`role="group"` "¿Borrar tu CV?"), sin `window.confirm`. Los avisos van con `role="alert"` y el éxito con `role="status"`. Si no se puede saber si hay CV, dice "No se pudo cargar." y no muestra botones.
 - `NGOOwnProfile.tsx` — perfil de la ONG editable (nombre, descripción, misión, ubicación, categoría). Lista sus proyectos con la categoría de cada uno (de `GET /api/ngos/me`, vacía hasta §144).
 - `NGOPublicProfile.tsx` — vista pública del perfil de una ONG (accesible sin login desde `/ngo/:id`), lista sus proyectos activos. "¿Ya la sigo?" (`follows.ngoStatus`) solo lo consulta un voluntario, y se vuelve a cargar si la sesión cambia estando en el perfil (§132); si falla, no muestra el botón Seguir/Siguiendo (sería un "Seguir" falso) sino un aviso `role="alert"` con "Reintentar", que vuelve a preguntar solo eso (§125).
 - `NGOPatrocinios.tsx` — propuestas de patrocinio de empresas sobre los proyectos propios: pendientes (aceptar/rechazar) e historial.
@@ -213,6 +215,7 @@ export const api = {
   ngos: { list, get, me, updateMe, employees, patrocinios: { list, decide }... },
   empresas: { me, get, update, dashboard, patrocinios: { list, propose, withdraw } },
   follows: { ngo, project, volunteer, feed... },
+  voluntarios: { cv: { upload, remove, link }, habilidades, getProfile },   // cv: §166 (upload es PUT multipart, campo `cv`)
   faqs: { list, ask },
   notifications: { list, markRead },
 };
