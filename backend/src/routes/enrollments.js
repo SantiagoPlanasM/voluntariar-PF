@@ -134,16 +134,23 @@ router.get('/project/:projectId', requireAuth, requireRole('ngo'), async (req, r
       SELECT e.id, e.user_id, e.project_id, e.status, e.mensaje AS message,
              e.horas_realizadas AS hours_logged, e.created_at, e.updated_at,
              u.name AS volunteer_name, u.email AS volunteer_email,
-             u.avatar AS volunteer_avatar, u.bio AS volunteer_bio
+             u.avatar AS volunteer_avatar, u.bio AS volunteer_bio,
+             v.cv_url
       FROM enrollments e
       JOIN users u ON u.id = e.user_id
+      LEFT JOIN voluntarios v ON v.user_id = e.user_id
       WHERE e.project_id = $1
     `;
     const params = [req.params.projectId];
     if (status) { sql += ' AND e.status = $2'; params.push(status); }
     sql += ' ORDER BY e.created_at DESC';
 
-    const enrollments = await db.all(sql, params);
+    // has_cv (§168): true solo si la ONG puede abrir el CV con GET /api/voluntarios/:userId/cv (inscripción
+    // pendiente o aprobada, §165). cv_url es el public_id de un PDF privado: no sale de acá.
+    const enrollments = (await db.all(sql, params)).map(({ cv_url, ...e }) => ({
+      ...e,
+      has_cv: Boolean(cv_url) && (e.status === 'pending' || e.status === 'approved'),
+    }));
     res.json({ enrollments });
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener inscripciones' });

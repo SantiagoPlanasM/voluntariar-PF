@@ -246,7 +246,7 @@
 
 ### `GET /api/enrollments/project/:projectId` — Auth, role `ngo` (dueño del proyecto)
 - **Query:** `status` opcional (`pending`/`approved`/`rejected`): filtra por estado; sin él, todas.
-- **Respuesta 200:** `{ enrollments: Enrollment[] }` de ese proyecto, del más nuevo al más viejo, con datos del voluntario embebidos (`volunteer_name`, `volunteer_email`, `volunteer_avatar`, `volunteer_bio`).
+- **Respuesta 200:** `{ enrollments: Enrollment[] }` de ese proyecto, del más nuevo al más viejo, con datos del voluntario embebidos (`volunteer_name`, `volunteer_email`, `volunteer_avatar`, `volunteer_bio`) y **`has_cv`** (boolean, §168). `has_cv` es `true` solo si la inscripción es `pending` o `approved` y el voluntario cargó un CV: es exactamente cuando esta ONG puede abrirlo con `GET /api/voluntarios/:userId/cv`. Nunca devuelve `cv_url` ni el public_id.
 - **Errores:** **`403`** "Sin permiso sobre este proyecto" si el proyecto no existe o no pertenece a la ONG de la sesión (esta doc decía 404).
 
 ### `PATCH /api/enrollments/:id` — Auth, role `ngo` (dueño del proyecto de la inscripción)

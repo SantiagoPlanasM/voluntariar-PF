@@ -1,8 +1,9 @@
 // src/app/components/NGOProjectDetailCv.test.tsx
 //
 // "Ver CV" en las inscripciones del panel de la ONG (PLAN_FALTANTE.md, Etapa 5, §166). El backend deja ver el CV
-// con una inscripción pendiente o aprobada (decisión C1), así que el botón aparece solo en esas. Si el voluntario
-// no cargó CV, el backend responde 404 "CV no disponible" y la fila lo explica (sin `alert`).
+// con una inscripción pendiente o aprobada (decisión C1). Desde §168 la lista trae `has_cv` (true solo en esos casos y
+// si hay CV) y el botón aparece solo con has_cv: antes aparecía siempre y, sin CV, se abría y cerraba una pestaña
+// vacía. Si el CV se borró después de cargar la lista, el backend responde 404 y la fila lo explica (sin `alert`).
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router';
@@ -20,12 +21,13 @@ const project = {
   id: 'proj-1', ngo_id: 'ngo-1', title: 'Reforestación', description: 'd', category: 'Medio Ambiente', location: 'Córdoba',
   type: 'fugaz', status: 'active', volunteers_needed: 10, current_volunteers: 1, funding_goal: 0, current_funding: 0, cost_per_person: 0,
 } as Project;
-const enr = (id: string, user_id: string, volunteer_name: string, status: string) =>
-  ({ id, user_id, project_id: 'proj-1', status, volunteer_name, volunteer_email: `${user_id}@x.com` }) as unknown as EnrollmentWithVolunteer;
+const enr = (id: string, user_id: string, volunteer_name: string, status: string, has_cv: boolean) =>
+  ({ id, user_id, project_id: 'proj-1', status, volunteer_name, volunteer_email: `${user_id}@x.com`, has_cv }) as unknown as EnrollmentWithVolunteer;
 const enrollments = [
-  enr('e1', 'u-ana', 'Ana', 'pending'),
-  enr('e2', 'u-beto', 'Beto', 'approved'),
-  enr('e3', 'u-caro', 'Caro', 'rejected'),
+  enr('e1', 'u-ana', 'Ana', 'pending', true),
+  enr('e2', 'u-beto', 'Beto', 'approved', true),
+  enr('e3', 'u-caro', 'Caro', 'rejected', false),
+  enr('e4', 'u-dani', 'Dani', 'pending', false),
 ];
 
 const mount = () => render(
@@ -42,11 +44,18 @@ beforeEach(() => {
 });
 
 describe('"Ver CV" en las inscripciones de un proyecto', () => {
-  test('aparece en las pendientes y aprobadas, no en las rechazadas', async () => {
+  test('aparece solo con has_cv (pendiente o aprobada con CV); no sin CV ni en las rechazadas', async () => {
     mount();
     expect(within(await row('Ana')).getByRole('button', { name: 'Ver CV de Ana' })).toBeInTheDocument();
     expect(within(await row('Beto')).getByRole('button', { name: 'Ver CV de Beto' })).toBeInTheDocument();
     expect(within(await row('Caro')).queryByRole('button', { name: /Ver CV/ })).toBeNull();
+    expect(within(await row('Dani')).queryByRole('button', { name: /Ver CV/ })).toBeNull();
+  });
+
+  test('el estado solo no alcanza: una pendiente con has_cv false no tiene botón', async () => {
+    vi.mocked(api.enrollments.byProject).mockResolvedValue({ enrollments: [enr('e9', 'u-eva', 'Eva', 'approved', false)] });
+    mount();
+    expect(within(await row('Eva')).queryByRole('button', { name: /Ver CV/ })).toBeNull();
   });
 
   test('abre el CV de ESE voluntario', async () => {
@@ -55,7 +64,7 @@ describe('"Ver CV" en las inscripciones de un proyecto', () => {
     expect(openCv).toHaveBeenCalledWith('u-beto');
   });
 
-  test('sin CV (404): la fila dice que no lo cargó; las demás no muestran nada', async () => {
+  test('si el CV se borró después de cargar la lista (404): la fila dice que no lo cargó; las demás no muestran nada', async () => {
     vi.mocked(openCv).mockRejectedValue(new ApiError('CV no disponible', 404));
     const alertSpy = vi.spyOn(window, 'alert');
     mount();

@@ -156,7 +156,7 @@ export function NGOProjectDetail() {
                             : 'bg-red-50 text-red-500'}`}>
                             {e.status === 'approved' ? 'Aprobado' : e.status === 'pending' ? 'Pendiente' : 'Rechazado'}
                           </span>
-                          {(e.status === 'pending' || e.status === 'approved') && (
+                          {e.has_cv && (
                             <button onClick={() => viewCv(e)} aria-label={`Ver CV de ${e.volunteer_name}`}
                               className="w-7 h-7 rounded-full bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center transition-colors"
                               title={`CV de ${e.volunteer_name}`}>

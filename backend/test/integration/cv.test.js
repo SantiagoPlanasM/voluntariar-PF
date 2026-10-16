@@ -288,6 +288,54 @@ describe('CV del voluntario', () => {
     });
   });
 
+  // §168: el panel de la ONG muestra "Ver CV" solo si hay algo que ver. Antes el botón aparecía siempre y, sin CV,
+  // abría y cerraba una pestaña vacía (openCv la abre antes del pedido para que el navegador no la bloquee).
+  describe('GET /api/enrollments/project/:id trae has_cv (true solo cuando la ONG puede abrirlo)', () => {
+    const list = async (who, projectId) => {
+      const r = await call(`/api/enrollments/project/${projectId}`, { who });
+      assert.equal(r.status, 200, JSON.stringify(r.body));
+      return r;
+    };
+    const luciaIn = (r) => r.body.enrollments.find((e) => e.user_id === lucia.id);
+
+    test('inscripción aprobada (proj-4) y pendiente (proj-10) con CV → has_cv: true', async () => {
+      await setCv(lucia.id, 'test/lucia.pdf');
+      assert.equal(luciaIn(await list(ngo4, 'proj-4')).has_cv, true);
+      assert.equal(luciaIn(await list(ngo3, 'proj-10')).has_cv, true);
+    });
+
+    test('sin CV → has_cv: false (boolean, no null ni 0)', async () => {
+      const e = luciaIn(await list(ngo4, 'proj-4'));
+      assert.strictEqual(e.has_cv, false);
+    });
+
+    test('inscripción rechazada o cancelada → has_cv: false aunque tenga CV (la ONG no puede abrirlo)', async () => {
+      await setCv(lucia.id, 'test/lucia.pdf');
+      for (const status of ['rejected', 'cancelled']) {
+        await db.run(`UPDATE enrollments SET status=$1 WHERE user_id='user-vol-3' AND project_id='proj-10'`, [status]);
+        try { assert.strictEqual(luciaIn(await list(ngo3, 'proj-10')).has_cv, false); }
+        finally { await db.run(`UPDATE enrollments SET status='pending' WHERE user_id='user-vol-3' AND project_id='proj-10'`); }
+      }
+    });
+
+    test('cada inscripción trae has_cv, y la respuesta nunca trae cv_url ni el public_id', async () => {
+      await setCv(lucia.id, 'test/lucia.pdf');
+      const r = await list(ngo4, 'proj-4');
+      assert.ok(r.body.enrollments.length > 0);
+      for (const e of r.body.enrollments) {
+        assert.equal(typeof e.has_cv, 'boolean');
+        assert.equal('cv_url' in e, false);
+      }
+      assert.ok(!JSON.stringify(r.body).includes('test/lucia.pdf'));
+    });
+
+    test('con ?status= también', async () => {
+      await setCv(lucia.id, 'test/lucia.pdf');
+      const r = await call('/api/enrollments/project/proj-10?status=pending', { who: ngo3 });
+      assert.equal(luciaIn(r).has_cv, true);
+    });
+  });
+
   describe('el public_id no sale por ningún otro lado', () => {
     test('GET /api/auth/me: profile trae has_cv (boolean) y no cv_url', async () => {
       await setCv(lucia.id, 'test/lucia.pdf');

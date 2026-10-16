@@ -306,6 +306,8 @@ export interface EnrollmentWithProject extends Enrollment {
 export interface EnrollmentWithVolunteer extends Enrollment {
   volunteer_name: string; volunteer_email: string;
   volunteer_avatar?: string; volunteer_bio?: string;
+  /** GET /enrollments/project/:id (§168): true si la ONG puede abrir el CV (inscripción pendiente o aprobada y hay CV). */
+  has_cv?: boolean;
 }
 /** Solicitud pendiente del panel de la ONG (GET /ngos/me): trae además el título del proyecto. */
 export interface PendingEnrollment extends EnrollmentWithVolunteer {

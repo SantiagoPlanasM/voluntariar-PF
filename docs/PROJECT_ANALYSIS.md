@@ -4587,3 +4587,31 @@ Sigue la regla 24 en orden: sesión → límite de **10 subidas por hora** por u
 - "Cambiar foto" con la empresa.
 - Que el link venza a los 10 minutos, y cualquier prueba en un celular.
 - Lo de la foto en el perfil público, el chat y Momentos: el usuario no lo detalló.
+
+## 168. "Ver CV" solo si hay CV: `has_cv` en la lista de inscriptos (hallazgo del usuario en prod, §167)
+
+**Qué pasaba:** en producción, el botón "Ver CV" aparecía en todas las inscripciones pendientes y aprobadas. Si el voluntario no tenía CV, `openCv` abría una pestaña vacía (lo hace **antes** del pedido para que el navegador no la bloquee, §166), el pedido daba 404 y la pestaña se cerraba: el usuario veía "se abre otra página y vuelvo". Además, el 404 quedaba en la consola.
+
+**Qué se hizo (aprobado por el usuario):**
+- `GET /api/enrollments/project/:projectId` (ya era solo para la ONG dueña) suma `has_cv` a cada inscripción con un `LEFT JOIN voluntarios`. Es `true` solo si la inscripción es `pending` o `approved` **y** hay CV, que es la misma condición con la que `GET /api/voluntarios/:userId/cv` lo entrega (§165). El public_id se saca de la fila en JS: no sale.
+- `NGOProjectDetail` muestra el botón solo con `has_cv`. El aviso del 404 queda para el caso en que el CV se borre después de cargar la lista. `api.ts`: `has_cv?: boolean` en `EnrollmentWithVolunteer` (opcional, porque `/ngos/me` arma el mismo tipo y no lo trae).
+- **Privacidad:** revela que hay un CV solo a una ONG que igual lo puede abrir. Para una inscripción rechazada o cancelada da `false`, aunque haya CV.
+
+### Verificación
+- `cv.test.js` (+5):
+  - aprobada y pendiente con CV → `true`;
+  - sin CV → `false` (estricto: boolean, ni `null` ni `0`);
+  - rechazada o cancelada con CV → `false`;
+  - todas las filas con boolean y ninguna con `cv_url` ni el public_id;
+  - también con `?status=`.
+  
+  Rojo: los 5 fallaban (no venía la clave).
+- `NGOProjectDetailCv.test.tsx`: los datos traen `has_cv`, hay una pendiente sin CV sin botón y una aprobada con `has_cv: false` sin botón. Rojo antes del cambio: los 2 tests fallaban (el botón salía igual).
+- Backend SQLite **688/688** y con TZ 688/688; Postgres **690/690** y con TZ 690/690. Frontend **622/622** y con TZ 622/622; `typecheck` 0.
+- **Mutación** (control en verde): **7 mutantes, 0 sobrevivientes**. En el backend: sin chequeo de estado, solo aprobadas, sin chequeo de CV, `cv_url` expuesto y `has_cv` no booleano. En el frontend: el botón por estado y el botón siempre.
+
+### Errores propios
+- El diseño de §166 (el botón en todas las pendientes y aprobadas, más la pestaña previa) causaba ese parpadeo cuando no había CV. Los tests no podían verlo: solo se ve en un navegador.
+
+### ⚠️ NO verificado
+- En producción: hace falta desplegar **los dos servicios** y repetir la prueba (una inscripción sin CV no tiene que mostrar el botón).
