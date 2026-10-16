@@ -10,6 +10,7 @@ const { sponsorDecisionEmail } = require('../lib/emailTemplates');
 // Mismo formateador que /api/projects, para no devolver filas crudas
 // (titulo/foto_perfil/etc.) en el listado de proyectos de la propia ONG.
 const { fmt: fmtProject } = require('./projects');
+const { attachAssoc } = require('../lib/projectAssoc');
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
@@ -132,19 +133,29 @@ router.get('/:id', async (req, res) => {
     );
     if (!ngo) return res.status(404).json({ error: 'ONG no encontrada' });
 
+    // REVISION A1: antes era un SELECT propio de 8 campos (sin duration ni hours_per_week: un sostenido mostraba
+    // "h/semana" sin número en NGOPublicProfile) y el JOIN con categorías repetía el proyecto que tuviera dos.
+    // Ahora, la misma forma que GET /api/projects: fmt (lista blanca, regla 8) con las mismas columnas extra
+    // (ONG, rating) y roles/requisitos/categoría en 3 consultas fijas.
     const projects = await db.all(
-      `SELECT p.id, p.titulo AS title, p.foto_perfil AS image, p.tipo AS type,
-              p.status, p.cupos_ocupados AS current_volunteers, p.cupos AS volunteers_needed,
-              COALESCE(c.nombre,'') AS category
+      `SELECT p.*, n.nombre AS ngo_name, n.foto_perfil AS ngo_logo,
+              COALESCE(n.followers, 0) AS ngo_followers,
+              COALESCE(r.avg_rating, 0) AS avg_rating,
+              COALESCE(r.ratings_count, 0) AS ratings_count
        FROM projects p
-       LEFT JOIN project_categorias pc ON pc.project_id = p.id
-       LEFT JOIN categorias c ON c.id = pc.categoria_id
+       JOIN ngos n ON n.id = p.ngo_id
+       LEFT JOIN (
+         SELECT project_id, AVG(rating) AS avg_rating, COUNT(*) AS ratings_count
+         FROM ratings
+         GROUP BY project_id
+       ) r ON r.project_id = p.id
        WHERE p.ngo_id=$1
-       ORDER BY p.created_at DESC`,
+       ORDER BY p.created_at DESC, p.id`,
       [req.params.id]
     );
+    await attachAssoc(db, projects);
 
-    res.json({ ngo: fmtNgo(ngo), projects });
+    res.json({ ngo: fmtNgo(ngo), projects: projects.map(fmtProject) });
   } catch (err) {
     console.error('GET /ngos/:id error:', err);
     res.status(500).json({ error: 'Error al obtener ONG' });

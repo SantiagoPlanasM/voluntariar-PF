@@ -3547,3 +3547,39 @@ No se tocó código; el razonamiento quedó en `REVISION.md`.
 
 ### ⚠️ NO verificado
 - No lo vi en el navegador ni en producción.
+
+## 134. Perfil público de ONG: los proyectos con la forma de siempre (`fmt`) — REVISION A1
+
+**Contexto:** `GET /api/ngos/:id` armaba los proyectos con un SELECT propio de 8 campos (`id`, `title`, `image`, `type`, `status`, `current_volunteers`, `volunteers_needed`, `category`), sin pasar por `fmt`. `NGOPublicProfile.tsx` lee `p.duration` y `p.hours_per_week`: un sostenido mostraba "h/semana" sin el número (la sonda de la tercera pasada lo confirmó: `hours_per_week` → `undefined`). Además el `LEFT JOIN` con `project_categorias` repetía el proyecto que tuviera dos categorías. Es el mismo problema de §29 (reglas 4, 7 y 10): un endpoint con su propia forma de "qué es un Project".
+
+**Qué se hizo:**
+- **Backend (`routes/ngos.js`):** los proyectos del perfil salen por `fmt` (importado de `routes/projects.js`, no copiado), con las mismas columnas extra que el listado `GET /api/projects`: `ngo_name`, `ngo_logo`, `ngo_followers`, `avg_rating` y `ratings_count` (subconsulta agrupada de `ratings`, igual que el listado). Siguen ordenados del más nuevo al más viejo (se suma `p.id` de desempate).
+- **`lib/projectAssoc.js` (nuevo):** `attachAssoc(q, rows)` carga roles, requisitos y categoría de varios proyectos en 3 consultas fijas y los escribe como los lee `fmt` (`roles_json`, `requisitos_json`, `category_name`). Es el bloque que ya estaba copiado tres veces (listado SQLite de `projects.js`, `GET /api/follows/project` y `/feed`). No lo copié una cuarta vez (regla 3); las tres copias **no se migraron** (fuera de la tarea, regla 5; `projects.js` lo edita otro cambio en paralelo).
+- **Frontend:** sin cambios. `NGOPublicProfile` ya tipaba los proyectos como `Project`; ahora el backend cumple ese tipo.
+- Regla 8: `fmt` es lista blanca, así que el `p.*` no expone columnas. `public-columns.test.js` ya recorría `/api/ngos/ngo-1` (sigue sin filtrar el centinela) y ahora además exige en sus proyectos los campos de `Project` que usa el frontend.
+
+### Tests (nuevos: 5; 1 actualizado)
+- `ngo-profile-projects-shape.test.js` (5):
+  - duración del fugaz y horas del sostenido (número), contra `duracion`/`horas_semanales` de la base;
+  - cada proyecto del perfil es igual, campo por campo y valor por valor, al mismo proyecto en `GET /api/projects` (roles y requisitos comparados ordenados), y la comparación no es vacía (hay roles, requisitos, categoría y reseñas);
+  - orden del más nuevo al más viejo, con fechas fijadas en el test;
+  - un proyecto con dos categorías aparece una sola vez;
+  - una ONG sin proyectos devuelve `projects: []`.
+- `public-columns.test.js`: en "…pero sí todo lo que el frontend espera", los proyectos de `GET /ngos/:id` tienen que traer los campos de `Project` + `duration`, `hours_per_week` y `ngo_name`.
+- **Rojo de comportamiento** (con el código viejo, en SQLite): fallaban 3 de 5 (`proj-1: duration`; `ids repetidos: proj-1, proj-5, proj-7, proj-7`; la comparación con el listado) y el de `public-columns` (`falta "ngo_id"`). Los de orden y lista vacía pasaban antes: cuidan que no se rompa lo que ya andaba.
+
+### Verificación
+- **Backend:** SQLite **498/498** (493 + 5) y Postgres **500/500** (495 + 5), 0 cancelled, exit 0; también con `TZ=America/Argentina/Cordoba` (498/498 y 500/500).
+- **Frontend:** sin cambios en este commit (ver el número final en el reporte).
+- **Mutación (15)**, sobre `ngos.js` y `projectAssoc.js`, con corrida de control en los dos motores, sobre `ngo-profile-projects-shape` + `public-columns`: sin `attachAssoc`, sin `fmt`, `avg_rating` en 0, `ratings_count` en 0, `ngo_followers` en 0, `ngo_name` NULL, `ngo_logo` NULL, orden ASC, sin el `WHERE ngo_id`, roles vacíos, requisitos vacíos, categoría vacía, roles de todos al primer proyecto → **mueren los 13 en los dos motores**. Sobreviven 2, equivalentes:
+  - sacar el `if (!ids.length) return rows` sobrevive en SQLite (allí `IN ()` es válido y da vacío); en Postgres muere (error de sintaxis → 500).
+  - quedarse con la última categoría en vez de la primera: con una categoría por proyecto da lo mismo, y con dos ninguna de las consultas (ni el `LIMIT 1` del detalle) fija un orden, así que "la primera" no está definida.
+
+### Errores propios
+- El primer test de orden comparaba contra `created_at` del seed, que en SQLite es el mismo segundo para todos: pasaba igual con `ORDER BY ... ASC`. Lo vio la mutación; ahora el test fija fechas distintas y espera un orden exacto.
+- En la primera corrida completa de Postgres (en paralelo con la de SQLite) falló una vez `db-transaction.test.js` ("una llamada db.* colgada… sí funciona", depende de un `sleep(20)`). No tiene que ver con este cambio: solo ese archivo pasó 3 de 3, y la suite completa sola pasó 500/500 varias veces.
+
+### ⚠️ NO verificado
+- No vi el perfil en el navegador (que el sostenido muestre "4h/semana").
+- Las tres copias del bloque de roles/requisitos/categoría siguen ahí (`projects.js` listado SQLite, `follows.js` dos veces).
+- `GET /api/ngos/me` arma sus proyectos con `SELECT * FROM projects` sin categoría ni roles (salen `category: ''` y listas vacías), y `GET /api/ngos/:id/projects` pide la categoría como `category`, que `fmt` no lee (`category_name`/`categoria`): también sale `''`. No los toqué (no eran parte de A1).
