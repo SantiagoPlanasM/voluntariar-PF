@@ -417,5 +417,5 @@ Cada uno con test primero (rojo → verde), SQLite + Postgres + TZ de Córdoba s
 - Detalles menores:
   - `my_enrollment` del detalle con nombres de columna crudos (`mensaje`, `horas_realizadas`; el frontend solo lee `status`);
   - `fmtNgo` no devuelve `alias`;
-  - "Propuesta aceptado" (concordancia);
+  - ~~"Propuesta aceptado" (concordancia)~~ — resuelto en PROJECT_ANALYSIS §153;
   - `mensaje` del patrocinio sin validar.

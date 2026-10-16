@@ -230,7 +230,7 @@ Todos los tipos de dominio (`User`, `Project`, `NGO`, `Empresa`, `Enrollment`, `
 | `NGO` | ONG formateada por `fmtNgo()` — incluye `category?: string` |
 | `Empresa` | Empresa formateada por `fmtEmpresa()` — incluye `category?/industry?` |
 | `Enrollment` | inscripción: `id, project_id, volunteer_id, status, message?, hours_logged, created_at` |
-| `AppNotification` | `id, type, title, body?, read (boolean | number), created_at` |
+| `AppNotification` | `id, type, title, body?, read (boolean \| number), created_at` |
 | `Faq` | `id, categoria?, pregunta, respuesta` |
 | `Patrocinio` | propuesta de patrocinio Empresa↔Proyecto: `empresa_id, project_id, estado, mensaje?, aporte, ...` |
 | `CompanyDashboard` | respuesta de `GET /api/empresas/me/dashboard`: `stats`, `impact`, `projects: CompanyDashboardProject[]` (claves en inglés; `sponsorship_status` reusa los valores de `Patrocinio['estado']`) |

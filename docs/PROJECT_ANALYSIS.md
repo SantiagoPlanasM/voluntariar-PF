@@ -4308,3 +4308,19 @@ Revisando otros lugares que cuentan no leídas (pedido de la tarea): **`Notifica
 - `GET /api/auth/me` con un usuario de rol `volunteer`/`ngo`/`company` **sin** fila en su tabla: `db.get` devuelve `undefined` y la respuesta es `{ user }` **sin** la clave `profile`. `API_CONTEXT.md` dice "o `null`" (eso solo pasa con otros roles). Nadie lo lee, así que no rompe nada.
 - `GET /api/notifications` sigue con `SELECT *` sobre `notifications` (endpoint autenticado, solo filas propias; no es la regla 8 pero tampoco es lista blanca).
 - `FRONTEND_CONTEXT.md` (tabla de tipos, línea 233) describe `Notification` con `id, user_id, type, content, read, created_at`; en `api.ts` es `AppNotification` con `id, type, title, body?, read: boolean | number, created_at` (sin `content` ni `user_id`). Doc desactualizado; propuesta de texto en el borrador de CONTEXT.
+
+## 156. Integración de §148–§155 y verificación en producción (2026-10-16)
+
+**Qué se hizo:** se integraron en `main` los commits de cuatro subagentes (§148–§150, §152–§155) más §151. Cada uno lleva su sección y sus cambios de `*_CONTEXT.md`. Al integrar se renumeraron los borradores (§154 → §152; §151–§153 → §153–§155) y en `FRONTEND_CONTEXT.md` se corrigió la fila de `Notification` → `AppNotification` (campos reales de `api.ts`). En `REVISION.md` quedó tachado "Propuesta aceptado". Conteos de CLAUDE.md al día.
+
+### Verificación (sobre `main` integrado, corridas reales)
+- Backend SQLite **622/622**, también con `TZ=America/Argentina/Cordoba`; Postgres **624/624**, también con TZ. 0 fail, 0 cancelled, salida 0. Postgres corrió **en paralelo** con la suite SQLite y la del frontend: es la carga con la que antes fallaba `db-transaction.test.js`, y no falló (§150).
+- Frontend **576/576**, también con TZ; `npm run typecheck` 0 errores. `npm audit` 0 en los dos paquetes.
+- **Producción (Render, deploy manual de `b1ee86e`, con Chrome):** `GET /api/ngos/:id/projects` trae categoría, roles y `ngo_name` (§144); un registro con contraseña de 73 bytes da 400 con el mensaje de §141 sin crear la cuenta; portada, Explorar y detalle de proyecto cargan sin errores de consola; con la sesión de ONG del usuario, el panel muestra "Medio Ambiente · Fugaz", "Mi ONG" muestra la categoría del proyecto, y en "Nuevo voluntariado" el título se corta en 80 ("80/80 caracteres") y la descripción corta muestra "/1000". No se publicó nada.
+
+### Errores propios
+- Al aplicar los borradores, un reemplazo de la tabla de `FRONTEND_CONTEXT.md` dejó un `|` sin escapar (rompía la fila); lo corregí en este commit.
+
+### ⚠️ NO verificado
+- En prod: el mensaje de contraseña larga dentro del formulario (no ingreso contraseñas en sitios que no son locales), el registro de pedidos de red (la herramienta no los capturó) y el celular.
+- §148–§155 todavía no están desplegados en Render.
