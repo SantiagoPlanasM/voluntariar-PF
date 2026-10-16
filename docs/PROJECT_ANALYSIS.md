@@ -4046,3 +4046,23 @@ Script descartable sobre `ngoProjects` y sus dos llamadas nuevas (12 mutantes), 
 ### ⚠️ NO verificado
 - Nada visual: ninguna pantalla usa el endpoint.
 - Postgres en prod (Render).
+
+## 147. Crear voluntariado: la mutación y la corrida con TZ que le faltaban a §145
+
+**Qué se hizo:** §145 quedó sin mutación ni corrida con `TZ=America/Argentina/Cordoba`. La mutación (13 mutantes sobre `CreateVoluntariado.tsx`, control sin mutar primero) dejó **8 vivos** con los 2 tests de §145: `>=` en vez de `>` en el título; sin `trim` en el título; los cuatro del tope de 1000 en el paso 1 (`> 1001`, `>= 1000`, sin el chequeo, otro mensaje); y los dos de `maxLength={5000}` (5001 y sin el atributo). Ninguno era equivalente. Solo agregué tests; el componente no cambia.
+
+### Tests (nuevos: 3, `CreateVoluntariadoLimits.test.tsx`)
+- 80 justos con espacios alrededor pasan al paso 2 (el formulario manda `title.trim()` y el backend cuenta igual sin espacios, así que el `trim` del chequeo es el correcto).
+- Descripción corta de 1001 → "Máximo 1000 caracteres" y se queda en el paso 1; con 1000 justos y espacios alrededor, pasa.
+- La descripción completa (paso 3) tiene `maxLength` 5000.
+- Los tres pasaban antes: son de no regresión y existen para matar a los mutantes. También agregué `window.scrollTo = vi.fn()` (jsdom no lo implementa y "Continuar" lo llama; ensuciaba la salida con "Not implemented"), como en `A11yNames.test.tsx`.
+
+### Verificación
+- **Mutación: mueren los 13.** Archivo restaurado byte a byte.
+- Frontend **569/569** (566 + 3), también con `TZ=America/Argentina/Cordoba`; `npm run typecheck` **0 errores**.
+
+### Errores propios
+- En §145 escribí 2 tests que dejaban vivos 8 de 13 mutantes: no probaban los bordes exactos ni el tope de la descripción.
+
+### ⚠️ NO verificado
+- No lo vi en el navegador (`maxLength` corta lo que se tipea; lo pegado se corta también en los navegadores, pero eso no lo probé).

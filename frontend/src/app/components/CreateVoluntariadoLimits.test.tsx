@@ -12,6 +12,8 @@ vi.mock('../../lib/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u-ngo',
 import { CreateVoluntariado } from './CreateVoluntariado';
 
 const mount = () => render(<MemoryRouter><CreateVoluntariado /></MemoryRouter>);
+window.scrollTo = vi.fn() as never; // jsdom no lo implementa (lo llama "Continuar")
+const fill = (name: string, value: string) => fireEvent.change(screen.getByLabelText(name), { target: { value } });
 
 describe('Crear voluntariado: los topes del backend también en el formulario', () => {
   test('título 80, descripción corta 1000 y completa 5000 (maxLength)', () => {
@@ -28,5 +30,40 @@ describe('Crear voluntariado: los topes del backend también en el formulario', 
     fireEvent.click(screen.getByRole('button', { name: /Continuar/ }));
     expect(screen.getByText('Máximo 80 caracteres')).toBeInTheDocument();
     expect(screen.getByLabelText('Título del voluntariado')).toBeInTheDocument();
+  });
+
+  // Se manda recortado (`title.trim()`), como lo cuenta el backend: los espacios alrededor no suman.
+  test('80 justos, con espacios alrededor, pasan al paso 2', () => {
+    mount();
+    fill('Título del voluntariado', '  ' + 'x'.repeat(80) + ' ');
+    fill('Descripción corta', 'Una descripción suficiente');
+    fireEvent.click(screen.getByRole('button', { name: /Continuar/ }));
+    expect(screen.queryByText('Máximo 80 caracteres')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Ubicación')).toBeInTheDocument();
+  });
+
+  test('una descripción corta de más de 1000 no pasa del paso 1; 1000 justos (con espacios) sí', () => {
+    mount();
+    fill('Título del voluntariado', 'Limpieza del río');
+    fill('Descripción corta', 'x'.repeat(1001));
+    fireEvent.click(screen.getByRole('button', { name: /Continuar/ }));
+    expect(screen.getByText('Máximo 1000 caracteres')).toBeInTheDocument();
+    fill('Descripción corta', ' ' + 'x'.repeat(1000) + '  ');
+    fireEvent.click(screen.getByRole('button', { name: /Continuar/ }));
+    expect(screen.queryByText('Máximo 1000 caracteres')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Ubicación')).toBeInTheDocument();
+  });
+
+  test('la descripción completa (paso 3) tiene maxLength 5000', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: /Sostenido/ }));
+    fill('Título del voluntariado', 'Limpieza del río');
+    fill('Descripción corta', 'Juntamos residuos en la costanera');
+    fireEvent.click(screen.getByRole('button', { name: /Continuar/ }));
+    fill('Ubicación', 'Córdoba');
+    fill('Horas por semana', '4');
+    fill('Voluntarios necesarios', '10');
+    fireEvent.click(screen.getByRole('button', { name: /Continuar/ }));
+    expect(screen.getByLabelText('Descripción completa')).toHaveAttribute('maxLength', '5000');
   });
 });
