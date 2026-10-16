@@ -84,7 +84,7 @@ export function DonationReturn() {
     content = <InlineError message={error} onRetry={refresh} />;
   } else if (donation?.status === 'completed') {
     content = box(<CheckCircle className="w-10 h-10 text-emerald-500" />, '¡Gracias por tu donación!',
-      <>Donaste <strong>{formatPesos(donation.amount)}</strong>{donation.project_title ? <> a <strong>{donation.project_title}</strong></> : null}. La ONG ya recibió el aviso.</>,
+      <>Donaste <strong>{formatPesos(donation.amount)}</strong>{donation.project_title ? <> a <strong>{donation.project_title}</strong></> : null}. Gracias por apoyar este proyecto.</>,
       toProject);
   } else if (donation && (donation.status === 'failed' || donation.status === 'refunded' || NOT_PAID.has(mpStatus ?? 'null'))) {
     content = box(<XCircle className="w-10 h-10 text-red-400" />, 'El pago no se completó',

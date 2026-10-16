@@ -4770,3 +4770,42 @@ Sigue la regla 24 en orden: sesión → límite de **10 subidas por hora** por u
 - Nada visual: el botón rosa en la tarjeta de progreso, el modal y las cuatro pantallas de la vuelta.
 - `formatPesos` depende del `Intl` del navegador (`es-AR`): en jsdom da `$1.500`; en un navegador viejo podría variar.
 - `ProjectDetails` sigue con su propio `safeMoney` (hay otras copias en `ProjectCard`, `FeedPostCard` y `PublicFeed`; deuda vista, no tocada).
+
+## 173. Primera donación real en producción + lo que mostró: notificaciones de la ONG, recaudado sin meta, logs y el formato de las credenciales (PLAN_FALTANTE.md, Etapa 10)
+
+**Prueba del usuario en Render (2026-10-16), con credenciales de prueba de Mercado Pago:**
+- Antes de la prueba confirmé con pedidos sin sesión que la API de producción estaba al día: `POST /api/donaciones` y `GET /api/donaciones/x` daban 401 "Token requerido", y el aviso sin firma, 401 "Firma inválida".
+- **El primer intento falló en el checkout** ("Usá un medio de pago distinto… No pudimos procesar tu pago"). El usuario cargaba la tarjeta de prueba **sin iniciar sesión** como comprador de prueba. **Iniciando sesión con el usuario comprador de prueba, anduvo.**
+- **Donación de $500 a "Jornada de limpieza en el Lago": la vuelta mostró "¡Gracias por tu donación!"** (el backend la confirmó con Mercado Pago).
+- Hallazgos de esa prueba:
+  1. **Las credenciales de *prueba* del panel actual de Mercado Pago empiezan con `APP_USR-`** (captura del usuario: pestaña "Prueba", Public Key `APP_USR-f168…`). `payments.js` suponía `TEST-`, el formato viejo. Por eso usó `init_point`, que resultó ser lo correcto: con las credenciales de prueba nuevas se paga logueado como comprador de prueba. **Error mío:** la suposición no estaba verificada. Corregí el comentario y la línea de arranque, que ya no afirma "modo prueba" con `APP_USR-` porque desde el token no se puede saber. El comportamiento no cambió.
+  2. **"La ONG no tiene la notificación"**: la notificación sí se creaba, pero **el panel de la ONG no tenía pantalla de notificaciones**. Solo existía `/notifications`, bajo el layout del voluntario, y ni la barra lateral ni la inferior de la ONG tenían un link. **Esto no es de las donaciones: las notificaciones "Nueva solicitud de inscripción" tampoco las vio nunca ninguna ONG.** En los logs de Render no apareció "no se pudo avisar", y eso descartaba que fallara al guardarse.
+  3. **"Lo recaudado solo lo ve la ONG"**: `ProjectDetails` mostraba el financiamiento solo con meta (`funding_goal > 0`), y ese proyecto no tiene.
+  4. **"No aparece nada en los logs"**: la API solo logueaba errores, así que un aviso que salía bien no dejaba rastro.
+
+**Qué se hizo (aprobado por el usuario):**
+- **Notificaciones de la ONG:**
+  - ruta `/ngo/notifications`, con la misma `NotificationsScreen` y una prop nueva `inPanel` que saca el `md:ml-60`, porque en el panel la barra está en el flujo;
+  - "Notificaciones" con contador de no leídas en `NGOSidebarNav`;
+  - **campanita con contador en el encabezado de `NGODashboard`**, para el celular. No va en la barra inferior, que ya tiene 7 botones (§121); es decisión mía y se puede cambiar.
+- **`ProjectDetails`:** sin meta, pero con donaciones, muestra "Recaudado en donaciones: $X", sin barra ni porcentaje. Con meta queda la barra de siempre.
+- **`DonationReturn`:** "La ONG ya recibió el aviso" pasó a "Gracias por apoyar este proyecto". La pantalla no puede saber si la ONG lo vio.
+- **Logs:** cada aviso deja **una línea** `[donaciones] …`: el pago y el resultado (`credited`, `already`, `not_approved`…), IPN ignorado, firma inválida (solo el `data.id`), otro tipo ignorado o "Mercado Pago no lo encuentra". La conciliación también deja una: el pago, la donación y el resultado. **Nunca la firma, los headers ni el secreto** (hay un test que lo verifica).
+
+### Verificación
+- Tests nuevos o cambiados:
+  - `NGONotifications.test.tsx` (7): el link y el contador de la barra lateral; el resaltado; que si falla el pedido no rompa; la campanita con "Notificaciones (3 sin leer)", sin contador y que navegue; `inPanel` sin margen y sin `inPanel` con margen;
+  - `ProjectDetailsDonate.test.tsx` (+3);
+  - `DonationReturn.test.tsx` (+1);
+  - `donaciones-webhook.test.js` (+2: los logs del aviso y de la conciliación, y que no se filtren la firma ni el secreto);
+  - `payments.test.js` (+1: con `APP_USR-` no afirma el modo; con `TEST-` dice "sandbox").
+- Rojo: 8 del frontend y 2 del backend fallaban antes del cambio.
+- **Error propio:** `SwallowedErrors.test.tsx` simulaba `api.notifications.list` con un `vi.fn()` vacío (devuelve `undefined`), y la campanita nueva hace `.then()` sobre eso: fallaban 2 tests ajenos. Le di un valor por defecto (`{ notifications: [], unread: 0 }`); sus tests de Notificaciones lo siguen redefiniendo.
+- Backend SQLite **765/765** y con TZ 765/765; Postgres **767/767** y con TZ 767/767. Frontend **670/670** y con TZ 670/670. `typecheck` 0. `npm audit` 0 en los dos. CRLF conservados.
+- **Mutación** (control en verde): **19 mutantes, sobrevive 1, equivalente**: "contador sin `Number()`". El backend ya manda `unread` como número (§154) y, si faltara, `!!badge` lo oculta.
+
+### ⚠️ NO verificado
+- **Que el aviso de Mercado Pago llegue y con qué código:** sin los logs nuevos no había forma de verlo, y el usuario no encontró nada. Con este deploy, buscar `[donaciones]` en los logs de `voluntariar-api` después de una donación.
+- **El rechazo con titular `OTHE` y el reintento con `APRO`**: el usuario no lo probó todavía.
+- Nada visual: la campanita del panel en el celular, el renglón "Recaudado en donaciones" y la pantalla de notificaciones dentro del panel.
+- `NotificationsScreen`, dentro del panel, sigue con su botón "Volver" (`navigate(-1)`): no lo cambié.

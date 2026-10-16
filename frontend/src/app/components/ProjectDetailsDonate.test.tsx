@@ -80,6 +80,32 @@ describe('ProjectDetails: botón "Donar"', () => {
     expect(screen.queryByRole('button', { name: 'Donar a este proyecto' })).toBeNull();
   });
 
+  // §173: sin meta, la barra de financiamiento no se muestra, y antes tampoco se veía lo recaudado (solo lo veía la ONG
+  // en su panel). Ahora, con donaciones, se ve "Recaudado" aunque no haya meta.
+  test('sin meta pero con donaciones: muestra lo recaudado (sin barra ni porcentaje)', async () => {
+    as('volunteer');
+    vi.mocked(api.projects.get).mockResolvedValue(project({ funding_goal: 0, current_funding: 1500 }) as never);
+    mount();
+    expect(await screen.findByText('Recaudado en donaciones')).toBeInTheDocument();
+    expect(screen.getByText('$1.500')).toBeInTheDocument();
+    expect(screen.queryByText('Financiamiento')).toBeNull();
+  });
+
+  test('sin meta y sin donaciones: no muestra nada de plata', async () => {
+    as('volunteer');
+    vi.mocked(api.projects.get).mockResolvedValue(project({ funding_goal: 0, current_funding: 0 }) as never);
+    mount();
+    await screen.findByText('Progreso del proyecto');
+    expect(screen.queryByText('Recaudado en donaciones')).toBeNull();
+  });
+
+  test('con meta: la barra de siempre (y no el renglón suelto)', async () => {
+    as('volunteer');
+    mount();
+    expect(await screen.findByText('Financiamiento')).toBeInTheDocument();
+    expect(screen.queryByText('Recaudado en donaciones')).toBeNull();
+  });
+
   test('aparece aunque el proyecto no tenga meta de financiamiento', async () => {
     as('volunteer');
     vi.mocked(api.projects.get).mockResolvedValue(project({ funding_goal: 0, current_funding: 0 }) as never);

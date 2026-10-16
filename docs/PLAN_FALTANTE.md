@@ -323,7 +323,7 @@ nunca llaman a Cloudinary ni a Mercado Pago de verdad (dobles).
 | 7 | ✅ (§170) MP: migración + `POST /api/donaciones` + `applyPayment` (transacción, CAS, control de monto). Cambios de diseño: pesos enteros de $100 a $500.000 (`float4`) y un rechazo no marca `fallida` (MP deja reintentar) | yo | 1 |
 | 8 | ✅ (§171) MP: webhook + `GET /donaciones/:id` con conciliación. Los avisos IPN (sin firma posible) se responden 200 sin procesar | yo | 1 |
 | 9 | ✅ (§172) MP: frontend (botón, modal, `/donaciones/vuelta`) | yo | 1 |
-| 10 | MP en prod: variables (P5), URL del webhook en el panel de la aplicación, deploy, donación con el usuario comprador de prueba y una tarjeta de prueba | **vos** (yo guío y verifico por Chrome si me das la sesión) | docs |
+| 10 | 🟡 (§173) Donación aprobada en prod ✅ (logueado como comprador de prueba). Faltan: ver el aviso en los logs y el rechazo `OTHE`. — MP en prod: variables (P5), URL del webhook en el panel de la aplicación, deploy, donación con el usuario comprador de prueba y una tarjeta de prueba | **vos** (yo guío y verifico por Chrome si me das la sesión) | docs |
 | 11 | Datos de demo en prod (K1) + privacidad y términos (T6) | yo + vos | 1–2 |
 | 12 | Celular real: login de los 3 roles, subir foto y CV desde la galería, donar, chat, mapa, barras inferiores | **vos** | — |
 | 13 | Guion de la defensa + checklist del día (despertar la API, sesiones abiertas, usuario comprador de prueba y tarjeta a mano) + docs viejos (R3) | yo | 1 |

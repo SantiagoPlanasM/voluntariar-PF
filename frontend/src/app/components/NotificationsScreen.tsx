@@ -17,8 +17,11 @@ const TYPE_ICON = {
 // "Hace cuánto": el timeAgo compartido (lib/format.ts). Antes había una copia acá con `new Date(fecha)`, que
 // leía el formato de SQLite (UTC sin zona) como hora local: 3 h de desfase en Córdoba (REVISION F11).
 
-export function NotificationsScreen() {
+// `inPanel` (§173): dentro del panel de la ONG la barra lateral está en el flujo (NGOLayout), así que no lleva el margen
+// `md:ml-60` que necesita el layout del voluntario (Root), donde la barra es fija.
+export function NotificationsScreen({ inPanel = false }: { inPanel?: boolean } = {}) {
   const { user } = useAuth();
+  const offset = inPanel ? '' : ' md:ml-60';
   const navigate = useNavigate();
   const [notifs, setNotifs]   = useState<AppNotification[]>([]);
   // Contador del backend (COUNT sobre todas): la lista viene limitada a 50 y contarla acá daba ≤50 (§152).
@@ -47,13 +50,13 @@ export function NotificationsScreen() {
   };
 
   if (!user) return (
-    <div className="flex flex-col items-center justify-center h-screen gap-3 bg-gray-50 md:ml-60">
+    <div className={`flex flex-col items-center justify-center h-screen gap-3 bg-gray-50${offset}`}>
       <p className="text-gray-500">Iniciá sesión para ver tus notificaciones</p>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 md:ml-60">
+    <div className={`min-h-screen bg-gray-50${offset}`}>
       <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">

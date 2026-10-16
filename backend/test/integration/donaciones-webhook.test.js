@@ -180,6 +180,31 @@ describe('Aviso de Mercado Pago y conciliación', () => {
       assert.equal((await row(id)).estado, 'completada');
     });
 
+    // §173: en producción no había forma de saber si un aviso llegó y salió bien (solo se logueaban los errores).
+    // Ahora cada aviso deja UNA línea: el pago y el resultado, sin la firma, los headers ni el secreto.
+    test('cada aviso deja una línea en el log con el pago y el resultado (sin firma ni secreto)', async () => {
+      const id = await newDonation();
+      payment = approved(id);
+      const lines = [];
+      const log = mock.method(console, 'log', (...a) => lines.push(a.join(' ')));
+      const warn = mock.method(console, 'warn', (...a) => lines.push(a.join(' ')));
+      try {
+        await signedPaymentNotice('130');
+        await notify('topic=payment&id=131');
+        await notify('type=payment&data.id=132', { headers: { 'x-signature': 'ts=1,v1=00', 'x-request-id': 'r' } });
+        await notify('type=merchant_order&data.id=133', { headers: { 'x-signature': sign('133', 'req-1'), 'x-request-id': 'req-1' } });
+      } finally { log.mock.restore(); warn.mock.restore(); }
+      const mine = lines.filter((l) => l.startsWith('[donaciones]'));
+      assert.ok(mine.some((l) => l.includes('pago 130') && l.includes('credited')), mine.join('\n'));
+      assert.ok(mine.some((l) => l.includes('IPN') && l.includes('ignorado')), mine.join('\n'));
+      assert.ok(mine.some((l) => l.includes('firma inválida') && l.includes('132')), mine.join('\n'));
+      assert.ok(mine.some((l) => l.includes('merchant_order') && l.includes('ignorado')), mine.join('\n'));
+      assert.equal(mine.length, 4, mine.join('\n'));
+      const all = lines.join('\n');
+      assert.ok(!all.includes(SECRET), 'el secreto no se loguea');
+      assert.ok(!all.includes('v1='), 'la firma no se loguea');
+    });
+
     test('es público (Mercado Pago no manda sesión) y no expone nada de la donación', async () => {
       const id = await newDonation();
       payment = approved(id);
@@ -224,6 +249,16 @@ describe('Aviso de Mercado Pago y conciliación', () => {
       assert.equal(r.body.donation.status, 'pending');
       assert.equal((await row(other)).estado, 'pendiente');
       assert.equal(await recaudado(), 0);
+    });
+
+    test('la conciliación también deja una línea en el log (pago, donación y resultado)', async () => {
+      const id = await newDonation();
+      payment = approved(id);
+      const lines = [];
+      const log = mock.method(console, 'log', (...a) => lines.push(a.join(' ')));
+      try { await get(maria, `${id}?payment_id=140`); } finally { log.mock.restore(); }
+      assert.ok(lines.some((l) => l.startsWith('[donaciones]') && l.includes('conciliación') && l.includes('140') && l.includes(id) && l.includes('credited')),
+        lines.join('\n'));
     });
 
     test('ya completada: no vuelve a consultar', async () => {

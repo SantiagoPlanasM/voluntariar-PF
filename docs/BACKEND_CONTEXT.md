@@ -110,7 +110,7 @@ Ambas diferencias devolvían 500 solo en producción (Render) y pasaban todos lo
 
 ### Pagos (Mercado Pago, modo prueba) — `lib/payments.js` (`PROJECT_ANALYSIS.md §169`)
 API REST con `fetch`, sin el SDK. Variables: `MP_ACCESS_TOKEN` (sin él, `isConfigured()` es `false`) y `MP_WEBHOOK_SECRET` (sin él, `verifyWebhookSignature` siempre da `false`). Se llama por propiedad (`payments.createPreference(...)`), igual que `storage`, para poder reemplazarlo en los tests.
-- `createPreference({ donationId, title, amount, successUrl, notificationUrl })` → `{ preferenceId, checkoutUrl }`: un ítem en ARS, `external_reference` = id de la donación, `X-Idempotency-Key` = id de la donación. Con un token `TEST-` devuelve el link de sandbox.
+- `createPreference({ donationId, title, amount, successUrl, notificationUrl })` → `{ preferenceId, checkoutUrl }`: un ítem en ARS, `external_reference` = id de la donación, `X-Idempotency-Key` = id de la donación. Con un token `TEST-` (formato viejo de prueba) devuelve el link de sandbox; con `APP_USR-`, el `init_point`. **En el panel actual las credenciales de prueba también son `APP_USR-`**: con ellas se paga logueado con el usuario comprador de prueba (verificado en producción, §173).
 - `getPayment(id)` → `{ id, status, externalReference, amount, currency }`. Es la **única** fuente de verdad sobre si se pagó.
 - `verifyWebhookSignature({ xSignature, xRequestId, dataId })` → boolean, nunca lanza.
 - `describePaymentsConfig()` → línea para el log de arranque, sin el token ni el secreto.

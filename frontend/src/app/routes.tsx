@@ -64,6 +64,8 @@ export const router = createBrowserRouter([
       { path: 'kpis/:projectId',                  Component: NGOKPIs },
       { path: 'messages',                         Component: MessagesScreen },
       { path: 'messages/:userId',                 Component: ChatThread },
+      // §173: antes la ONG no tenía dónde ver sus notificaciones (solo existía /notifications, del voluntario).
+      { path: 'notifications',                    element: <NotificationsScreen inPanel /> },
     ],
   },
   {

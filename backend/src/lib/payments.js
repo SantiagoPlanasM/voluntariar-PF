@@ -4,7 +4,8 @@
 // mismo criterio que lib/storage.js y lib/email.js (decisión P2 del usuario, PLAN_FALTANTE.md).
 //
 // Configuración (variables de entorno, leídas en cada llamada):
-//   MP_ACCESS_TOKEN    — access token de la aplicación (de prueba: empieza con "TEST-"). NUNCA se loguea.
+//   MP_ACCESS_TOKEN    — access token de la aplicación. NUNCA se loguea. OJO (verificado en prod, §173): en el panel
+//                        actual las credenciales de PRUEBA también empiezan con "APP_USR-"; "TEST-" es el formato viejo.
 //   MP_WEBHOOK_SECRET  — clave secreta de los webhooks de la aplicación (Tus integraciones → Webhooks). Sin ella no se
 //                        acepta ningún aviso.
 //
@@ -80,7 +81,9 @@ async function createPreference({ donationId, title, amount, successUrl, notific
       notification_url: notificationUrl,
     },
   });
-  // Con un token de prueba, el link de sandbox (si viene); si no, el de producción.
+  // Con un token "TEST-" (formato viejo de prueba) se usa el link de sandbox, si viene. Con "APP_USR-" (producción, o
+  // las credenciales de prueba del panel actual) se usa init_point: con las de prueba se paga LOGUEADO con el usuario
+  // comprador de prueba; con la tarjeta sola, Mercado Pago responde "No pudimos procesar tu pago" (§173).
   const checkoutUrl = (isTestToken(getConfig().accessToken) && data.sandbox_init_point) || data.init_point;
   if (!data.id || !checkoutUrl) {
     throw new PaymentError('Mercado Pago devolvió una preferencia sin id o sin link', { code: 'bad_response' });
@@ -140,7 +143,8 @@ function verifyWebhookSignature({ xSignature, xRequestId, dataId, secret = getCo
 function describePaymentsConfig() {
   const { accessToken, webhookSecret } = getConfig();
   if (!accessToken) return 'sin configurar (falta MP_ACCESS_TOKEN): no se pueden recibir donaciones';
-  const mode = isTestToken(accessToken) ? 'Mercado Pago (modo prueba)' : 'Mercado Pago';
+  // Con APP_USR- no se puede saber desde acá si son credenciales de prueba o de producción (§173): no se afirma ninguna.
+  const mode = isTestToken(accessToken) ? 'Mercado Pago (token TEST-: checkout de sandbox)' : 'Mercado Pago';
   return webhookSecret ? mode : `${mode}, sin MP_WEBHOOK_SECRET: no se aceptan avisos de pago`;
 }
 

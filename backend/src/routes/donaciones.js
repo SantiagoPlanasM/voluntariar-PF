@@ -169,20 +169,35 @@ async function applyPayment(paymentId, { expectDonationId } = {}) {
 // que Mercado Pago reintente (lo hace cada 15 minutos). applyPayment es idempotente: un reintento no suma dos veces.
 router.post('/webhook', async (req, res) => {
   const q = req.query || {};
-  if (q.topic !== undefined && q.type === undefined) return res.json({ received: true });   // IPN: sin firma posible
+  // Una línea por aviso (§173): sin esto no había forma de saber en producción si un aviso llegó y salió bien. Nunca
+  // se loguean la firma, los headers ni el secreto.
+  if (q.topic !== undefined && q.type === undefined) {   // IPN: sin firma posible
+    console.log(`[donaciones] aviso IPN ignorado (topic=${String(q.topic).slice(0, 40)})`);
+    return res.json({ received: true });
+  }
 
   const dataId = typeof q['data.id'] === 'string' ? q['data.id'].trim() : '';
   const valid = payments.verifyWebhookSignature({
     xSignature: req.get('x-signature'), xRequestId: req.get('x-request-id'), dataId,
   });
-  if (!valid) return res.status(401).json({ error: 'Firma inválida' });
-  if (q.type !== 'payment') return res.json({ received: true });   // merchant_order, chargebacks, …: no se usan
+  if (!valid) {
+    console.warn(`[donaciones] aviso con firma inválida (data.id=${dataId.slice(0, 40)})`);
+    return res.status(401).json({ error: 'Firma inválida' });
+  }
+  if (q.type !== 'payment') {   // merchant_order, chargebacks, …: no se usan
+    console.log(`[donaciones] aviso de tipo ${String(q.type).slice(0, 40)} ignorado`);
+    return res.json({ received: true });
+  }
   if (!dataId) return res.status(400).json({ error: 'Falta el id del pago' });
 
   try {
-    await applyPayment(dataId);
+    const { result } = await applyPayment(dataId);
+    console.log(`[donaciones] aviso del pago ${dataId}: ${result}`);
   } catch (err) {
-    if (err?.code === 'not_found') return res.json({ received: true });   // reintentar no lo va a encontrar
+    if (err?.code === 'not_found') {   // reintentar no lo va a encontrar
+      console.log(`[donaciones] aviso del pago ${dataId}: Mercado Pago no lo encuentra`);
+      return res.json({ received: true });
+    }
     console.error('POST /donaciones/webhook: no se pudo procesar el aviso:', err.message);
     return res.status(500).json({ error: 'No pudimos procesar el aviso' });
   }
@@ -208,7 +223,8 @@ router.get('/:id', requireAuth, async (req, res) => {
     const paymentId = req.query.payment_id;
     if (d.estado === 'pendiente' && typeof paymentId === 'string' && /^\d{1,30}$/.test(paymentId) && payments.isConfigured()) {
       try {
-        await applyPayment(paymentId, { expectDonationId: d.id });
+        const { result } = await applyPayment(paymentId, { expectDonationId: d.id });
+        console.log(`[donaciones] conciliación del pago ${paymentId} (donación ${d.id}): ${result}`);
         d = await load();
       } catch (err) {
         console.error('GET /donaciones/:id: no se pudo conciliar:', err.message);   // se responde el estado actual

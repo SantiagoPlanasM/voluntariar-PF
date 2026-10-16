@@ -608,6 +608,7 @@ Chat 1 a 1 básico. El historial y el envío tienen doble vía: REST (siempre di
 ### `POST /api/donaciones/webhook` — Público (aviso de Mercado Pago, §171)
 - **Webhook** `?type=payment&data.id=<id>` con los headers `x-signature` y `x-request-id`: se verifica la firma (`payments.verifyWebhookSignature`, con `MP_WEBHOOK_SECRET`). El id que se usa es el de la **query**, que es lo firmado, **nunca el del cuerpo**. Después se llama a `applyPayment(data.id)`.
 - **IPN** `?topic=…&id=…`: según la doc oficial, no se puede validar con la clave. Se responde **200 sin procesarlo**, y la acreditación llega por el webhook o por la conciliación.
+- **Log (§173):** cada aviso deja una línea `[donaciones] …` con el pago y el resultado de `applyPayment` (o "IPN ignorado", "firma inválida" con el `data.id`, "tipo … ignorado", "Mercado Pago no lo encuentra"). La conciliación de `GET /:id` deja otra, con el pago, la donación y el resultado. Nunca se loguean la firma, los headers ni el secreto.
 - **Respuestas:** `200 { received: true }` si se procesó, si es de otro tipo (`merchant_order`, etc.) o si Mercado Pago no encuentra el pago (reintentar no serviría) · `401 { error: "Firma inválida" }` (también si falta `MP_WEBHOOK_SECRET`) · `400` firmado pero sin `data.id` · **`500`** "No pudimos procesar el aviso" si falló Mercado Pago o la base, **para que Mercado Pago reintente** (cada 15 minutos; `applyPayment` es idempotente). No devuelve nada de la donación.
 
 ### `GET /api/donaciones/:id` — Auth (solo quien donó, §171)

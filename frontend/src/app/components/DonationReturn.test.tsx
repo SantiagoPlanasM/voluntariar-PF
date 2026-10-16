@@ -43,6 +43,14 @@ describe('<DonationReturn />', () => {
     expect(screen.getByText('detalle del proyecto')).toBeInTheDocument();
   });
 
+  test('el agradecimiento no promete que la ONG ya vio el aviso (eso no lo puede saber)', async () => {
+    vi.spyOn(api.donaciones, 'get').mockResolvedValue(donation('completed'));
+    mount();
+    await screen.findByRole('heading', { name: '¡Gracias por tu donación!' });
+    expect(screen.queryByText(/recibió el aviso/)).toBeNull();
+    expect(screen.getByText(/Gracias por apoyar este proyecto/)).toBeInTheDocument();
+  });
+
   test('la URL dice approved pero el backend dice pending: NO dice "Gracias" (manda el backend) y vuelve a preguntar', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const get = vi.spyOn(api.donaciones, 'get')

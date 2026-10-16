@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router';
-import { Plus, Search, Users, Sprout, ChevronRight, CheckCircle, Clock, XCircle, Loader2, Camera } from 'lucide-react';
+import { Plus, Search, Users, Sprout, ChevronRight, CheckCircle, Clock, XCircle, Loader2, Camera, Bell } from 'lucide-react';
 import { api, ApiError, Project, PendingEnrollment, NGO, NGOStats } from '../../lib/api';
 import { userMessage } from '../../lib/format';
 import { InlineError } from './LoadError';
@@ -22,6 +22,11 @@ export function NGODashboard() {
   const [loadError, setLoadError] = useState('');
 
   useEffect(() => { load(); }, []);
+  // No leídas, para la campanita del encabezado (§173). Si falla, la campanita queda sin número.
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    api.notifications.list().then((r) => setUnread(Number(r.unread) || 0)).catch(() => {});
+  }, []);
 
   const load = async () => {
     setLoading(true);
@@ -69,6 +74,17 @@ export function NGODashboard() {
               </div>
             </div>
             <div className="flex gap-2 flex-shrink-0">
+              {/* §173: la barra inferior ya tiene 7 botones (§121); en el celular las notificaciones se abren desde acá. */}
+              <button onClick={() => navigate('/ngo/notifications')}
+                aria-label={unread > 0 ? `Notificaciones (${unread} sin leer)` : 'Notificaciones'}
+                className="relative flex items-center px-2.5 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-xs font-semibold hover:bg-gray-50 transition-colors">
+                <Bell className="w-3.5 h-3.5"/>
+                {unread > 0 && (
+                  <span aria-hidden="true" className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                    {unread > 9 ? '9+' : unread}
+                  </span>
+                )}
+              </button>
               <button onClick={() => ngo && navigate(`/ngo/empleados/${ngo.id}`)} aria-label="Equipo"
                 className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-xs font-semibold hover:bg-gray-50 transition-colors">
                 <Users className="w-3.5 h-3.5"/><span className="hidden sm:inline">Equipo</span>

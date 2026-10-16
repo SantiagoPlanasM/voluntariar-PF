@@ -258,11 +258,19 @@ describe('createPreference() / getPayment() / configuración', () => {
   });
 
   describe('describePaymentsConfig() (línea del log de arranque)', () => {
-    test('nunca muestra el token ni el secreto; dice si es de prueba', () => {
+    test('nunca muestra el token ni el secreto; con TEST- dice que usa el checkout de sandbox', () => {
       process.env.MP_WEBHOOK_SECRET = 'SECRETO_RECONOCIBLE';
       const d = fresh().describePaymentsConfig();
-      assert.match(d, /prueba/i);
+      assert.match(d, /sandbox/i);
       assert.ok(!d.includes('TEST-1234') && !d.includes('SECRETO_RECONOCIBLE'));
+    });
+
+    // §173: en el panel actual las credenciales de prueba también empiezan con APP_USR-: no se puede afirmar el modo.
+    test('con APP_USR- no afirma "prueba" ni "producción"', () => {
+      process.env.MP_ACCESS_TOKEN = 'APP_USR-123';
+      process.env.MP_WEBHOOK_SECRET = 's';
+      const d = fresh().describePaymentsConfig();
+      assert.equal(d, 'Mercado Pago');
     });
     test('sin token: avisa que no se pueden recibir donaciones; sin secreto, que no se aceptan avisos', () => {
       delete process.env.MP_ACCESS_TOKEN;

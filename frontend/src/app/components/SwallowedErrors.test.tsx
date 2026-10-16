@@ -27,7 +27,8 @@ vi.mock('../../lib/api', async () => {
       ...actual.api,
       ngos: { ...actual.api.ngos, me: vi.fn(), patrocinios: { list: vi.fn(), decide: vi.fn() } },
       projects: { ...actual.api.projects, get: vi.fn(), list: vi.fn(), kpis: { list: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() } },
-      notifications: { ...actual.api.notifications, list: vi.fn(), markAllRead: vi.fn() },
+      // Resuelve por defecto: desde §173 el panel de la ONG lo pide para la campanita (los tests de Notificaciones lo redefinen).
+      notifications: { ...actual.api.notifications, list: vi.fn().mockResolvedValue({ notifications: [], unread: 0 }), markAllRead: vi.fn() },
       empresas: { ...actual.api.empresas, me: vi.fn(), patrocinios: { list: vi.fn(), propose: vi.fn(), withdraw: vi.fn() } },
     },
   };

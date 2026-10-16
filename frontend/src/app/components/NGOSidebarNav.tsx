@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { LayoutDashboard, Plus, User, LogOut, Heart, MessageCircle, Handshake, Camera } from 'lucide-react';
+import { LayoutDashboard, Plus, User, LogOut, Heart, MessageCircle, Handshake, Camera, Bell } from 'lucide-react';
+import { api } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { useChat } from '../../lib/ChatContext';
 
@@ -8,6 +10,11 @@ export function NGOSidebarNav() {
   const { user, logout } = useAuth();
   const { unreadTotal }  = useChat();
   const navigate         = useNavigate();
+  // No leídas (§173), como la barra del voluntario (Root): se piden al montar y al cambiar de pantalla.
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    api.notifications.list().then((r) => setUnread(Number(r.unread) || 0)).catch(() => {});
+  }, [pathname]);
 
   const links = [
     { to: '/ngo/dashboard',    icon: LayoutDashboard, label: 'Dashboard' },
@@ -15,6 +22,7 @@ export function NGOSidebarNav() {
     { to: '/ngo/patrocinios',  icon: Handshake,       label: 'Patrocinios' },
     { to: '/ngo/momentos',     icon: Camera,          label: 'Momentos' },
     { to: '/ngo/messages',     icon: MessageCircle,   label: 'Mensajes', badge: unreadTotal },
+    { to: '/ngo/notifications', icon: Bell,           label: 'Notificaciones', badge: unread },
     { to: '/ngo/profile',      icon: User,            label: 'Mi ONG' },
   ];
 

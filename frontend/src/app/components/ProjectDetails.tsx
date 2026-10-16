@@ -334,6 +334,13 @@ export function ProjectDetails() {
                   <p className="text-xs text-gray-400 mt-1">Meta: {safeMoney(project.funding_goal)}</p>
                 </div>
               )}
+              {/* §173: sin meta no hay barra, pero lo recaudado en donaciones se ve igual (antes solo lo veía la ONG). */}
+              {!hasFunding && Number(project.current_funding) > 0 && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-500">Recaudado en donaciones</span>
+                  <span className="font-bold text-blue-600">{safeMoney(project.current_funding)}</span>
+                </div>
+              )}
               {/* Donar (§172): el backend deja a voluntarios y empresas en proyectos activos; un visitante inicia sesión. */}
               {project.status === 'active' && user?.role !== 'ngo' && (
                 <button type="button"
