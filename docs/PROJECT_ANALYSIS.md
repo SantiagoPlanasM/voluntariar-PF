@@ -4568,3 +4568,22 @@ Sigue la regla 24 en orden: sesión → límite de **10 subidas por hora** por u
 - Nada visual: la tarjeta "Mi CV", la confirmación de borrado y el ícono en las filas de la ONG.
 - `NGODashboard` (las solicitudes pendientes del panel principal) no tiene "Ver CV": solo el detalle de cada proyecto.
 - El recuadro "Mi CV" no se recarga con el "Reintentar" general de la pantalla (tiene su propia carga).
+
+## 167. Verificación en producción de §162–§166 (2026-10-16, hecha por el usuario en Render)
+
+**Primero falló el deploy, no el código:** el primer intento dio `404` en `PUT /api/voluntarios/me/cv`. Lo comprobé con pedidos sin sesión a la API de producción: `PUT /api/voluntarios/me/cv`, `PUT /api/auth/me/photo` y `GET /api/voluntarios/x/cv` respondían **"Ruta no encontrada"** (con el código nuevo tendrían que dar 401). La API seguía con código anterior a §162, mientras el frontend ya estaba actualizado. El usuario redesplegó el servicio `voluntariar-api` con "Deploy latest commit" y anduvo. **Para la próxima:** después de pushear hay que desplegar **los dos servicios**; un pedido sin sesión a una ruta nueva muestra enseguida si la API está al día.
+
+**Lo que probó el usuario (con sus cuentas):**
+- **CV:**
+  - el voluntario lo sube y lo ve;
+  - la ONG lo abre desde la inscripción;
+  - reemplazar y borrar funcionan, también en Cloudinary (el archivo anterior no queda).
+  
+  Esto resuelve las dudas de §164: Cloudinary acepta `raw` + `private`, y el link firmado de `/raw/download` funciona **sin** `format`.
+- **Sin CV:** la fila de la ONG lo dice. En la consola del navegador aparece el `GET …/cv 404`, que es el comportamiento elegido: el 404 es uniforme para no revelar quién cargó un CV, y el navegador siempre registra en la consola los pedidos fallidos. La alternativa, que la lista de inscriptos traiga `has_cv` para mostrar el botón solo si hay CV, quedó propuesta y sin hacer.
+- **Foto de perfil:** la subió con la ONG y con el voluntario.
+
+### ⚠️ NO verificado
+- "Cambiar foto" con la empresa.
+- Que el link venza a los 10 minutos, y cualquier prueba en un celular.
+- Lo de la foto en el perfil público, el chat y Momentos: el usuario no lo detalló.
