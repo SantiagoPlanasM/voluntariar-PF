@@ -84,6 +84,9 @@
 | POST | `/api/faqs/ask` | Opcional | — | `routes/faqs.js` |
 | GET | `/api/voluntarios/me/habilidades` | Sí | volunteer | `routes/voluntarios.js` |
 | PUT | `/api/voluntarios/me/habilidades` | Sí | volunteer | `routes/voluntarios.js` |
+| PUT | `/api/voluntarios/me/cv` | Sí | volunteer | `routes/voluntarios.js` |
+| DELETE | `/api/voluntarios/me/cv` | Sí | volunteer | `routes/voluntarios.js` |
+| GET | `/api/voluntarios/:userId/cv` | Sí | dueño, o ONG con inscripción pendiente/aprobada | `routes/voluntarios.js` |
 | GET | `/api/voluntarios/:userId` | No | — | `routes/voluntarios.js` |
 | GET | `/api/messages/conversations` | Sí | cualquiera | `routes/messages.js` |
 | GET | `/api/messages/thread/:userId` | Sí | cualquiera | `routes/messages.js` |
@@ -118,7 +121,7 @@
 
 ### `GET /api/auth/me` — Auth
 - **Respuesta 200:** `{ user, profile }`. `user`: `id, name, email, role, avatar, bio, location, created_at` de `users`. `profile`: la fila de `voluntarios`, `ngos` o `empresas` según el rol (consulta aparte, no un JOIN), con **lista blanca de columnas** y los nombres en español (regla 8, `PROJECT_ANALYSIS.md §155`; antes `SELECT *`, mismas claves):
-  - voluntario: `id, user_id, nombre, apellido, descripcion, ubicacion, foto_perfil, banner, cv_url, followers, created_at, updated_at`;
+  - voluntario: `id, user_id, nombre, apellido, descripcion, ubicacion, foto_perfil, banner, has_cv, followers, created_at, updated_at`. `has_cv` (boolean) reemplaza a `cv_url` desde §165: la columna guarda el public_id de un PDF privado, que no se expone;
   - ONG: `id, user_id, nombre, descripcion, foto_perfil, banner, mision, alias, ubicacion, founded, followers, created_at, updated_at`;
   - empresa: `id, user_id, nombre, descripcion, mision, ubicacion, foto_perfil, banner, industria, followers, created_at, updated_at`.
   Con otro rol, o si el rol es uno de esos tres pero no hay fila, `profile` es `null` *(hasta §158, sin fila la clave no salía: `db.get` devuelve `undefined`)*. El frontend no lee `profile` (`api.auth.me` tipa `{ user }`). Una columna nueva de esas tablas no sale hasta agregarla a la lista en `routes/auth.js` (test: `test/integration/auth-me-profile.test.js`).
@@ -495,6 +498,24 @@
 - **Validación:** máximo 20 habilidades, cada `habilidad_id` debe existir en el catálogo (`habilidades`), `nivel` debe ser uno de los tres valores válidos.
 - **Respuesta 200:** `{ habilidades: [...] }` (el conjunto ya actualizado, mismo formato que el `GET`).
 - **Errores:** `400` (formato inválido, habilidad inexistente, nivel inválido), `403` si el usuario no es `volunteer`.
+
+### CV del voluntario (`PROJECT_ANALYSIS.md §165`)
+> `voluntarios.cv_url` guarda el **public_id de un PDF privado** de Cloudinary (`lib/storage.js`, §164), nunca una URL pública, y **no sale por ninguna respuesta**: `/auth/me` devuelve `has_cv` y el perfil público no lo menciona.
+
+**`PUT /api/voluntarios/me/cv`** — Auth, role `volunteer`. Sube o reemplaza el CV.
+- **Body:** `multipart/form-data` con un archivo en el campo **`cv`**: PDF (`application/pdf` y cabecera real `%PDF-`), hasta **5 MB**.
+- **Respuesta 200:** `{ has_cv: true }`. Si había uno anterior, **se borra de Cloudinary** (decisión C3). Si ese borrado falla, solo se loguea: el viejo es privado y ya nadie tiene su id.
+- **Errores (sin subir nada antes de validar):** `401` · `403` (otro rol) · `429` con `Retry-After`, pasadas **10 subidas por hora** por usuario (en memoria) · `503` sin Cloudinary · `400` "El CV tiene que ser un PDF" (tipo declarado), "Elegí un archivo PDF" (sin archivo o en otro campo) o "El archivo no es un PDF válido" (cabecera) · `413` "El CV puede pesar hasta 5 MB" · `404` sin fila en `voluntarios` · `502` si falla Cloudinary (el anterior sigue) · `500` "Error al guardar el CV" si falla la base (se borra lo subido) · **`409`** "Se estaba guardando otro CV al mismo tiempo. Probá de nuevo." Esto último pasa si el CV cambió mientras se subía: el `UPDATE` es *compare-and-swap* sobre el valor leído antes de subir, y se borra lo recién subido.
+
+**`DELETE /api/voluntarios/me/cv`** — Auth, role `volunteer`.
+- **Respuesta 200:** `{ has_cv: false }`. Pone `cv_url` en `NULL` (con CAS) y después borra el PDF de Cloudinary; si ese borrado falla, solo se loguea. Sin CV cargado responde lo mismo, sin llamar a Cloudinary.
+- **Errores:** `401` · `403` · `404` sin fila en `voluntarios` · `409` si cambió al mismo tiempo.
+
+**`GET /api/voluntarios/:userId/cv`** — Auth (cualquier rol). Link de descarga.
+- **Quién (decisión C1):** el propio voluntario, o una **ONG con una inscripción `pending` o `approved` de ese voluntario en un proyecto suyo** (las `rejected`/`cancelled` no alcanzan). Una empresa u otro voluntario, nunca.
+- **Respuesta 200:** `{ url, expires_at }`. `url` es un link firmado de Cloudinary que **vence a los 10 minutos** (`expires_at`, ISO): hay que pedirlo cada vez, no guardarlo.
+- **Errores:** `401` · **`404` "CV no disponible"** si no tiene permiso, **o** si no hay CV, o si el id no es de un voluntario: es el mismo mensaje en los tres casos, para no revelar quién cargó uno. Se chequea el permiso antes que la existencia · `503` sin Cloudinary (solo a quien tiene permiso).
+- Tests: `test/integration/cv.test.js`; el caso de la ONG ajena también está en `ownership.test.js` (regla 15).
 
 ### `GET /api/voluntarios/:userId` — Público
 - Agregado por el usuario (2026-09). Perfil público de un voluntario: datos básicos + `followers`/`following_count` + últimas participaciones (`LIMIT 20`). Sin auth requerida.

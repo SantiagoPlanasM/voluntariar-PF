@@ -193,6 +193,11 @@ router.get('/me', requireAuth, async (req, res) => {
         `SELECT id, user_id, nombre, apellido, descripcion, ubicacion, foto_perfil, banner, cv_url, followers,
                 created_at, updated_at
          FROM voluntarios WHERE user_id=$1`, [user.id]);
+      // cv_url es el public_id de un PDF privado de Cloudinary: no se expone (regla 24); solo si hay CV (§165).
+      if (profile) {
+        const { cv_url: cvId, ...rest } = profile;
+        profile = { ...rest, has_cv: Boolean(cvId) };
+      }
     } else if (user.role === 'ngo') {
       profile = await db.get(
         `SELECT id, user_id, nombre, descripcion, foto_perfil, banner, mision, alias, ubicacion, founded, followers,

@@ -15,7 +15,8 @@ const SENTINEL = 'SECRETO-153-NO-DEBE-SALIR';
 
 // Las columnas que devolvía el `SELECT *` antes del cambio (migrate.js), ordenadas.
 const EXPECTED = {
-  volunteer: ['apellido', 'banner', 'created_at', 'cv_url', 'descripcion', 'followers', 'foto_perfil', 'id',
+  // §165: `cv_url` (el public_id de un PDF privado) pasó a `has_cv` (boolean): el id del proveedor no se expone.
+  volunteer: ['apellido', 'banner', 'created_at', 'descripcion', 'followers', 'foto_perfil', 'has_cv', 'id',
     'nombre', 'ubicacion', 'updated_at', 'user_id'],
   ngo: ['alias', 'banner', 'created_at', 'descripcion', 'followers', 'foto_perfil', 'founded', 'id', 'mision',
     'nombre', 'ubicacion', 'updated_at', 'user_id'],

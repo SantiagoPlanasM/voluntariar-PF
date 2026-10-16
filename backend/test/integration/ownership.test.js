@@ -6,7 +6,7 @@
 // sobre recursos de otra (Sustentando, dueña de proj-1) y en cada caso se comprueba el código de
 // respuesta Y que la base no cambió. Al final la ONG dueña hace lo mismo con éxito: eso prueba que
 // los ids usados eran correctos (que el rechazo no venía de un id mal armado).
-const { test, describe, before, after } = require('node:test');
+const { test, describe, before, after, mock } = require('node:test');
 const assert = require('node:assert/strict');
 const { setupTestServer } = require('./helpers');
 
@@ -176,6 +176,24 @@ describe('Autorización por dueño entre ONGs', () => {
       assert.equal(p.status, 403);
       const n = Number((await db.get(`SELECT COUNT(*) AS n FROM empleados WHERE ngo_id='ngo-1'`)).n);
       assert.equal(n, 0);
+    });
+
+    // §165: el CV de María (inscripta solo en proyectos de Sustentando y de TechSocial) lo ve Sustentando y no
+    // Green Córdoba. Los casos completos (pendiente, rechazada, otros roles) están en cv.test.js.
+    test('ver el CV de un voluntario que no se inscribió en ningún proyecto suyo (y la dueña sí)', async () => {
+      const storage = require('../../src/lib/storage');
+      mock.method(storage, 'isConfigured', () => true);
+      mock.method(storage, 'pdfDownloadUrl', () => ({ url: 'https://api.cloudinary.com/x', expiresAt: '2026-10-16T00:00:00.000Z' }));
+      await db.run(`UPDATE voluntarios SET cv_url='test/maria.pdf' WHERE user_id='user-vol-1'`);
+      try {
+        const denied = await api('/api/voluntarios/user-vol-1/cv', { token: other });
+        assert.equal(denied.status, 404);
+        assert.ok(!JSON.stringify(denied.body).includes('cloudinary'));
+        assert.equal((await api('/api/voluntarios/user-vol-1/cv', { token: owner })).status, 200);
+      } finally {
+        mock.restoreAll();
+        await db.run(`UPDATE voluntarios SET cv_url=NULL WHERE user_id='user-vol-1'`);
+      }
     });
   });
 

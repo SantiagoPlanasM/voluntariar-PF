@@ -91,6 +91,8 @@ Igual forma que `ngos` pero con `industria` en vez de `alias`/`founded`. id · u
 ### `voluntarios`
 id · user_id (UNIQUE FK→users) · nombre · apellido · descripcion · ubicacion · foto_perfil · banner · cv_url · created_at · updated_at.
 
+> **`cv_url` guarda el `public_id` de un PDF privado de Cloudinary, no una URL** (el nombre de la columna engaña; no se renombró para no tocar el esquema). La escriben `PUT`/`DELETE /api/voluntarios/me/cv` y la lee `GET /api/voluntarios/:userId/cv`, que devuelve un link firmado que vence. Ninguna respuesta la expone (`PROJECT_ANALYSIS.md §164–§165`).
+>
 > **`foto_perfil` es una copia vieja:** se escribe una sola vez, en el registro (el avatar de iniciales), y nada la actualiza. La foto del voluntario es **`users.avatar`** (decisión F2 de `PLAN_FALTANTE.md`, `PROJECT_ANALYSIS.md §162`). `GET /api/voluntarios/:userId` y las listas de seguidores la siguen devolviendo, pero desde §163 el frontend no la muestra.
 
 ### `empleados`

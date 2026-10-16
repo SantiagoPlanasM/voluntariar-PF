@@ -4494,3 +4494,40 @@ Sigue la regla 24 en orden: sesión → límite de **10 subidas por hora** por u
   En un foro de Cloudinary hay reportes inconsistentes con `format` en los raw. Se prueba en Render en la Etapa 5.
 - **La restricción de entrega de PDF de las cuentas nuevas** (Settings → Security, del roadmap §1.3): no sé si afecta a un raw privado servido por `/download`. Si en producción da 401, ver eso primero.
 - Si el navegador abre el PDF o lo descarga: no se manda `attachment`, así que lo decide Cloudinary (el SDK lo deja opcional).
+
+## 165. CV: subir, reemplazar, borrar y ver con link que vence (`routes/voluntarios.js`, PLAN_FALTANTE.md, Etapa 4)
+
+**Qué se hizo:** tres endpoints en `routes/voluntarios.js`, sobre las funciones de §164. Detalle de cada uno en `API_CONTEXT.md`.
+- **`PUT /api/voluntarios/me/cv`** (voluntario; multipart `cv`, PDF de hasta 5 MB; 10 subidas por hora):
+  - sigue el orden de la regla 24 (sesión → límite → 503 → `multer` → cabecera real `%PDF-` → fila de perfil → subida → guardado);
+  - el `UPDATE` es **compare-and-swap** sobre el `cv_url` leído antes de subir. Si cambió mientras se subía, da **409** y borra lo recién subido;
+  - si guarda, **borra el anterior de Cloudinary** (decisión C3 del usuario). Si ese borrado falla, solo se loguea: el viejo es privado y ya nadie tiene su id;
+  - si falla la base, borra lo subido y responde 500.
+- **`DELETE /api/voluntarios/me/cv`**: pone `cv_url` en `NULL` con CAS y después borra en Cloudinary. Es idempotente: sin CV responde `{ has_cv: false }` sin llamar a Cloudinary.
+- **`GET /api/voluntarios/:userId/cv`** → `{ url, expires_at }`, un link firmado que vence a los 10 minutos.
+  - Lo ve el propio voluntario, o una ONG con una inscripción **`pending` o `approved`** de ese voluntario en un proyecto suyo (decisión C1 del usuario, que cambia lo de §30, que era solo `approved`).
+  - A cualquier otro le responde **404 "CV no disponible"**: es el mismo mensaje que si no tuviera CV o si el id no fuera de un voluntario. Primero se chequea el permiso y después la existencia, así no se puede averiguar quién cargó uno.
+- **`GET /api/auth/me`:** en el `profile` del voluntario, **`cv_url` pasa a `has_cv` (boolean)**: el public_id del proveedor no se expone (regla 24e). El frontend no lee `profile` (`api.auth.me` tipa `{ user }`), así que no cambia nada visible.
+- `ownership.test.js` suma el caso "ONG ajena no ve el CV, la dueña sí, con los mismos ids" (regla 15).
+
+### Verificación
+- Test nuevo `test/integration/cv.test.js` (28):
+  - subida: primera vez, reemplazo con borrado del anterior, falla al borrar el anterior, carrera (409), falla de la base, y todos los rechazos (401/403, sin archivo o con otro campo, tipo declarado, cabecera, 5 MB, 503, 502);
+  - borrado: con y sin CV, y con falla de Cloudinary;
+  - permisos: la dueña, ONG con inscripción aprobada, ONG con inscripción pendiente, ONG sin relación, inscripción rechazada o cancelada, otro voluntario, empresa, sin sesión, sin CV, un id que no es de voluntario, y el 503 solo para quien tiene permiso;
+  - `/auth/me` con `has_cv`, el perfil público sin el public_id, y el límite de 10 por hora.
+- Además: `auth-me-profile.test.js` (la clave `has_cv` en vez de `cv_url`) y `ownership.test.js` (+1).
+- Rojo: 27 de 28 fallaban (las rutas no existían); el que pasaba era "el perfil público no trae `cv_url`", que ya se cumplía.
+- Backend SQLite **683/683** y con `TZ=America/Argentina/Cordoba` 683/683; Postgres **685/685** y con TZ 685/685. 0 fail, 0 cancelled, salida 0. `npm audit` 0. Los CRLF se conservaron (contados con Node).
+- **Mutación** (control en verde): **32 mutantes, sobreviven 2, los dos equivalentes**:
+  - "el dueño, de cualquier rol": una ONG o empresa que pide su propio id no tiene fila de voluntario con `role='volunteer'`, así que da 404 igual;
+  - "la empresa pasa por el chequeo de ONG": busca `ngos.user_id = <id de la empresa>`, que no existe porque `ngos` solo tiene filas de usuarios `ngo`.
+
+### Errores propios
+- Ninguno en el código.
+
+### ⚠️ NO verificado
+- **La carrera real:** el 409 se probó cambiando la fila *mientras* el doble de Cloudinary "sube", no con dos pedidos simultáneos en Postgres. El CAS es un único `UPDATE` condicional, igual que en §39 y §77.
+- **Nada contra Cloudinary real**, igual que en §164: el formato del `public_id` raw, que el link descargue y que venza. Va en la Etapa 5, en Render.
+- El límite de 10 por hora es en memoria y por proceso.
+- No hay pantalla todavía (Etapa 5).
