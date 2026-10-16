@@ -48,6 +48,13 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+      # Donaciones (Mercado Pago, modo prueba; PROJECT_ANALYSIS.md §170–§173). Sin MP_ACCESS_TOKEN donar responde 503;
+      # sin MP_WEBHOOK_SECRET no se acepta ningún aviso (la donación igual se confirma cuando el comprador vuelve).
+      # Los valores se cargan en el panel de Render, nunca en este archivo.
+      - key: MP_ACCESS_TOKEN
+        sync: false
+      - key: MP_WEBHOOK_SECRET
+        sync: false
     healthCheckPath: /health
 
   # ── Frontend (Static Site, gratis) ───────────────────────────────────────
