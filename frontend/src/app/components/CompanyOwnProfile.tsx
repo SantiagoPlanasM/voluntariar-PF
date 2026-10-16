@@ -6,6 +6,7 @@ import { useAuth } from '../../lib/AuthContext';
 import { userMessage } from '../../lib/format';
 import { SPONSORSHIP_BADGE, SPONSORSHIP_LABEL } from '../../lib/sponsorship';
 import { InlineError } from './LoadError';
+import { ProfilePhotoPicker } from './ProfilePhotoPicker';
 
 // Tope del listado de proyectos para proponer. Sin `limit` el backend devuelve 20 y los demás no se podían
 // patrocinar (REVISION F6). GET /projects no tiene paginación (deuda conocida): el camino principal es
@@ -148,6 +149,7 @@ export function CompanyOwnProfile() {
               : <span className="text-2xl font-bold text-violet-600">{empresa.name[0]}</span>
             }
           </div>
+          <ProfilePhotoPicker onUploaded={(url) => setEmpresa((e) => (e ? { ...e, logo: url } : e))} />
           {!editing ? (
             <>
               <h1 className="text-xl font-bold text-white mb-0.5">{empresa.name}</h1>

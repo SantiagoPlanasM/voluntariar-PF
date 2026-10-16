@@ -3,6 +3,7 @@ import { LogOut, Edit2, Loader2, Save, X, Sprout } from 'lucide-react';
 import { useNavigate, Link } from 'react-router';
 import { api, NGO, Project } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
+import { ProfilePhotoPicker } from './ProfilePhotoPicker';
 
 const CATEGORIES = ['Medio Ambiente','Educación','Salud','Animales','Alimentación','Tecnología','Arte y Cultura','Deportes'];
 
@@ -69,6 +70,7 @@ export function NGOOwnProfile() {
               : <span className="text-2xl font-bold text-blue-600">{ngo.name[0]}</span>
             }
           </div>
+          <ProfilePhotoPicker onUploaded={(url) => setNgo((n) => (n ? { ...n, logo: url } : n))} />
           {!editing ? (
             <>
               <h1 className="text-xl font-bold text-white mb-0.5">{ngo.name}</h1>

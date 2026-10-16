@@ -4428,3 +4428,39 @@ Sigue la regla 24 en orden: sesión → límite de **10 subidas por hora** por u
 - **Las fotos anteriores quedan en Cloudinary** (no se borran al reemplazarlas: decisión C3 abierta, igual que el pendiente conocido de borrar usuarios o proyectos).
 - El límite de frecuencia es en memoria y por proceso: se reinicia con el servidor, igual que el del login (§103).
 - Producción (Render): no se desplegó.
+
+## 163. "Cambiar foto" en los tres perfiles propios + la foto del voluntario sale solo de `users.avatar` (PLAN_FALTANTE.md, Etapa 2)
+
+**Qué se hizo:**
+- **`ProfilePhotoPicker.tsx`** (nuevo), un solo componente para `VolunteerProfile`, `NGOOwnProfile` y `CompanyOwnProfile`. Botón "Cambiar foto" debajo de la foto del encabezado (aparece también mientras se edita el perfil) y un `<input type="file">` oculto que acepta JPEG, PNG y WebP. Al elegir un archivo:
+  1. lo comprime con `compressImage`, igual que Momentos;
+  2. lo sube con `api.auth.uploadPhoto`, en el campo `photo` (§162);
+  3. actualiza la sesión con `updateUser`;
+  4. le avisa a la pantalla con `onUploaded(url)`: la ONG y la empresa cambian su `logo` local, y el voluntario ya la ve porque su encabezado lee `user.avatar`.
+  
+  Mientras sube, el botón dice "Subiendo foto…" y queda deshabilitado. Un error se muestra con `role="alert"` (el mensaje del servidor, o uno de conexión si falla la red) y se limpia al intentar de nuevo.
+- **`api.ts`:** `upload()` acepta el método (`POST` por defecto, como antes en Momentos) y `api.auth.uploadPhoto(form)` usa `PUT`, sin `Content-Type`.
+- **`AuthContext`:** `updateUser(u)` reemplaza el usuario en memoria y en `v_user`. `FRONTEND_CONTEXT.md` ya listaba un `updateUser(partial)` que el código no tenía: el doc quedó corregido a lo real.
+- **F2 (decisión del usuario):** `VolunteerPublicProfile`, `FollowListModal` y "Voluntarios que sigo" de `VolunteerProfile` muestran `avatar` y ya no `foto_perfil || avatar`. Esa columna es la copia del registro, que nada actualiza (hallazgo de §162): con el código anterior, una foto nueva no se veía en el perfil público ni en las listas.
+
+### Verificación
+- Tests nuevos: `ProfilePhotoPicker.test.tsx` (11; incluye `uploadPhoto` y que Momentos siga con `POST`) y `ProfilePhotoScreens.test.tsx` (4: la foto del encabezado cambia sin recargar en las tres pantallas, y el botón está también mientras se edita). En `FollowLists.test.tsx`, los datos pasan a traer las dos columnas y hay 3 tests nuevos de F2.
+- Rojo antes de implementar:
+  - F2: los 4 tests fallaban porque se veía la foto vieja (rojo fuerte);
+  - las pantallas: no encontraban "Cambiar foto";
+  - el componente: el módulo no existía (rojo débil; los rojos fuertes los dio la mutación).
+- Frontend **594/594** (antes 576, +18), también con `TZ=America/Argentina/Cordoba`; `npm run typecheck` 0 errores; `npm audit` 0.
+- **Mutación** (control sin mutar en verde): **20 mutantes, 0 sobrevivientes**. Se mutaron, en el componente, la compresión, el nombre del campo, `updateUser`, `onUploaded`, la limpieza del error, el estado "subiendo", la rehabilitación, la guarda sin archivo, el `accept` y el mensaje sin conexión. Además: `PUT` → `POST`, `upload()` ignorando el método, `updateUser` sin persistir o sin estado, ONG y empresa sin actualizar el logo, el voluntario sin el botón y las tres vueltas a `foto_perfil`.
+- Finales de línea conservados (contados con Node): los CRLF siguen CRLF y `NGOOwnProfile.tsx` sigue LF, como antes.
+- Backend: no se tocó en este cambio.
+
+### Errores propios
+- La primera versión de los tests del componente simulaba la sesión solo con `v_user`. Sin token, `AuthProvider` no carga el usuario, y un test fallaba por eso (el error era mío, no del componente). Pasó a una sesión real: token más `GET /auth/me` simulado.
+- Un `vi.fn()` sin tipo rompió el `typecheck` (TS2348); lo tipé con `Mock<…>`.
+
+### ⚠️ NO verificado
+- **Nada visual ni táctil:** el botón en el encabezado (contraste blanco sobre el degradé), el aviso de error, y elegir una foto desde la galería o la cámara de un celular.
+- **La subida real:** `compressImage` con un `canvas` de verdad, el multipart de un navegador real y Cloudinary. Lo tenés que probar vos en Render: subir una foto en los tres roles y ver que aparece en el perfil público, el chat y Momentos.
+- **La FAQ del chatbot** dice "tocá el ícono de lápiz para editar tu foto" (datos de `migrate.js`). La foto se cambia con "Cambiar foto", no con el lápiz, y la FAQ no la cambié.
+- Otras pantallas que muestran fotos de voluntarios con otra fuente: no las revisé todas, solo las tres que leían `foto_perfil`.
+- Producción: no se desplegó.

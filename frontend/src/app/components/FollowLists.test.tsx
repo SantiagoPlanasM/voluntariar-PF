@@ -49,8 +49,10 @@ vi.mock('../../lib/api', async () => {
 
 const people: VolunteerPublic[] = [
   { user_id: 'u-me', name: 'María', avatar: 'https://img/maria.jpg', followers: 2 },
-  { user_id: 'u-2', name: 'Juan', foto_perfil: 'https://img/juan.jpg', ubicacion: 'Córdoba', followers: 3 },
-  { user_id: 'u-3', name: 'Lucía', location: 'Rosario', followers: 0 },
+  // F2 (PLAN_FALTANTE.md, §163): la foto es `avatar` (users.avatar). `foto_perfil` es la copia del registro, que
+  // nunca se actualiza: si está, no tiene que ganarle a `avatar`, y sola no se muestra.
+  { user_id: 'u-2', name: 'Juan', avatar: 'https://img/juan.jpg', foto_perfil: 'https://img/juan-vieja.jpg', ubicacion: 'Córdoba', followers: 3 },
+  { user_id: 'u-3', name: 'Lucía', foto_perfil: 'https://img/lucia-vieja.jpg', location: 'Rosario', followers: 0 },
 ];
 const f = vi.mocked(api.follows);
 const lists = (volunteers: VolunteerPublic[]) => {
@@ -207,5 +209,34 @@ describe('listas de seguidores/seguidos', () => {
     await vi.waitFor(() => expect(api.voluntarios.getProfile).toHaveBeenLastCalledWith('u-2'));
     expect(await screen.findByRole('button', { name: /Seguidores/ })).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe('foto del voluntario: users.avatar, nunca la copia vieja de voluntarios.foto_perfil (F2, §163)', () => {
+  test('perfil público: el encabezado muestra `avatar` aunque venga `foto_perfil`', async () => {
+    vi.mocked(api.voluntarios.getProfile).mockResolvedValueOnce({
+      volunteer: { id: 'user-55', name: 'Ana', avatar: 'https://img/ana-nueva.jpg', foto_perfil: 'https://img/ana-vieja.jpg', bio: '', location: '', followers: 1, following_count: 1 },
+      habilidades: [], stats: { total_enrollments: 0, approved_enrollments: 0, total_horas: 0 }, participaciones: [],
+    } as never);
+    pub();
+    expect(await screen.findByRole('img', { name: 'Ana' })).toHaveAttribute('src', 'https://img/ana-nueva.jpg');
+  });
+
+  test('perfil público sin `avatar`: la inicial, no la copia vieja', async () => {
+    vi.mocked(api.voluntarios.getProfile).mockResolvedValueOnce({
+      volunteer: { id: 'user-55', name: 'Ana', avatar: null, foto_perfil: 'https://img/ana-vieja.jpg', bio: '', location: '', followers: 1, following_count: 1 },
+      habilidades: [], stats: { total_enrollments: 0, approved_enrollments: 0, total_horas: 0 }, participaciones: [],
+    } as never);
+    pub();
+    await screen.findByRole('button', { name: /Seguidores/ });
+    expect(screen.queryByRole('img', { name: 'Ana' })).toBeNull();
+  });
+
+  test('mi perfil, "Voluntarios que sigo": `avatar` y no `foto_perfil`', async () => {
+    own();
+    const juan = await screen.findByRole('link', { name: /Juan/ });
+    expect(within(juan).getByRole('img', { name: 'Juan' })).toHaveAttribute('src', 'https://img/juan.jpg');
+    const lucia = screen.getByRole('link', { name: /Lucía/ });
+    expect(within(lucia).queryByRole('img')).toBeNull();
   });
 });

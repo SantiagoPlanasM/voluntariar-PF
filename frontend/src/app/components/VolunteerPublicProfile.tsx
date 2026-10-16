@@ -96,7 +96,8 @@ export function VolunteerPublicProfile() {
 
   const v = data.volunteer;
   const displayName = v.nombre && v.apellido ? `${v.nombre} ${v.apellido}` : v.name;
-  const avatarUrl = v.foto_perfil || v.avatar;
+  // users.avatar es la foto del voluntario; voluntarios.foto_perfil es la copia del registro, que nada actualiza (F2, §163).
+  const avatarUrl = v.avatar;
 
   return (
     <div className="min-h-screen bg-gray-50 md:ml-60">

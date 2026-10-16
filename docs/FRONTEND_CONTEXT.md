@@ -98,7 +98,8 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 - `FeedSidebar.tsx` — sidebar de escritorio del feed, puramente presentacional (recibe todo por props, incluidos `suggestionsError`/`onRetrySuggestions`: con error muestra el mensaje y "Reintentar" en vez de "¡Ya seguís a todas…!"; y `followError` (`{ ngoId, message }`, tipo `FollowNgoError`): el error de seguir se muestra debajo de esa ONG).
 - `MyParticipation.tsx` — historial de inscripciones del voluntario logueado, con estado (pendiente/aprobada/rechazada) y horas acumuladas. "Reseña" (en las aprobadas) abre `ReviewsModal` con el formulario habilitado (§101).
 - `VolunteerProfile.tsx` — perfil propio editable, incluyendo selección de habilidades (chips desde el catálogo `api.catalog.habilidades()` + nivel por habilidad, guardado vía `api.voluntarios.habilidades.update`). Si alguna carga falla muestra un aviso con "Reintentar" (recarga todo); cada parte que falló muestra "—" o "No se pudo cargar." en vez de 0 o del vacío, y si no cargaron mis habilidades o el catálogo, guardar el perfil no toca las habilidades (§109).
-- `VolunteerPublicProfile.tsx` — perfil público de otro voluntario, con follow/unfollow (si falla, mensaje con `role="alert"` debajo del botón; §114) y sus listas de seguidores/seguidos (`FollowListModal`).
+- `VolunteerPublicProfile.tsx` — perfil público de otro voluntario, con follow/unfollow (si falla, mensaje con `role="alert"` debajo del botón; §114) y sus listas de seguidores/seguidos (`FollowListModal`). La foto es `avatar` (`users.avatar`), nunca `foto_perfil` (copia vieja del registro; decisión F2, §163). Lo mismo en `FollowListModal` y en "Voluntarios que sigo" de `VolunteerProfile`.
+- `ProfilePhotoPicker.tsx` — botón "Cambiar foto" de los tres perfiles propios (`VolunteerProfile`, `NGOOwnProfile`, `CompanyOwnProfile`; §163). Comprime con `compressImage`, sube con `api.auth.uploadPhoto` (campo `photo`), actualiza la sesión con `updateUser` y avisa a la pantalla con `onUploaded(url)` (la ONG y la empresa actualizan su `logo` local). Error con `role="alert"`; mientras sube, el botón dice "Subiendo foto…" y queda deshabilitado.
 - `NotificationsScreen.tsx` — lista de notificaciones (las últimas 50), marcar todas como leídas. El "N sin leer" y el botón "Marcar todas leídas" usan `unread` de `GET /api/notifications` (total del usuario), no la cuenta de la lista: antes contaba las 50 recibidas y con más de 50 sin leer quedaba corto (`PROJECT_ANALYSIS.md §154`). Mientras carga y si la carga falla, el contador es 0.
 
 **Reseñas:** un solo componente, `ReviewsModal.tsx` (reseñas de otros + formulario si `canRate`). Lo usan el feed (`FeedPostCard`) y "Mis participaciones". Hasta `PROJECT_ANALYSIS.md §101` había además un `ReviewModal.tsx` que hacía lo mismo; se borró con OK del usuario. **Cada vez que se abre pide `GET /api/projects/:id`** (REVISION S3, §112): `initialRatings` solo se muestra mientras llega la respuesta (puede estar vieja; desde §122 las reseñas del feed traen `user_id` y la misma forma que las del detalle). Si la persona logueada ya calificó, el formulario se precarga con su reseña y el botón dice "Actualizar reseña" (S4; el backend hace upsert); mientras carga, el botón está deshabilitado. Un error de carga se ve con `InlineError` y "Reintentar" (S1, §107), y los errores tienen `role="alert"` (S10, §115; el de carga lo pone el propio `InlineError`, §124). `ProjectDetails` tiene su propio formulario con la misma precarga (§123).
@@ -158,7 +159,7 @@ interface AuthContextValue {
   logout(): void;
   openAuthModal(mode?): void;
   closeAuthModal(): void;
-  updateUser(partial: Partial<User>): void;
+  updateUser(u: User): void;      // reemplaza el usuario (estado + v_user). Existe desde §163; antes este doc lo listaba y el código no lo tenía
 }
 ```
 
@@ -206,7 +207,7 @@ async function request(path, options) {
 // de fetch (lo traduce userMessage() de format.ts). §62.
 
 export const api = {
-  auth: { register, login, me, updateMe },
+  auth: { register, login, me, updateMe, uploadPhoto },   // uploadPhoto: PUT multipart con upload(form, 'PUT') (§163)
   projects: { list, get, create, update, remove, comment, rate, kpis, recommended... },
   enrollments: { enroll, byProject, byVolunteer, approve, reject, logHours },
   ngos: { list, get, me, updateMe, employees, patrocinios: { list, decide }... },

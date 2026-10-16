@@ -14,6 +14,8 @@ interface Ctx {
   login(email: string, password: string): Promise<User>;
   register(name: string, email: string, password: string, role: string): Promise<User>;
   logout(): void;
+  /** Reemplaza el usuario de la sesión (p. ej. después de cambiar la foto), en memoria y en localStorage. */
+  updateUser(u: User): void;
   token: string | null;
   user: User | null;
 }
@@ -89,9 +91,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => { removeToken(); removeUser(); setT(null); setU(null); };
+  const updateUser = (u: User) => { setUser(u); setU(u); };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, initializing, showAuthModal, authModalIntent, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, initializing, showAuthModal, authModalIntent, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

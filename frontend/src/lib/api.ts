@@ -52,10 +52,10 @@ async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
 
 // Subida multipart (fotos). NO fija Content-Type a propósito: el navegador lo pone él, con el "boundary"
 // del multipart. `req()` fuerza application/json, y con eso el servidor nunca vería los archivos.
-async function upload<T>(path: string, form: FormData): Promise<T> {
+async function upload<T>(path: string, form: FormData, method: 'POST' | 'PUT' = 'POST'): Promise<T> {
   const token = getToken();
   const res = await fetch(`${BASE}${path}`, {
-    method: 'POST',
+    method,
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,
   });
@@ -71,6 +71,8 @@ export const api = {
     me: () => req<{ user: User }>('/auth/me'),
     updateMe: (b: { name?: string; bio?: string; location?: string; avatar?: string }) =>
       req<{ user: User }>('/auth/me', { method: 'PUT', body: JSON.stringify(b) }),
+    // Foto de perfil (multipart, campo `photo`): va a users.avatar y, para ONG y empresa, también al logo (§162).
+    uploadPhoto: (form: FormData) => upload<{ user: User }>('/auth/me/photo', form, 'PUT'),
   },
   projects: {
     list: (p?: Record<string, string>) => {

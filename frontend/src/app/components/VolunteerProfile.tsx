@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { api, EnrollmentWithProject, SkillCatalogItem, VolunteerSkill, NGO, VolunteerPublic } from '../../lib/api';
 import { FollowListModal, FollowListMode } from './FollowListModal';
 import { InlineError } from './LoadError';
+import { ProfilePhotoPicker } from './ProfilePhotoPicker';
 import { userMessage } from '../../lib/format';
 import { useLatestRequest } from '../../lib/useLatestRequest';
 
@@ -153,6 +154,7 @@ export function VolunteerProfile() {
               : <div className="w-full h-full bg-emerald-100 flex items-center justify-center text-2xl font-bold text-emerald-700">{user.name[0]}</div>
             }
           </div>
+          <ProfilePhotoPicker />
           <h1 className="text-2xl font-bold text-white mb-0.5">{user.name}</h1>
           <p className="text-white/70 text-sm">{user.email}</p>
           {user.location && (
@@ -372,8 +374,8 @@ export function VolunteerProfile() {
                   to={`/volunteer/${vol.user_id}`}
                   className="bg-white rounded-2xl p-3.5 border border-gray-100 shadow-sm hover:border-emerald-200 transition-all flex items-center gap-3 group"
                 >
-                  {(vol.foto_perfil || vol.avatar) ? (
-                    <img src={vol.foto_perfil || vol.avatar} alt={vol.name} className="w-11 h-11 rounded-full object-cover ring-2 ring-gray-100 group-hover:ring-emerald-400 transition-all" />
+                  {vol.avatar ? (
+                    <img src={vol.avatar} alt={vol.name} className="w-11 h-11 rounded-full object-cover ring-2 ring-gray-100 group-hover:ring-emerald-400 transition-all" />
                   ) : (
                     <div className="w-11 h-11 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-sm ring-2 ring-gray-100">
                       {vol.name[0]}

@@ -4,7 +4,8 @@
 // celular pesa 3–10 MB; se reduce a ~1600 px y se recodifica como JPEG: baja a unos cientos de KB, sube
 // más rápido, gasta menos cuota de Cloudinary y entra holgada en el tope de 8 MB del servidor.
 //
-// Los límites (tipos y 8 MB) tienen que coincidir con los de backend/src/routes/posts.js.
+// Los límites (tipos y 8 MB) tienen que coincidir con los de backend/src/routes/posts.js y con los de la foto de
+// perfil (PUT /api/auth/me/photo en backend/src/routes/auth.js, que también usa ProfilePhotoPicker; §162–§163).
 //
 // `createImageBitmap` respeta la orientación EXIF de la foto (una foto sacada "de costado" no sale girada).
 

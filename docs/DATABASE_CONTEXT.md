@@ -91,7 +91,7 @@ Igual forma que `ngos` pero con `industria` en vez de `alias`/`founded`. id · u
 ### `voluntarios`
 id · user_id (UNIQUE FK→users) · nombre · apellido · descripcion · ubicacion · foto_perfil · banner · cv_url · created_at · updated_at.
 
-> **`foto_perfil` es una copia vieja:** se escribe una sola vez, en el registro (el avatar de iniciales), y nada la actualiza. La foto del voluntario es **`users.avatar`** (decisión F2 de `PLAN_FALTANTE.md`, `PROJECT_ANALYSIS.md §162`). `GET /api/voluntarios/:userId` y las listas de seguidores la siguen devolviendo; el frontend deja de preferirla en la Etapa 2.
+> **`foto_perfil` es una copia vieja:** se escribe una sola vez, en el registro (el avatar de iniciales), y nada la actualiza. La foto del voluntario es **`users.avatar`** (decisión F2 de `PLAN_FALTANTE.md`, `PROJECT_ANALYSIS.md §162`). `GET /api/voluntarios/:userId` y las listas de seguidores la siguen devolviendo, pero desde §163 el frontend no la muestra.
 
 ### `empleados`
 id · ngo_id (FK→ngos, CASCADE) · nombre · apellido · email · foto_perfil · rol (CHECK IN `coordinador`,`comunicador`,`admin`,`otro`, default `coordinador`) · created_at.

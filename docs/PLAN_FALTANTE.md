@@ -314,7 +314,7 @@ nunca llaman a Cloudinary ni a Mercado Pago de verdad (dobles).
 |---|---|---|---|
 | **0** | En Mercado Pago Developers, crear la aplicación, sacar las credenciales de prueba y crear dos usuarios de prueba; contestar P2, P5, C1 y F2 | **Vos** (yo te paso los comandos) | — |
 | 1 | ✅ Fotos: backend + tests (SQLite, PG, TZ) + docs. Quedó un solo endpoint para los tres roles, `PUT /api/auth/me/photo` (§162) | yo | 1 |
-| 2 | Fotos: frontend (3 pantallas, `api.ts`, `AuthContext`) + tests + typecheck | yo | 1 |
+| 2 | ✅ Fotos: frontend (3 pantallas, `api.ts`, `AuthContext`) + F2 + tests + typecheck (§163) | yo | 1 |
 | 3 | CV: `storage.uploadPdf/cvDownloadUrl/deleteRaw` contra la doc oficial + tests unitarios | yo | 1 |
 | 4 | CV: endpoints + autorización + `ownership`/`public-columns` | yo | 1 |
 | 5 | CV: frontend (perfil del voluntario + "Ver CV" en la ONG). **Deploy manual + prueba real de un PDF en prod** (vos) | yo + vos | 1 |

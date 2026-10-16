@@ -74,8 +74,9 @@ export function FollowListModal({ mode, load, emptyText, meId, onClose }: Props)
                   onClick={onClose}
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors"
                 >
-                  {(vol.foto_perfil || vol.avatar) ? (
-                    <img src={vol.foto_perfil || vol.avatar} alt={vol.name} className="w-11 h-11 rounded-full object-cover ring-2 ring-gray-100" />
+                  {/* users.avatar, no la copia vieja de voluntarios.foto_perfil (F2, §163) */}
+                  {vol.avatar ? (
+                    <img src={vol.avatar} alt={vol.name} className="w-11 h-11 rounded-full object-cover ring-2 ring-gray-100" />
                   ) : (
                     <div className="w-11 h-11 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-sm ring-2 ring-gray-100">
                       {vol.name[0]}
