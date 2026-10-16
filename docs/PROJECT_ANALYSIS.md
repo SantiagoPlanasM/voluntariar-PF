@@ -3613,3 +3613,27 @@ No se tocó código; el razonamiento quedó en `REVISION.md`.
 ### ⚠️ NO verificado
 - No vi en el navegador que el link del autor de un comentario del feed lleve a su perfil.
 - `is_participant` pasó de booleano a 0/1 en el feed: lo único que lo lee es `FeedPostCard` (con `Boolean()`); un consumidor externo que comparara `=== true` dejaría de andar (no hay ninguno en el repo).
+
+## 136. El buscador de proyectos busca por categoría también en SQLite — REVISION A7
+
+**Contexto:** `GET /api/projects?search=` tiene dos ramas (`BACKEND_CONTEXT.md §2`). La de Postgres busca en título, descripción, ONG, **nombre de categoría** y ubicación. La de SQLite no buscaba en la categoría: en desarrollo, "apicultura" no encontraba un proyecto de esa categoría y en producción sí. La tercera pasada de `REVISION.md` lo encontró leyendo el código.
+
+**Qué se hizo:** la rama SQLite suma la categoría con una subconsulta (`p.id IN (SELECT … FROM project_categorias JOIN categorias … WHERE nombre ILIKE …)`), igual que su filtro `category`. No hace falta un JOIN, porque esa rama no lo tiene. Ahora las dos ramas buscan en los mismos cinco campos y en el mismo orden. La rama de Postgres no se tocó.
+
+### Tests (nuevos: 1, en `projects-search.test.js`)
+- Se le pone a "Maratón Solidaria de Donaciones" la categoría "Apicultura", un texto que no está en ningún título, descripción, ONG ni ubicación del seed. `search=apicultura` y `search=APICULT` devuelven solo ese proyecto. Después se restaura la categoría original y la búsqueda vuelve a dar vacío.
+- Corre en los dos motores.
+- **Rojo de comportamiento** en SQLite (`[]` en vez del proyecto). En Postgres pasó desde el principio: es el control de que las dos ramas coinciden.
+
+### Verificación
+- **Backend:** SQLite **494/494** y Postgres **496/496**, también con `TZ=America/Argentina/Cordoba`, 0 cancelled.
+- **Mutación (8)**, con corrida de control y en los dos motores. Se mutó: sacar la cláusula, `ILIKE` → `=`, `OR` → `AND`, `IN` → `NOT IN`, `si += 4`, un parámetro de menos y dos cambios de índice de placeholder.
+  - **SQLite:** mueren 6. Sobreviven los 2 cambios de índice (`$${si+3}` → `$${si}`, y la ubicación con `$${si+3}`). Son **equivalentes**: los cinco parámetros valen lo mismo (`%texto%`) y `remapParams` acepta un `$N` repetido.
+  - **Postgres:** sobreviven los 8, como era de esperar: esa rama no corre en Postgres. El test sirve ahí como control de que los dos motores dan lo mismo.
+
+### Errores propios
+- La primera corrida de mutación usó `String.replace` con un string de reemplazo. Ahí `$$` se interpreta como un `$` literal, así que los mutantes con `$${…}` rompían el template y "morían" por otra razón. Lo corregí (reemplazo con función) y repetí la corrida. Los números de arriba son los de esa segunda corrida.
+
+### ⚠️ NO verificado
+- No lo vi en el navegador. Además, Explorar filtra en el navegador: solo la portada (`PublicFeed`) manda `search`.
+- Sigue la diferencia conocida de mayúsculas en letras no ASCII. En SQLite, "APICULTURA" encuentra "Apicultura", pero "EDUCACIÓN" no encuentra "Educación".

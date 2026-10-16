@@ -67,4 +67,22 @@ describe('GET /api/projects: búsqueda y modalidad sin distinguir mayúsculas', 
       await db.run('UPDATE projects SET ubicacion=$1, modalidad=$2 WHERE titulo=$3', [ubicacion, modalidad, titulo]);
     }
   });
+
+  // REVISION A7: la rama SQLite del listado no buscaba en el nombre de la categoría (la de Postgres sí).
+  // Una categoría que no aparece en ningún título, descripción, ONG ni ubicación: solo se encuentra por categoría.
+  test('el nombre de la categoría también se busca (en los dos motores)', async () => {
+    const titulo = 'Maratón Solidaria de Donaciones';
+    const { id: projectId } = await db.get('SELECT id FROM projects WHERE titulo=$1', [titulo]);
+    const { categoria_id: original } = await db.get('SELECT categoria_id FROM project_categorias WHERE project_id=$1', [projectId]);
+    await db.run(`INSERT INTO categorias (nombre) VALUES ('Apicultura') ON CONFLICT (nombre) DO NOTHING`);
+    const { id: apicultura } = await db.get(`SELECT id FROM categorias WHERE nombre='Apicultura'`);
+    await db.run('UPDATE project_categorias SET categoria_id=$1 WHERE project_id=$2', [apicultura, projectId]);
+    try {
+      assert.deepEqual(await titles('search=apicultura'), [titulo]);
+      assert.deepEqual(await titles('search=APICULT'), [titulo]);
+    } finally {
+      await db.run('UPDATE project_categorias SET categoria_id=$1 WHERE project_id=$2', [original, projectId]);
+    }
+    assert.deepEqual(await titles('search=apicultura'), [], 'sin la categoría, ya no aparece');
+  });
 });

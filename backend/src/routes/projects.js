@@ -285,8 +285,12 @@ router.get('/', optionalAuth, async (req, res) => {
       }
       if (search && search.trim()) {
         const q = `%${search.trim()}%`;
-        simpleSql += ` AND (p.titulo ILIKE $${si} OR p.descripcion ILIKE $${si+1} OR n.nombre ILIKE $${si+2} OR p.ubicacion ILIKE $${si+3})`;
-        simpleParams.push(q, q, q, q); si += 4;
+        // Mismos campos que la rama Postgres, categoría incluida (REVISION A7: antes acá faltaba). Esta rama no
+        // hace JOIN con categorias, así que se busca con una subconsulta, como el filtro `category` de arriba.
+        simpleSql += ` AND (p.titulo ILIKE $${si} OR p.descripcion ILIKE $${si+1} OR n.nombre ILIKE $${si+2}`
+          + ` OR p.id IN (SELECT pc3.project_id FROM project_categorias pc3 JOIN categorias c3 ON c3.id=pc3.categoria_id WHERE c3.nombre ILIKE $${si+3})`
+          + ` OR p.ubicacion ILIKE $${si+4})`;
+        simpleParams.push(q, q, q, q, q); si += 5;
       }
       simpleSql += ` ORDER BY ${orderSql} LIMIT $${si++} OFFSET $${si++}`;
       simpleParams.push(limit, offset);
