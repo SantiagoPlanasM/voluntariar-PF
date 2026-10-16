@@ -277,7 +277,7 @@
 - Como todas las respuestas de proyectos, ONGs y empresas: solo los campos de las listas blancas (`fmt`/`fmtNgo`/`fmtEmpresa`, `PROJECT_ANALYSIS.md §86`). Ya no salen las columnas en español ni `created_at` de ONG/empresa/catálogos.
 
 ### `GET /api/ngos/:id/dashboard` — Auth, role `ngo` (dueño)
-- **Respuesta 200:** agregados para el dashboard: total de proyectos, proyectos activos, total de inscripciones, inscripciones pendientes, etc. (No se llama una vez por el frontend para todo — `NGODashboard.tsx` complementa esto con requests individuales por proyecto, ver `FRONTEND_CONTEXT.md §15.5`.)
+- **Respuesta 200:** `{ ngo, projects, pending_enrollments, stats }`. `projects`: todos los de la ONG (cualquier estado) con la misma forma que `GET /api/projects` (`ngoProjects`: categoría, roles, requisitos y rating), del más nuevo al más viejo y desempatando por id. *(Hasta §146 salían de un `SELECT *`: `category: ''` y listas vacías.)* `stats`: `total_projects`, `active_projects`, `completed_projects`, `total_volunteers`, `total_funding`, `pending_enrollments`. Ninguna pantalla lo llama: `api.ts` no lo expone y `NGODashboard` usa `GET /api/ngos/me`. *(Esta doc decía que `NGODashboard` lo complementaba con requests por proyecto; ya no es así.)*
 - **Errores:** **`403`** "Sin acceso" si la ONG `:id` no existe o no es la de la sesión.
 
 ### `GET /api/ngos/:id/empleados` — Auth, role `ngo` (dueño)

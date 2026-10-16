@@ -62,7 +62,14 @@ describe('Proyectos de la propia ONG y de /ngos/:id/projects: la misma forma que
     await sameAsList(body.projects, 'GET /ngos/:id/projects');
   });
 
-  test('los tres endpoints de la ONG devuelven los mismos proyectos, en el mismo orden', async () => {
+  // El dashboard de la ONG tenía su propio `SELECT * FROM projects` (sin categoría, roles, requisitos ni rating).
+  test('GET /ngos/:id/dashboard: cada proyecto es igual (campos y valores) al del listado', async () => {
+    const { status, body } = await get('/api/ngos/ngo-1/dashboard', token);
+    assert.equal(status, 200);
+    await sameAsList(body.projects, 'GET /ngos/:id/dashboard');
+  });
+
+  test('los cuatro endpoints de la ONG devuelven los mismos proyectos, en el mismo orden', async () => {
     // Fechas distintas en un orden que no coincide con el de los ids (el seed crea todo en el mismo segundo).
     await db.run(`UPDATE projects SET created_at = '2026-03-01 10:00:00' WHERE id = 'proj-1'`);
     await db.run(`UPDATE projects SET created_at = '2026-05-01 10:00:00' WHERE id = 'proj-5'`);
@@ -70,9 +77,11 @@ describe('Proyectos de la propia ONG y de /ngos/:id/projects: la misma forma que
     const profile = (await get('/api/ngos/ngo-1')).body.projects;
     const me = (await get('/api/ngos/me', token)).body.projects;
     const byId = (await get('/api/ngos/ngo-1/projects')).body.projects;
+    const dashboard = (await get('/api/ngos/ngo-1/dashboard', token)).body.projects;
     assert.deepEqual(profile.map((p) => p.id), ['proj-5', 'proj-7', 'proj-1']);
     assert.deepEqual(me.map(normalize), profile.map(normalize));
     assert.deepEqual(byId.map(normalize), profile.map(normalize));
+    assert.deepEqual(dashboard.map(normalize), profile.map(normalize));
   });
 
   test('un proyecto con dos categorías aparece una sola vez en /ngos/:id/projects y en /ngos/me', async () => {
@@ -81,7 +90,7 @@ describe('Proyectos de la propia ONG y de /ngos/:id/projects: la misma forma que
        WHERE c.id NOT IN (SELECT categoria_id FROM project_categorias WHERE project_id = 'proj-1') LIMIT 1`);
     assert.ok(otra, 'hay otra categoría para agregar');
     await db.run('INSERT INTO project_categorias (project_id, categoria_id) VALUES ($1, $2)', ['proj-1', otra.id]);
-    for (const [path, tk] of [['/api/ngos/ngo-1/projects'], ['/api/ngos/me', token]]) {
+    for (const [path, tk] of [['/api/ngos/ngo-1/projects'], ['/api/ngos/me', token], ['/api/ngos/ngo-1/dashboard', token]]) {
       const ids = (await get(path, tk)).body.projects.map((p) => p.id);
       assert.equal(ids.filter((id) => id === 'proj-1').length, 1, `${path}: ${ids.join(', ')}`);
     }
@@ -95,6 +104,16 @@ describe('Proyectos de la propia ONG y de /ngos/:id/projects: la misma forma que
     assert.notEqual(completed[0].category, '');
     const active = (await get('/api/ngos/ngo-1/projects?status=active')).body.projects;
     assert.deepEqual(active.map((p) => p.id), ['proj-7', 'proj-1']);
+  });
+
+  test('el dashboard trae los proyectos de todos los estados (no solo los activos)', async () => {
+    await db.run(`UPDATE projects SET status = 'completed' WHERE id = 'proj-5'`);
+    const { status, body } = await get('/api/ngos/ngo-1/dashboard', token);
+    assert.equal(status, 200);
+    const p5 = body.projects.find((p) => p.id === 'proj-5');
+    assert.ok(p5, 'proj-5 (completed) está en el dashboard');
+    assert.equal(p5.status, 'completed');
+    assert.equal(body.stats.completed_projects, 1);
   });
 
   test('una ONG sin proyectos: lista vacía en /ngos/:id/projects', async () => {

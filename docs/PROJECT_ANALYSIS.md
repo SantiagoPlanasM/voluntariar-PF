@@ -4025,3 +4025,24 @@ Script descartable sobre `ngoProjects` y sus dos llamadas nuevas (12 mutantes), 
 
 ### ⚠️ NO verificado
 - No lo vi en el navegador. No corrí la mutación ni la suite con `TZ=America/Argentina/Cordoba`: la sesión se cortó por falta de tokens.
+
+## 146. Dashboard de la ONG: los proyectos con la forma del listado (pendiente de §144, aprobado por el usuario)
+
+**Qué se hizo:** §144 dejó afuera `GET /api/ngos/:id/dashboard`, que seguía con su propio `SELECT * FROM projects`: `category: ''`, roles y requisitos vacíos, sin `ngo_name`/`ngo_logo` ni rating. Ahora usa `ngoProjects(req.params.id)`, como `GET /api/ngos/:id`, `/ngos/me` y `/ngos/:id/projects` (sin filtro de estado: el dashboard trae todos). `stats` y `pending_enrollments` no cambian. Ninguna pantalla llama a este endpoint (`api.ts` no lo expone; `NGODashboard` usa `/ngos/me`), así que el frontend no cambia. En `API_CONTEXT.md` corregí la sección: decía que `NGODashboard` lo complementaba con requests por proyecto.
+
+### Tests (nuevos: 2, más el dashboard sumado a 2 existentes, `ngo-own-projects-shape.test.js`)
+- `GET /ngos/:id/dashboard`: cada proyecto igual (campos y valores) al del listado. **Rojo de comportamiento:** `category: ''`, listas vacías, `ngo_followers: 0` y sin rating.
+- El dashboard trae también los proyectos `completed` (y `stats.completed_projects` = 1). Pasaba antes: lo agregué porque el mutante "status fijo `active`" sobrevivía (en el seed todos los proyectos de `ngo-1` están activos).
+- El dashboard sumado al test de "mismos proyectos en el mismo orden" (ahora cuatro endpoints) y al de "un proyecto con dos categorías aparece una sola vez".
+
+### Verificación
+- SQLite **592/592**, también con `TZ=America/Argentina/Cordoba`; 0 cancelled, salida 0. (554 + 36 de §141–§144 + 2.)
+- Postgres **594/594** con TZ Córdoba. Sin TZ, la primera corrida dio 2 fallas en `db-transaction.test.js` ("colgada de una promesa…" y "AISLAMIENTO…", los de `sleep`), corriendo a la vez que la suite SQLite y una mutación del frontend; repetida sola: **594/594**, salida 0. Es el test frágil ya anotado en §142–§144.
+- **Mutación (7)**, control sin mutar primero, en SQLite y en Postgres: status fijo `active`, status `completed`, `req.user.id` en vez de `:id`, lista vacía, el `SELECT *` viejo con `fmt`, solo el primero, orden al revés. **Mueren los 7 en los dos motores** (el de `active` sobrevivía en la primera pasada; ver Tests). Archivo restaurado byte a byte.
+
+### Errores propios
+- Ninguno que haya llegado al código.
+
+### ⚠️ NO verificado
+- Nada visual: ninguna pantalla usa el endpoint.
+- Postgres en prod (Render).

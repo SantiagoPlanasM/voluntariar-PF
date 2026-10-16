@@ -275,10 +275,8 @@ router.get('/:id/dashboard', requireAuth, requireRole('ngo'), async (req, res) =
     );
     if (!ngo) return res.status(403).json({ error: 'Sin acceso' });
 
-    const projects = await db.all(
-      'SELECT * FROM projects WHERE ngo_id=$1 ORDER BY created_at DESC',
-      [req.params.id]
-    );
+    // La misma forma que GET /api/projects (ver ngoProjects); antes `SELECT *`: category '' y listas vacías.
+    const projects = await ngoProjects(req.params.id);
 
     // Stats en SQL (no en JS)
     const statsRow = await db.get(
@@ -315,7 +313,7 @@ router.get('/:id/dashboard', requireAuth, requireRole('ngo'), async (req, res) =
       pending_enrollments: pendingEnrollments.length,
     };
 
-    res.json({ ngo: fmtNgo(ngo), projects: projects.map(fmtProject), pending_enrollments: pendingEnrollments, stats });
+    res.json({ ngo: fmtNgo(ngo), projects, pending_enrollments: pendingEnrollments, stats });
   } catch (err) {
     console.error('GET /ngos/:id/dashboard error:', err);
     res.status(500).json({ error: 'Error al obtener dashboard' });
