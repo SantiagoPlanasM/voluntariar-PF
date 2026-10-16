@@ -11,6 +11,7 @@ const express = require('express');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { checkText, firstError } = require('../lib/inputs');
+const { isUniqueViolation } = require('../lib/dbErrors');
 const { sendEmail } = require('../lib/email');
 const { sponsorProposalEmail } = require('../lib/emailTemplates');
 
@@ -234,6 +235,10 @@ router.post('/me/patrocinios', requireAuth, requireRole('company'), async (req, 
   try {
     const { project_id, mensaje } = req.body;
     if (!project_id) return res.status(400).json({ error: 'project_id requerido' });
+    // Tipo y largo antes de tocar la base (REVISION A6): un objeto rompía el parámetro del SQL en SQLite (500).
+    if (typeof project_id !== 'string') return res.status(400).json({ error: 'project_id inválido' });
+    const mensajeErr = checkText(mensaje, { label: 'El mensaje', max: 1000 });
+    if (mensajeErr) return res.status(400).json({ error: mensajeErr });
 
     const empresa = await db.get(
       'SELECT id, nombre FROM empresas WHERE user_id=$1', [req.user.id]
@@ -262,18 +267,29 @@ router.post('/me/patrocinios', requireAuth, requireRole('company'), async (req, 
       return res.status(409).json({ error: 'Ya existe una propuesta de patrocinio con este proyecto' });
     }
 
+    // Dos propuestas simultáneas pasan las dos el SELECT de arriba (REVISION A6, regla 21). Al re-proponer,
+    // compare-and-swap: solo una pasa la fila de 'rechazado' a 'propuesto' (antes las dos respondían 201 y la
+    // ONG recibía dos avisos). Al proponer por primera vez, la PK (empresa_id, project_id) deja entrar a una
+    // y la otra es un 409, no un 500.
+    const duplicate = () => res.status(409).json({ error: 'Ya existe una propuesta de patrocinio con este proyecto' });
     if (existing) {
-      await db.run(
+      const { changes } = await db.run(
         `UPDATE empresa_voluntariados SET estado='propuesto', mensaje=$1, updated_at=CURRENT_TIMESTAMP
-         WHERE empresa_id=$2 AND project_id=$3`,
+         WHERE empresa_id=$2 AND project_id=$3 AND estado='rechazado'`,
         [mensaje || null, empresa.id, project_id]
       );
+      if (changes !== 1) return duplicate();
     } else {
-      await db.run(
-        `INSERT INTO empresa_voluntariados (empresa_id, project_id, estado, mensaje)
-         VALUES ($1,$2,'propuesto',$3)`,
-        [empresa.id, project_id, mensaje || null]
-      );
+      try {
+        await db.run(
+          `INSERT INTO empresa_voluntariados (empresa_id, project_id, estado, mensaje)
+           VALUES ($1,$2,'propuesto',$3)`,
+          [empresa.id, project_id, mensaje || null]
+        );
+      } catch (err) {
+        if (isUniqueViolation(err)) return duplicate();
+        throw err;
+      }
     }
 
     // Notificar a la ONG (in-app + email, fire-and-forget)

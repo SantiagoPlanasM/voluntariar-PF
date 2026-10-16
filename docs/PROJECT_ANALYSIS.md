@@ -3777,3 +3777,58 @@ No se tocó código; el razonamiento quedó en `REVISION.md`.
 ### ⚠️ NO verificado
 - `ChatbotWidget.tsx` no limita el largo del input. Una pregunta de más de 500 caracteres ahora va a mostrar el error del backend, pero no lo vi en el navegador.
 - `GET /api/faqs?categoria=…` no se tocó: con `?categoria=a&categoria=b` Express arma un array. No lo probé.
+
+## 140. Propuesta de patrocinio: dos a la vez dan 201 y 409 — REVISION A6
+
+**Contexto:** la tercera pasada de `REVISION.md` (A6) confirmó con una sonda un problema en `POST /api/empresas/me/patrocinios`: si llegan a la vez dos propuestas de la misma empresa al mismo proyecto, la segunda da **500 en Postgres** (201/500 en 3 de 3 corridas). La ruta primero hace un SELECT ("¿ya hay propuesta?") y después un INSERT. Las dos pasan el SELECT y la segunda choca con la PK `(empresa_id, project_id)`; faltaba `isUniqueViolation` (regla 21). Con el test encontré dos problemas más:
+- Al re-proponer tras un rechazo, las dos pasaban el SELECT, las dos hacían el UPDATE y **todas respondían 201**: 8 de 8 en Postgres. La ONG recibía una notificación y un email por cada una.
+- `mensaje` y `project_id` no se validaban. Un `project_id` objeto daba 500 en SQLite. Un `mensaje` número se guardaba tal cual (201), y uno de más de 1000 caracteres también.
+
+**Qué se hizo** (`routes/empresas.js`):
+- **INSERT:** `try/catch` con `isUniqueViolation(err)` → **409** "Ya existe una propuesta de patrocinio con este proyecto", el mismo mensaje del chequeo previo.
+- **Re-propuesta (UPDATE):** compare-and-swap con `WHERE … AND estado='rechazado'` y se mira `changes`. Solo una pasa la fila a `propuesto`; las otras reciben 409 y no notifican.
+- **Validación**, antes de tocar la base:
+  - `project_id` que no es texto → **400** "project_id inválido". Si falta, sigue siendo "project_id requerido".
+  - `mensaje` con `checkText(mensaje, { label: 'El mensaje', max: 1000 })`: si no es texto o pasa de 1000 → **400**. Sigue siendo opcional: `null` o `''` se guardan como `null`, como antes.
+- La notificación y el email siguen después del alta, fuera de toda transacción.
+
+### Tests (nuevos: 13)
+- `sponsorship-proposal.test.js` (13). Corre en los dos motores; las carreras se reproducen en Postgres.
+  - **Concurrencia:** se verifican invariantes, no quién gana la carrera (como en §77).
+    - 8 propuestas simultáneas al mismo proyecto, repetido en 4 proyectos: una 201 y siete 409, una sola fila y una sola notificación por proyecto;
+    - re-propuesta tras un rechazo, 8 a la vez: una 201 y siete 409, una notificación nueva y el mensaje de la que ganó;
+    - re-propuesta sin carrera: sigue andando, y repetirla da 409.
+  - **Validación:**
+    - `mensaje` número, array, objeto o `true` → 400 sin crear nada (4);
+    - `mensaje` de más de 1000 → 400;
+    - `project_id` número, array u objeto → 400 (3);
+    - sin `project_id` → "project_id requerido";
+    - `mensaje` de 1000 se guarda; `null` y `''` → `null`.
+- **Rojo de comportamiento:**
+  - **Postgres:** la re-propuesta dio `201,201,201,201,201,201,201,201`. Con una sola ráfaga, la propuesta nueva dio 500 en 4 de 5 corridas, así que la repetí en 4 proyectos; así dio 500 en 5 de 5 (p. ej. `201,500,409,…`, y una vez `500,500,500,500,201,500,500,500`).
+  - **SQLite:** fallaban los 9 de validación. Las carreras ya pasaban, porque SQLite trabaja con una sola conexión.
+
+### Verificación
+- SQLite **532/532** y Postgres **534/534**, también con `TZ=America/Argentina/Cordoba`, 0 cancelled y salida 0.
+- El archivo nuevo dio 13/13 en Postgres en 3 corridas seguidas.
+- `follows-sponsorship-concurrency`, `empresa-dashboard` y el nuevo, con Córdoba: 34/34.
+- **Mutación (10 válidos), en Postgres** (`TEST_DB=postgres`), con corrida de control:
+  - sin `isUniqueViolation`;
+  - sin `AND estado='rechazado'`;
+  - sin el chequeo de `changes`, de dos formas;
+  - 500 en vez de 409;
+  - sin el chequeo de tipo de `project_id`;
+  - sin el `if` del mensaje;
+  - máximo 1001 y máximo 999;
+  - `nullable: false`.
+  
+  **Mueren los 10.** Uno más quedó inválido (`\n` en un archivo CRLF) y lo repetí con `\r\n`. Los mutantes de carrera mueren por probabilidad, no seguro: cada uno corrió una sola vez.
+
+### Errores propios
+- La primera versión del test de carrera tenía una sola ráfaga y en Postgres salió en verde 1 de cada 5 veces con el bug presente. La pasé a 4 proyectos.
+- Un mutante escrito con `\n` en un archivo CRLF.
+
+### ⚠️ NO verificado
+- No lo vi en la interfaz de la empresa.
+- Que la ONG ya no reciba dos emails lo deduzco de que la ruta corta antes del `sendEmail`: los tests solo cuentan las notificaciones in-app.
+- `DELETE /api/empresas/me/patrocinios/:projectId` y la decisión de la ONG no se tocaron: la decisión ya tenía CAS (§77).
