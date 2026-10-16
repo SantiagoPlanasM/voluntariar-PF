@@ -157,7 +157,7 @@ id · empleado_id (FK→empleados, ON DELETE SET NULL) · user_id (NOT NULL FK�
 id · project_id (NOT NULL FK→projects CASCADE) · user_id (NOT NULL FK→users CASCADE) · comment (NOT NULL) · created_at.
 
 ### `ratings`
-id · project_id (NOT NULL FK→projects CASCADE) · user_id (NOT NULL FK→users CASCADE) · rating (NOT NULL, CHECK 1-5) · comment · created_at · `UNIQUE(user_id, project_id)` (un usuario califica una sola vez por proyecto).
+id · project_id (NOT NULL FK→projects CASCADE) · user_id (NOT NULL FK→users CASCADE) · rating (NOT NULL, CHECK 1-5) · comment · created_at · `UNIQUE(user_id, project_id)` (una reseña por usuario y proyecto; está desde el primer `migrate.js`). `POST /api/projects/:id/ratings` se apoya en ese UNIQUE para su `INSERT … ON CONFLICT (user_id, project_id) DO UPDATE` (`PROJECT_ANALYSIS.md §152`): no lo saques sin cambiar la ruta (sin el índice la sentencia falla en los dos motores).
 
 ### `notifications`
 id · user_id (NOT NULL FK→users CASCADE) · type (NOT NULL) · title (NOT NULL) · body · read (BOOLEAN/INTEGER, default false/0) · data (JSONB/TEXT) · created_at.

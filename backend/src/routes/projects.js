@@ -1110,18 +1110,15 @@ router.post('/:id/ratings', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Solo voluntarios que hayan participado con inscripción aprobada pueden calificar' });
     }
 
-    const existing = await db.get(
-      'SELECT id FROM ratings WHERE user_id=$1 AND project_id=$2',
-      [req.user.id, req.params.id]
+    // Upsert atómico sobre UNIQUE(user_id, project_id) (está en el esquema desde el principio). Antes era
+    // "SELECT ¿ya calificó?" + UPDATE o INSERT: dos primeras calificaciones simultáneas pasaban las dos el
+    // SELECT, la segunda chocaba con el UNIQUE y respondía 500 (PROJECT_ANALYSIS §154). Re-calificar pisa
+    // nota y comentario y conserva id y created_at, como el UPDATE de antes. Mismo SQL en los dos motores.
+    await db.run(
+      `INSERT INTO ratings (project_id, user_id, rating, comment) VALUES ($1,$2,$3,$4)
+       ON CONFLICT (user_id, project_id) DO UPDATE SET rating = excluded.rating, comment = excluded.comment`,
+      [req.params.id, req.user.id, rating, comment]
     );
-    if (existing) {
-      await db.run('UPDATE ratings SET rating=$1, comment=$2 WHERE id=$3', [rating, comment, existing.id]);
-    } else {
-      await db.run(
-        `INSERT INTO ratings (project_id, user_id, rating, comment) VALUES ($1,$2,$3,$4)`,
-        [req.params.id, req.user.id, rating, comment]
-      );
-    }
     res.json({ message: 'Calificación guardada' });
   } catch (err) { res.status(500).json({ error: 'Error al calificar' }); }
 });

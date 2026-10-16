@@ -4200,3 +4200,41 @@ escribía o leía. Bajo carga eso no se cumple. Se cambió por sincronización d
 
 ### ⚠️ NO verificado
 - No lo vi en el navegador. El backend cuenta el largo crudo y el frontend manda `trim()`, así que con `maxLength` nunca llega uno de más de 1000.
+
+## 152. Calificaciones: upsert atómico en `POST /api/projects/:id/ratings` (aprobado por el usuario)
+
+**Qué se hizo:** la ruta hacía `SELECT id FROM ratings WHERE user_id AND project_id` y después `UPDATE` o `INSERT`. El pedido suponía que dos primeras calificaciones simultáneas creaban **dos filas** porque "no hay UNIQUE". **No es así:** `ratings` tiene `UNIQUE(user_id, project_id)` desde el primer `migrate.js` (commit `4ed412e`, 2026-07-31; `git log -L` sobre esas líneas no muestra otro cambio), y el seed y cualquier base creada con este repo lo tienen. Lo que pasaba en realidad es lo que ya sospechaba `API_CONTEXT.md` ("chocarían con el UNIQUE, no verificado"): los dos pedidos pasaban el `SELECT` sin fila, los dos intentaban el `INSERT` y el que perdía respondía **500 "Error al calificar"** (la reseña quedaba una sola, pero el usuario veía un error). Ahora es una sola sentencia, igual en los dos motores:
+
+```sql
+INSERT INTO ratings (project_id, user_id, rating, comment) VALUES ($1,$2,$3,$4)
+ON CONFLICT (user_id, project_id) DO UPDATE SET rating = excluded.rating, comment = excluded.comment
+```
+
+Re-calificar sigue pisando nota y comentario (el comentario omitido queda en `null`, como antes) y conserva `id` y `created_at`. Mismo contrato: **200** `{ message: 'Calificación guardada' }` al crear y al actualizar; 400/403 sin cambios (las validaciones y el chequeo de inscripción aprobada quedan antes del upsert). No hay notificaciones ni efectos externos en esta ruta. Frontend sin cambios (`api.projects.rate` tipa `{ message: string }`; `ProjectDetails.tsx:135` y `ReviewsModal.tsx:105` hacen `await api.projects.rate(...)` y no leen el cuerpo).
+
+**Migración: no se agregó** (decisión, desvío del pedido). El índice único que pedía la tarea ya existe como constraint de la tabla en las bases nuevas y en las creadas con cualquier versión de `migrate.js`; un `CREATE UNIQUE INDEX` aparte sería un segundo índice redundante (más costo de escritura) y la deduplicación previa un `DELETE` en prod sin ningún caso posible que lo justifique. El `ON CONFLICT (user_id, project_id)` depende de ese UNIQUE: si faltara, las dos bases rechazan la sentencia (no hay índice que coincida) y la ruta respondería 500 siempre, no duplicaría en silencio. Por eso, en vez del test de migración con duplicados, hay un test de que el esquema migrado rechaza la segunda fila en los dos motores. `ON CONFLICT … DO UPDATE` con `excluded` funciona en SQLite ≥ 3.24 sin traducción (`translatePg` no lo toca), verificado con la suite.
+
+### Tests (nuevos: 5, `test/integration/ratings-concurrency.test.js`)
+- 8 primeras calificaciones simultáneas del mismo usuario al mismo proyecto: todas 200 con `{ message: 'Calificación guardada' }`, una sola fila, y la nota guardada es la que vino con ese comentario (mismo pedido). **Rojo de comportamiento en Postgres:** `200,500,200,200,200,200,200,200`. En SQLite pasaba (una sola conexión: los pedidos no se intercalan entre el SELECT y el INSERT).
+- Re-calificar: misma fila (mismo `id`), `created_at` intacto (se fija antes una fecha vieja conocida, porque SQLite guarda segundos y `String(Date)` de Postgres no muestra milisegundos), nota nueva y comentario omitido en `null`.
+- Primera calificación guarda nota y comentario y no toca las reseñas de otros usuarios.
+- 8 re-calificaciones simultáneas: todas 200, una fila.
+- El esquema migrado rechaza una segunda reseña del mismo usuario al mismo proyecto (`isUniqueViolation`), en los dos motores: es la garantía de la que depende el upsert.
+
+### Verificación
+- SQLite **597/597** (592 + 5), también con `TZ=America/Argentina/Cordoba`; 0 fail, 0 cancelled, salida 0.
+- Postgres **599/599** (594 + 5), también con TZ Córdoba; 0 cancelled, salida 0 (corrida final, después de reforzar el test de `created_at`).
+- Antes de esa corrida final, tres corridas de `test:pg` con TZ Córdoba dieron 1–2 fallas en `db-transaction.test.js` ("colgada de una promesa…" y "AISLAMIENTO…", los de `sleep`), con el Postgres compartido con otros agentes. Ese archivo solo, 4 veces (con y sin TZ): 12/12. Es el test frágil ya anotado en §142–§146; el cambio no toca el adaptador.
+- **Mutación (10)** sobre la sentencia nueva, control sin mutar primero, en SQLite y Postgres: sin `ON CONFLICT`, `DO NOTHING`, sin actualizar `comment`, sin actualizar `rating`, `rating = ratings.rating`, `comment = ratings.comment`, pisar `created_at`, `user_id`/`project_id` cruzados en los parámetros, `comment` fijo `null`, conflict target invertido `(project_id, user_id)`. **Mueren 9.** Sobrevive **1, equivalente**: el target invertido (los dos motores infieren el índice por el conjunto de columnas, no por el orden). En la primera pasada sobrevivía también "pisar `created_at`" (el test comparaba `String(created_at)` en el mismo segundo): reforcé el test y muere en los dos motores. Archivo restaurado byte a byte.
+- El código viejo (SELECT + UPDATE/INSERT) es el rojo del primer test: lo mata solo Postgres.
+
+### Errores propios
+- Mi primer test de `created_at` no detectaba que el upsert la pisara (resolución de 1 s en SQLite y `String(Date)` sin milisegundos en Postgres); lo encontró la mutación.
+
+### ⚠️ NO verificado
+- **Prod (Render):** no tengo acceso; asumo que la tabla `ratings` de prod tiene el `UNIQUE(user_id, project_id)` porque se creó con `migrate.js` y el constraint está desde la primera versión. Si alguien la hubiera creado a mano sin él, el `ON CONFLICT` daría error (500 en cada calificación, visible enseguida), no duplicados. Para confirmarlo en prod: `SELECT indexdef FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'ratings';` (tiene que aparecer un índice único sobre `(user_id, project_id)`).
+- No hay migración nueva, así que tampoco hay nada que correr en prod.
+- Nada visual (el frontend no cambia).
+
+### Otros hallazgos (no arreglados, regla 16)
+- `frontend/src/app/components/MyParticipationReview.test.tsx:37` mockea `api.projects.rate` con `{ rating: {} }`, que no es la forma real (`{ message }`); ningún componente lee el cuerpo, así que hoy no esconde nada, pero el mock contradice el contrato (la doc vieja decía `201 { rating }`, corregida en §104).
