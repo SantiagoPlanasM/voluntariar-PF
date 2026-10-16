@@ -140,7 +140,7 @@
 - Aunque la ruta usa `optionalAuth`, la respuesta **no cambia con la sesión**: no trae `my_enrollment` (esta doc decía que sí; la inscripción propia está solo en `GET /api/projects/:id` y en el feed, como `my_enrollment_status`).
 
 ### `GET /api/projects/recommended` — Auth, role `volunteer`
-- **Query params:** `limit` (default 10, máx. 30; `Math.min(parseInt(limit) || 10, 30)`, sin `clampInt`: un negativo no se acota por abajo).
+- **Query params:** `limit` (default 10, mín. 1, máx. 30; `clampInt(limit, 10, 1, 30)` de `lib/inputs.js`, como los otros listados: inválido, `0` o negativo → 10; más de 30 → 30). *(Antes `Math.min(parseInt(limit) || 10, 30)`: un negativo llegaba a `slice(0, -5)` y devolvía todos los candidatos menos 5, más de 30; `PROJECT_ANALYSIS.md §149`.)*
 - **Comportamiento (reescrito por el usuario 2026-09 — bastante más rico que un ranking simple):** scoring por 9 señales independientes, cada una suma puntos y agrega un `tag`/`reason` visible en la UI si aplica:
   1. Afinidad de categoría con el historial de inscripciones.
   2. Match de habilidades del voluntario contra los roles buscados del proyecto.

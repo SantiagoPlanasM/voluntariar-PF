@@ -4093,3 +4093,26 @@ Script descartable sobre `ngoProjects` y sus dos llamadas nuevas (12 mutantes), 
 - Los mensajes no son idénticos a los de la reseña ("El comentario tiene que ser un texto de hasta 1000 caracteres", un solo mensaje para tipo y largo). No los unifiqué.
 - Nada visual: no vi el error en la interfaz.
 - Postgres en prod (Render).
+
+## 149. Recomendaciones: `limit` con `clampInt` (aprobado por el usuario)
+
+**Qué se hizo:** `GET /api/projects/recommended` calculaba `Math.min(parseInt(req.query.limit) || 10, 30)`: un negativo pasaba tal cual y `scored.slice(0, -5)` devolvía **todos los candidatos menos 5** (en el test, con 49 candidatos —9 del seed más 40 de relleno—, devolvía 44: por encima del tope de 30). Ahora usa `clampInt(req.query.limit, 10, 1, 30)` de `src/lib/inputs.js`, como `GET /api/projects` y `GET /api/posts`: inválido o menor que 1 → 10; mayor que 30 → 30. El frontend (`api.projects.recommended(limit = 10)`) no cambia.
+
+### Tests (nuevos: 8, `recommended-limit.test.js`)
+- El `before()` inserta 40 proyectos activos de relleno (`ngo-1`, cupo 10) para que haya más de 30 candidatos para María.
+- Sin `limit` → 10; `3` → 3; `-5` → 10; `0` → 10; `abc` → 10; `100` → 30; `30` → 30; `1` → 1.
+- **Rojo de comportamiento:** `limit=-5` devolvía 44 (los 49 candidatos menos 5). Los otros 7 pasaban antes (`0` y `abc` caían en `|| 10`, `100` en el `Math.min`): son de no regresión y matan mutantes de los bordes.
+
+### Verificación
+- SQLite **605/605** (597 + 8), también con `TZ=America/Argentina/Cordoba`; 0 fail, 0 cancelled, salida 0.
+- Postgres con TZ Córdoba **607/607**, salida 0. Sin TZ, la primera corrida dio **606/607**: 1 falla en `db-transaction.test.js` ("una llamada db.* colgada de una promesa creada DENTRO de la tx…", el de `sleep`), con el contenedor de Postgres compartido con otro agente que corría a la vez; repetida: **607/607**, 0 cancelled, salida 0. Es el test frágil ya anotado en §142–§146.
+- **Mutación (10)**, control sin mutar primero, sobre `recommended-limit.test.js`, en SQLite: default 9 y 11, mínimo 0, 2 y -10, máximo 29, 31 y 100, `clampInt(undefined, …)` y la línea vieja. **Mueren los 10.** Archivo restaurado byte a byte.
+
+### Errores propios
+- Ninguno que haya llegado al código.
+- El runner de mutación lo dejé en el scratchpad compartido de la sesión y otro agente lo sobreescribió con el suyo **después** de que terminaron mis corridas (lo vi al final). No afectó los resultados, pero la próxima conviene un nombre/carpeta propia.
+
+### ⚠️ NO verificado
+- La mutación corrió solo en SQLite (el cambio no toca SQL ni tipos; el `limit` se aplica en JS con `slice`).
+- Nada visual.
+- Postgres en prod (Render).

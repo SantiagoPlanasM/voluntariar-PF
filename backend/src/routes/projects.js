@@ -414,7 +414,9 @@ const SKILL_TO_ROLE = {
 
 router.get('/recommended', requireAuth, requireRole('volunteer'), async (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit) || 10, 30);
+    // clampInt como los otros listados: antes `Math.min(parseInt(limit) || 10, 30)` dejaba pasar un negativo,
+    // y `slice(0, -5)` devolvía todos los candidatos menos 5 (más de 30).
+    const limit = clampInt(req.query.limit, 10, 1, 30);
 
     // ── 1) Historial del voluntario: categorías de interés ────────────
     const myEnrolledProjectIds = await db.all(
