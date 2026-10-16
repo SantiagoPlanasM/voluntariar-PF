@@ -182,14 +182,25 @@ router.get('/me', requireAuth, async (req, res) => {
     );
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
-    // Perfil extendido según rol
+    // Perfil extendido según rol. Lista blanca (regla 8, §153): antes `SELECT *`, y una columna nueva de
+    // estas tablas (un token, datos de facturación) salía sola. Son las mismas columnas que devolvía el
+    // `SELECT *`, con sus nombres en español: la forma no cambió. Una columna nueva se agrega acá a propósito.
     let profile = null;
     if (user.role === 'volunteer') {
-      profile = await db.get('SELECT * FROM voluntarios WHERE user_id=$1', [user.id]);
+      profile = await db.get(
+        `SELECT id, user_id, nombre, apellido, descripcion, ubicacion, foto_perfil, banner, cv_url, followers,
+                created_at, updated_at
+         FROM voluntarios WHERE user_id=$1`, [user.id]);
     } else if (user.role === 'ngo') {
-      profile = await db.get('SELECT * FROM ngos WHERE user_id=$1', [user.id]);
+      profile = await db.get(
+        `SELECT id, user_id, nombre, descripcion, foto_perfil, banner, mision, alias, ubicacion, founded, followers,
+                created_at, updated_at
+         FROM ngos WHERE user_id=$1`, [user.id]);
     } else if (user.role === 'company') {
-      profile = await db.get('SELECT * FROM empresas WHERE user_id=$1', [user.id]);
+      profile = await db.get(
+        `SELECT id, user_id, nombre, descripcion, mision, ubicacion, foto_perfil, banner, industria, followers,
+                created_at, updated_at
+         FROM empresas WHERE user_id=$1`, [user.id]);
     }
 
     res.json({ user, profile });

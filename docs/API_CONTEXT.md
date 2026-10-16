@@ -116,7 +116,11 @@
 - **Sin máximo de contraseña (§141):** el límite de 72 bytes se aplica solo al registrarse; una cuenta vieja con una contraseña más larga sigue entrando.
 
 ### `GET /api/auth/me` — Auth
-- **Respuesta 200:** `{ user, profile }`. `user`: `id, name, email, role, avatar, bio, location, created_at` de `users`. `profile`: la fila de `voluntarios`, `ngos` o `empresas` según el rol (consulta aparte, no un JOIN; `SELECT *`, con los nombres de columna en español), o `null`.
+- **Respuesta 200:** `{ user, profile }`. `user`: `id, name, email, role, avatar, bio, location, created_at` de `users`. `profile`: la fila de `voluntarios`, `ngos` o `empresas` según el rol (consulta aparte, no un JOIN), con **lista blanca de columnas** y los nombres en español (regla 8, `PROJECT_ANALYSIS.md §155`; antes `SELECT *`, mismas claves):
+  - voluntario: `id, user_id, nombre, apellido, descripcion, ubicacion, foto_perfil, banner, cv_url, followers, created_at, updated_at`;
+  - ONG: `id, user_id, nombre, descripcion, foto_perfil, banner, mision, alias, ubicacion, founded, followers, created_at, updated_at`;
+  - empresa: `id, user_id, nombre, descripcion, mision, ubicacion, foto_perfil, banner, industria, followers, created_at, updated_at`.
+  Con otro rol, `profile` es `null`; si el rol es uno de esos tres pero no hay fila, la clave `profile` **no sale** (`db.get` devuelve `undefined`). El frontend no lee `profile` (`api.auth.me` tipa `{ user }`). Una columna nueva de esas tablas no sale hasta agregarla a la lista en `routes/auth.js` (test: `test/integration/auth-me-profile.test.js`).
 - **Errores:** `401` sin token o token inválido; `404` si el usuario del token ya no existe.
 
 ### `PUT /api/auth/me` — Auth

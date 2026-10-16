@@ -4282,3 +4282,29 @@ Revisando otros lugares que cuentan no leídas (pedido de la tarea): **`Notifica
 ### ⚠️ NO verificado
 - Nada visual: el "N sin leer" y los globitos no los vi en pantalla.
 - El costo del `COUNT` en Postgres de prod: hay índice `idx_notifications_user` (y otro por `read`), pero no medí nada.
+
+## 155. `GET /api/auth/me`: `profile` con lista blanca de columnas (regla 8, aprobado por el usuario)
+
+**Qué se hizo:** `profile` salía de `SELECT *` sobre `voluntarios`, `ngos` o `empresas` según el rol: la primera columna sensible que se agregue a esas tablas saldría sola. Antes de cambiar nada busqué qué lee el frontend: **nada**. `api.auth.me` está tipado como `{ user: User }` y `AuthContext` desestructura solo `user`; ningún componente lee `profile` (grep de `profile` en `frontend/src`: solo rutas, nombres de componentes y tests ajenos). Elegí la solución mínima: una lista blanca explícita por rol con **exactamente las columnas que devolvía el `SELECT *`** (las de `migrate.js`, incluida `voluntarios.followers` agregada con `addColumnIfNotExists`), con sus nombres en español. La forma de la respuesta no cambia.
+**Alternativa no hecha (propuesta):** reusar `fmtNgo`/`fmtEmpresa` daría claves en inglés coherentes con la convención (regla 11), pero cambia el contrato (`nombre` → `name`, sin `alias`/`created_at`/`updated_at`, y no hay formateador de voluntario). Como nadie lo lee, sería seguro; lo dejo para que lo decidas.
+
+### Tests (nuevo `auth-me-profile.test.js`, 7)
+- A `users`, `voluntarios`, `ngos` y `empresas` se les agrega una columna con un valor centinela (como `public-columns.test.js`); para cada rol (voluntario, ONG, empresa): el centinela no sale, ni contraseñas/hashes; `profile` tiene **exactamente** las claves de antes y `id`/`user_id`/`nombre` coinciden con la fila. Y `user` sigue con sus 8 campos.
+- **Rojo de comportamiento** en SQLite y en Postgres: 6 de 7 fallaban, y el diff de claves era **solo** `secreto_153` (o sea, la lista esperada coincide con lo que devolvía el `SELECT *`).
+- No lo sumé a `public-columns.test.js` porque ese recorre endpoints públicos y `/auth/me` requiere sesión.
+
+### Verificación
+- SQLite **604/604** (597 + 7), también con TZ Córdoba; Postgres **606/606**, también con TZ Córdoba. 0 cancelled, salida 0 en las cuatro.
+- Frontend no cambia (574/574 de §154).
+- **Mutación (46)**, generada: quitar cada una de las 37 columnas de las tres listas, `SELECT *` en cada una, `WHERE id=$1` en vez de `user_id` en cada una, y cada rol cambiado → **mueren los 46.** Archivo restaurado byte a byte.
+
+### Errores propios
+- Agregué `profile ?? null` de paso y lo volví atrás: cambiaba la respuesta cuando el usuario no tiene fila de perfil (hoy la clave `profile` no sale; ver abajo) y no era parte de la tarea.
+
+### ⚠️ NO verificado
+- Postgres de prod (Render): si ahí alguna de estas tablas tuviera una columna que no está en `migrate.js`, antes salía y ahora no. No tengo acceso para comprobarlo.
+
+### Otros bugs vistos (no arreglados, regla 16)
+- `GET /api/auth/me` con un usuario de rol `volunteer`/`ngo`/`company` **sin** fila en su tabla: `db.get` devuelve `undefined` y la respuesta es `{ user }` **sin** la clave `profile`. `API_CONTEXT.md` dice "o `null`" (eso solo pasa con otros roles). Nadie lo lee, así que no rompe nada.
+- `GET /api/notifications` sigue con `SELECT *` sobre `notifications` (endpoint autenticado, solo filas propias; no es la regla 8 pero tampoco es lista blanca).
+- `FRONTEND_CONTEXT.md` (tabla de tipos, línea 233) describe `Notification` con `id, user_id, type, content, read, created_at`; en `api.ts` es `AppNotification` con `id, type, title, body?, read: boolean | number, created_at` (sin `content` ni `user_id`). Doc desactualizado; propuesta de texto en el borrador de CONTEXT.
