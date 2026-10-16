@@ -4381,3 +4381,21 @@ Revisando otros lugares que cuentan no leídas (pedido de la tarea): **`Notifica
 
 ### ⚠️ NO verificado
 - §157–§159 todavía no están desplegados en Render.
+
+## 161. Verificación en producción de §146–§159 (2026-10-16, Chrome, deploy manual de `a6a0945`)
+
+**Con la sesión de ONG del usuario (solo lectura):**
+- `GET /api/ngos/:id/dashboard` trae categoría, roles y `ngo_name` (§146); `stats` coincide con el panel (1 activo, 2 pendientes).
+- `/auth/me`: `profile` con las 13 columnas de la lista blanca de ONG (§155).
+- `GET /api/notifications`: cada notificación con las 8 claves de §159 y `unread` numérico (2); la pantalla de Notificaciones dice "2 sin leer" (§154). Sin errores de consola.
+- El campo "Comentario" del detalle tiene `maxLength` 1000 (§151).
+
+**Con la sesión de voluntario del usuario (aprobado en el único proyecto activo; escrituras con su OK):**
+- `POST /comments` con un número y con un objeto → **400 "El comentario tiene que ser un texto"**, y los comentarios siguen en 0 (§148).
+- Calificación desde la interfaz: 5 ★ con "Prueba de verificación" → "¡Calificación guardada con éxito!", aparece en la lista y el formulario pasa a "Ya calificaste… / Actualizar reseña". Después, **4 re-calificaciones simultáneas** con los mismos valores → **200 las 4 y una sola reseña** (§152). Eso confirma que la tabla `ratings` de producción tiene el `UNIQUE(user_id, project_id)`: sin él, el `ON CONFLICT` fallaría.
+
+### ⚠️ NO verificado
+- `limit` de recomendados (§149): responde 200 con `limit=-5`, `100` y sin `limit`, pero con **0** resultados (el único proyecto activo es el del voluntario, que se excluye). Con estos datos no se distingue el tope.
+- "Propuesta aceptada/rechazada" (§153): no hay propuestas de patrocinio para decidir.
+- `profile: null` sin fila (§158): no hay cuentas así.
+- La reseña de prueba quedó en producción (visible en el proyecto); el usuario decide si la edita o la borra.
