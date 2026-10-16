@@ -3699,3 +3699,36 @@ No se tocó código; el razonamiento quedó en `REVISION.md`.
 - **PUT, sin tocar:** `modality` sigue sin validarse (un objeto da 500 en SQLite), y `latitude` igual que en el alta.
 - Ni `title` ni `image` tienen largo máximo, ni se valida que `image` sea una URL.
 - No lo vi en el navegador. `CreateVoluntariado` siempre manda valores válidos, así que la interfaz no debería notar el cambio.
+
+## 138. Registro: apellido validado — REVISION A4
+
+**Contexto:** la tercera pasada de `REVISION.md` (A4) confirmó con una sonda que en `POST /api/auth/register` un `apellido` que no es texto daba **500** en los dos motores. Nombre, email, contraseña y rol se validaban, pero el apellido no: llegaba a `apellido?.trim()` dentro de la transacción y reventaba ahí. Tampoco tenía largo máximo.
+
+**Qué se hizo:**
+- `routes/auth.js`: `checkText(apellido, { label: 'El apellido', max: 50 })` (de `lib/inputs.js`), junto con las demás validaciones y **antes** de tocar la base. Si no es texto → **400** "El apellido tiene que ser un texto"; si pasa de 50 → **400** "El apellido puede tener hasta 50 caracteres". El máximo es 50, como el nombre.
+- Sigue siendo opcional: si falta, viene `null` o vacío, se toma del nombre completo, como antes. Se valida con cualquier rol, aunque solo lo use el voluntario.
+- **El resto de los campos, con la misma lupa:**
+  - `name`, `email` y `password` ya verificaban que fueran texto (§76).
+  - `role` usa `includes`, así que un valor que no es texto ya daba 400 "Rol inválido".
+  - Ninguno más llega a un `.trim()` sin validar.
+  - Encontré otra cosa y **no la arreglé** (regla 16): `password` no tiene largo máximo y `bcryptjs` usa solo los primeros 72 bytes. Dos contraseñas que coinciden en esos 72 bytes son la misma; lo comprobé con una sonda descartable.
+
+### Tests (nuevos: 11)
+- `register-input-validation.test.js` (11):
+  - `apellido` número, array, objeto o `true` → 400 con el mensaje exacto, sin ningún usuario creado (4);
+  - más de 50 → 400; exactamente 50 → 201 y queda guardado;
+  - con espacios alrededor se guarda recortado;
+  - ausente, `null` o vacío → se toma del nombre, como antes (3);
+  - con rol ONG también da 400.
+- **Rojo de comportamiento:** 6 fallaban (cuatro 500 "Error interno del servidor", el largo y la ONG con 201). Los otros 5 ya pasaban: cubren lo que ya andaba, para que no se rompa.
+
+### Verificación
+- SQLite **532/532** y Postgres **534/534**, también con `TZ=America/Argentina/Cordoba`, 0 cancelled y salida 0. Era 493/495; los +39 suman los tres arreglos (A4 11, A5 15, A6 13).
+- **Mutación (6)**, con corrida de control: sin el `if`, máximo 51, máximo 49, `required: true`, validar otra cosa en lugar de `apellido` y 500 en vez de 400. **Mueren los 6.**
+
+### Errores propios
+- En el primer borrador del test dejé una aserción confusa: un apellido de 50 con espacios alrededor da 400, porque el largo cuenta lo que llega. No probaba nada útil y la saqué antes de implementar.
+
+### ⚠️ NO verificado
+- El formulario de registro (`AuthModal.tsx`) no manda `apellido` (`api.ts` no lo tiene), así que en la interfaz no cambia nada; no lo vi en el navegador.
+- No se le aplica al apellido la regex del nombre (solo letras): hoy acepta dígitos. Queda a decisión tuya.

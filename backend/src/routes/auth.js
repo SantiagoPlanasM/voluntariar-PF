@@ -54,6 +54,10 @@ router.post('/register', async (req, res) => {
     if (nameErr)  return res.status(400).json({ error: nameErr });
     if (emailErr) return res.status(400).json({ error: emailErr });
     if (passErr)  return res.status(400).json({ error: passErr });
+    // Opcional (si falta o viene vacío se toma del nombre completo). Antes no se validaba y un apellido que no
+    // era texto reventaba en `.trim()` dentro de la transacción: 500 (REVISION A4). 50, como el nombre.
+    const apellidoErr = checkText(apellido, { label: 'El apellido', max: 50 });
+    if (apellidoErr) return res.status(400).json({ error: apellidoErr });
 
     if (!['volunteer', 'ngo', 'company'].includes(role))
       return res.status(400).json({ error: 'Rol inválido' });
