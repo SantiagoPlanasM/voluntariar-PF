@@ -4614,4 +4614,4 @@ Sigue la regla 24 en orden: sesión → límite de **10 subidas por hora** por u
 - El diseño de §166 (el botón en todas las pendientes y aprobadas, más la pestaña previa) causaba ese parpadeo cuando no había CV. Los tests no podían verlo: solo se ve en un navegador.
 
 ### ⚠️ NO verificado
-- En producción: hace falta desplegar **los dos servicios** y repetir la prueba (una inscripción sin CV no tiene que mostrar el botón).
+- ~~En producción~~ **Verificado por el usuario el 2026-10-16** (desplegó los dos servicios): el botón aparece en la inscripción con CV y no en la que no tiene. Nada más de esta sección queda sin verificar, salvo lo visual en un celular.
