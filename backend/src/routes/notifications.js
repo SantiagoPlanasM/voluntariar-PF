@@ -12,7 +12,14 @@ router.get('/', requireAuth, async (req, res) => {
       `SELECT * FROM notifications WHERE user_id=$1 ORDER BY created_at DESC LIMIT 50`,
       [req.user.id]
     );
-    const unread = notifications.filter(n => !n.read && n.read !== 1).length;
+    // Contador sobre TODAS las del usuario, no sobre las 50 de la lista (antes quedaba en ≤50; §152).
+    // `read` es BOOLEAN: se compara con false, nunca con 0. NULL cuenta como no leída (como el `!n.read` viejo).
+    // COUNT llega como string en Postgres: Number(x) || 0.
+    const row = await db.get(
+      'SELECT COUNT(*) AS n FROM notifications WHERE user_id=$1 AND (read = false OR read IS NULL)',
+      [req.user.id]
+    );
+    const unread = Number(row?.n) || 0;
     res.json({ notifications, unread });
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener notificaciones' });

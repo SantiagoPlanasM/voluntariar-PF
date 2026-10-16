@@ -4257,3 +4257,28 @@ Re-calificar sigue pisando nota y comentario (el comentario omitido queda en `nu
 
 ### ⚠️ NO verificado
 - Nada visual (el mensaje no se muestra en ninguna pantalla). Postgres en prod (Render).
+
+## 154. Notificaciones: el contador de no leídas cuenta todas, no las 50 de la lista (aprobado por el usuario)
+
+**Qué se hizo:** `GET /api/notifications` devuelve las últimas 50 y calculaba `unread` filtrándolas en JS: con más de 50 sin leer, el globito de la campana (`Root`, `MainFeed`, `BottomNav`, que usan `r.unread`) quedaba en 50 o menos. Ahora `unread` es un `SELECT COUNT(*) ... WHERE user_id=$1 AND (read = false OR read IS NULL)` aparte: BOOLEAN comparado con `false` (regla 13), `NULL` cuenta como no leída igual que el `!n.read` de antes, y `Number(row?.n) || 0` porque `COUNT` llega como string en Postgres. La lista sigue con `LIMIT 50`.
+Revisando otros lugares que cuentan no leídas (pedido de la tarea): **`NotificationsScreen.tsx`** mostraba "N sin leer" (y decidía si mostrar "Marcar todas leídas") contando las no leídas de la lista recibida: el mismo tope de 50. Ahora guarda `r.unread` del backend en un estado (`0` mientras carga y si la carga falla). `Root`/`MainFeed`/`BottomNav` ya usaban `r.unread` y no cambian. Los `unreadTotal`/`c.unread` de mensajes (`ChatContext`, `MessagesScreen`) son otra cosa (chat) y no se tocaron.
+
+### Tests
+- Backend, nuevo `notifications-unread.test.js` (5): sin notificaciones → `{ notifications: [], unread: 0 }` (número); solo cuenta las no leídas propias (no las leídas ni las de otro usuario); **63 sin leer → la lista trae 50 y `unread` es 63** (**rojo de comportamiento:** daba 48); marcar una baja a 62 y "leer todas" deja 0 (sin tocar las del otro); `read NULL` cuenta como no leída.
+- Frontend, nuevo `NotificationsUnread.test.tsx` (5): la lista trae 1 no leída y el backend cuenta 63 → "63 sin leer" (**rojo:** decía "1 sin leer"); `unread: 0` → sin "sin leer" ni botón; "Marcar todas leídas" recarga y toma el contador nuevo; mientras carga no hay "sin leer"; si la recarga falla no queda el contador viejo. Los dos últimos pasaban antes: existen para matar mutantes del estado nuevo.
+- `SwallowedErrors.test.tsx`: su mock de `list` no traía `unread` (el backend siempre lo manda) y el botón "Marcar todas leídas" ya no aparecía. Le agregué `unread: 1` y saqué el `as never` (ahora el mock tipa contra la interfaz real).
+
+### Verificación
+- Backend SQLite **597/597** (592 + 5), también con TZ Córdoba; Postgres **599/599**, también con TZ Córdoba. 0 cancelled, salida 0 en las cuatro.
+- Frontend **574/574** (569 + 5), también con `TZ=America/Argentina/Cordoba`; `npm run typecheck` **0 errores**, salida 0.
+- **Mutación backend (9)**, cada mutante corrido en SQLite **y** en Postgres: `read = true`, sin `OR read IS NULL`, sin filtro de leída, sin filtro de usuario, sin `Number()`, `|| 1`, `unread` fijo en 0 → **mueren 7**. **Sobreviven 2, equivalentes:** sin `|| 0` y `row?.n` → `row.n` (un `COUNT(*)` sin `GROUP BY` siempre devuelve exactamente una fila con un número: `row` nunca es `undefined` ni `Number(n)` es `NaN`). El de sin `Number()` solo lo mata Postgres (string `'63'`), como se esperaba.
+- **Mutación frontend (6)** sobre `NotificationsScreen.tsx`: estado inicial 5, sin `setUnread(r.unread)`, `setUnread(0)`, volver a contar la lista, `catch` sin `setUnread(0)`, `catch` con 1 → **mueren los 6.** Archivos restaurados byte a byte.
+
+### Errores propios
+- La primera versión del test backend pasaba booleanos de JS como parámetro (`read`): SQLite los rechaza ("can only bind numbers, strings…"). Los pasé como literal SQL `true`/`false`. Un rojo que no era de comportamiento; lo vi antes del arreglo.
+- En el test de "si la carga falla" usé primero `new Error('red')`: `userMessage` muestra `err.message` y el texto esperado no aparecía. Pasé a `TypeError` (sin conexión → mensaje genérico).
+- No anticipé que `SwallowedErrors.test.tsx` dependía de contar la lista; lo vio la suite completa.
+
+### ⚠️ NO verificado
+- Nada visual: el "N sin leer" y los globitos no los vi en pantalla.
+- El costo del `COUNT` en Postgres de prod: hay índice `idx_notifications_user` (y otro por `read`), pero no medí nada.

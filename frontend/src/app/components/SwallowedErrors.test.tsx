@@ -120,7 +120,7 @@ describe('NotificationsScreen', () => {
   });
 
   test('si "marcar todas como leídas" falla, se muestra el error', async () => {
-    vi.mocked(api.notifications.list).mockReset().mockResolvedValue({ notifications: [unreadNotif] } as never);
+    vi.mocked(api.notifications.list).mockReset().mockResolvedValue({ notifications: [unreadNotif], unread: 1 });   // como el backend: el contador viene aparte (§152)
     vi.mocked(api.notifications.markAllRead).mockReset().mockRejectedValue(new TypeError('Failed to fetch'));
     mount(<NotificationsScreen />);
     await waitFor(() => expect(screen.getByText('Te aprobaron')).toBeInTheDocument());

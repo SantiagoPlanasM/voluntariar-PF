@@ -525,7 +525,7 @@ Chat 1 a 1 básico. El historial y el envío tienen doble vía: REST (siempre di
 ## Notifications (`routes/notifications.js`)
 
 ### `GET /api/notifications` — Auth
-- **Respuesta 200:** `{ notifications: Notification[], unread }` del usuario, más recientes primero y **a lo sumo 50**. `unread` es cuántas de **esas 50** no están leídas (se cuenta en JS, no en SQL: con más de 50 notificaciones puede quedar corto).
+- **Respuesta 200:** `{ notifications: Notification[], unread }` del usuario, más recientes primero y **a lo sumo 50**. `unread` es un número: cuántas del usuario no están leídas **en total** (`COUNT(*)` aparte en SQL, `read = false OR read IS NULL`, normalizado con `Number()`), no solo entre las 50 de la lista. Antes se contaba en JS sobre esas 50 y con más de 50 sin leer quedaba corto (`PROJECT_ANALYSIS.md §154`). Test: `test/integration/notifications-unread.test.js`.
 
 ### `PATCH /api/notifications/:id/read` — Auth (dueño)
 - Marca una notificación puntual como leída. **Nota de implementación:** el `UPDATE` usa el literal SQL `read=true` (no un parámetro bindeado) — funciona porque SQLite moderno (bundlado por `better-sqlite3`) soporta el literal `TRUE`, pero es una inconsistencia de estilo respecto al resto del código, que siempre usa placeholders `$n`.

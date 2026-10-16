@@ -21,6 +21,8 @@ export function NotificationsScreen() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [notifs, setNotifs]   = useState<AppNotification[]>([]);
+  // Contador del backend (COUNT sobre todas): la lista viene limitada a 50 y contarla acá daba ≤50 (§152).
+  const [unread, setUnread]   = useState(0);
   const [loading, setLoading] = useState(true);
   const [marking, setMarking] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -31,8 +33,8 @@ export function NotificationsScreen() {
   const load = async () => {
     setLoading(true);
     setLoadError('');
-    try { setNotifs((await api.notifications.list()).notifications); }
-    catch (e) { setNotifs([]); setLoadError(userMessage(e, 'No pudimos cargar tus notificaciones. Revisá tu conexión.')); } // antes: "Sin notificaciones" (F9)
+    try { const r = await api.notifications.list(); setNotifs(r.notifications); setUnread(r.unread); }
+    catch (e) { setNotifs([]); setUnread(0); setLoadError(userMessage(e, 'No pudimos cargar tus notificaciones. Revisá tu conexión.')); } // antes: "Sin notificaciones" (F9)
     finally { setLoading(false); }
   };
 
@@ -43,8 +45,6 @@ export function NotificationsScreen() {
     catch (e) { setActionError(userMessage(e, 'No pudimos marcar las notificaciones como leídas. Revisá tu conexión.')); }
     finally { setMarking(false); }
   };
-
-  const unread = notifs.filter(n => !n.read && n.read !== 1).length;
 
   if (!user) return (
     <div className="flex flex-col items-center justify-center h-screen gap-3 bg-gray-50 md:ml-60">
