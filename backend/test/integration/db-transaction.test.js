@@ -8,7 +8,14 @@ const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { setupTestDb } = require('./helpers');
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// Sincronización por señales, no por tiempo: con `sleep(n)` se suponía que en n ms la
+// tx ya había abierto/terminado, y bajo carga (Postgres compartido, suite en paralelo)
+// no era cierto (§150). Una señal se resuelve cuando el hecho efectivamente pasó.
+const deferred = () => {
+  let resolve;
+  const promise = new Promise((r) => { resolve = r; });
+  return { promise, resolve };
+};
 
 describe('db.transaction()', () => {
   let db, close, engine;
@@ -101,12 +108,16 @@ describe('db.transaction()', () => {
     test('una llamada db.* colgada de una promesa creada DENTRO de la tx, pero ejecutada después, sí funciona', async () => {
       // Caso real: `sendEmail().then(() => db.run(...))` iniciado dentro de la tx.
       // Cuando la tx ya terminó, el contexto quedó inactivo y no debe dar falso positivo.
+      // El `.then` se registra DENTRO de la tx (hereda su contexto), pero la señal recién
+      // se da cuando la promesa de db.transaction() resolvió, o sea con el COMMIT hecho.
       await reset();
       let later;
+      const txEnded = deferred();
       await db.transaction(async (tx) => {
         await tx.run('INSERT INTO tx_probe (id) VALUES ($1)', ['in']);
-        later = sleep(20).then(() => db.run('INSERT INTO tx_probe (id) VALUES ($1)', ['later']));
+        later = txEnded.promise.then(() => db.run('INSERT INTO tx_probe (id) VALUES ($1)', ['later']));
       });
+      txEnded.resolve();
       await later;
       assert.deepEqual(await ids(), ['in', 'later']);
     });
@@ -115,32 +126,50 @@ describe('db.transaction()', () => {
   test('AISLAMIENTO: una escritura ajena durante una tx abierta NO se pierde si la tx hace ROLLBACK', async () => {
     // El riesgo propio de SQLite (una sola conexión): sin la compuerta, el INSERT de
     // "otra request" caería dentro de la transacción abierta y se descartaría con ella.
+    // Señales: la ajena se dispara recién cuando la tx ya escribió, y la tx no termina
+    // hasta que la ajena salió (en Postgres, hasta que terminó: va por otra conexión).
+    // En SQLite no puede terminar con la tx abierta (eso es justamente la compuerta),
+    // así que esperarla adentro sería un deadlock: alcanza con que ya se haya llamado.
     await reset();
+    const txOpen = deferred();
+    const outsiderSent = deferred();
+    let outsider;
     const inFlight = db.transaction(async (tx) => {
       await tx.run('INSERT INTO tx_probe (id) VALUES ($1)', ['de-la-tx']);
-      await sleep(60);                      // I/O de por medio: acá otras requests pueden entrar
+      txOpen.resolve();                     // I/O de por medio: acá otras requests pueden entrar
+      await outsiderSent.promise;
+      if (engine === 'postgres') await outsider;
       throw new Error('falla a mitad');
     });
     const inFlightResult = assert.rejects(inFlight, /falla a mitad/);
 
-    await sleep(15);                        // la tx ya está abierta
-    await db.run('INSERT INTO tx_probe (id) VALUES ($1)', ['ajena']);   // "otra request"
+    await txOpen.promise;                   // la tx ya está abierta
+    outsider = db.run('INSERT INTO tx_probe (id) VALUES ($1)', ['ajena']);   // "otra request"
+    outsiderSent.resolve();
+    await outsider;
 
     await inFlightResult;
     assert.deepEqual(await ids(), ['ajena'], 'sobrevive la ajena; la de la tx se deshizo');
   });
 
   test('las lecturas ajenas nunca ven datos sin commitear', async () => {
+    // Mismas señales que el test de AISLAMIENTO.
     await reset();
-    let seenDuring;
+    const txOpen = deferred();
+    const readSent = deferred();
+    let reading;
     const inFlight = db.transaction(async (tx) => {
       await tx.run('INSERT INTO tx_probe (id) VALUES ($1)', ['sin-commit']);
-      await sleep(60);
+      txOpen.resolve();
+      await readSent.promise;
+      if (engine === 'postgres') await reading;
       throw new Error('cancelar');
     });
     const done = assert.rejects(inFlight, /cancelar/);
-    await sleep(15);
-    seenDuring = await ids();               // SQLite: espera y ve el estado final; PG: ve lo commiteado
+    await txOpen.promise;
+    reading = ids();
+    readSent.resolve();
+    const seenDuring = await reading;       // SQLite: espera y ve el estado final; PG: ve lo commiteado
     await done;
     assert.deepEqual(seenDuring, [], 'jamás debe aparecer "sin-commit"');
   });

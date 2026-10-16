@@ -4116,3 +4116,70 @@ Script descartable sobre `ngoProjects` y sus dos llamadas nuevas (12 mutantes), 
 - La mutación corrió solo en SQLite (el cambio no toca SQL ni tipos; el `limit` se aplica en JS con `slice`).
 - Nada visual.
 - Postgres en prod (Render).
+
+## 150. Tests de `db.transaction()`: señales en vez de `sleep` (flaky bajo carga en Postgres)
+
+**Qué se hizo.** `backend/test/integration/db-transaction.test.js` suponía tiempos: `sleep(20)` para que el
+COMMIT ya hubiera pasado y `sleep(15)`/`sleep(60)` para que la tx estuviera abierta mientras "otra request"
+escribía o leía. Bajo carga eso no se cumple. Se cambió por sincronización determinista con un `deferred()`
+(una promesa con su `resolve` afuera). Solo se tocó el test; `src/` no cambió.
+
+- **"db.* colgada de una promesa creada DENTRO de la tx…"**: el `.then` se sigue registrando dentro de la tx,
+  así que hereda su contexto de AsyncLocalStorage. Lo que cambia es la señal: `txEnded` se resuelve recién
+  cuando la promesa de `db.transaction()` ya resolvió, es decir con el COMMIT hecho y `ctx.active = false`.
+  Antes, si el COMMIT tardaba más de 20 ms, la guarda (bien) lo detectaba como `db.*` dentro de la tx.
+- **AISLAMIENTO** y **"las lecturas ajenas nunca ven datos sin commitear"**: la tx escribe y avisa (`txOpen`).
+  Recién ahí se dispara la escritura/lectura ajena, y la tx no hace ROLLBACK hasta que esa operación salió
+  (`outsiderSent`/`readSent`). En Postgres además espera a que **termine**, porque va por otra conexión.
+  En SQLite no puede terminar con la tx abierta (eso es justamente la compuerta), así que esperarla adentro
+  sería un deadlock.
+- **Causa de que AISLAMIENTO también fallara:** era un efecto cascada. Cuando "colgada" fallaba, el rechazo
+  quedaba sin manejar un momento (`PromiseRejectionHandledWarning`) y el runner daba ese test por terminado
+  con el COMMIT de su tx todavía en vuelo. El `reset()` de AISLAMIENTO corría antes que ese COMMIT y quedaba
+  `['ajena', 'in']`.
+
+**Verificación.**
+- Estabilidad del archivo solo (antes → después):
+
+  | Escenario | Antes | Después |
+  |---|---|---|
+  | SQLite, 20 seguidas | 0/20 | 0/20 |
+  | Postgres, 20 seguidas | 0/20 | 0/20 |
+  | Postgres, 5 rondas × 3 en paralelo | 0/15 | 0/15 |
+  | SQLite, 5 rondas × 3 en paralelo | 0/15 | 0/15 |
+  | Postgres, 4 rondas × 10 en paralelo + 6 procesos quemando CPU | **31/40** corridas rotas ("colgada" 31, AISLAMIENTO 23) | **0/40** |
+  | SQLite, 2 rondas × 10 en paralelo + CPU | 0/20 | 0/20 |
+
+  Con 3 en paralelo no se reprodujo: hizo falta la carga pesada.
+- Mutación sobre `src/db/index.js` (script descartable fuera del repo; corrida de control sin mutar en verde;
+  restauración byte a byte confirmada):
+
+  | Mutante | SQLite antes / después | Postgres antes / después |
+  |---|---|---|
+  | M1 guarda sin `ctx.active` (el contexto viejo da falso positivo) | muere / muere ("colgada") | muere / muere ("colgada") |
+  | M2 sin guarda de `db.*` dentro de la tx | muere / muere (se cuelga, timeout 120 s) | muere / muere ("db.* dentro…", "anidadas") |
+  | M3 SQLite sin compuerta (`waitForOpenTx` vacía) | muere / muere (AISLAMIENTO, lecturas) | *muere* / sobrevive (equivalente: código solo de SQLite) |
+  | M4 Postgres: `db.*` usa la conexión de la tx abierta | sobrevive / sobrevive (equivalente: código solo de PG) | muere / muere (AISLAMIENTO, lecturas) |
+  | M5 `ctx.active` nunca pasa a `false` | muere / muere ("tx después", "colgada") | muere / muere ("tx después", "colgada") |
+
+  Los mutantes que mueren por la garantía que tocan son los mismos antes y después. La diferencia (M3 en
+  Postgres "moría" antes) era una muerte falsa: el código de M3 no corre en Postgres, y lo que falló fue
+  "colgada" por timing. En M4 antes también falló "colgada" por la misma causa. Después del cambio, cada
+  mutante tira abajo solo los tests de su garantía.
+- Suite backend: `npm test` 592/592 (fail 0, cancelled 0, exit 0); `npm run test:pg` 594/594 (fail 0,
+  cancelled 0, exit 0); con `TZ=America/Argentina/Cordoba` lo mismo: 592 y 594, exit 0.
+
+**Errores propios.**
+- Al principio supuse que AISLAMIENTO fallaba por su propio `sleep(15)`. En realidad era la cascada de
+  "colgada" (ver arriba). Lo vi recién al volcar la salida de una corrida rota.
+- La primera corrida de estabilidad (3 en paralelo) no reprodujo nada. Si hubiera parado ahí, no habría tenido
+  un "antes" que comparar.
+- El scratchpad lo compartía otro agente y me pisó `mutate.js` entre corridas (mi corrida ya había terminado).
+  Lo rehice con prefijo propio (`a78-…`) y repetí la mutación DESPUÉS con ese script.
+
+**⚠️ NO verificado.**
+- La carga de CI/Render real: la reproduje con 10 procesos en paralelo + 6 quemadores de CPU en esta máquina,
+  y con un Postgres compartido con otro agente que también corría tests (ruido no controlado).
+- Que el `.then` registrado dentro de `txStore.run` herede el contexto lo confirma la mutación M1 (si no lo
+  heredara, M1 sobreviviría) en el Node de esta máquina. No lo probé en otras versiones de Node.
+- Frontend: no se tocó ni se corrió.
