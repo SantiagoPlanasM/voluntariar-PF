@@ -108,6 +108,15 @@ Ambas diferencias devolvían 500 solo en producción (Render) y pasaban todos lo
 
 **PDF privados para el CV (`PROJECT_ANALYSIS.md §164`):** `storage.detectPdf(buf)` (cabecera real `%PDF-`), `storage.uploadPdf(buf)` → `{ publicId }` (`POST /raw/upload` con `type=private`: **no tiene URL pública**), `storage.pdfDownloadUrl(publicId, { ttlSeconds = 600 })` → `{ url, expiresAt }` (link `GET /raw/download` firmado con `expires_at`; no llama a la red) y `storage.deletePdf(publicId)` (`POST /raw/destroy` con `type=private`; "not found" cuenta como éxito). Las rutas vienen sacadas de la doc oficial del Upload API y del código de `private_download_url` del SDK oficial (cloudinary@2.5.1); la firma es la de `signParams`. Tests: `test/unit/storage-pdf.test.js`. Ningún endpoint los usa todavía (Etapa 4).
 
+### Pagos (Mercado Pago, modo prueba) — `lib/payments.js` (`PROJECT_ANALYSIS.md §169`)
+API REST con `fetch`, sin el SDK. Variables: `MP_ACCESS_TOKEN` (sin él, `isConfigured()` es `false`) y `MP_WEBHOOK_SECRET` (sin él, `verifyWebhookSignature` siempre da `false`). Se llama por propiedad (`payments.createPreference(...)`), igual que `storage`, para poder reemplazarlo en los tests.
+- `createPreference({ donationId, title, amount, successUrl, notificationUrl })` → `{ preferenceId, checkoutUrl }`: un ítem en ARS, `external_reference` = id de la donación, `X-Idempotency-Key` = id de la donación. Con un token `TEST-` devuelve el link de sandbox.
+- `getPayment(id)` → `{ id, status, externalReference, amount, currency }`. Es la **única** fuente de verdad sobre si se pagó.
+- `verifyWebhookSignature({ xSignature, xRequestId, dataId })` → boolean, nunca lanza.
+- `describePaymentsConfig()` → línea para el log de arranque, sin el token ni el secreto.
+
+Los errores son `PaymentError` con `status` y `code` (`not_configured`, `network`, `not_found`, `http`, `bad_response`, `bad_request`). Rutas y firma sacadas del código del SDK oficial `mercadopago@3.6.1` (ver el encabezado del archivo y `BACKEND_ROADMAP_ANALYSIS.md §1.4`). Todavía no lo usa ningún endpoint.
+
 ### Emails (Resend) y modo prueba
 `lib/email.js` manda por la API de Resend con `fetch` nativo; nunca lanza ni bloquea la respuesta HTTP (fire-and-forget). Eventos que mandan email: nueva inscripción (a la ONG), aprobación y rechazo de inscripción (al voluntario), propuesta de patrocinio (a la ONG) y su respuesta (a la empresa). La configuración se **lee en cada envío** (no al cargar el módulo).
 

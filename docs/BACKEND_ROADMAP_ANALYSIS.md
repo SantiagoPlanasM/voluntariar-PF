@@ -11,7 +11,7 @@
 - **No se usa `RETURNING` en ningún lugar del proyecto.** El patrón es `db.run(INSERT …)` y después re-`SELECT`. Cuando hace falta conocer el `id` antes de insertar (ej. para atarlo a un checkout externo), generarlo en JS con `crypto.randomUUID()` (built-in de Node, sin dependencias) e insertarlo explícito — funciona igual en SQLite y Postgres porque los IDs son `TEXT`.
 - **El adaptador (`db/index.js`) ahora tiene `db.transaction()`** (2026-09, `PROJECT_ANALYSIS.md §34`; antes no tenía). `db.run` devuelve `{ lastID, changes }` en ambos motores (`changes` = filas afectadas), útil para chequeos de idempotencia.
 - **`donaciones.estado` tiene `DEFAULT 'completada'`.** Cualquier `INSERT` que no ponga `'pendiente'` explícito crea una donación "ya pagada". También tiene `ngo_id` (nullable) y **no** tiene `updated_at`.
-- **`express.json()` está montado globalmente** en `index.js` (línea 25). Cualquier webhook que necesite el body crudo (Stripe) debe montarse **antes** de esa línea.
+- **`express.json()` está montado globalmente** en `index.js` (línea 25). Un webhook que necesitara el body crudo (era el caso de Stripe) tendría que montarse **antes** de esa línea. El de Mercado Pago no lo necesita: firma la query (`data.id`) y los headers, no el body (§1.4).
 - Columnas confirmadas: `enrollments.horas_realizadas`, `enrollments.mensaje`, `enrollments.status ∈ {pending, approved, rejected, cancelled}`, `users.avatar/bio/location`, `voluntarios.cv_url` (existe, sin usar), `voluntarios.ubicacion` (duplicada de `users.location`, sin usar), `projects.recaudado/meta_financiera`.
 
 ---
@@ -31,7 +31,7 @@
 | **Gestión de CV** | ⏳ Depende de Multimedia; privacidad decidida | §1.3 |
 | **"Empleados" de empresa (usuario real)** | ⏳ Decidido; queda una sub-decisión (consentimiento) | §2.4 |
 | **Chat Empresa↔ONG/Voluntario** | ⏳ Sin bloqueos; queda una decisión menor | §2.5 |
-| **Pagos (Stripe, modo test)** | ⏳ Decidido; transacciones ya disponibles (§1.5) | §1.4 |
+| **Pagos (Mercado Pago, modo prueba)** | 🟡 En curso: `lib/payments.js` ✅ (`PROJECT_ANALYSIS.md §169`); faltan endpoints y frontend | §1.4 |
 | Chatbot con IA | ⏸ Sin decidir, no es prioridad | — |
 
 **Orden recomendado para lo pendiente, y por qué:**
@@ -200,96 +200,32 @@ router.get('/:userId/perfil-completo', requireAuth, async (req, res) => {
 - Para `users.location` vs `voluntarios.ubicacion`: la columna viva es `users.location` (ver §3).
 - Nota de rutas: `/:userId/perfil-completo` (dos segmentos) no colisiona con el `GET /:userId` existente.
 
-### 1.4 Sistema de Pagos — Stripe, modo test *(decidido)*
+### 1.4 Sistema de Pagos — Mercado Pago, Checkout Pro en modo prueba *(decidido; en curso)*
 
-Decisión (`PROJECT_ANALYSIS.md §30`): **Stripe en modo test**, sin intención de producción. Se usa **Stripe Checkout** (redirección a una página alojada por Stripe): el backend nunca toca datos de tarjeta. La verdad sobre si un pago se completó viene **solo del webhook**, nunca de la URL de éxito que visita el navegador.
+> **Historial:** hasta el 2026-10-16 esta sección diseñaba Stripe Checkout (decisión de `PROJECT_ANALYSIS.md §30`). Se cambió a **Mercado Pago** por decisión del usuario (`PLAN_FALTANTE.md`): funciona con cuentas de Argentina y cobra en **pesos**, la misma unidad que `projects.recaudado`/`meta_financiera` y el seed. El diseño completo y las decisiones (P1–P6) están en `PLAN_FALTANTE.md §2` y `§5.3`; acá queda el resumen técnico.
 
-**Esquema:** la tabla `donaciones` ya existe (ver "Hechos verificados" — ojo con el `DEFAULT 'completada'`). Migración aditiva:
+**Estado:** ✅ `src/lib/payments.js` (§169: preferencia, consulta de pago y firma del webhook, sin dependencias). ⏳ Migración, endpoints y frontend (Etapas 7–10 de `PLAN_FALTANTE.md`).
 
-```js
-await addColumnIfNotExists('donaciones', 'external_id', 'TEXT');        // id de la Checkout Session
-await addColumnIfNotExists('donaciones', 'external_status', 'TEXT');
-await addColumnIfNotExists('donaciones', 'moneda', "TEXT DEFAULT 'usd'");
-// índice: CREATE INDEX IF NOT EXISTS idx_donaciones_external ON donaciones(external_id)
-```
+**API usada (verificada el 2026-10-16 contra el código del SDK oficial `mercadopago@3.6.1`, porque la documentación web carga esas partes con JavaScript):**
+- Base `https://api.mercadopago.com`, `Authorization: Bearer <MP_ACCESS_TOKEN>`.
+- `POST /checkout/preferences` → `{ id, init_point, sandbox_init_point }`. Se manda un ítem en `ARS` y `external_reference` = id de la donación, más `back_urls`, `auto_return: 'approved'` y `notification_url`. Con un token `TEST-` se usa `sandbox_init_point`.
+- `GET /v1/payments/:id` → `status` (`approved`, `pending`, `rejected`, `cancelled`, …), `external_reference`, `transaction_amount` y `currency_id`.
+- Aviso (webhook): `x-signature: ts=<ts>,v1=<hash>` y `x-request-id`; `data.id` viene en la **query**. Manifiesto `id:<data.id>;request-id:<x-request-id>;ts:<ts>;` (sin las partes vacías), HMAC-SHA256 en hex con `MP_WEBHOOK_SECRET`, comparación en tiempo constante. Hay que responder 200/201 dentro de 22 s; si no, Mercado Pago reintenta cada 15 minutos (esto sí está en la doc oficial de webhooks).
 
-**Endpoints** (`src/routes/donaciones.js`; dependencia nueva: `stripe`; variables: `STRIPE_SECRET_KEY` (`sk_test_…`), `STRIPE_WEBHOOK_SECRET`, `APP_URL`):
+**Regla central:** el estado de una donación **solo** cambia después de consultar el pago a Mercado Pago (`getPayment`), nunca por el cuerpo del aviso ni por los parámetros de la URL de vuelta (`status=approved`). La firma evita que cualquiera nos haga consultar pagos a pedido.
 
-```js
-const crypto = require('crypto');
-const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
+**Esquema (aditivo):** `donaciones.external_id` (preferencia), `external_payment_id`, `external_status` y `moneda DEFAULT 'ARS'`, más el índice `idx_donaciones_external`. **Todo `INSERT` pone `estado='pendiente'` explícito**: el `DEFAULT` de la tabla es `'completada'`.
 
-// POST /api/donaciones { project_id, monto } → { donacion_id, checkout_url }
-router.post('/', requireAuth, async (req, res) => {
-  if (!stripe) return res.status(503).json({ error: 'Pagos no configurados' });   // un pago no se "omite en silencio"
-  const monto = Number(req.body.monto);
-  if (!(monto > 0) || monto > 10000) return res.status(400).json({ error: 'Monto inválido' });
-  const project = await db.get(`SELECT id, ngo_id, titulo FROM projects WHERE id=$1 AND status='active'`, [req.body.project_id]);
-  if (!project) return res.status(404).json({ error: 'Proyecto no encontrado o inactivo' });
+**Transición única (`applyPayment(paymentId)`), la usan el webhook y la conciliación:**
+1. `getPayment`, fuera de la transacción;
+2. `external_reference` tiene que ser una donación existente y el **monto y la moneda tienen que coincidir** con la fila;
+3. con `approved`, en `db.transaction()` con `tx.*`: CAS `estado='pendiente'` → `'completada'` y, si `changes = 1`, `recaudado = recaudado + monto`;
+4. `rejected`/`cancelled` → `fallida` (mismo CAS); `pending`/`in_process` → sin cambios;
+5. notificaciones, después del COMMIT.
 
-  const id = crypto.randomUUID();
-  await db.run(   // 'pendiente' EXPLÍCITO — el DEFAULT de la tabla es 'completada'
-    `INSERT INTO donaciones (id, user_id, project_id, ngo_id, monto, estado) VALUES ($1,$2,$3,$4,$5,'pendiente')`,
-    [id, req.user.id, project.id, project.ngo_id, monto]);
+**Endpoints previstos:** `POST /api/donaciones`, `POST /api/donaciones/webhook` y `GET /api/donaciones/:id?payment_id=` (conciliación, porque la API gratuita de Render se duerme). Los tests que hacen falta antes de cerrarlo están en `PLAN_FALTANTE.md §5.3` (aviso duplicado, simultáneos en `test:pg`, monto distinto, firma inválida, etc.).
 
-  const session = await stripe.checkout.sessions.create({
-    mode: 'payment',
-    line_items: [{ quantity: 1, price_data: { currency: 'usd', unit_amount: Math.round(monto * 100),
-                   product_data: { name: `Donación: ${project.titulo}` } } }],
-    client_reference_id: id,
-    success_url: `${APP_URL}/donaciones/ok?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url:  `${APP_URL}/project/${project.id}`,
-  });
-  await db.run('UPDATE donaciones SET external_id=$1 WHERE id=$2', [session.id, id]);
-  res.status(201).json({ donacion_id: id, checkout_url: session.url });
-});
-
-// Webhook: recibe el body CRUDO (Buffer) — ver montaje abajo
-async function stripeWebhook(req, res) {
-  if (!stripe) return res.sendStatus(503);
-  let event;
-  try {
-    event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], process.env.STRIPE_WEBHOOK_SECRET);
-  } catch { return res.status(400).send('Firma inválida'); }
-
-  try {
-    const s = event.data.object;
-    if (event.type === 'checkout.session.completed' && s.payment_status === 'paid') {
-      // Idempotente: solo transiciona desde 'pendiente'. Un evento duplicado da changes=0 y no hace nada.
-      const upd = await db.run(
-        `UPDATE donaciones SET estado='completada', external_status='paid' WHERE id=$1 AND estado='pendiente'`,
-        [s.client_reference_id]);
-      if (upd.changes > 0) {
-        const d = await db.get('SELECT project_id, monto FROM donaciones WHERE id=$1', [s.client_reference_id]);
-        if (d?.project_id) await db.run('UPDATE projects SET recaudado = recaudado + $1 WHERE id=$2', [d.monto, d.project_id]);
-      }
-    } else if (event.type === 'checkout.session.expired') {
-      await db.run(`UPDATE donaciones SET estado='fallida', external_status='expired' WHERE id=$1 AND estado='pendiente'`,
-                   [s.client_reference_id]);
-    }
-  } catch (err) { console.error('Webhook Stripe:', err); return res.sendStatus(500); }  // 5xx → Stripe reintenta
-  res.json({ received: true });
-}
-module.exports = router;
-module.exports.stripeWebhook = stripeWebhook;   // mismo patrón de exports que projects.js
-```
-
-**Montaje en `index.js` — el orden importa.** Stripe firma el body exacto; si `express.json()` lo parsea antes, la verificación de firma falla siempre. El webhook va **antes** del `app.use(express.json(...))` global:
-
-```js
-app.post('/api/donaciones/webhook', express.raw({ type: 'application/json' }), require('./routes/donaciones').stripeWebhook);
-app.use(express.json({ limit: '5mb' }));            // recién después
-// …y más abajo, como el resto: app.use('/api/donaciones', require('./routes/donaciones'));
-```
-
-**Prerrequisito duro: transacciones — ✅ ya satisfecho (`db.transaction()`, §1.5).** El webhook **debe** usarlas. Fíjese por qué: si el primer `UPDATE` (`estado='completada'`) tiene éxito y el proceso cae antes del segundo (`recaudado + monto`), el reintento de Stripe encuentra `estado != 'pendiente'`, hace `changes=0` y **`recaudado` queda para siempre sin sumar esa donación**. La idempotencia por sí sola no cubre esto: hace falta que ambos `UPDATE` sean atómicos. Ambos `UPDATE` van en un mismo `db.transaction()`, y la llamada a Stripe / cualquier email va después del COMMIT. Además, `SUM(monto)` en Postgres llega como string: normalizar con `Number()` (§1.6).
-
-**Otros puntos:**
-- **Probar local:** `stripe listen --forward-to localhost:3001/api/donaciones/webhook` (Stripe CLI) imprime el `whsec_…` a poner en `STRIPE_WEBHOOK_SECRET`. Tarjeta de prueba: `4242 4242 4242 4242`, cualquier fecha futura y CVC.
-- **Moneda:** Checkout va en USD; `projects.recaudado`/`meta_financiera` (y los datos semilla) están pensados en pesos. Una donación de prueba de "20" suma 20 a un `recaudado` en otra unidad. Para una demo es tolerable, pero conviene no mostrar símbolo de moneda ahí, o aclararlo en la defensa. La columna `moneda` agregada arriba deja el dato explícito por donación.
-- **Nunca** marcar una donación como completada por visitar `success_url`; solo por el webhook.
-- Rate limiting sobre `POST /api/donaciones` (§3): sin límite, cualquiera puede llenar `donaciones` de filas `pendiente`.
-- Tests mínimos antes de darlo por cerrado: webhook duplicado (idempotencia), firma inválida (`400`), sesión expirada, y donación a proyecto inexistente/inactivo.
+**Variables nuevas:** `MP_ACCESS_TOKEN` y `MP_WEBHOOK_SECRET`. Van a `render.yaml` como `sync: false` (OK del usuario, decisión P5) en la Etapa 10.
 
 ### 1.5 Optimización de backend (transversal)
 
@@ -428,8 +364,9 @@ Lo ya migrado (no repetir): `empresa_categorias`, columnas `estado/mensaje/updat
 `CREATE TABLE IF NOT EXISTS empresa_voluntarios (...)`
 // 3. Pagos (§1.4) — solo columnas nuevas sobre una tabla existente
 await addColumnIfNotExists('donaciones', 'external_id', 'TEXT');
+await addColumnIfNotExists('donaciones', 'external_payment_id', 'TEXT');   // id del pago de Mercado Pago
 await addColumnIfNotExists('donaciones', 'external_status', 'TEXT');
-await addColumnIfNotExists('donaciones', 'moneda', "TEXT DEFAULT 'usd'");
+await addColumnIfNotExists('donaciones', 'moneda', "TEXT DEFAULT 'ARS'");   // Mercado Pago cobra en pesos (§1.4)
 // + índice idx_donaciones_external
 ```
 

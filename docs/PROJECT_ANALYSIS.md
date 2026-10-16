@@ -4615,3 +4615,53 @@ Sigue la regla 24 en orden: sesión → límite de **10 subidas por hora** por u
 
 ### ⚠️ NO verificado
 - ~~En producción~~ **Verificado por el usuario el 2026-10-16** (desplegó los dos servicios): el botón aparece en la inscripción con CV y no en la que no tiene. Nada más de esta sección queda sin verificar, salvo lo visual en un celular.
+
+## 169. Mercado Pago: `lib/payments.js` (preferencia, consulta de pago y firma del webhook) — PLAN_FALTANTE.md, Etapa 6
+
+**Qué se hizo:** un módulo nuevo `src/lib/payments.js`, sin dependencias: `fetch` y `crypto`, decisión P2 del usuario. **Ningún endpoint lo usa todavía** (Etapas 7–10).
+- `createPreference({ donationId, title, amount, successUrl, notificationUrl })` → `{ preferenceId, checkoutUrl }`:
+  - `POST /checkout/preferences` con un ítem en ARS;
+  - `external_reference` y `X-Idempotency-Key` iguales al id de la donación;
+  - las tres `back_urls` a la misma vuelta, `auto_return: 'approved'` y `notification_url`;
+  - con un token `TEST-` usa `sandbox_init_point` (y si no viene, `init_point`).
+- `getPayment(id)` → `{ id, status, externalReference, amount, currency }` vía `GET /v1/payments/:id`, con el id codificado y validado. Los campos ausentes vuelven como `null` y el monto como número; un 404 da `code: 'not_found'`.
+- `verifyWebhookSignature({ xSignature, xRequestId, dataId })` → boolean, nunca lanza. Sin `MP_WEBHOOK_SECRET`, siempre `false`.
+- `describePaymentsConfig()` arma una línea para el log sin el token ni el secreto. Los errores son `PaymentError`, y el token no se loguea.
+- `BACKEND_ROADMAP_ANALYSIS.md §1.4` quedó **reescrito para Mercado Pago** (antes era el diseño de Stripe), igual que las migraciones pendientes (`external_payment_id`, `moneda DEFAULT 'ARS'`) y la nota de "Hechos verificados" sobre el body crudo: el webhook de MP firma la query y los headers, no el body.
+
+**De dónde salen la API y la firma (verificado el 2026-10-16):** la documentación oficial de webhooks confirma el header `x-signature` (`ts=…,v1=…`), la respuesta 200/201 en 22 s y los reintentos cada 15 minutos. **No** muestra el manifiesto: lo carga con JavaScript, en la pestaña "Sin SDKs". Por eso el resto salió del **código del SDK oficial `mercadopago@3.6.1`** (unpkg):
+- `utils/config`: base `https://api.mercadopago.com`;
+- `clients/preference/create`: `/checkout/preferences/` con `POST` y `Bearer`;
+- `clients/payment/get`: `/v1/payments/${encodePathParam(id)}`;
+- los tipos de preferencia y de pago, para los nombres de campo;
+- `utils/webhook`: `parts.push(\`id:${dataId}\`)`, `request-id`, `ts`; `parts.join(';') + ';'`; `createHmac('sha256', secret)…digest('hex')`; `timingSafeEqual` con chequeo de largo previo; `toLowerCase()` **solo** en las claves del header; sin tolerancia por defecto.
+
+### Verificación
+- `test/unit/payments.test.js` (29):
+  - la firma (válida, orden y espacios del header, claves en mayúsculas, partes omitidas, `data.id` sin pasar a minúsculas, cada dato cambiado, headers rotos, `ts` no numérico bien firmado, hash recortado, sin secreto, secreto del entorno);
+  - la preferencia (URL, headers, cuerpo exacto, sandbox o `init_point` según el token, `TEST` en el medio, respuesta incompleta, error HTTP sin filtrar el token, no JSON, red, sin token);
+  - el pago (ruta, id codificado contra `../`, tipos, monto ausente o inválido, no JSON, 404 y 500, ids inválidos sin llamar a la red, sin token);
+  - el log.
+- Rojo: el módulo no existía (rojo débil); los rojos fuertes los dio la mutación.
+- Backend SQLite **717/717** y con TZ 717/717; Postgres **719/719** y con TZ 719/719. 0 fail, 0 cancelled. `npm audit` 0.
+- **Mutación** (control en verde): **42 mutantes**. En la primera tanda sobrevivieron **5, ninguno equivalente**, y sumé el test que mata a cada uno:
+  - `TEST` en el medio del token;
+  - una respuesta no JSON en `getPayment`;
+  - el monto ausente (`NaN`);
+  - un `ts` no numérico bien firmado;
+  - la comparación por prefijo.
+  
+  Quedó en **0 de 42**.
+
+### Errores propios
+- Los 5 huecos de tests de arriba.
+
+### ⚠️ NO verificado
+- **Nada contra Mercado Pago real** (no tengo tus credenciales; los tests usan dobles):
+  - que la preferencia se cree con estos campos;
+  - que en el modo prueba haya que usar `sandbox_init_point` (con usuarios de prueba, Mercado Pago a veces pide el `init_point` normal; si el checkout falla, es lo primero a revisar);
+  - que un aviso real firme exactamente así.
+  
+  Se prueba en la Etapa 10, en Render.
+- **`data.id` en minúsculas:** guías viejas de Mercado Pago decían pasarlo a minúsculas si es alfanumérico, y el SDK 3.6.1 no lo hace. Para pagos, el id es numérico, así que no debería importar.
+- Los `ts` de los reintentos: no hay tolerancia de tiempo (como el SDK). Un aviso repetido no hace daño, porque la transición es idempotente (Etapa 7).

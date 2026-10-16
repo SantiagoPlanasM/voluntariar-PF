@@ -319,7 +319,7 @@ nunca llaman a Cloudinary ni a Mercado Pago de verdad (dobles).
 | 3 | ✅ CV: `storage.detectPdf/uploadPdf/pdfDownloadUrl/deletePdf` contra la doc oficial y el SDK + tests unitarios (§164) | yo | 1 |
 | 4 | ✅ CV: endpoints + autorización (C1) + borrado del anterior (C3) + `ownership`; `/auth/me` con `has_cv` (§165) | yo | 1 |
 | 5 | ✅ CV: frontend (perfil del voluntario + "Ver CV" en la ONG, §166). ✅ probado en prod por el usuario (§167) | yo + vos | 1 |
-| 6 | MP: verificar la API contra la doc oficial; `lib/payments.js` + tests unitarios (firma); reescribir el roadmap §1.4 para Mercado Pago | yo | 1 |
+| 6 | ✅ (§169) MP: verificar la API contra la doc oficial (y el código del SDK oficial); `lib/payments.js` + tests unitarios (firma); reescribir el roadmap §1.4 para Mercado Pago | yo | 1 |
 | 7 | MP: migración + `POST /api/donaciones` + `applyPayment` (transacción, CAS, control de monto) | yo | 1 |
 | 8 | MP: webhook + `GET /donaciones/:id` con conciliación (idempotencia, concurrencia en PG) | yo | 1 |
 | 9 | MP: frontend (botón, modal, `/donaciones/vuelta`) | yo | 1 |
