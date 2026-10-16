@@ -17,7 +17,9 @@ const parseJson = (val) => { if (Array.isArray(val)) return val; try { return JS
 // Forma de una reseña (interface Rating de frontend/src/lib/api.ts). La usan GET /projects/:id y el feed
 // (routes/follows.js): antes cada uno tenía su SELECT y el del feed no traía user_id (REVISION, pendiente de §112).
 // Quien la use agrega su propio WHERE / ORDER BY.
-const RATINGS_SELECT = `SELECT r.id, r.project_id, r.user_id, r.rating, r.comment, r.created_at, u.name AS user_name
+// user_avatar: la foto de quien calificó, para las listas de reseñas (§133; null si no tiene).
+const RATINGS_SELECT = `SELECT r.id, r.project_id, r.user_id, r.rating, r.comment, r.created_at, u.name AS user_name,
+              u.avatar AS user_avatar
        FROM ratings r JOIN users u ON u.id = r.user_id`;
 
 // Campos que algunos endpoints agregan a la fila ANTES de formatear (el feed, routes/follows.js).

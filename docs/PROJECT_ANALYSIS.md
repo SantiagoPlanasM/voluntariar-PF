@@ -3520,3 +3520,30 @@ No se tocó código; el razonamiento quedó en `REVISION.md`.
 
 ### ⚠️ NO verificado
 - No lo vi en el navegador ni en producción.
+
+## 133. Avatar en las reseñas (decisión del usuario)
+
+**Contexto:** §122 unificó la forma de las reseñas (`RATINGS_SELECT`) y el feed dejó de mandar `user_avatar`, que nadie usaba: todas las listas de reseñas mostraban la inicial. El usuario eligió mostrar la foto.
+
+**Qué se hizo:**
+- **Backend:** `RATINGS_SELECT` (`routes/projects.js`) suma `u.avatar AS user_avatar`, así que lo mandan el detalle y el feed. No expone nada nuevo: el avatar ya era público en comentarios y publicaciones.
+- **Frontend:**
+  - `Rating.user_avatar?: string | null` (regla 6).
+  - En `ReviewsModal` y en la pestaña Reseñas de `ProjectDetails` se ve la foto si existe, y si no, la inicial como antes. La foto es decorativa (`alt=""`), porque el nombre está al lado.
+  - En `ProjectDetails`, el link al perfil que envuelve la foto o la inicial ahora tiene nombre propio ("Perfil de …"). Antes su nombre accesible era la inicial, y con la foto (alt vacío) se habría quedado sin nombre.
+
+### Tests (nuevos: 2; 1 actualizado)
+- `feed-ratings-shape.test.js`: la forma esperada incluye `user_avatar` y se compara con `users.avatar` de la base, en el feed y en el detalle.
+- `ReviewAvatars.test.tsx` (2): en el modal y en el detalle, foto con `alt=""` cuando hay avatar e inicial cuando no.
+- **Rojo:** el de backend, de comportamiento (faltaba la clave). Los de frontend fallaban antes de llegar a la aserción, porque no encontraban el marcador `data-initial` (rojo débil). La mutación los cubre.
+
+### Verificación
+- **Backend:** SQLite **493/493** y Postgres **495/495**, también con `TZ=America/Argentina/Cordoba`.
+- **Frontend:** **560/560**, también con Córdoba. **Typecheck: 0 errores.**
+- **Mutación (4)**, con corrida de control: sacar la columna, modal siempre con inicial, `alt` con el nombre y detalle siempre con inicial. **Mueren los 4.**
+
+### Errores propios
+- Dejé en el primer test una aserción que no probaba nada (`getByRole('presentation') ?? …`). La saqué antes de implementar.
+
+### ⚠️ NO verificado
+- No lo vi en el navegador ni en producción.

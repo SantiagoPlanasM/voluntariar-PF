@@ -280,9 +280,14 @@ export function ReviewsModal({
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-xs">
-                          {r.user_name?.[0] || 'U'}
-                        </div>
+                        {/* La foto de quien calificó, o la inicial si no tiene (§133). */}
+                        {r.user_avatar ? (
+                          <img src={r.user_avatar} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+                        ) : (
+                          <div data-initial className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-xs">
+                            {r.user_name?.[0] || 'U'}
+                          </div>
+                        )}
                         <div>
                           <div className="flex items-center gap-1.5">
                             <span className="font-bold text-gray-900">{r.user_name}</span>

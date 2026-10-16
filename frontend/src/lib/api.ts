@@ -379,6 +379,7 @@ export interface AppComment {
 }
 export interface Rating {
   id: string; user_id: string; user_name: string;
+  user_avatar?: string | null; // §133: lo mandan el detalle y el feed (null si no tiene foto)
   rating: number; comment?: string; created_at: string;
 }
 export interface AppNotification {

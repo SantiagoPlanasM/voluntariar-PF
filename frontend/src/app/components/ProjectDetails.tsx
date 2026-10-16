@@ -484,15 +484,21 @@ export function ProjectDetails() {
                       <div className="space-y-4">
                         {project.ratings.map(r => (
                           <div key={r.id} className="flex gap-3 bg-gray-50/50 p-3 rounded-xl border border-gray-100">
-                            {r.user_id ? (
-                              <Link to={`/volunteer/${r.user_id}`} className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700 flex-shrink-0 hover:opacity-80 transition-opacity">
-                                {r.user_name[0]}
-                              </Link>
-                            ) : (
-                              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700 flex-shrink-0">
-                                {r.user_name[0]}
-                              </div>
-                            )}
+                            {/* La foto de quien calificó, o la inicial si no tiene (§133). */}
+                            {(() => {
+                              const face = r.user_avatar
+                                ? <img src={r.user_avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
+                                : <span data-initial>{r.user_name[0]}</span>;
+                              return r.user_id ? (
+                                <Link to={`/volunteer/${r.user_id}`} aria-label={`Perfil de ${r.user_name}`} className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700 flex-shrink-0 overflow-hidden hover:opacity-80 transition-opacity">
+                                  {face}
+                                </Link>
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700 flex-shrink-0 overflow-hidden">
+                                  {face}
+                                </div>
+                              );
+                            })()}
                             <div>
                               <div className="flex items-center gap-2">
                                 {r.user_id ? (

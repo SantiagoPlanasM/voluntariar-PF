@@ -52,7 +52,7 @@ describe('Reseñas: misma forma en el feed y en el detalle del proyecto', () => 
     const db = require('../../src/db');
     const { toMillis } = require('../../src/lib/time');
     const rows = await db.all(
-      `SELECT r.id, r.user_id, r.rating, r.comment, r.created_at, u.name
+      `SELECT r.id, r.user_id, r.rating, r.comment, r.created_at, u.name, u.avatar
        FROM ratings r JOIN users u ON u.id = r.user_id WHERE r.project_id = 'proj-1'`
     );
     assert.ok(rows.length > 0);
@@ -64,10 +64,11 @@ describe('Reseñas: misma forma en el feed y en el detalle del proyecto', () => 
         const r = list.find((x) => x.id === row.id);
         assert.ok(r, `${label}: falta la reseña ${row.id}`);
         assert.deepEqual(Object.keys(r).sort(),
-          ['comment', 'created_at', 'id', 'project_id', 'rating', 'user_id', 'user_name'], label);
+          ['comment', 'created_at', 'id', 'project_id', 'rating', 'user_avatar', 'user_id', 'user_name'], label);
         assert.equal(r.project_id, 'proj-1', label);
         assert.equal(r.user_id, row.user_id, label);
         assert.equal(r.user_name, row.name, label);
+        assert.equal(r.user_avatar, row.avatar, label); // §133
         assert.equal(r.rating, row.rating, label);
         assert.equal(r.comment, row.comment, label);
         assert.equal(toMillis(r.created_at), toMillis(row.created_at), label);
