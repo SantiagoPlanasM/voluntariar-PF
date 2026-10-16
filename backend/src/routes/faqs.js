@@ -8,6 +8,7 @@
 const express = require('express');
 const db = require('../db');
 const { optionalAuth } = require('../middleware/auth');
+const { checkText, firstError } = require('../lib/inputs');
 
 const router = express.Router();
 
@@ -50,6 +51,13 @@ router.get('/', optionalAuth, async (req, res) => {
 router.post('/ask', optionalAuth, async (req, res) => {
   try {
     const { question, categoria } = req.body;
+    // Tipo y largo antes de `.trim()`: un `question` que no era texto reventaba ahí (500), y un `categoria`
+    // objeto rompía el parámetro del SQL en SQLite (REVISION A5). Falta o vacía sigue siendo "muy corta".
+    const inputErr = firstError(
+      checkText(question, { label: 'La pregunta', max: 500 }),
+      checkText(categoria, { label: 'La categoría', max: 50 }),
+    );
+    if (inputErr) return res.status(400).json({ error: inputErr });
     if (!question || question.trim().length < 3) {
       return res.status(400).json({ error: 'La pregunta es muy corta' });
     }

@@ -3732,3 +3732,48 @@ No se tocó código; el razonamiento quedó en `REVISION.md`.
 ### ⚠️ NO verificado
 - El formulario de registro (`AuthModal.tsx`) no manda `apellido` (`api.ts` no lo tiene), así que en la interfaz no cambia nada; no lo vi en el navegador.
 - No se le aplica al apellido la regex del nombre (solo letras): hoy acepta dígitos. Queda a decisión tuya.
+
+## 139. Chatbot: pregunta y categoría validadas — REVISION A5
+
+**Contexto:** la tercera pasada de `REVISION.md` (A5) confirmó con una sonda que en `POST /api/faqs/ask` un `question` que no es texto daba **500** en los dos motores: reventaba en `question.trim()`. Además no había largo máximo. Mirando el mismo endpoint encontré otra cosa: con un `categoria` objeto, SQLite también daba 500, porque no puede usarlo como parámetro del SQL. En Postgres, en cambio, respondía 200 sin resultados.
+
+**Qué se hizo:**
+- `routes/faqs.js`: antes del `.trim()`, `firstError(checkText(question, { label: 'La pregunta', max: 500 }), checkText(categoria, { label: 'La categoría', max: 50 }))` (de `lib/inputs.js`) → **400** con el mensaje en español:
+  - "La pregunta tiene que ser un texto"
+  - "La pregunta puede tener hasta 500 caracteres"
+  - "La categoría tiene que ser un texto"
+  - "La categoría puede tener hasta 50 caracteres"
+- Una pregunta ausente, `null`, vacía o de menos de 3 caracteres sigue dando "La pregunta es muy corta", como antes. `categoria: null` se toma como "sin categoría".
+- **Por qué 500:** el widget es para preguntas cortas y escritas a mano, y 500 entra holgado. El límite evita que alguien mande hasta 100 kB (el tope de `express.json`) para que el servidor los parta en palabras y los compare contra todas las keywords. Para `categoria`, 50 alcanza: las reales son `voluntario`, `ngo`, `general`, etc.
+
+### Tests (nuevos: 15)
+- `faqs.test.js`, bloque "POST /api/faqs/ask valida el cuerpo" (15):
+  - `question` número, array, objeto o `true` → 400 (4);
+  - ausente, `null`, vacía o de 2 letras → "muy corta", como antes (4);
+  - más de 500 → 400; exactamente 500 → 200 con la respuesta correcta;
+  - `categoria` número, array u objeto → 400 (3);
+  - `categoria` de más de 50 → 400;
+  - `categoria: null` → 200.
+- **Rojo de comportamiento:** 9 fallaban en los dos motores: 500 "Error al procesar la pregunta", o 200 donde se esperaba 400. Los otros 6 ya pasaban: dejan fijado lo que ya andaba.
+
+### Verificación
+- SQLite **532/532** y Postgres **534/534**, también con `TZ=America/Argentina/Cordoba`, 0 cancelled y salida 0. El archivo da 20/20 en los dos motores y con Córdoba.
+- **Mutación (10 válidos)**, con corrida de control:
+  - sin el `if`;
+  - 500 en vez de 400;
+  - sin el chequeo de `question`;
+  - sin el de `categoria`;
+  - `question` con máximo 501 y con máximo 499;
+  - `categoria` con máximo 51;
+  - `categoria` con `required`;
+  - `question` con `required`;
+  - `question` con `min: 3`.
+  
+  **Mueren los 10.** Hubo 2 mutantes más que el script no pudo aplicar: los escribí con `\n` y el archivo es CRLF; los repetí con `\r\n`.
+
+### Errores propios
+- Los dos mutantes con `\n` en un archivo CRLF (ver arriba).
+
+### ⚠️ NO verificado
+- `ChatbotWidget.tsx` no limita el largo del input. Una pregunta de más de 500 caracteres ahora va a mostrar el error del backend, pero no lo vi en el navegador.
+- `GET /api/faqs?categoria=…` no se tocó: con `?categoria=a&categoria=b` Express arma un array. No lo probé.
