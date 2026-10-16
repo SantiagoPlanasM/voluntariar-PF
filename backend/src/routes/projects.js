@@ -1050,6 +1050,10 @@ router.delete('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
 router.post('/:id/comments', requireAuth, async (req, res) => {
   try {
     const { comment } = req.body;
+    // Primero el tipo y el tope (mismo tope que el comentario de una reseña): un número, objeto, array o booleano
+    // reventaba en `.trim()` y daba 500. `null`/ausente pasan acá y caen en "Comentario muy corto" de abajo.
+    const textErr = checkText(comment, { label: 'El comentario', max: 1000 });
+    if (textErr) return res.status(400).json({ error: textErr });
     if (!comment?.trim() || comment.trim().length < 3)
       return res.status(400).json({ error: 'Comentario muy corto' });
     if (hasBadWord(comment))

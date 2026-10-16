@@ -4066,3 +4066,30 @@ Script descartable sobre `ngoProjects` y sus dos llamadas nuevas (12 mutantes), 
 
 ### ⚠️ NO verificado
 - No lo vi en el navegador (`maxLength` corta lo que se tipea; lo pegado se corta también en los navegadores, pero eso no lo probé).
+
+## 148. Comentarios de proyecto: un `comment` que no es texto da 400, no 500 (aprobado por el usuario)
+
+**Qué se hizo:** `POST /api/projects/:id/comments` hacía `comment?.trim()` directo sobre el body: un número, objeto, array o booleano (incluido `0` y `false`) reventaba (`.trim` no es función) y respondía **500** "Error al comentar". Ahora, antes del chequeo de largo mínimo, pasa por `checkText` de `src/lib/inputs.js` (`{ label: 'El comentario', max: 1000 }`): no texto → **400** "El comentario tiene que ser un texto"; más de 1000 caracteres → **400** "El comentario puede tener hasta 1000 caracteres". Sin tope antes. 1000 es el mismo tope que el comentario de una reseña (`POST /:id/ratings`). `null`/ausente pasan `checkText` (campo no obligatorio) y siguen cayendo en el 400 "Comentario muy corto" de siempre. Nada se inserta en ningún caso de error.
+- **Frontend (regla 10):** ni `ProjectDetails.tsx` (un `<input>` sin `maxLength`) ni `FeedPostCard.tsx` (un `<textarea>` sin `maxLength`) limitan el largo; los dos mandan `comment.trim()` como string, así que el cambio de tipo no los afecta. No toqué el frontend (no estaba en la tarea): ver NO verificado.
+- El tope cuenta el largo **crudo** (con espacios alrededor), como `checkText` en todas las rutas y como las reseñas; el texto se guarda recortado. Como el frontend recorta antes de mandar, en la práctica es lo mismo.
+
+### Tests (nuevos: 5, `comments-input-type.test.js`)
+- `123`, `0`, `{ text }`, `[ ... ]`, `true`, `false` → 400 "El comentario tiene que ser un texto" y la cantidad de comentarios de `proj-1` no cambia. **Rojo de comportamiento:** `[500, 'Error al comentar']`.
+- `null` y body sin `comment` → 400 "Comentario muy corto" (no regresión).
+- `'  ab  '` → "Comentario muy corto" (no regresión).
+- 1001 caracteres → 400 con el tope y no se crea; 1000 justos → 201 y se guarda entero. **Rojo:** el de 1001 daba 201.
+- Un comentario normal con espacios alrededor → 201 recortado (no regresión).
+
+### Verificación
+- SQLite **597/597** (592 + 5), también con `TZ=America/Argentina/Cordoba`; 0 fail, 0 cancelled, salida 0.
+- Postgres **599/599**, también con TZ Córdoba; 0 cancelled, salida 0.
+- **Mutación (14)**, control sin mutar primero, sobre `comments-input-type.test.js` + `comments-badwords.test.js`, en SQLite: sin el `if`, `if (false)`, status 422, otro mensaje, `max` 1001 y 999, `required: true`, `nullable: false`, `min: 3`, `checkText(undefined)`. **Mueren los 14** (0 sobrevivientes). Archivo restaurado byte a byte.
+
+### Errores propios
+- La primera tanda de mutantes buscaba `if (textErr) return res.status(400).json({ error: textErr });`, que aparece dos veces en `projects.js` (otra ruta usa la misma línea): el runner saltó 4 mutantes. Los repetí anclados a la línea anterior (`max: 1000 });\r\n…`); murieron los 4.
+
+### ⚠️ NO verificado
+- El frontend no limita el comentario a 1000 (ni `ProjectDetails` ni `FeedPostCard`): con más de 1000 el usuario ve el 400 del backend recién al enviar. No lo agregué (fuera de la tarea); si se quiere, `maxLength={1000}` en los dos campos.
+- Los mensajes no son idénticos a los de la reseña ("El comentario tiene que ser un texto de hasta 1000 caracteres", un solo mensaje para tipo y largo). No los unifiqué.
+- Nada visual: no vi el error en la interfaz.
+- Postgres en prod (Render).

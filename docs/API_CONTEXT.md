@@ -188,7 +188,7 @@
 - **Respuesta 200:** `{ message: 'Proyecto eliminado' }` (esta doc decía `{ success: true }`). **404** si no existe o no es de la ONG de la sesión.
 
 ### `POST /api/projects/:id/comments` — Auth (cualquier rol)
-- **Body:** `{ comment }`. Recortado, menos de 3 caracteres (o vacío) → **400** "Comentario muy corto". Pasa por `hasBadWord()` → **400**. **404** si el proyecto no existe (antes 500 por la FK, `§56`).
+- **Body:** `{ comment }`. Primero `checkText` (`lib/inputs.js`, tope **1000**, el mismo que el comentario de una reseña): si viene y no es un string (número, objeto, array, booleano) → **400** "El comentario tiene que ser un texto" (antes 500, `PROJECT_ANALYSIS.md §148`); más de 1000 caracteres (largo crudo, con espacios) → **400** "El comentario puede tener hasta 1000 caracteres". Después, recortado, menos de 3 caracteres (o vacío, `null` o ausente) → **400** "Comentario muy corto". Pasa por `hasBadWord()` → **400**. **404** si el proyecto no existe (antes 500 por la FK, `§56`). Ningún 400 crea nada. El frontend (`ProjectDetails`, `FeedPostCard`) no limita a 1000.
 - **Respuesta 201:** `{ comment }` (incluye `user_name`/`user_avatar` vía JOIN a `users`, más `is_participant` — agregado por el usuario 2026-09, para que el frontend distinga si quien comenta participó del proyecto o no). `is_participant` es **`1`/`0`** (un `CASE`), no `true`/`false`, igual que en el detalle y en el feed; `AppComment` acepta los dos.
 - **Ojo en el frontend:** `api.ts` tipa esta respuesta como `{ comment: AppComment }` — si se toca este endpoint, no usar `Comment` a secas como tipo (es el tipo global del DOM, no el propio; ya pasó una vez, ver `PROJECT_ANALYSIS.md §29`).
 
