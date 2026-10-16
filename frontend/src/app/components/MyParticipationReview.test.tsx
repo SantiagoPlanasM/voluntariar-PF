@@ -34,7 +34,7 @@ beforeEach(() => {
   vi.mocked(api.projects.get).mockResolvedValue({ project: { ratings: [
     { id: 'r1', user_id: 'u-juan', user_name: 'Juan Pérez', rating: 5, comment: 'Muy bueno', created_at: '2026-10-10 12:00:00' },
   ] } } as never);
-  vi.mocked(api.projects.rate).mockReset().mockResolvedValue({ rating: {} } as never);
+  vi.mocked(api.projects.rate).mockReset().mockResolvedValue({ message: 'Calificación guardada' }); // la respuesta real (§104, §152): el tipo lo controla
 });
 
 describe('Mis participaciones: reseña', () => {

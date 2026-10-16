@@ -4324,3 +4324,17 @@ Revisando otros lugares que cuentan no leídas (pedido de la tarea): **`Notifica
 ### ⚠️ NO verificado
 - En prod: el mensaje de contraseña larga dentro del formulario (no ingreso contraseñas en sitios que no son locales), el registro de pedidos de red (la herramienta no los capturó) y el celular.
 - §148–§155 todavía no están desplegados en Render.
+
+## 157. Test de "Mis participaciones": el mock de calificar con la respuesta real (hallazgo de §152, aprobado por el usuario)
+
+**Qué se hizo:** `MyParticipationReview.test.tsx` simulaba `api.projects.rate` devolviendo `{ rating: {} }` con `as never`, que no es la respuesta del backend (`{ message }`, §104 y §152). Hoy no tapaba nada (ningún componente lee el cuerpo), pero contradecía el contrato. Ahora devuelve `{ message: 'Calificación guardada' }` **sin** `as never`, así que el tipo de `api.ts` (`{ message: string }`) controla el mock.
+
+### Verificación
+- **Rojo:** con el mock viejo y sin `as never`, `npm run typecheck` da TS2353 ("'rating' does not exist in type '{ message: string; }'"). Con el nuevo, 0 errores y el test pasa.
+- Suites: ver §160.
+
+### Errores propios
+- Ninguno.
+
+### ⚠️ NO verificado
+- Nada visual (es solo un test).
