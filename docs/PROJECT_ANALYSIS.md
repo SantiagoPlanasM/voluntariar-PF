@@ -3637,3 +3637,65 @@ No se tocó código; el razonamiento quedó en `REVISION.md`.
 ### ⚠️ NO verificado
 - No lo vi en el navegador. Además, Explorar filtra en el navegador: solo la portada (`PublicFeed`) manda `search`.
 - Sigue la diferencia conocida de mayúsculas en letras no ASCII. En SQLite, "APICULTURA" encuentra "Apicultura", pero "EDUCACIÓN" no encuentra "Educación".
+
+## 137. El alta de proyectos valida tipos, modalidad, montos y topes — REVISION A3
+
+**Contexto:** la tercera pasada de `REVISION.md` confirmó con una sonda que `POST /api/projects` daba **500** en dos casos: un `type` fuera de `fugaz|sostenido` (el `CHECK` de la base) y un `title`/`description` que no fuera texto (`title?.trim()`). El PUT ya validaba esos campos (§95). Revisé el resto de los campos con una sonda descartable de 41 casos, en SQLite y en Postgres. Aparecieron más:
+
+| Campo | Antes | Motor |
+|---|---|---|
+| `location` no-texto | 500 (`.toLowerCase()` corría **antes** de validar) | los dos |
+| `duration`, `full_description` no-texto | 500 (`.trim()`) | los dos |
+| `image` objeto | 500 / se guardaba `{"a":1}` | SQLite / Postgres |
+| `image` número | se guardaba `"5"` | los dos |
+| `modality` objeto | 500 / se guardaba `{"a":1}` | SQLite / Postgres |
+| `modality` `"otra"`, número o array | se guardaba tal cual (el filtro de modalidad no lo reconoce) | los dos |
+| `funding_goal`/`cost_per_person` negativos | 500 (`CHECK >= 0`) | los dos |
+| `funding_goal` `"abc"` o `{}` | se guardaba 0 | los dos |
+| `funding_goal` `"Infinity"` o `"1e400"` | se guardaba infinito (la API devolvía `null`) | los dos |
+| `volunteers_needed` / `hours_per_week` = `1e10` | 500 (INTEGER desbordado) / se guardaba | Postgres / SQLite |
+| sin `type` ni `duration` | se creaba un fugaz **sin duración** (se validaba sin tipo y se insertaba `'fugaz'`) | los dos |
+
+**Qué se hizo** (solo `routes/projects.js`; se reusó lo que ya existía):
+- **`validateProject`:**
+  - Exige `tipo` en `PROJECT_TYPES`.
+  - Tope de **168** horas semanales (las horas de una semana) y de **100000** cupos. Por encima, Postgres desbordaba.
+  - Como la comparten alta y edición, el PUT gana los mismos topes. En el PUT, `1e10` también daba 500 en Postgres.
+- **`projectTextError(body)`:** si vienen y no son `null`, título, descripción, ubicación, descripción completa, imagen y duración tienen que ser texto. Usa `checkText` de `lib/inputs.js` con `max: Infinity`, porque hoy no hay largo máximo. Reemplaza los dos loops que tenía el PUT, con el mismo mensaje (`"<Campo> tiene que ser un texto"`).
+- **`parseMoney(value, label)`:** la regla de montos del PUT, que se movió a una función: `null`/`''` → 0; si no, número finito ≥ 0. El PUT la usa a través de su `money()`, que conserva el valor actual si el campo no viene. El alta la usa con "ausente = 0".
+- **POST:**
+  - `tipo = type ?? 'fugaz'`, y se valida con ese tipo.
+  - Los tipos de texto se chequean antes que todo lo demás.
+  - `modality`/`modalidad`, si vienen y no están vacías, tienen que ser `presencial`, `remoto` o `hibrido`.
+  - Los montos pasan por `parseMoney`.
+  - La modalidad deducida de la ubicación se calcula **después** de validar.
+- **PUT:** se sacó su chequeo propio de `type`, que quedó redundante: `validateProject` rechaza el tipo combinado con el mismo mensaje, `null` incluido. Lo único que cambia es la precedencia: si vienen un tipo inválido y un `status` inválido a la vez, ahora gana el mensaje de status.
+
+### Tests (nuevos: 13)
+- **`projects-create-validation.test.js` (10):**
+  - 6 de 400 sin crear nada. Se cuenta el total de proyectos, porque un título no-texto no sirve para buscar. Cubren: tipo (`'otro'`, `5`, `''`, `'FUGAZ'`, `['fugaz']`), 12 textos no-string, 5 modalidades inválidas, cupos/horas `1e10` y por encima del tope, 6 montos inválidos, y "sin type ni duration".
+  - 4 de lo válido: sin `type` o `null` → fugaz; los extremos 168 horas y 100000 cupos; las tres modalidades más `modalidad`, vacía o ausente (se deduce); montos numéricos, en texto, `null` y `''`; textos opcionales en `null`.
+- **`projects-partial-update.test.js` (3, en la tabla `BAD`):** PUT con `type: null`, `volunteers_needed: 1e10` y `hours_per_week: 1e10` → 400 sin cambiar nada.
+- **Rojo de comportamiento:** los 6 tests de rechazo fallaban con 500 o 201. Los 4 de "lo válido" pasaban antes: son de no regresión.
+
+### Verificación
+- **Backend:** SQLite **507/507** y Postgres **509/509**, también con `TZ=America/Argentina/Cordoba`. 0 cancelled, exit 0.
+- Una corrida de Postgres con Córdoba dio 2 fallas en `db-transaction.test.js`: "colgada de una promesa…" y "AISLAMIENTO…". Son tests con `sleep()` que no tocan proyectos. Ese archivo solo pasó 3 de 3 veces, y la suite completa pasó en las dos corridas siguientes. Lo atribuyo a la carga del Postgres compartido.
+- **Sonda repetida después del arreglo:** 0 respuestas 500 en Postgres. En SQLite, todo lo de la tabla da 400 con mensaje en español.
+- **Mutación (34 distintos)**, con corrida de control, en SQLite. Los 5 que tocan lo propio de Postgres (tope de cupos y de horas, tipo, title, `parseMoney`) se corrieron también en Postgres.
+  - **Mueren 33.**
+  - **Sobrevive 1, equivalente:** sacar `if (value === null || value === '') return { value: 0 }` de `parseMoney`, porque `Number(null)` y `Number('')` ya dan 0. Lo dejé por legibilidad: viene del PUT.
+
+### Errores propios
+- El script de mutación tenía dos fallas que detectó él mismo ("el texto aparece 0 veces"): patrones con `\n` en un archivo CRLF y un patrón de `title` mal copiado. Los corregí y repetí esos mutantes.
+- Una vez guardé la salida de una corrida en `/tmp` en vez del scratchpad.
+
+### ⚠️ NO verificado / no arreglado (para decidir)
+- **Topes 100000 cupos y 168 horas:** son decisión mía. El frontend tiene `max="40"` en horas (solo HTML) y nada en cupos. Un proyecto viejo por encima de esos topes ya no se puede editar sin bajarlos (el seed no tiene ninguno).
+- **`type: ''`** antes creaba un fugaz y ahora da 400 (igual que en el PUT). El frontend siempre manda `fugaz` o `sostenido`.
+- **`parseInt` laxo en cupos y horas (no da 500, no lo toqué):** `3.7` → 3, `"5 personas"` → 5, `[5]` → 5, horas `2.5` → 2, y `1e21` → **1** (`parseInt('1e+21')`).
+- **Montos:** `Number([])` = 0 y `Number(true)` = 1 se aceptan, también en el PUT (ya era así).
+- **Latitud/longitud (no da 500, no lo toqué):** `"abc"`, `{}` o `"1e400"` se guardan como `null` sin aviso; `latitude: 500` se guarda.
+- **PUT, sin tocar:** `modality` sigue sin validarse (un objeto da 500 en SQLite), y `latitude` igual que en el alta.
+- Ni `title` ni `image` tienen largo máximo, ni se valida que `image` sea una URL.
+- No lo vi en el navegador. `CreateVoluntariado` siempre manda valores válidos, así que la interfaz no debería notar el cambio.

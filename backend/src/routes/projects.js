@@ -100,8 +100,32 @@ function fmt(p) {
 }
 
 // ── Validación ────────────────────────────────────────────────────────────
+const PROJECT_TYPES = ['fugaz', 'sostenido'];
+const TYPE_ERROR = 'Tipo inválido: tiene que ser fugaz o sostenido';
+const MODALITIES = ['presencial', 'remoto', 'hibrido'];
+// Topes (REVISION A3): por encima, Postgres desbordaba el INTEGER (500). Una semana tiene 168 horas.
+const MAX_CUPOS = 100000;
+const MAX_HORAS_SEMANALES = 168;
+
+// Campos de texto del body (alta y edición): si vienen y no son null, tienen que ser string. Antes un número
+// o un objeto reventaba en `.trim()`/`.toLowerCase()` (500) o se guardaba tal cual (REVISION A3).
+const PROJECT_TEXT_FIELDS = [
+  ['title', 'El título'], ['description', 'La descripción'], ['location', 'La ubicación'],
+  ['full_description', 'La descripción completa'], ['image', 'La imagen'], ['duration', 'La duración'],
+];
+const projectTextError = (b) => firstError(...PROJECT_TEXT_FIELDS.map(([k, label]) => checkText(b[k], { label, max: Infinity })));
+
+// Un monto del body: null o '' = 0; si no, número finito >= 0 (antes un negativo daba 500 por el CHECK de la
+// base y "abc" se guardaba como 0). Lo usan el alta y la edición.
+function parseMoney(value, label) {
+  if (value === null || value === '') return { value: 0 };
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? { value: n } : { error: `${label} tiene que ser un número mayor o igual a 0` };
+}
+
 function validateProject(body) {
   const { title, description, location, tipo, duracion, horas_semanales, volunteers_needed } = body;
+  if (!PROJECT_TYPES.includes(tipo))                    return TYPE_ERROR;
   if (!title?.trim() || title.trim().length < 3)        return 'El título debe tener al menos 3 caracteres';
   if (!description?.trim() || description.trim().length < 10) return 'La descripción debe tener al menos 10 caracteres';
   if (!location?.trim())                                return 'La ubicación es obligatoria (podés poner "Remoto")';
@@ -109,9 +133,11 @@ function validateProject(body) {
   if (tipo === 'sostenido') {
     const h = parseInt(horas_semanales);
     if (!horas_semanales || isNaN(h) || h < 1)         return 'Las horas semanales deben ser un número positivo';
+    if (h > MAX_HORAS_SEMANALES)                        return `Las horas semanales pueden ser hasta ${MAX_HORAS_SEMANALES}`;
   }
   const v = parseInt(volunteers_needed);
   if (!volunteers_needed || isNaN(v) || v < 1)         return 'Los cupos deben ser un número positivo';
+  if (v > MAX_CUPOS)                                    return `Los cupos pueden ser hasta ${MAX_CUPOS}`;
   return null;
 }
 
@@ -765,14 +791,24 @@ router.post('/', requireAuth, requireRole('ngo'), async (req, res) => {
       latitude, longitude, latitud, longitud, modality, modalidad
     } = req.body;
 
-    const mod = modality || modalidad || (location && (location.toLowerCase().includes('remoto') || location.toLowerCase().includes('virtual')) ? 'remoto' : 'presencial');
-
-    const err = validateProject({
+    // Sin type (o null) es un fugaz, y se valida como tal (antes se validaba sin tipo y se creaba un fugaz sin
+    // duración). Los tipos de los textos, antes que nada: `.trim()`/`.toLowerCase()` de un no-texto daba 500 (A3).
+    const tipo = type ?? 'fugaz';
+    const err = projectTextError(req.body) || validateProject({
       title, description, location,
-      tipo: type, duracion: duration,
+      tipo, duracion: duration,
       horas_semanales: hours_per_week, volunteers_needed
     });
     if (err) return res.status(400).json({ error: err });
+    for (const m of [modality, modalidad])
+      if (m != null && m !== '' && !MODALITIES.includes(m))
+        return res.status(400).json({ error: 'Modalidad inválida: tiene que ser presencial, remoto o hibrido' });
+    const meta = funding_goal === undefined ? { value: 0 } : parseMoney(funding_goal, 'La meta de financiamiento');
+    if (meta.error) return res.status(400).json({ error: meta.error });
+    const costo = cost_per_person === undefined ? { value: 0 } : parseMoney(cost_per_person, 'El costo por persona');
+    if (costo.error) return res.status(400).json({ error: costo.error });
+
+    const mod = modality || modalidad || (location.toLowerCase().includes('remoto') || location.toLowerCase().includes('virtual') ? 'remoto' : 'presencial');
 
     const roles = cleanTextList(roles_needed, { label: 'Roles', min: 2, max: 40, maxItems: 20 });
     if (roles.error) return res.status(400).json({ error: roles.error });
@@ -803,10 +839,10 @@ router.post('/', requireAuth, requireRole('ngo'), async (req, res) => {
           meta_financiera, recaudado, costo, horas_semanales, latitud, longitud, modalidad)
          VALUES ($1,$2,$3,$4,$5,$6,$7,'active',$8,$9,$10,0,$11,0,$12,$13,$14,$15,$16)`,
         [projectId, ngo.id, title.trim(), description.trim(), full_description?.trim() || null,
-         image || null, type || 'fugaz', location.trim(), duration?.trim() || null,
-         parseInt(volunteers_needed) || 0, parseFloat(funding_goal) || 0,
-         parseFloat(cost_per_person) || 0,
-         type === 'sostenido' ? parseInt(hours_per_week) : null,
+         image || null, tipo, location.trim(), duration?.trim() || null,
+         parseInt(volunteers_needed) || 0, meta.value,
+         costo.value,
+         tipo === 'sostenido' ? parseInt(hours_per_week) : null,
          lat, lng, mod]
       );
 
@@ -854,12 +890,9 @@ router.put('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
     const b = req.body || {};
     const has = (k) => b[k] !== undefined;
 
-    for (const [k, label] of [['title', 'El título'], ['description', 'La descripción'], ['location', 'La ubicación']])
-      if (has(k) && b[k] !== null && typeof b[k] !== 'string') return res.status(400).json({ error: `${label} tiene que ser un texto` });
-    for (const [k, label] of [['full_description', 'La descripción completa'], ['image', 'La imagen'], ['duration', 'La duración']])
-      if (has(k) && b[k] !== null && typeof b[k] !== 'string') return res.status(400).json({ error: `${label} tiene que ser un texto` });
-    if (has('type') && !['fugaz', 'sostenido'].includes(b.type))
-      return res.status(400).json({ error: 'Tipo inválido: tiene que ser fugaz o sostenido' });
+    const textErr = projectTextError(b);
+    if (textErr) return res.status(400).json({ error: textErr });
+    // Un `type` fuera de la lista (o null) lo rechaza validateProject, más abajo, con el mismo mensaje que el alta.
     // Antes un status fuera de la lista reventaba en el CHECK de la base (500). REVISION B11.
     if (b.status != null && !['active', 'completed', 'cancelled'].includes(b.status))
       return res.status(400).json({ error: 'Estado inválido: tiene que ser active, completed o cancelled' });
@@ -881,12 +914,7 @@ router.put('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
     const newCupos = Number.parseInt(m.cupos, 10);
 
     // Montos: si vienen, número finito >= 0 (null = 0); si no, se conservan.
-    const money = (k, current, label) => {
-      if (!has(k)) return { value: current };
-      if (b[k] === null || b[k] === '') return { value: 0 };
-      const n = Number(b[k]);
-      return Number.isFinite(n) && n >= 0 ? { value: n } : { error: `${label} tiene que ser un número mayor o igual a 0` };
-    };
+    const money = (k, current, label) => (has(k) ? parseMoney(b[k], label) : { value: current });
     const meta = money('funding_goal', project.meta_financiera, 'La meta de financiamiento');
     if (meta.error) return res.status(400).json({ error: meta.error });
     const costo = money('cost_per_person', project.costo, 'El costo por persona');

@@ -96,6 +96,120 @@ describe('POST /api/projects: validación de roles/requisitos y alta atómica', 
     test('category que no es string', () => rejected({ category: ['Salud'] }, 'categoría array'));
   });
 
+  // REVISION A3: estos pedidos daban 500 (el CHECK de tipo/montos, `.trim()` de un no-texto, el INTEGER de
+  // Postgres desbordado) o guardaban basura (modalidad "otra", meta "abc" → 0). Ahora 400 con un mensaje que
+  // nombra el campo, sin crear nada. Se cuentan TODOS los proyectos (un título no-texto no sirve para buscar).
+  describe('REVISION A3: tipos y números raros → 400 sin crear nada', () => {
+    const totalProjects = () => count('SELECT COUNT(*) AS n FROM projects');
+    const rejectedWith = async (over, re, why) => {
+      const before = await totalProjects();
+      const r = await create(over);
+      assert.equal(r.status, 400, `${why}: status (${JSON.stringify(r.body)})`);
+      assert.match(r.body.error, re, `${why}: mensaje`);
+      assert.equal(await totalProjects(), before, `${why}: no se creó ningún proyecto`);
+    };
+
+    test('type fuera de fugaz/sostenido (antes 500 por el CHECK de la base)', async () => {
+      for (const type of ['otro', 5, '', 'FUGAZ', ['fugaz']])
+        await rejectedWith({ type }, /^Tipo inválido: tiene que ser fugaz o sostenido$/, `type ${JSON.stringify(type)}`);
+    });
+
+    test('textos que no son string (antes 500 en .trim() o .toLowerCase())', async () => {
+      const cases = [
+        [{ title: 12345 }, /^El título tiene que ser un texto$/],
+        [{ title: { a: 1 } }, /^El título tiene que ser un texto$/],
+        [{ title: ['Un título'] }, /^El título tiene que ser un texto$/],
+        [{ description: 1234567890123 }, /^La descripción tiene que ser un texto$/],
+        [{ location: 5 }, /^La ubicación tiene que ser un texto$/],
+        [{ location: {} }, /^La ubicación tiene que ser un texto$/],
+        [{ duration: 5 }, /^La duración tiene que ser un texto$/],
+        [{ type: 'sostenido', hours_per_week: 4, duration: 5 }, /^La duración tiene que ser un texto$/],
+        [{ full_description: 5 }, /^La descripción completa tiene que ser un texto$/],
+        [{ full_description: { a: 1 } }, /^La descripción completa tiene que ser un texto$/],
+        [{ image: 5 }, /^La imagen tiene que ser un texto$/],
+        [{ image: { a: 1 } }, /^La imagen tiene que ser un texto$/],
+      ];
+      for (const [over, re] of cases) await rejectedWith(over, re, JSON.stringify(over));
+    });
+
+    test('modalidad fuera de presencial/remoto/hibrido (antes 500 con un objeto o se guardaba "otra")', async () => {
+      for (const over of [{ modality: { a: 1 } }, { modality: 5 }, { modality: 'otra' }, { modality: ['remoto'] }, { modalidad: 'virtual' }])
+        await rejectedWith(over, /^Modalidad inválida: tiene que ser presencial, remoto o hibrido$/, JSON.stringify(over));
+    });
+
+    test('cupos y horas fuera de rango (antes 500 en Postgres: INTEGER desbordado)', async () => {
+      await rejectedWith({ volunteers_needed: 1e10 }, /^Los cupos pueden ser hasta 100000$/, 'cupos 1e10');
+      await rejectedWith({ volunteers_needed: 100001 }, /^Los cupos pueden ser hasta 100000$/, 'cupos 100001');
+      await rejectedWith({ type: 'sostenido', hours_per_week: 1e10 }, /^Las horas semanales pueden ser hasta 168$/, 'horas 1e10');
+      await rejectedWith({ type: 'sostenido', hours_per_week: 169 }, /^Las horas semanales pueden ser hasta 168$/, 'horas 169');
+    });
+
+    test('montos negativos o que no son números (antes 500 por el CHECK, o "abc" se guardaba como 0)', async () => {
+      for (const funding_goal of [-5, 'abc', 'Infinity', {}])
+        await rejectedWith({ funding_goal }, /^La meta de financiamiento tiene que ser un número mayor o igual a 0$/, `meta ${JSON.stringify(funding_goal)}`);
+      for (const cost_per_person of [-1, '1e400'])
+        await rejectedWith({ cost_per_person }, /^El costo por persona tiene que ser un número mayor o igual a 0$/, `costo ${JSON.stringify(cost_per_person)}`);
+    });
+
+    test('sin type ni duration: es un fugaz (el default) y le falta la duración (antes se creaba sin duración)', async () => {
+      await rejectedWith({ type: undefined, duration: undefined }, /^La duración es obligatoria para proyectos fugaces$/, 'sin type ni duration');
+    });
+  });
+
+  describe('REVISION A3: lo válido se sigue aceptando', () => {
+    test('sin type (o null): se crea fugaz', async () => {
+      for (const type of [undefined, null]) {
+        const r = await create({ type });
+        assert.equal(r.status, 201, `type ${type}`);
+        assert.equal(r.body.project.type, 'fugaz');
+        assert.equal(r.body.project.duration, '1 día');
+      }
+    });
+
+    test('sostenido en los extremos: 168 horas y 100000 cupos', async () => {
+      const r = await create({ type: 'sostenido', hours_per_week: 168, volunteers_needed: 100000, duration: undefined });
+      assert.equal(r.status, 201);
+      assert.equal(r.body.project.type, 'sostenido');
+      assert.equal(r.body.project.hours_per_week, 168);
+      assert.equal(r.body.project.volunteers_needed, 100000);
+    });
+
+    test('las tres modalidades; vacía o ausente se deduce de la ubicación', async () => {
+      for (const modality of ['presencial', 'remoto', 'hibrido']) {
+        const r = await create({ modality });
+        assert.equal(r.status, 201, modality);
+        assert.equal(r.body.project.modality, modality);
+      }
+      const viaModalidad = await create({ modalidad: 'hibrido' });
+      assert.equal(viaModalidad.status, 201);
+      assert.equal(viaModalidad.body.project.modality, 'hibrido');
+      const vacia = await create({ modality: '', location: 'Remoto' });
+      assert.equal(vacia.status, 201);
+      assert.equal(vacia.body.project.modality, 'remoto');
+      const ausente = await create({ location: 'Córdoba' });
+      assert.equal(ausente.body.project.modality, 'presencial');
+    });
+
+    test('montos: número, texto numérico, null y vacío (null y vacío = 0); textos opcionales en null', async () => {
+      const r = await create({ funding_goal: '1500.5', cost_per_person: 0, full_description: null, image: null });
+      assert.equal(r.status, 201);
+      assert.equal(r.body.project.funding_goal, 1500.5);
+      assert.equal(r.body.project.cost_per_person, 0);
+      assert.equal(r.body.project.full_description, null);
+      assert.equal(r.body.project.image, null);
+      const r2 = await create({ funding_goal: null, cost_per_person: '250', full_description: 'Texto largo', image: 'https://x.test/a.png' });
+      assert.equal(r2.status, 201);
+      assert.equal(r2.body.project.funding_goal, 0);
+      assert.equal(r2.body.project.cost_per_person, 250);
+      const r3 = await create({ funding_goal: '', cost_per_person: null });
+      assert.equal(r3.status, 201);
+      assert.equal(r3.body.project.funding_goal, 0);
+      assert.equal(r3.body.project.cost_per_person, 0);
+      assert.equal(r2.body.project.full_description, 'Texto largo');
+      assert.equal(r2.body.project.image, 'https://x.test/a.png');
+    });
+  });
+
   describe('alta válida', () => {
     test('los extremos válidos se aceptan (rol de 2 y de 40, requisito de 3 y de 100, 20 de cada uno)', async () => {
       const r = await create({
