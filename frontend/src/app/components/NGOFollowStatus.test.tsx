@@ -180,3 +180,49 @@ describe('perfil público de una ONG: el banner no tapa el nombre', () => {
     expect(buttons.className).not.toMatch(/(^|\s)pt-11(\s|$)/);
   });
 });
+
+// §132: si la persona iniciaba sesión desde el modal sin salir del perfil, "¿ya la sigo?" no se volvía a
+// consultar y el botón quedaba en "Seguir" aunque ya la siguiera. Ahora el perfil se recarga al cambiar la sesión.
+describe('perfil público de una ONG: la sesión cambia estando en el perfil', () => {
+  const tree = () => (
+    <MemoryRouter initialEntries={['/ngo/n1']}>
+      <Routes><Route path="/ngo/:id" element={<NGOPublicProfile />} /></Routes>
+    </MemoryRouter>);
+
+  test('inicia sesión una voluntaria que ya la seguía: pasa a "Siguiendo"', async () => {
+    auth.user = null;
+    const { rerender } = render(tree());
+    expect(await screen.findByRole('button', { name: 'Seguir' })).toBeInTheDocument();
+    expect(f.ngoStatus).not.toHaveBeenCalled();
+
+    f.ngoStatus.mockResolvedValue({ following: true });
+    auth.user = volunteer;
+    rerender(tree());
+    expect(await screen.findByRole('button', { name: 'Siguiendo' })).toBeInTheDocument();
+    expect(f.ngoStatus).toHaveBeenCalledWith('n1');
+  });
+
+  test('cierra sesión: vuelve a "Seguir" y no se consulta', async () => {
+    f.ngoStatus.mockResolvedValue({ following: true });
+    const { rerender } = render(tree());
+    expect(await screen.findByRole('button', { name: 'Siguiendo' })).toBeInTheDocument();
+    f.ngoStatus.mockClear();
+
+    auth.user = null;
+    rerender(tree());
+    expect(await screen.findByRole('button', { name: 'Seguir' })).toBeInTheDocument();
+    expect(f.ngoStatus).not.toHaveBeenCalled();
+  });
+
+  test('si la sesión cambia mientras carga el perfil, el perfil igual termina de cargar', async () => {
+    auth.user = null;
+    let resolveNgo!: (v: unknown) => void;
+    vi.mocked(api.ngos.get).mockImplementationOnce(() => new Promise((r) => { resolveNgo = r; }) as never);
+    const { rerender } = render(tree());
+    auth.user = volunteer;
+    rerender(tree());
+    resolveNgo({ ngo: verde, projects: [] });
+    expect(await screen.findByRole('heading', { level: 1, name: 'Fundación Verde' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Seguir' })).toBeInTheDocument();
+  });
+});

@@ -36,7 +36,10 @@ export function NGOPublicProfile() {
 
   // Solo vale la respuesta del último pedido (al cambiar de :id o reintentar): REVISION F15, §89.
   const latest = useLatestRequest();
-  useEffect(() => { load(); }, [id]);
+  // También al cambiar la sesión (login desde el modal o logout sin salir del perfil): si no, "¿ya la sigo?"
+  // quedaba con la respuesta de antes y el botón decía "Seguir" aunque ya la siguieras (§132). Se recarga el
+  // perfil entero y no solo el estado: comparten `latest`, y recargar solo el estado descartaría una carga en curso.
+  useEffect(() => { load(); }, [id, user?.id]);
 
   /** "¿Ya la sigo?" sin rechazar nunca: un error vuelve como mensaje, así no tumba el resto del perfil. */
   const fetchFollowStatus = (ngoId: string): Promise<{ following: boolean; error: string }> =>

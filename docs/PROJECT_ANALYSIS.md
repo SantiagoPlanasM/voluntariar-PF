@@ -3491,3 +3491,32 @@ Contra los dos perfiles, no contra el componente: así sirven como red del refac
 
 ### ⚠️ NO verificado
 - No lo vi en el navegador (es el mismo recuadro con otro texto).
+
+## 132. Perfil de una ONG: el estado de "seguir" se actualiza al cambiar la sesión (pendiente de §125)
+
+**Contexto:** si la persona tocaba "Seguir" sin sesión, iniciaba sesión desde el modal y volvía al perfil, "¿ya la sigo?" no se volvía a consultar. La carga dependía solo del `:id` de la URL. El botón quedaba en "Seguir" aunque ya la siguiera. Al cerrar sesión pasaba lo inverso.
+
+**Qué se hizo:** el efecto de carga depende de `[id, user?.id]`: al cambiar la sesión se recarga el perfil. Se recarga el perfil entero y no solo el estado, porque comparten `useLatestRequest`. Recargar solo el estado mientras carga el perfil descartaría esa carga, y la pantalla quedaría cargando para siempre. Cuesta un pedido más y de paso actualiza el contador de seguidores.
+
+**Otro pendiente, analizado y descartado:** "dos avisos de error a la vez" en Notificaciones, Patrocinios (ONG) y el perfil de empresa **no se puede dar**:
+- **Sin lista no hay acciones:** en Notificaciones el botón depende de `unread`, que con error queda en 0; en las otras dos pantallas las acciones van por fila.
+- **La recarga solo corre en tres casos:** al entrar, desde "Reintentar" (que exige un error de carga) o después de una acción que salió bien.
+- **Cada acción limpia su propio aviso al empezar.**
+
+No se tocó código; el razonamiento quedó en `REVISION.md`.
+
+### Tests (nuevos: 3, en `NGOFollowStatus.test.tsx`)
+- Sin sesión ("Seguir", sin consultar), inicia sesión una voluntaria que ya la seguía → "Siguiendo" y se consultó.
+- Cierra sesión → "Seguir" y no se consulta.
+- La sesión cambia mientras carga el perfil → el perfil igual termina de cargar (control del riesgo descripto arriba).
+- **Rojo de comportamiento** en los dos primeros.
+
+### Verificación
+- **Frontend 558/558**, también con `TZ=America/Argentina/Cordoba`. **Typecheck: 0 errores.**
+- **Mutación:** volver a `[id]` → **muere**, con corrida de control antes y después.
+
+### Errores propios
+- Ninguno.
+
+### ⚠️ NO verificado
+- No lo vi en el navegador ni en producción.

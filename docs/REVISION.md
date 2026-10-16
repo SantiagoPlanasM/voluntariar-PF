@@ -349,6 +349,9 @@ Cada uno con test primero (rojo → verde), SQLite + Postgres + TZ de Córdoba s
 - ✅ **§124** — **`InlineError` sin `role="alert"` propio:** cada pantalla nueva lo envuelve en un `<div role="alert">`; ponerlo en el componente lo resolvería para todas.
 - ✅ **§125** `NGOPublicProfile` traga el error de `ngoStatus` (muestra "Seguir" aunque ya la sigas); seguir una ONG sugerida en Inicio no bloquea el doble clic (✅ **§126**).
 - `/api/ngos/me` es pesado para sacar solo el id en `NGOMoments` (§113).
+- ✅ **§132** — Iniciar sesión desde el perfil de una ONG no volvía a consultar si ya la seguís: el perfil se recarga al cambiar la sesión.
+- **Descartado (§132): "dos avisos de error a la vez"** (`NotificationsScreen`, `NGOPatrocinios`, `CompanyOwnProfile`). Analizado y no se puede dar: sin lista no hay botones de acción (en Notificaciones, "Marcar todas leídas" depende de `unread`, que con error queda en 0; en las otras dos las acciones van por fila), y la recarga solo corre al entrar, desde "Reintentar" (que exige un error de carga) o después de una acción que salió bien. Además, cada acción limpia su propio aviso al empezar. No se tocó código.
+- **Pendiente de decisión:** el avatar en las reseñas. §122 dejó de mandar `user_avatar` en el feed para igualarlo con el detalle; ninguna lista de reseñas muestra avatar hoy (muestran la inicial).
 
 ### Orden propuesto (si los aprobás; un commit cada uno) — hecho en §107–§119
 1. **S1**, por pantalla: `ReviewsModal` y `FollowListModal` primero (las dos son modales chicos).
