@@ -359,3 +359,63 @@ Cada uno con test primero (rojo → verde), SQLite + Postgres + TZ de Córdoba s
 3. **S2**: necesito que elijas (a) o (b).
 4. **S6**, **S10**, **S9**: chicos.
 5. **S7, S8, S5**: opcionales.
+
+---
+
+## Tercera pasada: `API_CONTEXT.md` contra el código (2026-10-15)
+
+**Método:** un subagente leyó los 81 endpoints de la tabla y comparó auth, body, query, respuesta, errores y efectos contra el código, sin modificar nada. Después, **verifiqué yo** los posibles bugs: los visibles leyendo el código, y los "da 500" con una sonda descartable contra el servidor real, en **SQLite y en Postgres** (3 corridas en Postgres, con el mismo resultado). **45 endpoints coinciden sin observaciones.** Los nombres de campos que manda `api.ts` coinciden con lo que lee el backend en todos los casos (regla 10).
+
+### Bugs confirmados (sin arreglar; necesitan tu OK)
+| Id | Qué | Cómo se confirmó |
+|---|---|---|
+| A1 | **Perfil público de ONG:** los proyectos no traen `duration` ni `hours_per_week` (SELECT propio en `ngos.js:135`, no `fmt`). Un sostenido muestra "h/semana" sin el número. | sonda: `hours_per_week` → `undefined` |
+| A2 | **Feed:** los comentarios recientes no traen `user_id` (`follows.js:290`, `:328`). El link del autor en `FeedPostCard.tsx:414` va a `/volunteer/undefined`. | lectura |
+| A3 | **`POST /api/projects`:** `type` fuera de fugaz/sostenido, o `title`/`description` que no son texto → **500** (el CHECK de la base; el PUT sí valida). | sonda: 500 en los dos motores |
+| A4 | **`POST /api/auth/register`:** `apellido` que no es texto → **500**. | sonda: 500 en los dos motores |
+| A5 | **`POST /api/faqs/ask`:** `question` que no es texto → **500**. | sonda: 500 en los dos motores |
+| A6 | **Dos propuestas de patrocinio simultáneas** (misma empresa y proyecto) → la segunda da **500 en Postgres** (409 en SQLite). Falta `isUniqueViolation` (regla 21). | sonda: 201/500 en Postgres, 3 de 3 |
+| A7 | El buscador de proyectos no busca por categoría en **SQLite** (`projects.js:288`), sí en Postgres. Solo afecta a desarrollo. | lectura |
+
+**Descartados con la sonda:** `limit`/`offset` negativos en el feed (200 en los dos motores) y la reseña sin comentario (200).
+
+### Documentación desactualizada (el código está bien)
+- **Formas de respuesta que no coinciden:**
+  - `GET /api/auth/me` devuelve `{ user, profile }`.
+  - `GET /api/projects` y `GET /api/ngos` devuelven solo la lista (sin `total`/`page`/`limit`), y `GET /api/ngos` no lee parámetros.
+  - `DELETE /api/projects/:id` y los `PATCH` de notificaciones devuelven `{ message }`, no `{ success: true }`.
+  - `PATCH …/horas` tiene una línea de respuesta de más.
+- **Cuerpos que no coinciden:**
+  - `PUT /api/ngos/me` lee los campos en inglés que manda `api.ts`, no los en español que lista la doc.
+  - `PUT /api/auth/me` solo lee `name`, `bio`, `location` y `avatar`.
+  - `POST /api/auth/register` solo agrega `apellido`, y su límite de intentos cuenta también los 400.
+- **Códigos de error:**
+  - Inscripciones: 409/404, no 400.
+  - `GET /api/enrollments/project/:id`: 403, no 404.
+- **`PUT /api/projects/:id`:** la doc se contradice (dice "parcial" y "no parcial"); el código es parcial (§95).
+- **Recomendaciones:**
+  - devuelven también `based_on_history`;
+  - el "arranque en frío" no saca señales: multiplica las de cupos, novedad y rating.
+- **Reseñas:**
+  - la doc no tiene `user_avatar` ni el orden (§122 y §133);
+  - el punto "solo se puede crear una vez" contradice el upsert.
+
+### Omisiones
+- Errores 403/404/409/400 que existen y no se mencionan:
+  - KPIs, dashboard y empleados de una ONG ajena;
+  - alias repetido;
+  - comentario corto;
+  - mensaje sin destinatario;
+  - seguirse a sí mismo;
+  - borrar una publicación inexistente.
+- Campos que existen y la doc no menciona:
+  - `latitude`, `longitude` y `modality` en el alta de proyectos;
+  - `?status=` en las inscripciones de un proyecto;
+  - `limit`, `offset` y `total` en el feed;
+  - `unread` en notificaciones;
+  - `habilidades` y `stats` en el perfil de voluntario.
+- Detalles menores:
+  - `my_enrollment` del detalle con nombres de columna crudos (`mensaje`, `horas_realizadas`; el frontend solo lee `status`);
+  - `fmtNgo` no devuelve `alias`;
+  - "Propuesta aceptado" (concordancia);
+  - `mensaje` del patrocinio sin validar.
