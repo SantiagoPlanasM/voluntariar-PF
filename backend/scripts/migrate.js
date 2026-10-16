@@ -432,6 +432,13 @@ async function migrate() {
   // Agregada 2026-09: contador de seguidores en voluntarios (mismo patrón que ngos.followers)
   await addColumnIfNotExists('voluntarios', 'followers', 'INTEGER DEFAULT 0');
 
+  // Agregadas 2026-10-16 para las donaciones con Mercado Pago (PROJECT_ANALYSIS.md §170, BACKEND_ROADMAP §1.4).
+  // OJO: `donaciones.estado` tiene DEFAULT 'completada': todo INSERT de una donación pone 'pendiente' explícito.
+  await addColumnIfNotExists('donaciones', 'external_id', 'TEXT');            // id de la preferencia de Checkout Pro
+  await addColumnIfNotExists('donaciones', 'external_payment_id', 'TEXT');    // id del pago que la acreditó
+  await addColumnIfNotExists('donaciones', 'external_status', 'TEXT');        // último estado informado por Mercado Pago
+  await addColumnIfNotExists('donaciones', 'moneda', "TEXT DEFAULT 'ARS'");
+
   // ── Índices ───────────────────────────────────────────────────────────────
   console.log('\n🔍 Creando índices...');
   const indexes = [
@@ -463,6 +470,7 @@ async function migrate() {
     // Donaciones
     `CREATE INDEX IF NOT EXISTS idx_donaciones_user    ON donaciones(user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_donaciones_project ON donaciones(project_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_donaciones_external ON donaciones(external_id)`,
     // Reuniones
     `CREATE INDEX IF NOT EXISTS idx_reuniones_project  ON reuniones(project_id)`,
     `CREATE INDEX IF NOT EXISTS idx_reuniones_user     ON reuniones(user_id)`,

@@ -148,9 +148,9 @@ id · project_id (FK→projects, CASCADE) · nombre (NOT NULL) · descripcion ·
 | — | — | `UNIQUE(user_id, project_id)` → un voluntario no puede inscribirse dos veces al mismo proyecto |
 
 ### `donaciones`
-id · user_id (NOT NULL FK→users CASCADE) · project_id (FK→projects, ON DELETE **SET NULL**) · ngo_id (FK→ngos, ON DELETE **SET NULL**) · monto (NOT NULL, CHECK > 0) · fecha (TIMESTAMP) · estado (CHECK IN `pendiente`,`completada`,`fallida`,`reembolsada`, default `completada`) · created_at.
+id · user_id (NOT NULL FK→users CASCADE) · project_id (FK→projects, ON DELETE **SET NULL**) · ngo_id (FK→ngos, ON DELETE **SET NULL**) · monto (NOT NULL, CHECK > 0) · fecha (TIMESTAMP) · estado (CHECK IN `pendiente`,`completada`,`fallida`,`reembolsada`, default `completada`) · created_at · **external_id** (id de la preferencia de Mercado Pago) · **external_payment_id** (el pago que la acreditó) · **external_status** (último estado informado por Mercado Pago) · **moneda** (default `'ARS'`). Las cuatro últimas son de §170 y se agregan con `addColumnIfNotExists`; el índice es `idx_donaciones_external` sobre `external_id`.
 
-> Tabla presente en el esquema pero **sin ningún endpoint que la use** en `backend/src/routes/` — funcionalidad de donaciones no implementada a nivel API/UI (ver `PROJECT_ANALYSIS.md`).
+> Desde `PROJECT_ANALYSIS.md §170` la usa `routes/donaciones.js` (Mercado Pago). **Ojo con el `DEFAULT 'completada'`**: todo `INSERT` pone `'pendiente'` explícito, y solo `applyPayment` la pasa a `completada` (CAS + `recaudado` en una transacción). `monto` es `REAL` (`float4` en Postgres): por eso las donaciones son en pesos enteros.
 
 ### `reuniones`
 id · empleado_id (FK→empleados, ON DELETE SET NULL) · user_id (NOT NULL FK→users CASCADE) · project_id (NOT NULL FK→projects CASCADE) · fecha (NOT NULL) · horario (NOT NULL) · link · estado (CHECK IN `programada`,`realizada`,`cancelada`, default `programada`) · created_at.
@@ -321,6 +321,7 @@ Borrar un `user` en cascada elimina: su perfil de ONG/empresa/voluntario, todos 
 | `idx_kpis_project` | kpis(project_id) | KPIs de un proyecto |
 | `idx_donaciones_user` | donaciones(user_id) | donaciones de un usuario |
 | `idx_donaciones_project` | donaciones(project_id) | donaciones de un proyecto |
+| `idx_donaciones_external` | donaciones(external_id) | buscar por preferencia de Mercado Pago (§170) |
 | `idx_reuniones_project` | reuniones(project_id) | reuniones de un proyecto |
 | `idx_reuniones_user` | reuniones(user_id) | reuniones de un usuario |
 | `idx_empleados_ngo` | empleados(ngo_id) | empleados de una ONG |
@@ -383,7 +384,7 @@ sequenceDiagram
 ## 10. Problemas detectados
 
 1. **Sin migraciones incrementales**: `migrate.js` solo sabe crear tablas nuevas (`CREATE TABLE IF NOT EXISTS`). Agregar una columna a una tabla existente en una base ya desplegada requiere escribir un `ALTER TABLE` manual fuera de este script, y no hay ningún mecanismo (tabla de versión, `schema_migrations`) que registre qué cambios ya se aplicaron.
-2. **`donaciones` y `reuniones` son tablas "huérfanas"**: existen en el esquema con FKs, CHECKs e índices completos, pero **ningún endpoint del backend las usa**. Indican funcionalidad planificada pero no construida — cualquier IA que trabaje sobre este proyecto no debe asumir que existe un flujo de donaciones o de reuniones solo porque la tabla está.
+2. **`reuniones` es una tabla "huérfana"** (`donaciones` ya tiene API desde §170): existe en el esquema con FKs, CHECKs e índices completos, pero **ningún endpoint del backend la usa**. Indican funcionalidad planificada pero no construida — cualquier IA que trabaje sobre este proyecto no debe asumir que existe un flujo de donaciones o de reuniones solo porque la tabla está.
 3. **`cupos_ocupados` no tiene un CHECK que lo limite a `<= cupos`** — la integridad depende enteramente de que el código de aplicación (`enrollments.js`) incremente/decremente correctamente; una escritura directa a la base (o un bug futuro) podría dejar cupos negativos "lógicos" (cupos ocupados mayor a cupos totales) sin que la base de datos lo impida.
 4. **Sin soft-delete** en ninguna tabla: todo borrado es físico y en cascada. Borrar una ONG borra permanentemente todo su historial de proyectos, inscripciones, comentarios y calificaciones — sin papelera de reciclaje ni auditoría.
 5. **Falta de índices en columnas de búsqueda de texto libre** (ver §6).

@@ -276,7 +276,7 @@ nunca llaman a Cloudinary ni a Mercado Pago de verdad (dobles).
   3. con `approved`, **en `db.transaction()` con `tx.*`**: `UPDATE donaciones SET estado='completada',
      external_payment_id=$2 WHERE id=$1 AND estado='pendiente'` y, si `changes = 1`, `UPDATE projects SET
      recaudado = recaudado + $monto`;
-  4. con `rejected`/`cancelled` → `fallida` (mismo CAS); con `pending`/`in_process` no se cambia nada;
+  4. con cualquier estado que no sea `approved` **no se cambia el estado** (§170: MP deja reintentar con la misma preferencia); solo se anota `external_status`;
   5. la notificación a la ONG va **después** del COMMIT.
 - **Endpoints:**
   - `POST /api/donaciones` `{ project_id, amount }` (rol según P4; limitador de `lib/rateLimit.js`) → valida el monto
@@ -320,7 +320,7 @@ nunca llaman a Cloudinary ni a Mercado Pago de verdad (dobles).
 | 4 | ✅ CV: endpoints + autorización (C1) + borrado del anterior (C3) + `ownership`; `/auth/me` con `has_cv` (§165) | yo | 1 |
 | 5 | ✅ CV: frontend (perfil del voluntario + "Ver CV" en la ONG, §166). ✅ probado en prod por el usuario (§167) | yo + vos | 1 |
 | 6 | ✅ (§169) MP: verificar la API contra la doc oficial (y el código del SDK oficial); `lib/payments.js` + tests unitarios (firma); reescribir el roadmap §1.4 para Mercado Pago | yo | 1 |
-| 7 | MP: migración + `POST /api/donaciones` + `applyPayment` (transacción, CAS, control de monto) | yo | 1 |
+| 7 | ✅ (§170) MP: migración + `POST /api/donaciones` + `applyPayment` (transacción, CAS, control de monto). Cambios de diseño: pesos enteros de $100 a $500.000 (`float4`) y un rechazo no marca `fallida` (MP deja reintentar) | yo | 1 |
 | 8 | MP: webhook + `GET /donaciones/:id` con conciliación (idempotencia, concurrencia en PG) | yo | 1 |
 | 9 | MP: frontend (botón, modal, `/donaciones/vuelta`) | yo | 1 |
 | 10 | MP en prod: variables (P5), URL del webhook en el panel de la aplicación, deploy, donación con el usuario comprador de prueba y una tarjeta de prueba | **vos** (yo guío y verifico por Chrome si me das la sesión) | docs |

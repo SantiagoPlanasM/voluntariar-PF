@@ -73,6 +73,7 @@
 | GET | `/api/follows/volunteer/:userId/followers` | No | — | `routes/follows.js` |
 | GET | `/api/follows/volunteer/:userId/following` | No | — | `routes/follows.js` |
 | GET | `/api/follows/feed` | Sí | volunteer | `routes/follows.js` |
+| POST | `/api/donaciones` | Sí | volunteer, company | `routes/donaciones.js` |
 | GET | `/api/posts/eligible-projects` | Sí | volunteer, ngo | `routes/posts.js` |
 | POST | `/api/posts` | Sí | volunteer, ngo | `routes/posts.js` |
 | GET | `/api/posts` | Opcional | — | `routes/posts.js` |
@@ -592,9 +593,29 @@ Chat 1 a 1 básico. El historial y el envío tienen doble vía: REST (siempre di
 
 ---
 
+## Donaciones (`routes/donaciones.js`) — Mercado Pago, modo prueba (`PROJECT_ANALYSIS.md §170`)
+
+> En construcción (`PLAN_FALTANTE.md`, Etapas 7–10). Hoy existe solo `POST /api/donaciones`; el aviso (`/webhook`) y la conciliación (`GET /:id`) van en la Etapa 8. Diseño en `BACKEND_ROADMAP_ANALYSIS.md §1.4`.
+
+### `POST /api/donaciones` — Auth, role `volunteer` o `company`
+- **Body:** `{ project_id, amount }`. `amount` es un **número entero de pesos** entre **100** y **500.000**: un string, un decimal, un booleano o un array dan **400**. Se exige entero porque `monto` y `recaudado` son `REAL`, que en Postgres es `float4` (~7 dígitos), y con centavos "lo pagado coincide con lo donado" fallaría por redondeo.
+- **Efecto:** inserta la donación con estado **`pendiente`** (explícito: el `DEFAULT` de la tabla es `'completada'`), `moneda='ARS'`, `ngo_id` del proyecto y el id generado en el código (regla 23). Después crea la preferencia de Checkout Pro (`payments.createPreference`): `external_reference` es el id de la donación, la vuelta es `APP_URL/donaciones/vuelta` y el aviso, `<API pública>/api/donaciones/webhook`. La API pública es `API_PUBLIC_URL` o `RENDER_EXTERNAL_URL`, que Render define solo; en local no hay y no se manda aviso. Guarda el id de la preferencia en `external_id`. **No suma nada a `recaudado`**: eso pasa solo cuando Mercado Pago confirma el pago (`applyPayment`).
+- **Respuesta 201:** `{ donation_id, checkout_url }`. El frontend redirige a `checkout_url`.
+- **Errores:** `401` · `403` (ONG) · `429` con `Retry-After`, pasadas **10 donaciones por hora** por usuario (en memoria) · `503` "Las donaciones no están disponibles por el momento" (sin `MP_ACCESS_TOKEN`) · `400` "Falta el proyecto", "El monto tiene que ser un número entero de pesos", "El monto mínimo es de $100" o "El monto máximo es de $500.000" · `404` "Proyecto no encontrado o no recibe donaciones" (no existe o no está `active`) · `502` "No pudimos iniciar el pago…" si Mercado Pago falla: la donación queda `fallida` con `external_status='preference_error'`.
+
+### `applyPayment(paymentId, { expectDonationId? })` — exportada por `routes/donaciones.js` (no es un endpoint)
+La **única** transición de una donación; la van a usar el aviso y la conciliación.
+1. Consulta el pago a Mercado Pago (`payments.getPayment`). Nunca se usa el cuerpo del aviso ni la URL de vuelta.
+2. Sin `external_reference` → `ignored`. Con `expectDonationId` distinto → `mismatch`. Donación inexistente → `unknown_donation`.
+3. Pago **no** `approved` (`rejected`, `cancelled`, `pending`, `in_process`) → `not_approved`: **no cambia el estado**, porque Mercado Pago deja reintentar con la misma preferencia; solo anota `external_status` si sigue `pendiente`.
+4. `approved` con monto o moneda distintos → `amount_mismatch`: no se acredita y se loguea.
+5. `approved` que coincide: en **una transacción**, un CAS `pendiente` → `completada` (guarda `external_payment_id`) y, si cambió una fila, `recaudado = recaudado + monto` → `credited`. Si ya estaba completada → `already`: un aviso repetido o simultáneo no suma dos veces.
+6. Después del COMMIT avisa a la ONG con una notificación `donation_received`; si eso falla, la acreditación queda.
+- Si Mercado Pago o la base fallan, **lanza**, y el que llama decide (el aviso va a responder 5xx para que Mercado Pago reintente).
+
 ## Endpoints ausentes (funcionalidad de esquema sin API)
 
-Las tablas `donaciones` y `reuniones` **existen en el esquema de base de datos pero no tienen ningún endpoint que las lea o escriba**. Cualquier tarea futura que mencione "donaciones" o "reuniones/videollamadas" requiere **construir la API desde cero**, no modificar una existente. *(`voluntario_habilidades` dejó de estar en esta lista — ya tiene API completa, ver sección "Voluntarios" arriba y `PROJECT_ANALYSIS.md §17`. El perfil de `empresas` tampoco — ver sección "Empresas" arriba. `empresa_voluntariados` tampoco — ver sección "Patrocinio" arriba y `PROJECT_ANALYSIS.md §26`. `ngo_follows`/`project_follows`/`volunteer_follows` tampoco — ya tienen API completa, ver sección "Follows y Feed personalizado" arriba y `PROJECT_ANALYSIS.md §28`.)*
+La tabla `reuniones` **existe en el esquema de base de datos pero no tienen ningún endpoint que las lea o escriba**. *(`donaciones` dejó de estar en esta lista con §170: ver "Donaciones" arriba.)* Cualquier tarea futura que mencione "reuniones/videollamadas" requiere **construir la API desde cero**, no modificar una existente. *(`voluntario_habilidades` dejó de estar en esta lista — ya tiene API completa, ver sección "Voluntarios" arriba y `PROJECT_ANALYSIS.md §17`. El perfil de `empresas` tampoco — ver sección "Empresas" arriba. `empresa_voluntariados` tampoco — ver sección "Patrocinio" arriba y `PROJECT_ANALYSIS.md §26`. `ngo_follows`/`project_follows`/`volunteer_follows` tampoco — ya tienen API completa, ver sección "Follows y Feed personalizado" arriba y `PROJECT_ANALYSIS.md §28`.)*
 
 ## Endpoints duplicados o inconsistentes detectados
 

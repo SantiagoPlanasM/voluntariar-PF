@@ -4665,3 +4665,40 @@ Sigue la regla 24 en orden: sesión → límite de **10 subidas por hora** por u
   Se prueba en la Etapa 10, en Render.
 - **`data.id` en minúsculas:** guías viejas de Mercado Pago decían pasarlo a minúsculas si es alfanumérico, y el SDK 3.6.1 no lo hace. Para pagos, el id es numérico, así que no debería importar.
 - Los `ts` de los reintentos: no hay tolerancia de tiempo (como el SDK). Un aviso repetido no hace daño, porque la transición es idempotente (Etapa 7).
+
+## 170. Donaciones: migración, `POST /api/donaciones` y `applyPayment` (PLAN_FALTANTE.md, Etapa 7)
+
+**Qué se hizo:**
+- **Migración aditiva** (`migrate.js`): `donaciones.external_id`, `external_payment_id`, `external_status` y `moneda` (`DEFAULT 'ARS'`), más el índice `idx_donaciones_external`. En producción corre sola al arrancar (`startCommand` de Render: `db:migrate`).
+- **`routes/donaciones.js`** (nuevo, montado en `/api/donaciones`):
+  - `POST /` (voluntario o empresa; 10 por hora) valida el proyecto `active` y el monto, inserta la donación **`pendiente` explícita** y crea la preferencia (`payments.createPreference`, §169).
+    - La vuelta es `APP_URL/donaciones/vuelta`.
+    - El aviso va a `API_PUBLIC_URL` o `RENDER_EXTERNAL_URL` + `/api/donaciones/webhook`. Render define `RENDER_EXTERNAL_URL` solo; en local no se manda aviso.
+    - Responde `201 { donation_id, checkout_url }`. Si Mercado Pago falla, la donación queda `fallida` y la respuesta es 502.
+  - `applyPayment(paymentId, { expectDonationId })` (exportada; la van a usar el aviso y la conciliación, Etapa 8):
+    - consulta el pago a Mercado Pago;
+    - acredita solo un `approved` cuyo monto y moneda coinciden, con un CAS `pendiente` → `completada` y `recaudado += monto` en **una transacción** (regla 21);
+    - después del COMMIT avisa a la ONG (`donation_received`).
+- La línea **"Pagos:"** en el log de arranque (`describePaymentsConfig`).
+
+**Dos decisiones de diseño mías, que cambian lo del plan (§5.3):**
+1. **Montos en pesos enteros, de $100 a $500.000.** `donaciones.monto` y `projects.recaudado` son `REAL`, que en Postgres es **`float4`** (unos 7 dígitos significativos): `999999.99` se guarda como `1000000` y "lo pagado coincide con lo donado" fallaría. Los enteros son exactos en `float4` hasta 16.777.216.
+2. **Un pago rechazado NO marca la donación como `fallida`.** Mercado Pago permite reintentar el pago con la misma preferencia (por ejemplo, otra tarjeta). Si el primer rechazo la marcara fallida, el CAS `pendiente` → `completada` del segundo intento aprobado fallaría y **la plata no se acreditaría**. Solo `approved` cambia el estado; los demás estados solo se anotan en `external_status`, y nunca sobre una donación ya completada.
+
+### Verificación
+- Test nuevo `test/integration/donaciones.test.js` (24):
+  - la migración;
+  - el alta: el camino feliz con todos los campos de la fila y de la preferencia; sin URL pública; empresa sí, ONG no y sin sesión; 11 montos inválidos (string, booleano, array, `null`, decimal, 0, negativo, 99, 500.001, `1e21`) y los dos bordes; proyecto faltante, inexistente o inactivo; sin Mercado Pago (503); Mercado Pago caído (502 y `fallida`); el límite de 10 por hora;
+  - `applyPayment`: acreditación con aviso a la ONG; el mismo pago dos veces; **cinco a la vez**; monto o moneda distintos (6 casos); rechazado o pendiente sin cambiar el estado; **un rechazo y después una aprobación con la misma preferencia**; un rechazo tardío que no pisa una completada; sin referencia o con una referencia inexistente; el pago de **otra** donación (`expectDonationId`); Mercado Pago caído (el error sube); **falla de la base a mitad de la transacción** (no queda nada a medias, y el reintento acredita); proyecto borrado (`project_id NULL`); y una falla de la notificación que no deshace nada.
+- Rojo: los 24 cancelados, porque el módulo no existía (rojo débil). Los rojos fuertes los dio la mutación.
+- Backend SQLite **741/741** y con TZ 741/741; Postgres **743/743** y con TZ 743/743. 0 fail, 0 cancelled, salida 0. En Postgres, el test de "cinco a la vez" corre con conexiones reales en paralelo. `npm audit` 0. CRLF conservados.
+- **Mutación** (control en verde): **39 mutantes, sobrevive 1, equivalente**: "`p.amount === null` pasa". Sin ese chequeo, `Math.abs(null - monto)` da `monto` (≥ 100, porque `monto > 0` y el mínimo es $100), así que igual se detecta como monto distinto. Quedó por claridad.
+
+### Errores propios
+- La primera versión del test creaba todas las donaciones de `applyPayment` por `POST` con la misma usuaria y chocó con el límite de 10 por hora del mismo archivo (9 fallos que no eran del código). Pasé a insertarlas directo en la base, como las deja el alta.
+
+### ⚠️ NO verificado
+- **Mercado Pago real** (igual que §169).
+- **El límite es por usuario y en memoria**: varias pestañas cuentan juntas, y se reinicia con el servidor.
+- **`recaudado` como `float4`:** con más de 16.777.216 pesos acumulados en un proyecto, la suma deja de ser exacta. Para la tesis alcanza; para producción real habría que pasarla a `NUMERIC` (no es una migración aditiva: no lo hice).
+- Las donaciones `pendiente` que nunca se pagan quedan así para siempre (no vencen). No molestan: no suman a nada.

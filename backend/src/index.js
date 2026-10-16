@@ -6,6 +6,7 @@ const http    = require('http');
 const { initWebSocket } = require('./ws');
 const { describeEmailConfig } = require('./lib/email');
 const { describeStorageConfig } = require('./lib/storage');
+const { describePaymentsConfig } = require('./lib/payments');
 const { errorHandler, corsError } = require('./lib/errorHandler');
 
 const app = express();
@@ -46,6 +47,7 @@ app.use('/api/voluntarios',    require('./routes/voluntarios'));
 app.use('/api/messages',       require('./routes/messages'));
 app.use('/api/follows',        require('./routes/follows'));
 app.use('/api/posts',          require('./routes/posts'));
+app.use('/api/donaciones',     require('./routes/donaciones'));
 
 // ── Rutas de catálogos (solo GET, datos base) ─────────────────────────────
 const db = require('./db');
@@ -108,7 +110,8 @@ server.listen(PORT, () => {
   console.log(`   Entorno: ${process.env.NODE_ENV || 'development'}`);
   console.log(`   DB:      ${process.env.USE_POSTGRES === 'true' ? 'PostgreSQL' : 'SQLite'}`);
   console.log(`   Email:   ${describeEmailConfig()}`);
-  console.log(`   Fotos:   ${describeStorageConfig()}\n`);
+  console.log(`   Fotos:   ${describeStorageConfig()}`);
+  console.log(`   Pagos:   ${describePaymentsConfig()}\n`);
 });
 
 module.exports = app;
