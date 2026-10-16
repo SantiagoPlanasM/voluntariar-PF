@@ -286,9 +286,11 @@ router.get('/feed', requireAuth, requireRole('volunteer'), async (req, res) => {
            ORDER BY r.created_at DESC, r.id`,
           ids
         ),
-        // Últimos 3 comentarios con info de usuario e indicador de si participó
+        // Últimos 3 comentarios con info de usuario e indicador de si participó. Las mismas columnas que
+        // GET /projects/:id (interface AppComment): antes faltaba user_id y el link al autor en FeedPostCard
+        // iba a /volunteer/undefined (REVISION A2).
         db.all(
-          `SELECT c.id, c.project_id, c.comment, c.created_at,
+          `SELECT c.id, c.project_id, c.user_id, c.comment, c.created_at,
                   u.name AS user_name, u.avatar AS user_avatar,
                   CASE WHEN e.id IS NOT NULL THEN 1 ELSE 0 END AS is_participant
            FROM comments c
@@ -325,13 +327,17 @@ router.get('/feed', requireAuth, requireRole('volunteer'), async (req, res) => {
         commentsCountByProject[c.project_id] = (commentsCountByProject[c.project_id] || 0) + 1;
         if (!commentsByProject[c.project_id]) commentsByProject[c.project_id] = [];
         if (commentsByProject[c.project_id].length < 3) {
+          // Tal cual el detalle: también project_id y user_id, e is_participant como 0/1 (antes true/false;
+          // FeedPostCard lo lee con Boolean() y AppComment acepta los dos).
           commentsByProject[c.project_id].push({
             id: c.id,
+            project_id: c.project_id,
+            user_id: c.user_id,
             comment: c.comment,
+            created_at: c.created_at,
             user_name: c.user_name,
             user_avatar: c.user_avatar,
-            is_participant: Boolean(c.is_participant),
-            created_at: c.created_at,
+            is_participant: c.is_participant,
           });
         }
       }

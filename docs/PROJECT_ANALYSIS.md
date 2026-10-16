@@ -3583,3 +3583,33 @@ No se tocó código; el razonamiento quedó en `REVISION.md`.
 - No vi el perfil en el navegador (que el sostenido muestre "4h/semana").
 - Las tres copias del bloque de roles/requisitos/categoría siguen ahí (`projects.js` listado SQLite, `follows.js` dos veces).
 - `GET /api/ngos/me` arma sus proyectos con `SELECT * FROM projects` sin categoría ni roles (salen `category: ''` y listas vacías), y `GET /api/ngos/:id/projects` pide la categoría como `category`, que `fmt` no lee (`category_name`/`categoria`): también sale `''`. No los toqué (no eran parte de A1).
+
+## 135. Feed: los comentarios recientes con `user_id` (la forma del detalle) — REVISION A2
+
+**Contexto:** en `GET /api/follows/feed`, los comentarios recientes de cada proyecto (`recent_comments`) no traían `user_id`: el SELECT de `follows.js` no lo pedía y el objeto que se armaba tampoco lo copiaba. `FeedPostCard.tsx:414` linkea el autor a `/volunteer/${c.user_id}`, así que el link iba a `/volunteer/undefined`. La interface `AppComment` de `api.ts` declara `user_id: string` obligatorio. Es el mismo tipo de diferencia que §112/§122 corrigió en las reseñas del feed.
+
+**Qué se hizo:**
+- **Backend (`routes/follows.js`):** el SELECT de comentarios del feed pide `c.user_id` y cada comentario reciente sale con **las mismas claves y valores que `comments` de `GET /api/projects/:id`**: `id`, `project_id`, `user_id`, `comment`, `created_at`, `user_name`, `user_avatar`, `is_participant`.
+- Al compararlos aparecieron **dos diferencias más**, que también alineé:
+  - faltaba `project_id` (el detalle lo manda; `AppComment` no lo declara, igual que pasa con `Rating`);
+  - `is_participant` salía `true`/`false` y en el detalle (y en la respuesta de `POST /projects/:id/comments`, que `FeedPostCard` mete en la misma lista) sale `0`/`1`. Ahora el feed manda `0`/`1`. `AppComment.is_participant?: boolean | number` ya acepta los dos y las dos pantallas lo leen con `Boolean(...)`, así que el frontend no cambia.
+- **Frontend:** sin cambios (el tipo ya era correcto; era el backend el que no lo cumplía).
+
+### Tests (nuevos: 3)
+- `feed-comments-shape.test.js` (3), con 4 comentarios en `proj-1` de fechas distintas (de un participante, de uno con la inscripción pendiente y de uno sin inscripción):
+  - cada comentario reciente del feed trae el `user_id` de quien lo escribió;
+  - los 3 del feed son iguales, claves y valores, a los 3 primeros del detalle, en el mismo orden;
+  - claves exactas (las de `AppComment` + `project_id`) y valores contra la base: nombre, avatar, texto, fecha (`toMillis`), `is_participant` verdadero solo para la inscripción aprobada, y `comments_count` = 4.
+- **Rojo de comportamiento:** los 3 fallaban con el código viejo (`user_id` → `undefined`; faltaban `project_id` y `user_id` en las claves).
+
+### Verificación
+- **Backend:** SQLite **501/501** (498 + 3) y Postgres **503/503** (500 + 3), 0 cancelled, exit 0; también con `TZ=America/Argentina/Cordoba` (501/501 y 503/503).
+- **Frontend:** **560/560**. **Typecheck: 0 errores.** (Sin cambios de frontend.)
+- **Mutación (6)**, con corrida de control en los dos motores: sacar `c.user_id` del SELECT, sacar `user_id` del objeto, `user_id` con el id del comentario, sacar `project_id`, volver a `Boolean(is_participant)` y `is_participant` siempre 1 → **mueren los 6 en SQLite y en Postgres.**
+
+### Errores propios
+- Ninguno en el código. En una corrida completa de Postgres falló dos veces `db-transaction.test.js` (los tests que dependen de tiempos: `sleep(20)` y el de aislamiento), igual que en A1; no tocan el feed. Solo ese archivo pasó 3 de 3 y la suite completa volvió a dar 503/503 en las dos zonas horarias. Probablemente la base compartida estaba cargada por otras corridas en paralelo (no lo confirmé).
+
+### ⚠️ NO verificado
+- No vi en el navegador que el link del autor de un comentario del feed lleve a su perfil.
+- `is_participant` pasó de booleano a 0/1 en el feed: lo único que lo lee es `FeedPostCard` (con `Boolean()`); un consumidor externo que comparara `=== true` dejaría de andar (no hay ninguno en el repo).
