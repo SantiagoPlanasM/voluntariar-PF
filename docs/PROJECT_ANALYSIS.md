@@ -4183,3 +4183,20 @@ escribía o leía. Bajo carga eso no se cumple. Se cambió por sincronización d
 - Que el `.then` registrado dentro de `txStore.run` herede el contexto lo confirma la mutación M1 (si no lo
   heredara, M1 sobreviviría) en el Node de esta máquina. No lo probé en otras versiones de Node.
 - Frontend: no se tocó ni se corrió.
+
+## 151. Comentarios de proyecto: el tope de 1000 también en los campos del frontend (pendiente de §148, aprobado por el usuario)
+
+**Qué se hizo:** desde §148 el backend rechaza un comentario de más de 1000 caracteres, pero los dos campos que lo mandan no limitaban: con un texto más largo, el error aparecía recién al enviar. Ahora los dos tienen `maxLength={1000}` (regla 10): el `<input>` de la pestaña Comentarios de `ProjectDetails.tsx` y el de la tarjeta del feed, `FeedPostCard.tsx`. No hay mensaje propio: el campo no deja escribir más.
+
+### Tests (nuevos: 2, `CommentMaxLength.test.tsx`)
+- Detalle del proyecto (pestaña Comentarios) y tarjeta del feed (expandida): el campo "Comentario" tiene `maxLength` 1000. **Rojo de comportamiento:** los dos encontraban el campo sin el atributo.
+
+### Verificación
+- Frontend **571/571** (569 + 2), también con `TZ=America/Argentina/Cordoba`; `npm run typecheck` **0 errores**.
+- **Mutación (4)**, control sin mutar primero: 1001 y sin tope en el detalle, 999 y sin tope en el feed. **Mueren los 4**; archivos restaurados byte a byte.
+
+### Errores propios
+- Ninguno que haya llegado al código.
+
+### ⚠️ NO verificado
+- No lo vi en el navegador. El backend cuenta el largo crudo y el frontend manda `trim()`, así que con `maxLength` nunca llega uno de más de 1000.

@@ -446,6 +446,7 @@ export function FeedPostCard({ project, onRefresh }: FeedPostCardProps) {
                 <input
                   type="text"
                   aria-label="Comentario"
+                  maxLength={1000}
                   placeholder="Escribí un comentario..."
                   value={newComment}
                   onChange={e => setNewComment(e.target.value)}

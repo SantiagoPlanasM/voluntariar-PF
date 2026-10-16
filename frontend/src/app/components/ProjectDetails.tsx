@@ -570,6 +570,7 @@ export function ProjectDetails() {
                       <div className="flex gap-2">
                         <input
                           aria-label="Comentario"
+                          maxLength={1000}
                           value={comment}
                           onChange={e => { setComment(e.target.value); setCommentErr(''); }}
                           placeholder={user ? 'Escribí un comentario...' : 'Iniciá sesión para comentar'}
