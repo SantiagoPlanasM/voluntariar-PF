@@ -73,6 +73,22 @@ describe('GET /api/auth/me: profile con lista blanca de columnas (regla 8)', () 
     });
   }
 
+  // §158: con uno de los tres roles pero sin su fila de perfil, `db.get` da undefined y JSON.stringify sacaba la
+  // clave. La doc (y el `let profile = null`) dicen `null`.
+  test('rol con perfil pero sin su fila: profile es null (la clave sale)', async () => {
+    const reg = await call('/api/auth/register', {
+      method: 'POST', body: { name: 'Sin Perfil', email: 'sinperfil-158@example.com', password: 'Password1', role: 'volunteer' },
+    });
+    assert.equal(reg.status, 201);
+    const { token, user } = JSON.parse(reg.text);
+    await db.run('DELETE FROM voluntarios WHERE user_id=$1', [user.id]);
+    const r = await call('/api/auth/me', { token });
+    assert.equal(r.status, 200);
+    const body = JSON.parse(r.text);
+    assert.ok('profile' in body, 'la clave profile está');
+    assert.equal(body.profile, null);
+  });
+
   test('user sigue con sus 8 campos', async () => {
     const { body } = await me('volunteer');
     assert.deepEqual(Object.keys(body.user).sort(),

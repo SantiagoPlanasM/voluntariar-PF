@@ -120,7 +120,7 @@
   - voluntario: `id, user_id, nombre, apellido, descripcion, ubicacion, foto_perfil, banner, cv_url, followers, created_at, updated_at`;
   - ONG: `id, user_id, nombre, descripcion, foto_perfil, banner, mision, alias, ubicacion, founded, followers, created_at, updated_at`;
   - empresa: `id, user_id, nombre, descripcion, mision, ubicacion, foto_perfil, banner, industria, followers, created_at, updated_at`.
-  Con otro rol, `profile` es `null`; si el rol es uno de esos tres pero no hay fila, la clave `profile` **no sale** (`db.get` devuelve `undefined`). El frontend no lee `profile` (`api.auth.me` tipa `{ user }`). Una columna nueva de esas tablas no sale hasta agregarla a la lista en `routes/auth.js` (test: `test/integration/auth-me-profile.test.js`).
+  Con otro rol, o si el rol es uno de esos tres pero no hay fila, `profile` es `null` *(hasta §158, sin fila la clave no salía: `db.get` devuelve `undefined`)*. El frontend no lee `profile` (`api.auth.me` tipa `{ user }`). Una columna nueva de esas tablas no sale hasta agregarla a la lista en `routes/auth.js` (test: `test/integration/auth-me-profile.test.js`).
 - **Errores:** `401` sin token o token inválido; `404` si el usuario del token ya no existe.
 
 ### `PUT /api/auth/me` — Auth

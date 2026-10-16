@@ -203,7 +203,8 @@ router.get('/me', requireAuth, async (req, res) => {
          FROM empresas WHERE user_id=$1`, [user.id]);
     }
 
-    res.json({ user, profile });
+    // Sin fila de perfil, db.get da undefined y la clave desaparecía del JSON: `null`, como dice la doc (§158).
+    res.json({ user, profile: profile ?? null });
   } catch (err) {
     res.status(500).json({ error: 'Error interno' });
   }

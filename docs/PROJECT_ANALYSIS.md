@@ -4338,3 +4338,20 @@ Revisando otros lugares que cuentan no leídas (pedido de la tarea): **`Notifica
 
 ### ⚠️ NO verificado
 - Nada visual (es solo un test).
+
+## 158. `GET /api/auth/me`: `profile: null` cuando falta la fila de perfil (hallazgo de §155, aprobado por el usuario)
+
+**Qué se hizo:** con rol `volunteer`, `ngo` o `company` pero sin su fila en `voluntarios`/`ngos`/`empresas`, `db.get` devolvía `undefined` y `JSON.stringify` sacaba la clave: la respuesta era `{ user }`, aunque la doc y el `let profile = null` dicen `null`. Ahora `profile: profile ?? null`. El frontend no lee `profile`.
+
+### Tests (nuevo: 1, en `auth-me-profile.test.js`)
+- Un voluntario registrado al que se le borra la fila de `voluntarios`: `/auth/me` da 200 con la clave `profile` y valor `null`. **Rojo de comportamiento:** la clave no estaba.
+
+### Verificación
+- **Mutación (4)**, control sin mutar primero, en SQLite y en Postgres: sin `?? null`, `?? {}` y siempre `null` mueren; **sobrevive `|| null`, equivalente** (`db.get` da una fila u `undefined`, nunca otro valor falso). Archivo restaurado byte a byte.
+- Suites: ver §160.
+
+### Errores propios
+- Ninguno.
+
+### ⚠️ NO verificado
+- En producción no debería haber usuarios con rol y sin perfil (el registro los crea en una transacción, §85); no lo consulté.
