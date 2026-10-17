@@ -5075,3 +5075,21 @@ Encaja con el modelo estándar de "1 marketplace + 1 vendedor por transacción":
 - `npm run test:pg`, `typecheck` y `npm audit` no se corrieron en esta sesión (los números de Postgres siguen siendo los de `CLAUDE.md`).
 - Los datos de las herramientas del borrador de la matriz (licencias, planes gratis) son de memoria: se verifican en el paso 2 (mercado).
 - La trazabilidad inicial se armó por nombres de archivo y comentarios, no revisando test por test.
+
+## 184. TP de Calidad: CI en GitHub Actions (`.github/workflows/ci.yml`) — T3
+
+**Qué se hizo:** primer pipeline del repo. Jobs: backend en **SQLite** y en **Postgres 16** (contenedor de servicio), cada uno en **UTC** y en **`America/Argentina/Cordoba`**; cobertura del backend con el runner de Node y **umbral de 80 %** en líneas, ramas y funciones (bloqueante); frontend: tests en las dos zonas horarias, `typecheck` y build; `npm audit` en los dos paquetes. Reportes: resumen en la página del run (conteos del TAP, tabla de cobertura, conteo del junit) y artefactos (`tap.txt`, `lcov.info`, `junit.xml`). Node 22, el de Render. No despliega (T9) y no instala nada nuevo.
+
+### Verificación (local, antes del primer run)
+- `--experimental-test-coverage` con `--test-coverage-lines/branches/functions` y el reporter `lcov`: probados en Node 24.21.
+- `vitest run --reporter=junit --outputFile.junit=…`: `tests="694" failures="0"`.
+- `better-sqlite3` 13.0.3 trae `prebuilds/linux-x64.node` (N-API 10) y lo elige por plataforma: por eso `npm ci` con `ignore-scripts` (`backend/.npmrc`, sin tocar) debería alcanzar en Linux.
+- El lock del frontend incluye los binarios de Linux (rollup, tailwind oxide, lightningcss, esbuild, TypeScript 7).
+
+### Errores propios
+- Ninguno detectado todavía: el primer run lo dice. Si falla por algo real, queda como el run fallido del TP y se corrige en un commit posterior (decisión del usuario: no se reescribe).
+
+### ⚠️ NO verificado
+- **Nada corrió todavía en GitHub Actions.** En particular: que Node 22 soporte el umbral de cobertura y el reporter `lcov`; N-API 10 en el Node 22.x del runner; Postgres como servicio; que `npm run test:pg -- …` pase los argumentos al runner; las versiones de las acciones (`checkout@v5`, `setup-node@v5`, `upload-artifact@v4`); la sintaxis del YAML (no hay parser local).
+- `npm ci` no se corrió localmente (borra `node_modules`).
+- Duración del run (estimada 5–8 min, no medida).

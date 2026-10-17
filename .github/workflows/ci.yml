@@ -1,0 +1,202 @@
+# .github/workflows/ci.yml — integración continua de VoluntariAR (TP de Calidad, docs/PLAN_CALIDAD_TP.md T3).
+# Corre las pruebas del backend (SQLite y Postgres 16, en UTC y en la zona de Córdoba) con cobertura del runner
+# de Node, las del frontend con tipos y build, y npm audit. Publica los reportes. No despliega (eso es deploy.yml, T9).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'   # la misma que Render (render.yaml: NODE_VERSION "22")
+
+jobs:
+  backend-sqlite:
+    name: Backend · SQLite · ${{ matrix.tz }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        tz: [UTC, America/Argentina/Cordoba]
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      TZ: ${{ matrix.tz }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci            # respeta backend/.npmrc (ignore-scripts): better-sqlite3 usa su prebuild linux-x64
+      - run: mkdir -p reports
+      - name: Tests + cobertura (umbral 80 % en líneas, ramas y funciones)
+        run: >
+          node --test --experimental-test-coverage
+          --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80
+          --test-reporter=spec --test-reporter-destination=stdout
+          --test-reporter=tap  --test-reporter-destination=reports/tap.txt
+          --test-reporter=lcov --test-reporter-destination=reports/lcov.info
+      - name: Resumen en la página del run
+        if: always()
+        run: |
+          {
+            echo "### Backend · SQLite · $TZ"
+            echo '```'
+            grep -E '^# (tests|suites|pass|fail|cancelled|skipped|todo|duration_ms) ' reports/tap.txt || echo 'sin reporte TAP'
+            echo '```'
+            echo '<details><summary>Cobertura</summary>'
+            echo
+            echo '```'
+            sed -n '/start of coverage report/,/end of coverage report/p' reports/tap.txt
+            echo '```'
+            echo '</details>'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-sqlite-${{ strategy.job-index }}
+          path: backend/reports/
+
+  backend-postgres:
+    name: Backend · Postgres 16 · ${{ matrix.tz }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        tz: [UTC, America/Argentina/Cordoba]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust     # igual que el docker run de CLAUDE.md
+          POSTGRES_DB: voluntariar_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      TZ: ${{ matrix.tz }}
+      TEST_PG_HOST: localhost
+      TEST_PG_PORT: '5432'
+      TEST_PG_DB: voluntariar_test
+      TEST_PG_USER: postgres
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: mkdir -p reports
+      - name: Tests contra Postgres
+        run: >
+          npm run test:pg --
+          --test-reporter=spec --test-reporter-destination=stdout
+          --test-reporter=tap  --test-reporter-destination=reports/tap.txt
+      - name: Resumen en la página del run
+        if: always()
+        run: |
+          {
+            echo "### Backend · Postgres 16 · $TZ"
+            echo '```'
+            grep -E '^# (tests|suites|pass|fail|cancelled|skipped|todo|duration_ms) ' reports/tap.txt || echo 'sin reporte TAP'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-postgres-${{ strategy.job-index }}
+          path: backend/reports/
+
+  frontend-tests:
+    name: Frontend · tests · ${{ matrix.tz }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        tz: [UTC, America/Argentina/Cordoba]
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      TZ: ${{ matrix.tz }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Tests (vitest)
+        run: npm test -- --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml
+      - name: Resumen en la página del run
+        if: always()
+        run: |
+          {
+            echo "### Frontend · $TZ"
+            echo '```'
+            grep -m1 -o '<testsuites[^>]*>' reports/junit.xml || echo 'sin reporte junit'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-tests-${{ strategy.job-index }}
+          path: frontend/reports/
+
+  frontend-build:
+    name: Frontend · tipos y build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck      # TypeScript 7 del package.json (nunca npx tsc)
+      - run: npm run build
+        env:
+          VITE_API_URL: https://voluntariar-api-lxq7.onrender.com/api   # el mismo valor que render.yaml
+
+  audit:
+    name: npm audit (backend y frontend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Backend
+        run: npm audit
+        working-directory: backend
+      - name: Frontend
+        if: always()
+        run: npm audit
+        working-directory: frontend

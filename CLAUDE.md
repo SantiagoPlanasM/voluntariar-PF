@@ -19,6 +19,7 @@ Respondé en español rioplatense (voseo).
   `test:pg` necesita un Postgres en `localhost:5432` (ver `TEST_PG_*` en `test/integration/helpers.js`); sirve
   `docker run --rm -d -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=voluntariar_test postgres:16`.
 - Frontend: `npm test`. Hoy: **694** tests (§179). Tipos: `npm run typecheck` (TypeScript 7, instalado el 2026-10-14). Hoy: **0 errores** (§68–§69). Nunca `npx tsc`: el paquete `tsc` de npm no es TypeScript.
+- CI: `.github/workflows/ci.yml` (GitHub Actions, §184) corre todo lo anterior en Node 22, en SQLite y Postgres 16, en UTC y en Córdoba, con umbral de cobertura del 80 % en el backend. Plan del TP de Calidad: `docs/PLAN_CALIDAD_TP.md`.
 - `npm audit` en **0** en los dos paquetes (la base de avisos cambia sola: si aparece uno, avisá).
 
 ## Cómo trabajamos
