@@ -225,6 +225,8 @@ router.get('/:userId/perfil-completo', requireAuth, async (req, res) => {
 
 **Endpoints previstos:** `POST /api/donaciones`, `POST /api/donaciones/webhook` y `GET /api/donaciones/:id?payment_id=` (conciliación, porque la API gratuita de Render se duerme). Los tests que hacen falta antes de cerrarlo están en `PLAN_FALTANTE.md §5.3` (aviso duplicado, simultáneos en `test:pg`, monto distinto, firma inválida, etc.).
 
+**Producción: Marketplace (cada ONG cobra en su cuenta).** Hoy todo se cobra con la cuenta de la aplicación. El diseño para producción es OAuth por ONG, con la preferencia creada con su token. Está **validado hasta la autorización de la ONG** y bloqueado en el intercambio del código, que pide credenciales productivas activadas. El usuario decidió no activarlas: queda como trabajo futuro. Diseño completo y fuentes en `PROJECT_ANALYSIS.md §181`.
+
 **Variables nuevas:** `MP_ACCESS_TOKEN` y `MP_WEBHOOK_SECRET`. Van a `render.yaml` como `sync: false` (OK del usuario, decisión P5) en la Etapa 10.
 
 ### 1.5 Optimización de backend (transversal)

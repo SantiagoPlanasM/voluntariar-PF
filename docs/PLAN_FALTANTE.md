@@ -93,6 +93,7 @@ Las marcadas con ⭐ bloquean una etapa imprescindible: hay que contestarlas **a
 **Roadmap que queda para "trabajo futuro"** (las preguntas siguen abiertas, no bloquean nada)
 - **E1. Empleados de empresa (§2.4):** ¿con invitación y aceptación (lo recomendado) o la empresa los declara?
 - **E2. Chat de empresa (§2.5):** ¿la empresa le escribe a la ONG con propuesta `propuesto` o `aceptado`, o solo con `aceptado`?
+- ✅ **E4. ¿Adónde llega la plata de la ONG? (2026-10-17):** el diseño Marketplace con OAuth está validado hasta la autorización. El intercambio pide activar las credenciales productivas de la cuenta real, y el usuario eligió **C**: documentarlo como trabajo futuro (`PROJECT_ANALYSIS.md §181`).
 - **E3. Chatbot con IA:** ¿se hace? Recomiendo que no, por el plazo.
 
 ## 3. Inventario de lo que falta

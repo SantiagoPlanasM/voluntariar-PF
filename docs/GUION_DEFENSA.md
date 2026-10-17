@@ -58,13 +58,14 @@
 | Pregunta posible | Respuesta corta |
 |---|---|
 | ¿Por qué el aviso (webhook) de Mercado Pago no se usa? | En **modo prueba**, los avisos de pagos reales no validan la firma, y la simulación del panel sí. La donación se confirma igual cuando el comprador vuelve, consultando el pago a Mercado Pago (`PROJECT_ANALYSIS.md §176`). Con credenciales productivas habría que volver a probarlo |
+| **¿Adónde llega la plata de la ONG?** | En esta demo, a la cuenta de prueba de la plataforma. **En producción, cada ONG vincula su cuenta de Mercado Pago** (Marketplace con OAuth) y la preferencia se crea con su token, así que la plata le llega directo y la plataforma nunca la toca. **Lo validé hasta la autorización de la ONG**: un vendedor de prueba autorizó la app y Mercado Pago devolvió el código. Para el último paso hace falta activar las credenciales productivas de una cuenta real, y no corresponde para una demo académica (`PROJECT_ANALYSIS.md §181`) |
 | ¿Y si el comprador cierra la pestaña antes de volver? | La donación queda pendiente. Trabajo futuro: buscar los pagos pendientes por `external_reference` |
 | ¿Por qué los emails te llegan a vos? | El remitente es de prueba (Resend sin dominio propio). Con un dominio verificado llegarían a cada persona |
 | ¿Por qué tarda la primera vez? | Plan gratuito de Render: la API se duerme y tarda ~1 minuto en despertar |
 | ¿Qué pasa con más usuarios? | Explorar trae hasta 500 proyectos (con aviso); haría falta paginación real. El límite de intentos de login y de subidas está en memoria (por proceso) |
 | ¿Se borran todas las fotos al borrar una cuenta? | El CV y las fotos de Momentos sí; las fotos de perfil anteriores pueden quedar en Cloudinary |
 
-**Trabajo futuro** (decidido, sin hacer): empleados de empresa con invitación (`BACKEND_ROADMAP_ANALYSIS.md §2.4`), chat empresa ↔ ONG y voluntarios (§2.5), conciliación de donaciones pendientes, `recaudado` en `NUMERIC`, paginación real y un chatbot con IA.
+**Trabajo futuro** (decidido, sin hacer): **cada ONG vincula su cuenta de Mercado Pago (Marketplace OAuth, diseño en §181)**, empleados de empresa con invitación (`BACKEND_ROADMAP_ANALYSIS.md §2.4`), chat empresa ↔ ONG y voluntarios (§2.5), conciliación de donaciones pendientes, `recaudado` en `NUMERIC`, paginación real y un chatbot con IA.
 
 ## 6. Plan B
 

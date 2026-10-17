@@ -5003,3 +5003,36 @@ Se le pidió al usuario mirar la línea `Pagos:` del arranque, volver a copiar l
 ### ⚠️ NO verificado
 - El formato y la duración de la defensa (a confirmar con la cátedra).
 - Que el plan B local ande en la notebook del usuario el día de la defensa: hay que probarlo antes.
+
+## 181. ¿Adónde llega la plata? Diseño Marketplace (OAuth por ONG): validado hasta la autorización; decisión C (2026-10-17)
+
+**El hueco (lo planteó el usuario):** hoy todas las donaciones se cobran con **una sola cuenta de Mercado Pago**, la de la aplicación (`MP_ACCESS_TOKEN`). La ONG no puede indicar dónde recibir la plata. En modo prueba no se nota, pero en un sistema real la plataforma estaría recibiendo dinero de terceros.
+
+**Diseño correcto para producción: Marketplace de Mercado Pago con OAuth por ONG.**
+1. La ONG toca "Vincular Mercado Pago" y va a `https://auth.mercadopago.com/authorization?client_id=<app>&response_type=code&platform_id=mp&state=<aleatorio>&redirect_uri=<URL fija>`.
+2. Autoriza con su cuenta y vuelve con un `code`, que vale 10 minutos.
+3. El backend lo cambia en `POST /oauth/token` (`client_id`, `client_secret`, `code`, `grant_type=authorization_code`, `redirect_uri`; `test_token=true` en sandbox) por el access token de la ONG, que dura 180 días, y su refresh token. Los guarda cifrados.
+4. Cada preferencia se crea **con el token de la ONG dueña del proyecto**, así que la plata se acredita en su cuenta, con `marketplace_fee` en 0.
+5. La conciliación consulta el pago con ese mismo token.
+
+Encaja con el modelo estándar de "1 marketplace + 1 vendedor por transacción": cada donación es a un proyecto de una ONG.
+
+**Fuentes (verificadas el 2026-10-16 y el 2026-10-17):**
+- el **código del SDK oficial** `mercadopago@3.6.1`: el cliente `OAuth` con `getAuthorizationURL` (`https://auth.mercadopago.com/authorization`, `response_type=code`, `platform_id=mp`), `create` (`POST /oauth/token`, `grant_type=authorization_code`) y `refresh` (`grant_type=refresh_token`), más los campos de la respuesta (`access_token`, `refresh_token`, `user_id`, `expires_in`, `public_key`, `live_mode`);
+- la documentación oficial "Obtener Access Token" (el code dura 10 minutos y el token 180 días; `test_token`; PKCE opcional) y la del marketplace con Checkout Pro (`marketplace_fee`; el token de cada vendedor por OAuth);
+- **la IA de soporte de Mercado Pago**, consultada por el usuario: "el dinero se acredita en la cuenta del vendedor cuyas credenciales usaste para crear la preferencia" y "el vendedor tiene que vincularse vía OAuth". Además: **en OAuth no existe un client_id/client_secret de prueba aparte: son los de la aplicación, y si no tiene las credenciales de producción activadas, hay que activarlas para completar el intercambio**.
+
+**Lo que se validó en vivo (con el usuario):**
+1. Se agregó `https://voluntariar-g0u6.onrender.com/` como URL de redireccionamiento de la aplicación, con PKCE en "No" y los permisos `read`, `offline_access` y `write`.
+2. Un **segundo vendedor de prueba** (la "ONG", `user_id` 3772556008) abrió la URL de autorización y aceptó. **Mercado Pago devolvió el `code`** a la URL de vuelta (`?code=TG-…-3772556008&state=prueba123`): **la vinculación de la ONG funciona en modo prueba**.
+3. **Bloqueo:** el intercambio del `code` necesita el `client_secret` de la aplicación, que **solo aparece al activar las credenciales de producción con la cuenta real del usuario** (industria, sitio web y la aceptación del uso de datos personales y de los términos). Las credenciales de prueba no lo traen: pertenecen a una **cuenta vendedora de prueba creada por Mercado Pago** (`user_id` 3771872304, aplicación 4252289510479096). Esto **confirma la hipótesis de §176**: los avisos reales venían de esa cuenta oculta.
+
+**Decisión del usuario: opción C.** No activar las credenciales de producción de su cuenta real para una demo académica y dedicar el tiempo a preparar la defensa. **El diseño queda documentado como trabajo futuro**, con lo validado. No se escribió código. Para el que lo implemente:
+- **Esquema:** una tabla de cuentas vinculadas por ONG (`mp_user_id`, tokens cifrados con AES-256-GCM y una clave de entorno, vencimiento) y una de `state` de un solo uso (hash, como en §177); en `donaciones`, a qué cuenta se cobró.
+- **Endpoints:** vincular, la vuelta de Mercado Pago (valida el `state`, intercambia y redirige al panel) y desvincular. Las donaciones se crean con el token de la ONG (renovándolo si venció), y el detalle del proyecto indica si acepta donaciones (botón solo para ONGs vinculadas).
+- **Variables:** `MP_CLIENT_ID`, `MP_CLIENT_SECRET` y la clave de cifrado.
+
+### ⚠️ NO verificado
+- El intercambio del `code` por los tokens y todo lo que sigue (la preferencia con el token de la ONG, la acreditación en su cuenta): bloqueado por la activación de producción.
+- Lo de la IA de Mercado Pago es una respuesta de soporte, no documentación. Coincide con la doc oficial en lo que se pudo cotejar.
+- Quedó configurada la URL de redireccionamiento en la aplicación y el vendedor de prueba 3772556008 autorizó la aplicación: no molesta, y se puede revocar desde esa cuenta de prueba.
