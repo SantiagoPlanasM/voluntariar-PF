@@ -39,5 +39,14 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     globals: true,
+    // Cobertura (TP de Calidad, T4): `npm run test:coverage`. Se mide TODO el código de src/, también los
+    // archivos que ningún test importa (cuentan como 0 %); solo se excluyen los tests y sus helpers (src/test/).
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**'],
+      reporter: ['text', 'text-summary', 'json-summary', 'lcov'],
+      reportsDirectory: './reports/coverage',
+    },
   },
 })

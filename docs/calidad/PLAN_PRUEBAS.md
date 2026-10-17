@@ -9,6 +9,7 @@
 | Versión | Fecha | Cambio |
 |---|---|---|
 | 0.1 | 2026-10-17 | Primera versión: objetivos, contingencia, niveles, matriz ISO/IEC 25010, riesgos, criterios, principios, plantillas y trazabilidad inicial |
+| 0.2 | 2026-10-17 | O1–O3 y O6–O7 con los números del primer run del CI (#1) y la cobertura del frontend medida (T4, §185) |
 
 El documento se versiona en git: cada cambio entra en un commit propio y suma una fila a esta tabla.
 
@@ -24,13 +25,13 @@ dispositivos táctiles (no hay forma de automatizarlos en este proyecto: quedan 
 
 | # | Objetivo | Métrica | Meta | Fuente | Hoy (2026-10-17) |
 |---|---|---|---|---|---|
-| O1 | Ninguna regresión llega a `main` | Tests fallidos o cancelados | 0 | Pipeline (`ci.yml`) | 0 (corrida local: 781 tests de backend + `helpers.js`, ver §4; 694 de frontend) |
-| O2 | El código existente está cubierto | Cobertura de líneas, ramas y funciones del backend | ≥ 80 % en las tres | `--experimental-test-coverage` en el pipeline | 92,94 / 84,20 / 90,54 % |
-| O3 | Ídem en el frontend | Cobertura de líneas del frontend | ≥ 80 % | Pipeline (proveedor a instalar, D2) | **Sin medir** |
+| O1 | Ninguna regresión llega a `main` | Tests fallidos o cancelados | 0 | Pipeline (`ci.yml`) | 0 en el **run #1** (2026-10-17): SQLite UTC 782/782, Postgres UTC y Córdoba 784/784, frontend UTC y Córdoba 694/694 (782 incluye `helpers.js`, ver §4) |
+| O2 | El código existente está cubierto | Cobertura de líneas, ramas y funciones del backend | ≥ 80 % en las tres | `--experimental-test-coverage` en el pipeline (umbral bloqueante) | Run #1: umbral superado (job en verde). Local: 92,94 / 84,20 / 90,54 % |
+| O3 | Ídem en el frontend | Cobertura del frontend (v8) | ≥ 80 % (métrica a decidir: ver §185) | `npm run test:coverage` en el pipeline (informativa) | Local: líneas **83,14 %**, sentencias **79,63 %**, ramas **73,97 %**, funciones **67,82 %** |
 | O4 | El código nuevo viene con pruebas | Cobertura sobre código nuevo | ≥ 80 % (gate) | Quality gate (T5) | Sin gate |
 | O5 | Poca duplicación | Líneas duplicadas | ≤ 5 % (gate) | Herramienta de duplicación (T5) | Sin medir |
-| O6 | Sin bugs críticos del análisis estático | Hallazgos bloqueantes o críticos | 0 (gate) | Linter / análisis estático (T5) | Sin linter; `typecheck` en 0 errores según `CLAUDE.md` (no corrido hoy) |
-| O7 | Dependencias sin vulnerabilidades conocidas | Avisos de `npm audit` | 0 en los dos paquetes | Pipeline | 0 según `CLAUDE.md` (no corrido hoy) |
+| O6 | Sin bugs críticos del análisis estático | Hallazgos bloqueantes o críticos | 0 (gate) | Linter / análisis estático (T5) | Sin linter; `typecheck` en 0 errores en el run #1 |
+| O7 | Dependencias sin vulnerabilidades conocidas | Avisos de `npm audit` | 0 en los dos paquetes | Pipeline | 0 en el run #1 (el job falla con cualquier aviso) |
 | O8 | Cada despliegue queda probado | Smoke después del deploy | 100 % de los deploys | `deploy.yml` (T9) | Smoke a mano (`GUION_DEFENSA.md §2`) |
 | O9 | La API aguanta la carga esperada de la demo | p95 de latencia y % de errores en `GET` | A definir **antes** de correr (T10) | Reporte de stress del pipeline | Sin medir |
 | O10 | Cada defecto corregido tiene su prueba de regresión | Defectos cerrados con test enlazado / total cerrados | 100 % | GitHub Issues + matriz §10 | Ver §10 |

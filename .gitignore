@@ -17,6 +17,10 @@ data/
 frontend/dist/
 frontend/.vite/
 
+# ── Reportes de pruebas (los genera el CI; se publican como artefactos) ──
+backend/reports/
+frontend/reports/
+
 # ── Logs ──────────────────────────────────────────
 *.log
 npm-debug.log*

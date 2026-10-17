@@ -5093,3 +5093,28 @@ Encaja con el modelo estándar de "1 marketplace + 1 vendedor por transacción":
 - **Nada corrió todavía en GitHub Actions.** En particular: que Node 22 soporte el umbral de cobertura y el reporter `lcov`; N-API 10 en el Node 22.x del runner; Postgres como servicio; que `npm run test:pg -- …` pase los argumentos al runner; las versiones de las acciones (`checkout@v5`, `setup-node@v5`, `upload-artifact@v4`); la sintaxis del YAML (no hay parser local).
 - `npm ci` no se corrió localmente (borra `node_modules`).
 - Duración del run (estimada 5–8 min, no medida).
+
+## 185. TP de Calidad: primer run del CI (#1) y cobertura del frontend (T4, OK del usuario para la dependencia)
+
+**Run #1 del CI** (`c77fe6e`, 2026-10-17, https://github.com/SantiagoPlanasM/voluntariar-PF/actions/runs/39043595627): **los 8 jobs en verde**, 1 min 19 s en total. Números del resumen del run (los pegó el usuario): SQLite UTC **782/782**; Postgres 16 UTC y Córdoba **784/784**; frontend UTC y Córdoba **694/694**. Con eso quedan verificadas las suposiciones de §184: sintaxis del YAML y versiones de las acciones, `better-sqlite3` con su prebuild en Linux, Postgres como servicio, `npm run test:pg -- …`, el umbral de cobertura y el reporter `lcov` en Node 22, `typecheck` en 0 y `npm audit` en 0.
+
+**Avisos del run (no errores):** `actions/upload-artifact@v4` usa Node 20, que GitHub da por deprecado (lo fuerza a Node 24); y `ubuntu-latest` pasa a Ubuntu 26 desde el 19/10/2026. No los cambié: van como propuesta al usuario.
+
+**Cobertura del frontend (T4):**
+- `@vitest/coverage-v8` **5.0.3** exacto como devDependency (su peer exige `vitest` 5.0.3; suma 8 paquetes al lock; `npm audit` 0). Regla 18: OK del usuario.
+- `vite.config.ts`: `coverage` con proveedor v8, `include: src/**/*.{ts,tsx}` (los archivos que ningún test importa cuentan como 0 %), excluidos solo los tests y `src/test/`. Script `npm run test:coverage`. Reportes en `frontend/reports/coverage/` (`text`, `json-summary`, `lcov`); `backend/reports/` y `frontend/reports/` al `.gitignore`.
+- CI: el job de tests del frontend corre `test:coverage` y muestra el resumen en la página del run. **Informativa, sin umbral**, hasta que el usuario decida la métrica (ver abajo).
+
+### Verificación
+- Local (Windows, TZ de Córdoba): 694/694 con cobertura; **68 archivos**; líneas **83,14 %** (2393/2878), sentencias **79,63 %** (2850/3579), ramas **73,97 %** (2342/3166), funciones **67,82 %** (683/1007).
+- `npm run typecheck`: 0 errores. `npm audit` (frontend): 0.
+- El comando del resumen del CI (`node -e … coverage-summary.json`) probado en local.
+
+### Errores propios
+- La primera medición incluía `src/test/postFixtures.ts` (un helper de tests): 69 archivos y 83,17 % de líneas. Excluido; los números de arriba son sin él.
+- `npm install` reescribió `package.json` y `package-lock.json` con LF en la copia de trabajo (eran CRLF). Los devolví a CRLF; en el índice siguen en LF, así que el diff es solo el contenido.
+
+### ⚠️ NO verificado / decisión pendiente
+- **Qué métrica cuenta para el "80 % del código existente" del nivel 3.** Con líneas el frontend pasa (83,14 %); con sentencias queda apenas abajo (79,63 %); con ramas (73,97 %) y funciones (67,82 %), lejos. El eje 5 del TP habla de cobertura de **sentencia** y de **decisión** (ramas). El backend da líneas, ramas y funciones (el runner de Node no informa sentencias).
+- La cobertura del frontend en el CI (Linux, UTC) todavía no corrió: puede variar unas décimas con la zona horaria.
+- Los conteos del job SQLite en Córdoba y la tabla de cobertura del backend del run #1 no los vi (el usuario no los pegó).
