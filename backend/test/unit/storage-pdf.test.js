@@ -21,7 +21,7 @@ const freshStorage = () => {
   delete require.cache[require.resolve('../../src/lib/storage')];
   return require('../../src/lib/storage');
 };
-const sha1 = (s) => crypto.createHash('sha1').update(s).digest('hex');
+const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');   // la firma es SHA-256 (§191)
 const PDF = Buffer.from('%PDF-1.7\n%âãÏÓ\n1 0 obj\n<<>>\nendobj\n');
 const T = 1315060510;   // Date.now() fijo (segundos)
 
@@ -73,7 +73,7 @@ describe('uploadPdf() / pdfDownloadUrl() / deletePdf()', () => {
       assert.equal(form.get('type'), 'private');
       assert.equal(form.get('timestamp'), String(T));
       assert.equal(form.get('api_key'), '123456');
-      assert.equal(form.get('signature'), sha1(`timestamp=${T}&type=privateabcd`));
+      assert.equal(form.get('signature'), sha256(`timestamp=${T}&type=privateabcd`));
       assert.equal(form.get('api_secret'), null, 'el secreto no viaja');
       const file = form.get('file');
       assert.equal(file.size, PDF.length);
@@ -87,7 +87,7 @@ describe('uploadPdf() / pdfDownloadUrl() / deletePdf()', () => {
       await freshStorage().uploadPdf(PDF);
       const form = calls[0].opts.body;
       assert.equal(form.get('folder'), 'voluntariar');
-      assert.equal(form.get('signature'), sha1(`folder=voluntariar&timestamp=${T}&type=privateabcd`));
+      assert.equal(form.get('signature'), sha256(`folder=voluntariar&timestamp=${T}&type=privateabcd`));
     });
 
     test('respuesta sin public_id → StorageError (no se guarda un CV roto)', async () => {
@@ -123,7 +123,7 @@ describe('uploadPdf() / pdfDownloadUrl() / deletePdf()', () => {
       assert.equal(p.timestamp, String(T));
       assert.equal(p.expires_at, String(T + 600));
       assert.equal(p.api_key, '123456');
-      assert.equal(p.signature, sha1(`expires_at=${T + 600}&public_id=cv_abc.pdf&timestamp=${T}&type=privateabcd`));
+      assert.equal(p.signature, sha256(`expires_at=${T + 600}&public_id=cv_abc.pdf&timestamp=${T}&type=privateabcd`));
       assert.ok(!url.includes('abcd'), 'el secreto no aparece en el link');
       assert.equal(expiresAt, new Date((T + 600) * 1000).toISOString());
     });
@@ -139,7 +139,7 @@ describe('uploadPdf() / pdfDownloadUrl() / deletePdf()', () => {
       assert.equal(u.searchParams.get('public_id'), 'voluntariar/cv de maría.pdf');
       assert.ok(!url.includes(' '));
       assert.equal(u.searchParams.get('signature'),
-        sha1(`expires_at=${T + 600}&public_id=voluntariar/cv de maría.pdf&timestamp=${T}&type=privateabcd`));
+        sha256(`expires_at=${T + 600}&public_id=voluntariar/cv de maría.pdf&timestamp=${T}&type=privateabcd`));
     });
 
     test('sin credenciales lanza (no arma un link inválido)', () => {
@@ -158,7 +158,7 @@ describe('uploadPdf() / pdfDownloadUrl() / deletePdf()', () => {
       assert.equal(form.get('public_id'), 'cv_abc.pdf');
       assert.equal(form.get('type'), 'private');
       assert.equal(form.get('api_key'), '123456');
-      assert.equal(form.get('signature'), sha1(`public_id=cv_abc.pdf&timestamp=${T}&type=privateabcd`));
+      assert.equal(form.get('signature'), sha256(`public_id=cv_abc.pdf&timestamp=${T}&type=privateabcd`));
     });
 
     test('borrar algo que ya no existe es éxito (idempotente)', async () => {

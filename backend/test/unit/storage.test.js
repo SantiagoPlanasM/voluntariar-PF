@@ -25,15 +25,17 @@ const WEBP = Buffer.concat([Buffer.from('RIFF'), Buffer.from([0x24, 0, 0, 0]), B
 describe('signParams() — algoritmo de firma', () => {
   const { signParams } = freshStorage();
 
-  test('coincide con el vector de prueba OFICIAL de Cloudinary', () => {
-    // Del curl de su documentación: api_secret "abcd", timestamp 1315060510, y estos campos.
+  test('coincide con el vector de prueba OFICIAL de Cloudinary (que es SHA-1)', () => {
+    // Del curl de su documentación: api_secret "abcd", timestamp 1315060510, y estos campos. La doc publica el
+    // ejemplo solo en SHA-1: se pide SHA-1 explícito para seguir anclando a la fuente oficial CÓMO se arma el
+    // texto que se firma (qué campos, en qué orden). La app firma con SHA-256 (§191).
     const sig = signParams({
       eager: 'w_400,h_300,c_pad|w_260,h_200,c_crop',
       public_id: 'sample_image',
       timestamp: 1315060510,
       // Estos cuatro se mandan en el POST pero NO se firman:
       file: 'https://www.example.com/sample.jpg', api_key: '1234', resource_type: 'image', cloud_name: 'demo',
-    }, 'abcd');
+    }, 'abcd', 'sha1');
     assert.equal(sig, 'bfd09f95f331f558cbd1320e67aa8d488770583e');
   });
 
@@ -50,7 +52,7 @@ describe('signParams() — algoritmo de firma', () => {
     // Act
     const sig = signParams(params, 's');
     // Assert
-    assert.equal(sig, crypto.createHash('sha1').update('Z_key=1&a_b=2&ab=3&timestamp=4' + 's').digest('hex'));
+    assert.equal(sig, crypto.createHash('sha256').update('Z_key=1&a_b=2&ab=3&timestamp=4' + 's').digest('hex'));
   });
 
   test('los valores vacíos, null y undefined no se firman (porque tampoco se mandan)', () => {
@@ -58,9 +60,13 @@ describe('signParams() — algoritmo de firma', () => {
     assert.equal(signParams({ timestamp: 1, folder: '', tags: null, context: undefined }, 's'), base);
   });
 
-  test('es SHA-1 hexadecimal de "k=v&k=v" + secreto, sin separador', () => {
-    const expected = crypto.createHash('sha1').update('folder=a&timestamp=2' + 'secreto').digest('hex');
-    assert.equal(signParams({ timestamp: 2, folder: 'a' }, 'secreto'), expected);
+  test('por defecto es SHA-256 hexadecimal de "k=v&k=v" + secreto, sin separador (no SHA-1)', () => {
+    // SonarCloud marcaba SHA-1 como vulnerabilidad CRITICAL (S4790). Cloudinary acepta SHA-1 y SHA-256 sin
+    // cambiar nada en la cuenta (doc de authentication_signatures, verificada el 2026-10-17; §191).
+    const expected = crypto.createHash('sha256').update('folder=a&timestamp=2' + 'secreto').digest('hex');
+    const sig = signParams({ timestamp: 2, folder: 'a' }, 'secreto');
+    assert.equal(sig, expected);
+    assert.match(sig, /^[0-9a-f]{64}$/);
   });
 });
 
@@ -166,7 +172,7 @@ describe('uploadImage() / deleteImage() / configuración', () => {
       assert.equal(form.get('api_key'), '123456');
       assert.equal(form.get('timestamp'), '1315060510');
       // Subida mínima documentada: solo `timestamp` se firma. El secreto NUNCA viaja.
-      assert.equal(form.get('signature'), crypto.createHash('sha1').update('timestamp=1315060510abcd').digest('hex'));
+      assert.equal(form.get('signature'), crypto.createHash('sha256').update('timestamp=1315060510abcd').digest('hex'));
       assert.equal(form.get('api_secret'), null, 'el secreto no debe mandarse');
       const file = form.get('file');
       assert.equal(file.size, JPEG.length, 'se sube el contenido del buffer');
@@ -179,7 +185,7 @@ describe('uploadImage() / deleteImage() / configuración', () => {
       const form = calls[0].opts.body;
       assert.equal(form.get('folder'), 'voluntariar/posts');
       assert.equal(form.get('signature'),
-        crypto.createHash('sha1').update('folder=voluntariar/posts&timestamp=1315060510abcd').digest('hex'));
+        crypto.createHash('sha256').update('folder=voluntariar/posts&timestamp=1315060510abcd').digest('hex'));
     });
 
     test('un error de Cloudinary lanza StorageError con el estado y el mensaje, SIN filtrar el secreto', async () => {
@@ -230,7 +236,7 @@ describe('uploadImage() / deleteImage() / configuración', () => {
       assert.equal(form.get('public_id'), 'abc');
       assert.equal(form.get('api_key'), '123456');
       assert.equal(form.get('signature'),
-        crypto.createHash('sha1').update('public_id=abc&timestamp=1315060510abcd').digest('hex'));
+        crypto.createHash('sha256').update('public_id=abc&timestamp=1315060510abcd').digest('hex'));
     });
 
     test('borrar algo que ya no existe es éxito (idempotente)', async () => {

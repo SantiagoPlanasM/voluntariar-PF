@@ -97,7 +97,7 @@ COMMIT si el callback termina; ROLLBACK y se relanza el mismo error si lanza. De
 Ambas diferencias devolvían 500 solo en producción (Render) y pasaban todos los tests en SQLite. Por eso existe `npm run test:pg`.
 
 ### Fotos (Cloudinary) y publicaciones
-`lib/storage.js` habla con la **API REST de Cloudinary con `fetch` nativo**, sin el SDK oficial (mismo criterio que `email.js`: no sumar dependencia ni superficie de `npm audit` por un POST firmado). Firma: parámetros ordenados alfabéticamente (sin `file`, `cloud_name`, `resource_type`, `api_key`) + `api_secret` + SHA-1; `test/unit/storage.test.js` la verifica contra el **vector de prueba oficial** de la documentación de Cloudinary. El secreto solo firma: nunca viaja ni se loguea.
+`lib/storage.js` habla con la **API REST de Cloudinary con `fetch` nativo**, sin el SDK oficial (mismo criterio que `email.js`: no sumar dependencia ni superficie de `npm audit` por un POST firmado). Firma: parámetros ordenados por código de carácter (comparador explícito, nunca `localeCompare`; sin `file`, `cloud_name`, `resource_type`, `api_key`) + `api_secret` + **SHA-256** (era SHA-1 hasta `PROJECT_ANALYSIS.md §191`; Cloudinary acepta los dos); `test/unit/storage.test.js` verifica cómo se arma el texto firmado contra el **vector de prueba oficial** de la documentación de Cloudinary (publicado en SHA-1, por eso ese test pide SHA-1 explícito). El secreto solo firma: nunca viaja ni se loguea.
 
 | Variable | Efecto |
 |---|---|

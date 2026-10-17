@@ -14,8 +14,9 @@
 //
 // Firma: https://cloudinary.com/documentation/authentication_signatures — se ordenan alfabéticamente los
 // parámetros que se mandan (excepto file, cloud_name, resource_type y api_key), se unen como k=v con "&",
-// se les pega el api_secret SIN separador y se aplica SHA-1 en hexadecimal. test/unit/storage.test.js
-// verifica la implementación contra el vector de prueba oficial de esa página.
+// se les pega el api_secret SIN separador y se aplica SHA-256 en hexadecimal (era SHA-1 hasta §191; la doc dice
+// que Cloudinary acepta los dos). test/unit/storage.test.js verifica cómo se arma el texto firmado contra el
+// vector de prueba oficial de esa página (publicado en SHA-1).
 //
 // Los routes llaman a `storage.uploadImage(...)` / `storage.deleteImage(...)` accediendo a la propiedad
 // en cada llamada (no desestructurado): así los tests pueden reemplazarlas sin tocar Cloudinary.
@@ -54,14 +55,18 @@ function isConfigured() {
 // que pone mayúsculas y signos en otro lugar y rompe la firma (SonarCloud S2871 lo sugería; §191).
 const byCodeUnit = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
-/** Firma de un request a la API de Cloudinary. Ver el encabezado del archivo. */
-function signParams(params, apiSecret) {
+/**
+ * Firma de un request a la API de Cloudinary. Ver el encabezado del archivo.
+ * SHA-256 por defecto (SonarCloud marcaba SHA-1 como vulnerabilidad, S4790; Cloudinary acepta los dos sin
+ * configurar nada, §191). `algorithm` existe para el test del vector oficial, que la doc publica en SHA-1.
+ */
+function signParams(params, apiSecret, algorithm = 'sha256') {
   const toSign = Object.keys(params)
     .filter((k) => !UNSIGNED_FIELDS.has(k) && params[k] !== undefined && params[k] !== null && params[k] !== '')
     .sort(byCodeUnit)
     .map((k) => `${k}=${params[k]}`)
     .join('&');
-  return crypto.createHash('sha1').update(toSign + apiSecret).digest('hex');
+  return crypto.createHash(algorithm).update(toSign + apiSecret).digest('hex');
 }
 
 /**

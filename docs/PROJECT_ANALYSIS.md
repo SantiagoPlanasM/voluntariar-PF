@@ -5231,3 +5231,14 @@ El run #7 no se toca: se corrige en commits posteriores.
 - **Test nuevo** (`storage.test.js`, AAA): claves `ab`, `timestamp`, `Z_key`, `a_b` → se firma `Z_key=1&a_b=2&ab=3&timestamp=4`. Es un **test de caracterización**: con el código anterior ya pasaba. Su **rojo es la sugerencia de Sonar**: con `.sort((a, b) => a.localeCompare(b))` falla.
 - **Mutantes** sobre el comparador: `localeCompare` (1 falla), orden invertido (5 fallas), siempre 0 (4 fallas): **los 3 mueren**.
 - Suite: SQLite **783/783**, Postgres **785/785**, Córdoba **783/783** (+1 por el test nuevo).
+
+### Tarea 3 — la firma de Cloudinary pasa a SHA-256
+- **Fuente:** https://cloudinary.com/documentation/authentication_signatures (leída el 2026-10-17): "By default, Cloudinary supports both SHA-1 and SHA-256 digests for validation, and you can use either". No hace falta tocar la cuenta ni mandar un parámetro que indique el algoritmo.
+- `signParams(params, apiSecret, algorithm = 'sha256')`. El parámetro existe solo para que el test del **vector oficial** (que la doc publica en SHA-1) pida SHA-1 explícito y siga anclando a la fuente cómo se arma el texto firmado. Lo usan las cinco operaciones: subir y borrar foto, subir y borrar CV, y el **link de descarga del CV**.
+- **Tests primero:** con las expectativas en SHA-256 y el código en SHA-1, **10 de 38 en rojo**; con el cambio, 38/38. Mutantes: "por defecto SHA-1" (10 fallas) e "ignora `algorithm`" (1 falla, el del vector oficial): **mueren los dos**.
+- Suite: SQLite **783/783**, Postgres **785/785**, Córdoba **783/783**. `BACKEND_CONTEXT.md` actualizado.
+
+### ⚠️ NO verificado (tarea 3) — hay que probarlo en Render antes de la defensa
+- **Nada contra Cloudinary real:** los tests usan dobles. La doc no da un ejemplo en SHA-256 (todos sus ejemplos son SHA-1), así que el test de SHA-256 compara contra un hash calculado por el propio test.
+- **El link de descarga del CV** (`/raw/download`): la doc de firmas no lo menciona. Que acepte SHA-256 lo deduzco porque el SDK oficial firma ese link con la misma función, que respeta `signature_algorithm`; no lo probé. Si falla, el CV no se puede abrir.
+- **Prueba obligatoria después del deploy:** subir una foto de perfil, publicar un Momento con foto, subir un CV, abrirlo desde la ONG y borrarlo. Si algo da 401 de Cloudinary, se vuelve a SHA-1 con un commit (es una línea) y la vulnerabilidad se justifica en Sonar.
