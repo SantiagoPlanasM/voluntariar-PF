@@ -5474,3 +5474,37 @@ Con esto, **T9 queda cumplida para el nivel 3**: deploy por el pipeline después
 ### ⚠️ NO verificado
 - **El "después" de SonarCloud:** sale del análisis del pipeline después del push. Se espera bugs 37 → 1 (el `S8985` del test queda para el triage, §202).
 - Lo visual no cambia (no hay cambios de UI): no se miró en Chrome.
+
+## 201. Vulnerabilidad real encontrada por SonarCloud (S8786): un email gigante bloqueaba toda la API — tope de 254 antes del regex
+
+**Los 6 regex marcados por S8786** ("backtracking no lineal") se midieron con entradas armadas para el peor caso (script en el scratchpad):
+
+| Dónde | Regex | 40 mil caracteres | ¿Lo controla un usuario? |
+|---|---|---|---|
+| `backend/src/routes/auth.js:33` `EMAIL_RE` | `^[^\s@]+@[^\s@]+\.[^\s@]{2,}$` | **813 ms** (cuadrático) | **Sí**: `/login` y `/register` son públicos, sin tope de largo (el JSON acepta 5 MB) |
+| `frontend/.../AuthModal.tsx:11` | el mismo | ídem | Solo el propio usuario en su navegador |
+| `backend/src/lib/email.js:34` `looksLikeEmail` | similar | 621 ms | No: valida `EMAIL_REDIRECT_TO` (variable de entorno) |
+| `backend/src/lib/time.js:27` y `frontend/src/lib/format.ts:13` `hasZone` | `T.*(Z\|[+-]…)$` | 324 ms (20 mil) | No: fechas que genera la base |
+| `frontend/src/lib/format.ts:73` | `\s+$` | 309 ms (20 mil) | No: corre sobre un texto ya recortado a un largo fijo |
+
+**Reproducción contra la API local** (SQLite + seed, puerto 3002):
+- `POST /api/auth/login` con `'a@' + 'a.'×40000 + '@'` → **400 en 3.427 ms**;
+- un `/health` mandado 30 ms después **esperó 3.357 ms**: Node tiene un solo hilo, así que **un pedido bloquea a todos los usuarios**.
+
+Con el tope del JSON (5 MB), el crecimiento cuadrático daría horas por pedido. **Es una vulnerabilidad de denegación de servicio real.** El primer intento de reproducirlo falló porque la entrada terminaba en un espacio y `validateEmail` hace `.trim()` antes del regex: se rehízo terminando en `@`.
+
+**Corrección:** `validateEmail` (backend) corta en **254 caracteres (RFC 5321) antes del regex**. Lo usan el registro, el login y `ngos.js` (empleados). Mismo tope en `AuthModal.tsx` (regla 3: misma validación en los dos lados). Los otros 4 regex **no se tocaron**: no reciben texto de un usuario, y van al triage (§202) con esta tabla como justificación.
+
+### Verificación
+- **Tests primero:**
+  - `validators.test.js`: 254 pasa / 255 no; 80 mil caracteres en < 100 ms; los espacios de los costados no cuentan. Rojo: **2 de 3**, el de 80 mil tardó 3.900 ms.
+  - `test/integration/email-redos.test.js`: login y registro → 400 "Email inválido" **en < 500 ms**, con `/health` en paralelo < 500 ms. Rojo: **2/2**, 3,3 s por pedido.
+  - `AuthModal.test.tsx`: 255 → "Email inválido" sin llamar al servidor; 254 → se registra. Rojo: **1 de 10**.
+- **Error propio en el test de integración:** la primera versión medía solo el `/health` y era **inestable**: en 2 de 3 corridas del registro el `/health` se atendía antes de que empezara la validación y pasaba aunque el ataque tardara 3,4 s. Se agregó la medición del propio pedido malicioso, y el rojo quedó estable (2/2 en dos corridas).
+- **Mutantes** (backend): tope 255 (1 falla), tope 253 (2), sin el tope (4) y sin `trim` (1): **mueren los 4**.
+- **Suites:** backend SQLite **802/802**, Postgres **804/804**, Córdoba **802/802**; frontend **696/696**; `typecheck` 0. `API_CONTEXT.md` y `CLAUDE.md` actualizados.
+- Los mutantes se aplicaron con `sed -i` sobre `auth.js`, que es CRLF, y se restauró con `cp` desde una copia byte a byte. Se verificó que sigue en CRLF (`file`, `git ls-files --eol`).
+
+### ⚠️ NO verificado
+- Que en producción (Render) el bloqueo fuera igual de largo: no se atacó producción, a propósito.
+- Las sesiones de Render no se reiniciaron por esto: no hay evidencia de que alguien lo haya explotado.

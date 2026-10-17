@@ -171,6 +171,47 @@ describe('<AuthModal /> registro: contraseña de hasta 72 bytes', () => {
   });
 });
 
+// §201: el email tiene un tope de 254 caracteres ANTES del regex, igual que el backend (el regex tiene backtracking
+// cuadrático: SonarCloud S8786). 254 se registra; 255 muestra "Email inválido" y no llama al servidor.
+describe('<AuthModal /> registro: email de hasta 254 caracteres', () => {
+  const INVALID = 'Email inválido. Ejemplo: usuario@dominio.com';
+  const at254 = 'a'.repeat(64) + '@' + 'b'.repeat(185) + '.com';
+  beforeEach(() => {
+    mockNavigate.mockReset();
+    vi.mocked(api.auth.register).mockReset();
+    vi.mocked(api.auth.register).mockResolvedValue({
+      token: 'jwt-v', user: { id: 'v1', name: 'Ana Prueba', email: at254, role: 'volunteer' },
+    } as any);
+  });
+
+  async function submitRegister(email: string) {
+    render(<MemoryRouter><AuthProvider><OpenOnce /><AuthModal /></AuthProvider></MemoryRouter>);
+    await screen.findByRole('dialog', { name: 'Iniciar sesión' });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Crear cuenta' })[0]);
+    fireEvent.change(screen.getByLabelText('Nombre completo'), { target: { value: 'Ana Prueba' } });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: email } });
+    fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'Password1' } });
+    fireEvent.click(screen.getByRole('button', { name: /crear mi cuenta/i }));
+  }
+
+  test('255 caracteres → "Email inválido" y no se llama al servidor', async () => {
+    // Arrange
+    const at255 = 'a' + at254;
+    // Act
+    await submitRegister(at255);
+    // Assert
+    expect(await screen.findByText(INVALID)).toBeInTheDocument();
+    expect(api.auth.register).not.toHaveBeenCalled();
+  });
+
+  test('254 caracteres justos → se registra', async () => {
+    await submitRegister(at254);
+    await waitFor(() => expect(api.auth.register).toHaveBeenCalledWith(
+      { name: 'Ana Prueba', email: at254, password: 'Password1', role: 'volunteer' }));
+    expect(screen.queryByText(INVALID)).not.toBeInTheDocument();
+  });
+});
+
 // §179: al registrarse se acepta la página de privacidad y términos (se abre en otra pestaña para no perder el formulario).
 describe('<AuthModal /> registro: link a privacidad y términos', () => {
   test('en "Crear cuenta" aparece el aviso con el link; en "Iniciar sesión", no', async () => {

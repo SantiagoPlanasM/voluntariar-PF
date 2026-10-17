@@ -98,6 +98,36 @@ describe('validateEmail / validateName / validatePassword', () => {
   test('password sin número → rechazada', () => { assert.match(validatePassword('Password'), /número/); });
 });
 
+// Email: largo máximo 254 (RFC 5321) ANTES del regex. SonarCloud S8786 (§201): EMAIL_RE tiene backtracking
+// cuadrático; con 80 mil caracteres bloqueaba la API 3,4 s por pedido. Criterio: 254 pasa, 255 no, y un email
+// gigante se rechaza en milisegundos.
+describe('validateEmail — largo máximo y tiempo (ReDoS)', () => {
+  const at254 = 'a'.repeat(64) + '@' + 'b'.repeat(185) + '.com';   // 64 + 1 + 185 + 4 = 254
+
+  test('254 caracteres pasa, 255 no', () => {
+    // Arrange
+    const at255 = 'a' + at254;
+    // Act
+    const results = [validateEmail(at254), validateEmail(at255)];
+    // Assert
+    assert.deepEqual([at254.length, at255.length], [254, 255]);
+    assert.deepEqual(results, [null, 'Email inválido']);
+  });
+
+  test('un email de 80 mil caracteres armado para el peor caso se rechaza rápido (< 100 ms)', () => {
+    const evil = 'a@' + 'a.'.repeat(40000) + '@';
+    const t0 = process.hrtime.bigint();
+    const result = validateEmail(evil);
+    const ms = Number(process.hrtime.bigint() - t0) / 1e6;
+    assert.equal(result, 'Email inválido');
+    assert.ok(ms < 100, `tardó ${ms.toFixed(1)} ms`);
+  });
+
+  test('los espacios de los costados no cuentan para el largo (se recortan, como antes)', () => {
+    assert.equal(validateEmail(`  ${at254}  `), null);
+  });
+});
+
 // Valores límite de la contraseña (TP de Calidad, eje 5; docs/calidad/DISENO_CASOS.md §2; PROJECT_ANALYSIS.md §199).
 // Hueco encontrado por mutación: con `v.length < 7` en vez de `< 8` ningún test fallaba (solo se probaba 'Ab1').
 describe('validatePassword — valores límite (8 caracteres y 72 bytes)', () => {

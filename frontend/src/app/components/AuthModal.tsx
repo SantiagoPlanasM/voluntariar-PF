@@ -11,9 +11,13 @@ type Tab = 'login' | 'register';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const NAME_RE  = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]{2,50}$/;
 
+// Tope de 254 (RFC 5321) ANTES del regex, como el backend: EMAIL_RE tiene backtracking cuadrático (SonarCloud
+// S8786, PROJECT_ANALYSIS.md §201).
+const EMAIL_MAX = 254;
 function validateEmail(v: string) {
-  if (!v.trim()) return 'El email es obligatorio';
-  if (!EMAIL_RE.test(v.trim())) return 'Email inválido. Ejemplo: usuario@dominio.com';
+  const email = v.trim();
+  if (!email) return 'El email es obligatorio';
+  if (email.length > EMAIL_MAX || !EMAIL_RE.test(email)) return 'Email inválido. Ejemplo: usuario@dominio.com';
   return '';
 }
 function validateName(v: string) {
