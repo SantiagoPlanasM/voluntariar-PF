@@ -5,6 +5,7 @@ const db = require('../db');
 const storage = require('../lib/storage');   // por propiedad (storage.uploadPdf), para poder reemplazarlo en tests
 const { createLimiter } = require('../lib/rateLimit');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { forLog } = require('../lib/logSafe');   // S5145 (§202)
 
 const router = express.Router();
 
@@ -67,7 +68,7 @@ router.put('/me/cv', requireAuth, requireRole('volunteer'), (req, res, next) => 
     try {
       ({ publicId } = await storage.uploadPdf(req.file.buffer));
     } catch (err) {
-      console.error('PUT /voluntarios/me/cv: falló la subida a Cloudinary:', err.message);
+      console.error('PUT /voluntarios/me/cv: falló la subida a Cloudinary:', forLog(err.message));
       return res.status(502).json({ error: 'No pudimos subir el CV. Probá de nuevo en un momento.' });
     }
 

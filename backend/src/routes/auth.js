@@ -11,6 +11,7 @@ const multer = require('multer');
 const storage = require('../lib/storage');   // por propiedad (storage.uploadImage), para poder reemplazarlo en tests
 const email = require('../lib/email');       // por propiedad (email.sendEmail), ídem
 const { accountDeletionEmail } = require('../lib/emailTemplates');
+const { forLog } = require('../lib/logSafe');   // S5145 (§202)
 
 const router = express.Router();
 
@@ -333,7 +334,7 @@ router.put('/me/photo', requireAuth, (req, res, next) => {
     try {
       uploaded = await storage.uploadImage(req.file.buffer);
     } catch (err) {
-      console.error('PUT /auth/me/photo: falló la subida a Cloudinary:', err.message);
+      console.error('PUT /auth/me/photo: falló la subida a Cloudinary:', forLog(err.message));
       return res.status(502).json({ error: 'No pudimos subir la foto. Probá de nuevo en un momento.' });
     }
 

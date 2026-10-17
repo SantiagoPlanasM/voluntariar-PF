@@ -1,0 +1,47 @@
+# TRIAGE_SONAR.md — Qué se hizo con cada issue de SonarCloud
+
+> TP de Calidad, eje 4. Punto de partida: el primer análisis completo de `main` (`df86dde`, 2026-10-17), con
+> **157 issues**: 37 bugs, 17 vulnerabilidades y 103 code smells. Decisión del usuario: no arreglarlas todas de una,
+> sino por prioridad. Detalle técnico en `PROJECT_ANALYSIS.md §200–§203`.
+
+## Resumen
+
+| Grupo | Regla | Cant. | Decisión | Dónde |
+|---|---|---|---|---|
+| Bug | `typescript:S9383` promesa sin manejar | 36 | **Arreglado** (`void`): se revisaron las 12 funciones y ninguna podía rechazar | §200 |
+| Bug | `typescript:S8985` efecto dentro de `waitFor` | 1 | **Aceptado** (es un test, a propósito) | abajo |
+| Vulnerabilidad | `jssecurity:S5145` inyección en logs | 13 | **Arreglado** (`forLog()`; había un caso real: `data.id` del webhook) | §202 |
+| Vulnerabilidad | `javascript:S5693` límite de tamaño | 2 | **Aceptado** (los límites existen) | abajo |
+| Vulnerabilidad | `tssecurity:S8475` storage poisoning | 1 | **Aceptado** | abajo |
+| Vulnerabilidad | `tssecurity:S8480` WebSocket | 1 | **Aceptado**, con una mejora anotada | abajo |
+| Smell | `S8786` regex con backtracking | 6 | **2 arreglados** (vulnerabilidad real de DoS en el email), **4 aceptados** | §201 |
+| Smell | `S6853` / `S6848` / `S6845` accesibilidad | 34 | Se tratan aparte | §203 |
+| Smell | `S7773` `Number.parseInt` en vez de `parseInt` | 63 | **Sin tocar**: es cosmético y no cambia el comportamiento. Va en la tabla de métricas | — |
+
+## Para marcar en SonarCloud ("Accept", con este comentario)
+
+En SonarCloud: **Issues** → filtrar por la regla → abrir la issue → **"Change status"** → **Accept**. Después
+**pegar el comentario**, para que el triage quede registrado con su justificación.
+
+**`typescript:S8985`, `frontend/src/app/components/ModalsMigrated.test.tsx:119`**
+> Aceptado: es un test. El clic dentro de `waitFor` es a propósito: Leaflet recrea los marcadores después del primer render y el pin se busca de nuevo en cada intento (comentario en el test). Sacarlo haría el test inestable. TP de Calidad, docs/calidad/TRIAGE_SONAR.md.
+
+**`javascript:S5693`, `backend/src/routes/auth.js` (foto de perfil) y `backend/src/routes/posts.js` (Momentos)**
+> Aceptado: el límite existe y es chico a propósito. Multer corta en 8 MB por archivo (foto de perfil: 1 archivo; Momentos: hasta 5 fotos; el frontend comprime antes de subir), con un límite de frecuencia por usuario y validación de la cabecera real de la imagen antes de subir (regla 24 de AI_RULES). docs/calidad/TRIAGE_SONAR.md.
+
+**`tssecurity:S8475`, `frontend/src/lib/api.ts` ("browser storage poisoning")**
+> Aceptado: en localStorage solo se guardan el token y el usuario que devuelve nuestra propia API al iniciar sesión, no texto que escriba el usuario en un campo. Al leerlo, getUser() hace JSON.parse dentro de try/catch y la sesión se revalida con GET /api/auth/me al cargar la app. Sin una XSS previa no hay forma de envenenarlo. docs/calidad/TRIAGE_SONAR.md.
+
+**`tssecurity:S8480`, `frontend/src/lib/ChatContext.tsx` (WebSocket)**
+> Aceptado: la URL del socket se arma con la URL base de la API (configuración del build, no texto del usuario) y el token propio (encodeURIComponent). El servidor valida el JWT al conectar (§87). Mejora anotada como trabajo futuro: mandar el token en el primer mensaje en vez del query string, para que no quede en los logs del proxy. docs/calidad/TRIAGE_SONAR.md.
+
+**`S8786`, los 4 que no se cambiaron** (`backend/src/lib/email.js`, `backend/src/lib/time.js`, `frontend/src/lib/format.ts` ×2)
+> Aceptado: medido con entradas armadas para el peor caso (PROJECT_ANALYSIS.md §201). Ninguno recibe texto de un usuario: email.js valida una variable de entorno; hasZone (time.js y format.ts) corre sobre fechas que genera la base; el \s+$ de format.ts corre sobre un texto ya recortado a un largo fijo. El que sí recibía texto del usuario (EMAIL_RE en auth.js y AuthModal.tsx) se arregló con un tope de 254 caracteres. docs/calidad/TRIAGE_SONAR.md.
+
+## Si después del próximo análisis SonarCloud sigue marcando los S5145
+
+El arreglo está en el código: todo valor externo que va a un log pasa por `forLog()` (`backend/src/lib/logSafe.js`),
+con test unitario y uno de punta a punta (`donaciones-webhook.test.js`). Si el motor de Sonar no reconoce
+`forLog()` como sanitizador, se marcan como **"Accept"** con:
+
+> Corregido en el código: el valor pasa por forLog() (backend/src/lib/logSafe.js), que reemplaza los caracteres de control por espacios y limita el largo; probado en test/unit/logSafe.test.js y en donaciones-webhook.test.js ("un data.id con salto de línea no parte la línea del log"). SonarCloud no reconoce la función como sanitizador. PROJECT_ANALYSIS.md §202.

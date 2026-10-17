@@ -5508,3 +5508,32 @@ Con el tope del JSON (5 MB), el crecimiento cuadrático daría horas por pedido.
 ### ⚠️ NO verificado
 - Que en producción (Render) el bloqueo fuera igual de largo: no se atacó producción, a propósito.
 - Las sesiones de Render no se reiniciaron por esto: no hay evidencia de que alguien lo haya explotado.
+
+## 202. Triage del resto de SonarCloud + inyección en logs arreglada (`forLog`) — `docs/calidad/TRIAGE_SONAR.md`
+
+**Inyección en logs (`jssecurity:S5145`, 13), es real:** el `data.id` del webhook de Mercado Pago llega del query string **ya decodificado**. Con `%0A` se podía escribir una línea falsa en los logs de Render (por ejemplo, `[donaciones] aviso del pago 999: approved`). Lo mismo, en menor medida, con `topic` y `type`, `req.path` en el manejador de errores, y los mensajes de error de Cloudinary, Mercado Pago o Resend.
+- `backend/src/lib/logSafe.js`: `forLog(value, max = 300)` reemplaza los caracteres de control (`U+0000–U+001F`, `U+007F`) y los separadores de línea Unicode (`U+2028`, `U+2029`) por un espacio, y corta con "…".
+- Aplicado en los 13 logs marcados: `donaciones.js` ×9, `voluntarios.js`, `auth.js` (foto), `errorHandler.js` y `email.js`. Los cambios se hicieron con un script que exige que cada texto aparezca una sola vez y respeta CRLF/LF.
+
+**Triage del resto:** `docs/calidad/TRIAGE_SONAR.md` lista cada regla con su decisión, y el **texto listo para pegar** en SonarCloud al marcarla como "Accept":
+- `S8985` (es un test, a propósito);
+- `S5693` ×2 (los límites existen: 8 MB por archivo, límite de frecuencia y cabecera real);
+- `S8475` (en localStorage solo hay datos de nuestra API);
+- `S8480` (URL de configuración y token propio; **mejora anotada**: mandar el token en el primer mensaje del socket y no en el query string);
+- los 4 `S8786` no explotables (§201).
+
+`S7773` (63, `Number.parseInt`) queda **sin tocar**: es cosmético y va a la tabla de métricas.
+
+### Verificación
+- **`logSafe.test.js`:** 5 tests AAA, **3/5 en rojo** contra un stub, después 5/5.
+- **Mutación:** 8 mutantes, **0 sobrevivientes**: solo LF..CR, sin separadores Unicode, sin DEL, `>`→`>=`, 300→299, sin "…", borrar en vez de espacio, sin `g`.
+- **De punta a punta** (`donaciones-webhook.test.js`): un `data.id` con `%0A` deja **una sola línea** en el log. Con la línea vieja (`dataId.slice(0, 40)`) el test **falla**; con `forLog`, pasa.
+- **Suite:** SQLite **808/808**, Postgres **810/810**, Córdoba **808/808** (+6).
+
+### Errores propios
+- **El editor convirtió los escapes ` `/` ` del regex en los caracteres reales.** Para JavaScript son **saltos de línea**: el archivo no cargaba ("missing /"). Lo peor es que la primera tanda de mutantes "murió" **por eso** (cada corrida daba `tests 1, fail 1`: el archivo no cargaba). La línea se rehízo con `String.fromCharCode(92)`, se verificó que no quedaran separadores literales (`od -c`) y se repitieron los mutantes **chequeando que corrieran los 5 tests**. Dos de los mutantes no se habían aplicado (el `sed` no coincidía): se aplicaron por Node.
+- **Lección:** un mutante solo cuenta si la corrida ejecuta los tests. Hay que mirar `tests N`, no solo `fail`.
+
+### ⚠️ NO verificado
+- **Si SonarCloud reconoce `forLog()` como sanitizador:** se ve en el próximo análisis. Si no, se marcan como "Accept" con el texto de `TRIAGE_SONAR.md`.
+- **Las marcas "Accept" en SonarCloud las hace el usuario** (hace falta su sesión).

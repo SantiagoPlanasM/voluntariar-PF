@@ -29,6 +29,7 @@
 //                        Con un dominio propio verificado, dejala vacía.
 
 const { esc } = require('./emailTemplates');
+const { forLog } = require('./logSafe');   // S5145 (§202)
 
 const DEFAULT_FROM = 'VoluntariAR <onboarding@resend.dev>';
 const looksLikeEmail = (s) => /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(s);
@@ -115,7 +116,7 @@ async function sendEmail({ to, subject, html }) {
 
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      console.error(`[email] Resend respondió ${res.status} al mandar a ${to}: ${body}`);
+      console.error(`[email] Resend respondió ${res.status} al mandar a ${forLog(to, 254)}: ${forLog(body)}`);
       if (isTestingDomainError(res.status, body)) {
         showTestingDomainHint(redirectTo);
         return { ok: false, error: 'resend_testing_domain' };

@@ -237,6 +237,25 @@ describe('Aviso de Mercado Pago y conciliación', () => {
       assert.ok(!b.includes('DROP') && !b.includes('quizás'), b);
     });
 
+    // §202 (SonarCloud S5145): el data.id llega del query string YA DECODIFICADO; con "%0A" se podía inventar una
+    // línea entera en los logs de Render ("aviso del pago 999: approved"). Ahora pasa por forLog().
+    test('un data.id con salto de línea no parte la línea del log (log injection)', async () => {
+      // Arrange
+      const lines = [];
+      const warn = mock.method(console, 'warn', (...a) => lines.push(a.join(' ')));
+      // Act
+      try {
+        await notify('type=payment&data.id=150%0A%5Bdonaciones%5D%20aviso%20del%20pago%20999%3A%20approved', {
+          headers: { 'x-signature': 'basura' },
+        });
+      } finally { warn.mock.restore(); }
+      // Assert: una sola línea, sin \n ni \r, y el texto inyectado quedó dentro de ella
+      const line = lines.find((l) => l.startsWith('[donaciones]'));
+      assert.ok(line, 'se logueó la firma inválida');
+      assert.doesNotMatch(line, /[\r\n]/);
+      assert.match(line, /data\.id=150 \[donaciones\] aviso/);
+    });
+
     test('es público (Mercado Pago no manda sesión) y no expone nada de la donación', async () => {
       const id = await newDonation();
       payment = approved(id);

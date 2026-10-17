@@ -7,6 +7,8 @@
 // (AI_RULES regla 19); el detalle técnico queda solo en el log.
 
 // Errores que tira express.json() (body-parser), por `err.type`.
+const { forLog } = require('./logSafe');   // S5145 (§202)
+
 const BODY_ERRORS = {
   'entity.parse.failed':  [400, 'El cuerpo del pedido no es un JSON válido'],
   'entity.too.large':     [413, 'El pedido es demasiado grande (máximo 5 MB)'],
@@ -23,7 +25,7 @@ function corsError(origin) {
 
 // Los 4 parámetros son obligatorios: Express reconoce un manejador de errores por la cantidad.
 function errorHandler(err, req, res, next) {
-  console.error(`Error global (${req.method} ${req.path}):`, err.message);
+  console.error(`Error global (${req.method} ${forLog(req.path, 200)}):`, forLog(err.message));
   if (res.headersSent) return next(err); // ya se empezó a responder: que Express corte la conexión
 
   if (err.code === 'CORS_ORIGIN') return res.status(403).json({ error: 'Origen no permitido' });

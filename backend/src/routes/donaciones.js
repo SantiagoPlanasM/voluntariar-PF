@@ -26,6 +26,7 @@ const payments = require('../lib/payments');
 const { createLimiter } = require('../lib/rateLimit');
 const { checkText } = require('../lib/inputs');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { forLog } = require('../lib/logSafe');   // S5145: nada externo entra crudo a un log (§202)
 
 const router = express.Router();
 
@@ -83,7 +84,7 @@ router.post('/', requireAuth, requireRole('volunteer', 'company'), async (req, r
         successUrl: `${appUrl()}/donaciones/vuelta`,
       });
     } catch (err) {
-      console.error('POST /donaciones: no se pudo crear la preferencia:', err.message);
+      console.error('POST /donaciones: no se pudo crear la preferencia:', forLog(err.message));
       await db.run(`UPDATE donaciones SET estado='fallida', external_status='preference_error' WHERE id=$1 AND estado='pendiente'`, [id])
         .catch((e) => console.error('POST /donaciones: no se pudo marcar fallida:', e.message));
       return res.status(502).json({ error: 'No pudimos iniciar el pago. Probá de nuevo en un momento.' });
@@ -120,7 +121,7 @@ async function applyPayment(paymentId, { expectDonationId } = {}) {
 
   const monto = Number(d.monto);
   if (p.currency !== (d.moneda || payments.CURRENCY) || p.amount === null || Math.abs(p.amount - monto) > 0.001) {
-    console.error(`applyPayment: el pago ${p.id} no coincide con la donación ${d.id} (pagó ${p.amount} ${p.currency}, esperaba ${monto} ${d.moneda})`);
+    console.error(`applyPayment: el pago ${forLog(p.id)} no coincide con la donación ${d.id} (pagó ${forLog(p.amount)} ${forLog(p.currency)}, esperaba ${monto} ${d.moneda})`);
     return { result: 'amount_mismatch', donationId: d.id };
   }
 
@@ -170,7 +171,7 @@ router.post('/webhook', async (req, res) => {
   // Una línea por aviso (§173): sin esto no había forma de saber en producción si un aviso llegó y salió bien. Nunca
   // se loguean la firma, los headers ni el secreto.
   if (q.topic !== undefined && q.type === undefined) {   // IPN: sin firma posible
-    console.log(`[donaciones] aviso IPN ignorado (topic=${String(q.topic).slice(0, 40)})`);
+    console.log(`[donaciones] aviso IPN ignorado (topic=${forLog(q.topic, 40)})`);
     return res.json({ received: true });
   }
 
@@ -184,25 +185,25 @@ router.post('/webhook', async (req, res) => {
     const body = req.body || {};
     const liveMode = typeof body.live_mode === 'boolean' ? String(body.live_mode) : '?';
     const userId = typeof body.user_id === 'number' || /^\d{1,20}$/.test(String(body.user_id)) ? String(body.user_id) : '?';
-    console.warn(`[donaciones] aviso con firma inválida (data.id=${dataId.slice(0, 40)}; request-id: ${req.get('x-request-id') ? 'sí' : 'no'}; `
+    console.warn(`[donaciones] aviso con firma inválida (data.id=${forLog(dataId, 40)}; request-id: ${req.get('x-request-id') ? 'sí' : 'no'}; `
       + `ts=${tsMatch ? tsMatch[1] : '?'}; live_mode=${liveMode}; user_id=${userId})`);
     return res.status(401).json({ error: 'Firma inválida' });
   }
   if (q.type !== 'payment') {   // merchant_order, chargebacks, …: no se usan
-    console.log(`[donaciones] aviso de tipo ${String(q.type).slice(0, 40)} ignorado`);
+    console.log(`[donaciones] aviso de tipo ${forLog(q.type, 40)} ignorado`);
     return res.json({ received: true });
   }
   if (!dataId) return res.status(400).json({ error: 'Falta el id del pago' });
 
   try {
     const { result } = await applyPayment(dataId);
-    console.log(`[donaciones] aviso del pago ${dataId}: ${result}`);
+    console.log(`[donaciones] aviso del pago ${forLog(dataId, 40)}: ${result}`);
   } catch (err) {
     if (err?.code === 'not_found') {   // reintentar no lo va a encontrar
-      console.log(`[donaciones] aviso del pago ${dataId}: Mercado Pago no lo encuentra`);
+      console.log(`[donaciones] aviso del pago ${forLog(dataId, 40)}: Mercado Pago no lo encuentra`);
       return res.json({ received: true });
     }
-    console.error('POST /donaciones/webhook: no se pudo procesar el aviso:', err.message);
+    console.error('POST /donaciones/webhook: no se pudo procesar el aviso:', forLog(err.message));
     return res.status(500).json({ error: 'No pudimos procesar el aviso' });
   }
   res.json({ received: true });
@@ -231,7 +232,7 @@ router.get('/:id', requireAuth, async (req, res) => {
         console.log(`[donaciones] conciliación del pago ${paymentId} (donación ${d.id}): ${result}`);
         d = await load();
       } catch (err) {
-        console.error('GET /donaciones/:id: no se pudo conciliar:', err.message);   // se responde el estado actual
+        console.error('GET /donaciones/:id: no se pudo conciliar:', forLog(err.message));   // se responde el estado actual
       }
     }
     res.json({
