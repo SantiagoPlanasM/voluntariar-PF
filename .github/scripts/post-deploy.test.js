@@ -9,7 +9,7 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  checkHealth, checkProjects, checkStats, checkIndexHtml, checkDonationCreated, checkDonationStatus, retry,
+  checkHealth, checkProjects, checkStats, checkIndexHtml, checkDonationCreated, checkDonationStatus, retry, checkLogin,
 } = require('./post-deploy');
 
 describe('checkHealth', () => {
@@ -51,6 +51,26 @@ describe('checkProjects / checkStats / checkIndexHtml', () => {
     assert.deepEqual(checkIndexHtml(200, '<html><body><div id="root"></div></body></html>'), []);
     assert.equal(checkIndexHtml(200, '<html>Service Unavailable</html>').length, 1);
     assert.equal(checkIndexHtml(404, '').length > 0, true);
+  });
+});
+
+describe('checkLogin (cuenta de E2E)', () => {
+  // Deploy #2 (§195): la cuenta se había registrado con otro rol y el error recién aparecía en la donación (403).
+  // Criterio: el login tiene que dar 200 con token y la cuenta tiene que ser voluntaria; si no, decirlo ahí.
+  test('200, token y rol volunteer: pasa', () => {
+    assert.deepEqual(checkLogin(200, { token: 't', user: { role: 'volunteer' } }), []);
+  });
+  test('otro rol: falla y dice cuál es', () => {
+    const errs = checkLogin(200, { token: 't', user: { role: 'ngo' } });
+    assert.equal(errs.length, 1);
+    assert.match(errs[0], /"ngo"/);
+    assert.match(errs[0], /voluntari/);
+  });
+  test('401 o sin token: falla con el código', () => {
+    assert.match(checkLogin(401, { error: 'Email o contraseña incorrectos' }).join(' '), /401/);
+    assert.equal(checkLogin(200, { user: { role: 'volunteer' } }).length, 1);
+    // un código de error con un cuerpo que igual trae token (proxy, caché) no es un login válido
+    assert.equal(checkLogin(500, { token: 't', user: { role: 'volunteer' } }).length, 1);
   });
 });
 

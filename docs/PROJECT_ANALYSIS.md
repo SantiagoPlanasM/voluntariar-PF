@@ -5328,3 +5328,19 @@ O sea, el chequeo **no podía pasar** desde un script, y aunque se lo forzara **
 ### ⚠️ NO verificado
 - El E2E completo en producción: falta que el usuario corrija los secretos.
 - El formato real de un `pref_id` de Mercado Pago (no hay ninguno en el repo; se exige solo que no esté vacío).
+
+## 195. Deploy #2: login OK, pero la cuenta de E2E era una ONG (403 en la donación)
+
+**Deploy #2** (https://github.com/SantiagoPlanasM/voluntariar-PF/actions/runs/39061235908, CI #10 de `6ecb6a6` en verde): deploy, `wait` (la API respondió `6ecb6a6`) y smoke en verde. El E2E siguió más que en el #1, según el resumen que pegó el usuario:
+- ✅ login de la cuenta de E2E;
+- ✅ hay un proyecto activo;
+- ❌ `POST /api/donaciones respondió 403: Requiere rol: volunteer o company`.
+
+**Causa (confirmada por el usuario):** la cuenta de E2E **se registró como ONG**. El rol no se puede cambiar desde la app: hay que crear otra cuenta como voluntaria y actualizar los secretos. Igual que en el #1, es configuración y no un defecto. No se creó ninguna donación.
+
+**Mejora del script (commit posterior):** `checkLogin` exige 200 + token + rol `volunteer`, y si el rol es otro, lo dice en el login ("la cuenta es "ngo"; tiene que ser voluntaria") en vez de esperar al 403 de la donación.
+- Tests: 4 nuevos (3 con rojo débil, porque la función no existía) → **33/33**.
+- Mutación: **23 mutantes**. Sobrevivió "no mira el 200": se agregó el caso 500 + token. Resultado final: **0 sobrevivientes**.
+
+### ⚠️ NO verificado
+- El E2E completo con una cuenta voluntaria: pendiente de que el usuario la cree y cambie los secretos.

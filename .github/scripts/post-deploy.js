@@ -45,6 +45,14 @@ function isMercadoPagoCheckout(url) {
   } catch { return false; }
 }
 
+// La cuenta de E2E tiene que ser voluntaria: POST /api/donaciones exige volunteer o company, y el rol no se puede
+// cambiar desde la app. Mejor decirlo en el login que con un 403 en la donación (Deploy #2, §195).
+function checkLogin(status, body) {
+  if (status !== 200 || !body || !body.token) return [`login respondió ${status}`];
+  const role = body.user && body.user.role;
+  return role === 'volunteer' ? [] : [`la cuenta es "${role}"; tiene que ser voluntaria (registrarla de nuevo como voluntario/a)`];
+}
+
 function checkDonationCreated(status, body) {
   if (status !== 201) return [`POST /api/donaciones respondió ${status}: ${(body && body.error) || ''}`.trim()];
   const errs = [];
@@ -118,7 +126,7 @@ async function e2e(api) {
   const { E2E_EMAIL: email, E2E_PASSWORD: password } = process.env;
   if (!email || !password) throw new Error('Faltan E2E_EMAIL / E2E_PASSWORD');
   const login = await http(`${api}/api/auth/login`, json('POST', { email, password }));
-  if (!record('login de la cuenta de E2E', login.status === 200 && login.body && login.body.token ? [] : [`login respondió ${login.status}`])) return;
+  if (!record('login de la cuenta de E2E (voluntaria)', checkLogin(login.status, login.body))) return;
   const token = login.body.token;
 
   const list = await http(`${api}/api/projects?limit=1`);
@@ -154,5 +162,5 @@ if (require.main === module) {
 }
 
 module.exports = {
-  checkHealth, checkProjects, checkStats, checkIndexHtml, checkDonationCreated, checkDonationStatus, retry,
+  checkHealth, checkProjects, checkStats, checkIndexHtml, checkDonationCreated, checkDonationStatus, retry, checkLogin,
 };
