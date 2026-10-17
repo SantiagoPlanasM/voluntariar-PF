@@ -7,6 +7,7 @@ import { FollowListModal, FollowListMode } from './FollowListModal';
 import { InlineError } from './LoadError';
 import { ProfilePhotoPicker } from './ProfilePhotoPicker';
 import { CvSection } from './CvSection';
+import { DeleteAccountSection } from './DeleteAccountSection';
 import { userMessage } from '../../lib/format';
 import { useLatestRequest } from '../../lib/useLatestRequest';
 
@@ -307,6 +308,7 @@ export function VolunteerProfile() {
 
         {/* Mi CV (§166) */}
         {!editing && <CvSection userId={user.id} />}
+        {!editing && <DeleteAccountSection />}
 
         {/* Mis ONGs seguidas */}
         <div>

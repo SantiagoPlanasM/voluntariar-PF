@@ -7,6 +7,7 @@ import { userMessage } from '../../lib/format';
 import { SPONSORSHIP_BADGE, SPONSORSHIP_LABEL } from '../../lib/sponsorship';
 import { InlineError } from './LoadError';
 import { ProfilePhotoPicker } from './ProfilePhotoPicker';
+import { DeleteAccountSection } from './DeleteAccountSection';
 
 // Tope del listado de proyectos para proponer. Sin `limit` el backend devuelve 20 y los demás no se podían
 // patrocinar (REVISION F6). GET /projects no tiene paginación (deuda conocida): el camino principal es
@@ -312,6 +313,8 @@ export function CompanyOwnProfile() {
             </div>
           </>
         )}
+        {/* §178 */}
+        <DeleteAccountSection />
       </div>
     </div>
   );

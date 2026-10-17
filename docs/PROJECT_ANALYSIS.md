@@ -4922,3 +4922,26 @@ Se le pidió al usuario mirar la línea `Pagos:` del arranque, volver a copiar l
 - **Las fotos de perfil y de proyectos** en Cloudinary no se borran: no guardamos su id (pendiente conocido).
 - **El JWT de la cuenta borrada** sigue siendo válido hasta que vence, pero apunta a un usuario que no existe: `/auth/me` da 404 y el frontend cierra la sesión.
 - Dos borrados simultáneos con el mismo link: el segundo no encuentra el usuario (`changes = 0`) y responde 400. No lo probé con concurrencia real.
+
+## 178. Borrar la propia cuenta (frontend): "Zona peligrosa" en los perfiles y `/cuenta/borrar`
+
+**Qué se hizo:**
+- **`DeleteAccountSection.tsx`** (nuevo), en `VolunteerProfile` (fuera de la edición), `NGOOwnProfile` y `CompanyOwnProfile`:
+  - "Borrar mi cuenta" pide confirmar **en la pantalla**, sin `window.confirm`: explica qué se borra y, **a una ONG, que se van sus proyectos y las inscripciones de los voluntarios**;
+  - "Mandarme el email" llama a `api.auth.requestDeletion` y avisa "Te mandamos un email a <tu email>… Vence en 1 hora";
+  - los errores van con `role="alert"` y, mientras manda, el botón dice "Mandando…".
+- **`DeleteAccountPage.tsx`** (nuevo, ruta `/cuenta/borrar` bajo `Root`, sin sesión): explica qué se borra y que no se puede deshacer. Con "Sí, borrar mi cuenta" llama a `api.auth.deleteAccount(token)`, **cierra la sesión** y muestra "Tu cuenta se borró". Si el link venció o ya se usó, muestra el mensaje del servidor **sin cerrar la sesión**, y el botón se puede volver a tocar. Sin token, "Este link no es válido".
+- **`api.ts`:** `api.auth.requestDeletion()` y `api.auth.deleteAccount(token)`.
+
+### Verificación
+- Test nuevo `DeleteAccount.test.tsx` (13): la API; la confirmación en pantalla (Cancelar no manda nada); el aviso de la ONG y que un voluntario no lo vea; el error del servidor y sin red; el estado "Mandando…"; la página (no borra hasta confirmar, borra con el token y cierra la sesión, link vencido, sin token, "Borrando…" y el botón habilitado tras un error). `ProfilePhotoScreens.test.tsx` (+1): la sección está en los tres perfiles.
+- Rojo: los módulos no existían (rojo débil) y el test de los tres perfiles fallaba (rojo fuerte).
+- Frontend **683/683** (antes 670, +13), también con TZ; `typecheck` 0; `npm audit` 0. Finales de línea conservados.
+- **Mutación** (control en verde): **18 mutantes; en la primera tanda sobrevivieron 2, no equivalentes**: el mensaje sin red de la sección, y el botón de la página que no se rehabilitaba tras un error. Sumé los dos tests y quedó en **0 de 18**.
+
+### Errores propios
+- Los dos huecos de tests que encontró la mutación.
+
+### ⚠️ NO verificado
+- Nada visual (la tarjeta roja al final de cada perfil, la página de confirmación) ni el flujo real en Render: pedir el email, recibirlo (con `EMAIL_REDIRECT_TO` llega al usuario del proyecto) y abrir el link.
+- La pantalla de confirmación no sabe de qué rol es la cuenta (no hay sesión): por eso el aviso de la ONG va siempre, como "Si sos una ONG…".

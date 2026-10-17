@@ -74,6 +74,10 @@ export const api = {
       req<{ user: User }>('/auth/me', { method: 'PUT', body: JSON.stringify(b) }),
     // Foto de perfil (multipart, campo `photo`): va a users.avatar y, para ONG y empresa, también al logo (§162).
     uploadPhoto: (form: FormData) => upload<{ user: User }>('/auth/me/photo', form, 'PUT'),
+    // Borrar la propia cuenta (§177–§178): el pedido manda un email con un link; el link lleva a /cuenta/borrar.
+    requestDeletion: () => req<{ sent: boolean }>('/auth/me/delete-request', { method: 'POST' }),
+    deleteAccount: (token: string) =>
+      req<{ deleted: boolean }>('/auth/delete-account', { method: 'POST', body: JSON.stringify({ token }) }),
   },
   projects: {
     list: (p?: Record<string, string>) => {

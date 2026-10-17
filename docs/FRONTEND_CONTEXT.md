@@ -57,6 +57,7 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 | `/messages/:userId` | `ChatThread` | `Root` | cualquiera logueado |
 | `/profile` | `VolunteerProfile` | `Root` | volunteer |
 | `/volunteer/:id` | `VolunteerPublicProfile` | `Root` | público |
+| `/cuenta/borrar` | `DeleteAccountPage` | `Root` | público (el código del link autoriza). Confirmación del borrado de cuenta (§178) |
 | `/donaciones/vuelta` | `DonationReturn` | `Root` | con sesión (si no hay, pide iniciarla). Adonde vuelve Mercado Pago (§172) |
 | `/ngo/:id` | `NGOPublicProfile` | `Root` | público |
 | `/company/:id` | `CompanyPublicProfile` | `Root` | público |
@@ -112,6 +113,8 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 - `NGODashboard.tsx` — lista de proyectos propios + resumen de inscripciones pendientes por proyecto (una sola llamada agregada a `GET /api/ngos/me`, el N+1 que tenía antes ya se resolvió). Cada proyecto muestra su categoría (`{p.category} · Fugaz/Sostenido`); hasta §144 `GET /api/ngos/me` la mandaba vacía y se veía " · Fugaz". En el celular, Equipo y Momentos del encabezado son solo ícono (con `aria-label`) y el nombre se trunca: antes no entraban y había scroll horizontal (§128).
 - `CreateVoluntariado.tsx` — formulario de alta/edición de proyecto (mismo componente sirve para crear y editar, diferenciado por `projectId` en query string). Pide modalidad (presencial/remoto/híbrido) y, según la modalidad, ubicación física y/o plataforma digital. Reimplementa validaciones de fecha/cupos/duración ya presentes en el backend. Título, descripción corta y completa tienen los topes del backend (`maxLength` 80, 1000 y 5000), y el paso 1 valida título y descripción también contra lo pegado (§145, §147).
 - `NGOProjectDetail.tsx` — detalle de proyecto desde la óptica de la ONG: lista de inscriptos, aprobar/rechazar, cargar horas. El botón "Ver CV de <nombre>" (`openCv(e.user_id)`, §166) aparece solo si la inscripción trae `has_cv: true` (pendiente o aprobada, y con CV; §168). Antes aparecía en todas las pendientes y aprobadas y, sin CV, se abría y cerraba una pestaña vacía. Si el CV se borró después de cargar la lista (404), la fila dice "<nombre> no cargó su CV." con `role="alert"`, sin `alert()`.
+- `DeleteAccountSection.tsx` — "Zona peligrosa" → "Borrar mi cuenta" al final de los tres perfiles propios (§178). Pide confirmar en la pantalla (`role="group"` "¿Querés borrar tu cuenta?"), avisa a una ONG que se van sus proyectos y las inscripciones, y llama a `api.auth.requestDeletion`. El resultado va con `role="status"`; los errores, con `role="alert"`.
+- `DeleteAccountPage.tsx` — `/cuenta/borrar?token=…` (§178). Explica qué se borra; "Sí, borrar mi cuenta" llama a `api.auth.deleteAccount(token)` y cierra la sesión. Si el link venció o es inválido, muestra el mensaje del servidor sin cerrar la sesión.
 - `DonateModal.tsx` — modal "Donar a <proyecto>" (§172; usa `<Modal>`). Tiene atajos ($500, $1.000 y $5.000) y un campo libre que se valida con `checkDonationAmount` antes de mandar. Llama a `api.donaciones.create` y redirige a `checkout_url` (la redirección se inyecta con `go`, para los tests). Mientras espera dice "Preparando el pago…"; los errores van con `role="alert"`. Avisa que es modo prueba.
 - `DonationReturn.tsx` — `/donaciones/vuelta` (§172). Lee `external_reference` y `payment_id` de la URL (`readReturnParams`) y le pregunta al backend (`api.donaciones.get`), que concilia con Mercado Pago. **Lo que se muestra lo decide el backend**: con `completed` dice "¡Gracias!" con el monto y el proyecto; con `failed`, o con `pending` cuando Mercado Pago avisó rechazo o falta de pago, dice "El pago no se completó"; con `pending`, "Estamos confirmando tu pago". Mientras está pendiente vuelve a preguntar hasta 5 veces cada 3 segundos y después ofrece "Actualizar". También muestra "No encontramos esta donación" (404) y "Iniciá sesión para ver tu donación", y espera a que termine de verificarse la sesión.
 - **Notificaciones de la ONG (§173):** `/ngo/notifications` reusa `NotificationsScreen` con `inPanel`, que saca el `md:ml-60`, porque en `NGOLayout` la barra está en el flujo. `NGOSidebarNav` tiene "Notificaciones" con el contador de no leídas (`api.notifications.list`, al montar y al cambiar de pantalla), y `NGODashboard` una campanita con contador en el encabezado, para el celular, porque la barra inferior ya tiene 7 botones.
@@ -216,7 +219,7 @@ async function request(path, options) {
 // de fetch (lo traduce userMessage() de format.ts). §62.
 
 export const api = {
-  auth: { register, login, me, updateMe, uploadPhoto },   // uploadPhoto: PUT multipart con upload(form, 'PUT') (§163)
+  auth: { register, login, me, updateMe, uploadPhoto, requestDeletion, deleteAccount },   // las dos últimas: §178   // uploadPhoto: PUT multipart con upload(form, 'PUT') (§163)
   projects: { list, get, create, update, remove, comment, rate, kpis, recommended... },
   enrollments: { enroll, byProject, byVolunteer, approve, reject, logHours },
   ngos: { list, get, me, updateMe, employees, patrocinios: { list, decide }... },

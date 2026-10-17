@@ -8,6 +8,7 @@ import { ProjectDetails } from './components/ProjectDetails';
 import { VolunteerProfile } from './components/VolunteerProfile';
 import { VolunteerPublicProfile } from './components/VolunteerPublicProfile';
 import { DonationReturn } from './components/DonationReturn';
+import { DeleteAccountPage } from './components/DeleteAccountPage';
 import { NGODashboard } from './components/NGODashboard';
 import { NGOProjectDetail } from './components/NGOProjectDetail';
 import { CreateVoluntariado } from './components/CreateVoluntariado';
@@ -47,6 +48,7 @@ export const router = createBrowserRouter([
       { path: 'company/:id',     Component: CompanyPublicProfile },
       { path: 'volunteer/:id',   Component: VolunteerPublicProfile },
       { path: 'donaciones/vuelta', Component: DonationReturn },   // vuelta desde Mercado Pago (§172)
+      { path: 'cuenta/borrar',   Component: DeleteAccountPage },   // link del email para borrar la cuenta (§178)
     ],
   },
   {

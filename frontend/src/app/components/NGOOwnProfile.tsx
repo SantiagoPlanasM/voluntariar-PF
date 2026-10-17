@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router';
 import { api, NGO, Project } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { ProfilePhotoPicker } from './ProfilePhotoPicker';
+import { DeleteAccountSection } from './DeleteAccountSection';
 
 const CATEGORIES = ['Medio Ambiente','Educación','Salud','Animales','Alimentación','Tecnología','Arte y Cultura','Deportes'];
 
@@ -187,6 +188,8 @@ export function NGOOwnProfile() {
             </div>
           </>
         )}
+        {/* §178 */}
+        <DeleteAccountSection />
       </div>
     </div>
   );

@@ -94,6 +94,21 @@ describe('"Cambiar foto" en los perfiles propios', () => {
     await waitFor(() => expect(screen.getByRole('img', { name: 'María' })).toHaveAttribute('src', NEW_URL));
   });
 
+  // §178: "Borrar mi cuenta" está en los tres perfiles propios.
+  test('los tres perfiles tienen "Borrar mi cuenta"', async () => {
+    sessionAs({ id: 'u-ngo', name: 'Sustentando', email: 's@x.org', role: 'ngo' });
+    const a = mount(<NGOOwnProfile />);
+    expect(await screen.findByRole('button', { name: 'Borrar mi cuenta' })).toBeInTheDocument();
+    a.unmount();
+    sessionAs({ id: 'u-comp', name: 'TechCorp', email: 't@x.com', role: 'company' });
+    const b = mount(<CompanyOwnProfile />);
+    expect(await screen.findByRole('button', { name: 'Borrar mi cuenta' })).toBeInTheDocument();
+    b.unmount();
+    sessionAs({ id: 'u-vol', name: 'María', email: 'm@x.com', role: 'volunteer' });
+    mount(<VolunteerProfile />);
+    expect(await screen.findByRole('button', { name: 'Borrar mi cuenta' })).toBeInTheDocument();
+  });
+
   test('mientras se edita el perfil también se puede cambiar la foto (no depende del lápiz)', async () => {
     sessionAs({ id: 'u-ngo', name: 'Sustentando', email: 's@x.org', role: 'ngo' });
     mount(<NGOOwnProfile />);
