@@ -4866,3 +4866,29 @@ Se le pidió al usuario mirar la línea `Pagos:` del arranque, volver a copiar l
 ### ⚠️ NO verificado
 - **Que el webhook del panel llegue y valide en un pago real.** Hace falta una donación más después del deploy. Si llega con firma inválida, la línea nueva muestra el `user_id`, y con eso se confirma o se descarta la hipótesis de la cuenta vendedora de prueba.
 - Si dejaran de llegar avisos del todo (porque el panel no los manda para estos pagos), la acreditación sigue por la vuelta. Esto se verificó dos veces, en §173 y §174.
+
+## 176. Verificación en producción de §175: en modo prueba los avisos de pagos reales no llegan por el webhook del panel
+
+**Prueba del usuario después del deploy de §175 (2026-10-16):** una donación nueva. Log:
+```
+[donaciones] aviso con firma inválida (data.id=183565653443)
+[donaciones] conciliación del pago 183576940357 (donación 27c78402-…): credited
+```
+
+**Lectura:**
+- La línea de "firma inválida" **no trae el diagnóstico de §175** y es de **otro pago** (`183565653443`, no el de esta donación). Es un **reintento** de un aviso de una donación anterior: Mercado Pago reintenta los que respondimos con 401. Lo atendió la versión anterior de la API, antes de que terminara el deploy.
+- **Para el pago nuevo no llegó ningún aviso**: sin `notification_url` (§175), el webhook configurado en el panel no mandó nada para un pago de prueba real, aunque su "Simular notificación" sí llega y valida (§174).
+- **La donación se acreditó por la conciliación de la vuelta**, igual que en §173 y §174.
+
+**Conclusión:**
+- Con las credenciales de prueba actuales, los avisos de pagos reales solo llegaban por la `notification_url` y **no validaban** con la clave de la aplicación. El webhook del panel no los manda.
+- **La acreditación de las donaciones funciona y está verificada en producción tres veces, por la vuelta** (Checkout Pro redirige solo con `auto_return: 'approved'`).
+- Hipótesis de la causa, sin confirmar porque la documentación no lo explica: las credenciales de prueba pertenecen a una cuenta vendedora de prueba creada por Mercado Pago, y sus avisos no se firman con la clave de la aplicación.
+
+**Limitación conocida:** si el comprador cierra la pestaña de Mercado Pago antes de volver, la donación queda `pendiente`. Opciones planteadas al usuario:
+- (A) documentarlo como limitación del modo prueba;
+- (B) conciliar las pendientes buscando el pago por `external_reference` (`GET /v1/payments/search`), que sería una etapa nueva y habría que verificarla contra el SDK.
+
+### ⚠️ NO verificado
+- Cuánto tiempo sigue reintentando Mercado Pago los avisos viejos que respondimos con 401. Seguirán apareciendo líneas de "firma inválida" de pagos viejos; son inofensivas.
+- Si con **credenciales productivas** los avisos sí validan: no se probó (no se van a usar para la tesis).
