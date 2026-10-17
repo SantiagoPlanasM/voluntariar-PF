@@ -250,5 +250,5 @@ jobs:
           grep -m1 '^SF:' coverage/frontend/coverage/lcov.info
       - name: Análisis de SonarCloud
         uses: SonarSource/sonarqube-scan-action@v8
-      - name: Quality gate del TP (bugs críticos, duplicación > 5 %, cobertura de código nuevo < 80 %)
+      - name: Quality gate del TP (bugs y vulnerabilidades críticas, duplicación > 5 %, cobertura de código nuevo < 80 %)
         run: node .github/scripts/sonar-gate.js

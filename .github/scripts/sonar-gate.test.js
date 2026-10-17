@@ -4,11 +4,13 @@
 // 80 %. En los bordes exactos (5 % y 80 %) pasa. Si falta un dato obligatorio (duplicación, bugs), bloquea: un
 // gate que no puede medir no aprueba. Si no hay código nuevo (Sonar no informa new_coverage), esa condición no
 // aplica y se dice.
+// Agregado (§191, decisión del usuario tras el run #7): también BLOQUEA si hay al menos una vulnerabilidad
+// BLOCKER o CRITICAL abierta; si falta ese dato, bloquea.
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const { evaluateGate, parseMeasures, parseReportTask } = require('./sonar-gate');
 
-const ok = { duplication: 1.2, newCoverage: 92.5, criticalBugs: 0 };
+const ok = { duplication: 1.2, newCoverage: 92.5, criticalBugs: 0, criticalVulnerabilities: 0 };
 const failed = (r) => r.conditions.filter((c) => !c.ok).map((c) => c.name);
 
 describe('evaluateGate', () => {
@@ -48,15 +50,26 @@ describe('evaluateGate', () => {
     assert.match(c.note, /sin código nuevo/);
   });
 
-  test('falta la duplicación o los bugs: bloquea (no se aprueba sin medir)', () => {
+  test('una vulnerabilidad crítica bloquea; cero pasa', () => {
+    // Arrange / Act
+    const r = evaluateGate({ ...ok, criticalVulnerabilities: 1 });
+    // Assert
+    assert.equal(r.passed, false);
+    assert.deepEqual(failed(r), ['vulnerabilidades_criticas']);
+    assert.equal(evaluateGate({ ...ok, criticalVulnerabilities: 0 }).passed, true);
+  });
+
+  test('falta la duplicación, los bugs o las vulnerabilidades: bloquea (no se aprueba sin medir)', () => {
     assert.deepEqual(failed(evaluateGate({ ...ok, duplication: null })), ['duplicacion']);
     assert.deepEqual(failed(evaluateGate({ ...ok, criticalBugs: null })), ['bugs_criticos']);
+    assert.deepEqual(failed(evaluateGate({ ...ok, criticalVulnerabilities: null })), ['vulnerabilidades_criticas']);
   });
 
   test('varias fallas a la vez se informan todas', () => {
-    const r = evaluateGate({ duplication: 9, newCoverage: 10, criticalBugs: 3 });
+    const r = evaluateGate({ duplication: 9, newCoverage: 10, criticalBugs: 3, criticalVulnerabilities: 2 });
     assert.equal(r.passed, false);
-    assert.deepEqual(failed(r).sort(), ['bugs_criticos', 'cobertura_codigo_nuevo', 'duplicacion']);
+    assert.deepEqual(failed(r).sort(),
+      ['bugs_criticos', 'cobertura_codigo_nuevo', 'duplicacion', 'vulnerabilidades_criticas']);
   });
 });
 

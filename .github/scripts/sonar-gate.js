@@ -4,17 +4,18 @@
 // pide umbrales concretos (docs/PLAN_CALIDAD_TP.md §0, D5). Este script espera a que SonarCloud termine de procesar
 // el análisis del run, lee sus métricas y sale con código 1 si alguna condición falla:
 //   - bugs críticos: issues de tipo BUG con severidad BLOCKER o CRITICAL, abiertos → tiene que haber 0;
+//   - vulnerabilidades críticas: ídem con tipo VULNERABILITY → 0 (agregado tras el run #7, PROJECT_ANALYSIS §191);
 //   - duplicación: `duplicated_lines_density` de todo el proyecto → hasta 5 %;
 //   - cobertura del código nuevo: `new_coverage` → al menos 80 % (si no hay código nuevo, no aplica).
 // Sin dependencias (fetch de Node ≥ 18). Uso en el CI: `node .github/scripts/sonar-gate.js` con SONAR_TOKEN en el
 // entorno, después de sonarqube-scan-action (que deja .scannerwork/report-task.txt).
 const fs = require('node:fs');
 
-const THRESHOLDS = { maxDuplication: 5, minNewCoverage: 80, maxCriticalBugs: 0 };
+const THRESHOLDS = { maxDuplication: 5, minNewCoverage: 80, maxCriticalBugs: 0, maxCriticalVulnerabilities: 0 };
 
 const num = (v) => (v === undefined || v === null || v === '' ? null : Number(v));
 
-function evaluateGate({ duplication, newCoverage, criticalBugs }, t = THRESHOLDS) {
+function evaluateGate({ duplication, newCoverage, criticalBugs, criticalVulnerabilities }, t = THRESHOLDS) {
   const conditions = [
     duplication === null
       ? { name: 'duplicacion', value: null, limit: `<= ${t.maxDuplication} %`, ok: false, note: 'sin dato: no se aprueba sin medir' }
@@ -25,6 +26,9 @@ function evaluateGate({ duplication, newCoverage, criticalBugs }, t = THRESHOLDS
     criticalBugs === null
       ? { name: 'bugs_criticos', value: null, limit: `<= ${t.maxCriticalBugs}`, ok: false, note: 'sin dato: no se aprueba sin medir' }
       : { name: 'bugs_criticos', value: criticalBugs, limit: `<= ${t.maxCriticalBugs}`, ok: criticalBugs <= t.maxCriticalBugs },
+    criticalVulnerabilities === null
+      ? { name: 'vulnerabilidades_criticas', value: null, limit: `<= ${t.maxCriticalVulnerabilities}`, ok: false, note: 'sin dato: no se aprueba sin medir' }
+      : { name: 'vulnerabilidades_criticas', value: criticalVulnerabilities, limit: `<= ${t.maxCriticalVulnerabilities}`, ok: criticalVulnerabilities <= t.maxCriticalVulnerabilities },
   ];
   return { passed: conditions.every((c) => c.ok), conditions };
 }
@@ -77,9 +81,13 @@ async function main() {
 
   const measures = parseMeasures(await getJson(
     `${base}/api/measures/component?${q({ component: task.projectKey, metricKeys: 'duplicated_lines_density,new_coverage' })}`, token));
-  const issues = await getJson(
-    `${base}/api/issues/search?${q({ componentKeys: task.projectKey, types: 'BUG', severities: 'BLOCKER,CRITICAL', resolved: 'false', ps: '1' })}`, token);
-  const result = evaluateGate({ ...measures, criticalBugs: num(issues.total) });
+  const criticalCount = async (type) => num((await getJson(
+    `${base}/api/issues/search?${q({ componentKeys: task.projectKey, types: type, severities: 'BLOCKER,CRITICAL', resolved: 'false', ps: '1' })}`, token)).total);
+  const result = evaluateGate({
+    ...measures,
+    criticalBugs: await criticalCount('BUG'),
+    criticalVulnerabilities: await criticalCount('VULNERABILITY'),
+  });
 
   const where = ce.pullRequest ? `PR ${ce.pullRequest}` : `rama ${ce.branch || '(principal)'}`;
   const rows = result.conditions.map((c) =>

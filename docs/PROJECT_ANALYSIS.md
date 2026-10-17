@@ -5242,3 +5242,11 @@ El run #7 no se toca: se corrige en commits posteriores.
 - **Nada contra Cloudinary real:** los tests usan dobles. La doc no da un ejemplo en SHA-256 (todos sus ejemplos son SHA-1), así que el test de SHA-256 compara contra un hash calculado por el propio test.
 - **El link de descarga del CV** (`/raw/download`): la doc de firmas no lo menciona. Que acepte SHA-256 lo deduzco porque el SDK oficial firma ese link con la misma función, que respeta `signature_algorithm`; no lo probé. Si falla, el CV no se puede abrir.
 - **Prueba obligatoria después del deploy:** subir una foto de perfil, publicar un Momento con foto, subir un CV, abrirlo desde la ONG y borrarlo. Si algo da 401 de Cloudinary, se vuelve a SHA-1 con un commit (es una línea) y la vulnerabilidad se justifica en Sonar.
+
+### Tarea 4 — el gate del TP también bloquea ante vulnerabilidades críticas
+- `sonar-gate.js`: condición nueva `vulnerabilidades_criticas` (issues VULNERABILITY con severidad BLOCKER/CRITICAL abiertos ≤ 0; sin dato, bloquea). `main()` hace la misma consulta que para los bugs, con el otro tipo. Nombre del paso del CI actualizado; `PLAN_PRUEBAS.md` v0.4 (O6) y `PLAN_CALIDAD_TP.md`.
+- **Tests primero:** 12 tests; antes del cambio **3 en rojo**; después 12/12. **Mutation testing** (corrida de control en verde): **16 mutantes, 0 sobrevivientes** (los 13 de §188 + vulnerabilidades `<=`→`>=`, nulo que aprueba y umbral 0→1).
+
+### ⚠️ NO verificado (§191 en general)
+- El próximo run de `main` con las cuatro tareas: que SonarCloud cierre los 2 bugs y la vulnerabilidad de SHA-1, y que el código cambiado no traiga issues nuevos críticos. Si el gate vuelve a bloquear, se documenta igual.
+- La posible carrera de la cola de SQLite (tarea 1) sigue abierta.

@@ -11,6 +11,7 @@
 | 0.1 | 2026-10-17 | Primera versión: objetivos, contingencia, niveles, matriz ISO/IEC 25010, riesgos, criterios, principios, plantillas y trazabilidad inicial |
 | 0.2 | 2026-10-17 | O1–O3 y O6–O7 con los números del primer run del CI (#1) y la cobertura del frontend medida (T4, §185) |
 | 0.3 | 2026-10-17 | O2 y O3 con los números del run #2; la cobertura del backend del run #2 estaba inflada (§187) |
+| 0.4 | 2026-10-17 | O6: el gate (SonarCloud + `sonar-gate.js`) también bloquea ante vulnerabilidades críticas (§191) |
 
 El documento se versiona en git: cada cambio entra en un commit propio y suma una fila a esta tabla.
 
@@ -31,7 +32,7 @@ dispositivos táctiles (no hay forma de automatizarlos en este proyecto: quedan 
 | O3 | Ídem en el frontend | Cobertura del frontend (v8) | Líneas ≥ 80 % (bloqueante, decisión del usuario, §186); sentencias, ramas y funciones se informan | `npm run test:coverage` en el pipeline | Run #2 (UTC y Córdoba iguales): líneas **83,14 %**, sentencias **79,63 %**, ramas **74 %**, funciones **67,72 %** (local en Windows: ramas 73,97 % y funciones 67,82 %, una unidad de diferencia) |
 | O4 | El código nuevo viene con pruebas | Cobertura sobre código nuevo | ≥ 80 % (gate) | Quality gate (T5) | Sin gate |
 | O5 | Poca duplicación | Líneas duplicadas | ≤ 5 % (gate) | Herramienta de duplicación (T5) | Sin medir |
-| O6 | Sin bugs críticos del análisis estático | Hallazgos bloqueantes o críticos | 0 (gate) | Linter / análisis estático (T5) | Sin linter; `typecheck` en 0 errores en el run #1 |
+| O6 | Sin bugs ni vulnerabilidades críticas del análisis estático | Issues BUG y VULNERABILITY BLOCKER/CRITICAL abiertos en SonarCloud | 0 (gate) | Job `sonar` + `sonar-gate.js` | Run #7 (primer análisis de `main`): **2 bugs y 1 vulnerabilidad críticos** → gate en rojo; triage y corrección en §191. `typecheck` en 0 |
 | O7 | Dependencias sin vulnerabilidades conocidas | Avisos de `npm audit` | 0 en los dos paquetes | Pipeline | 0 en el run #1 (el job falla con cualquier aviso) |
 | O8 | Cada despliegue queda probado | Smoke después del deploy | 100 % de los deploys | `deploy.yml` (T9) | Smoke a mano (`GUION_DEFENSA.md §2`) |
 | O9 | La API aguanta la carga esperada de la demo | p95 de latencia y % de errores en `GET` | A definir **antes** de correr (T10) | Reporte de stress del pipeline | Sin medir |

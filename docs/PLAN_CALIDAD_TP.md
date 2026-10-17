@@ -96,7 +96,7 @@ son el número de `CLAUDE.md`, no una corrida mía.
 | 8. Herramienta nueva con 5 pasos | — | Elegirla (D5) y documentarla |
 | 8. Registro de defectos | Defectos documentados en `REVISION.md` y `PROJECT_ANALYSIS.md` | Cargarlos como Issues con plantilla |
 | 8. Stress y esfuerzo sostenido | Limitadores en memoria: registro/login (`routes/auth.js:20-26`), foto, borrar cuenta, donaciones (`donaciones.js:53`), posts, CV | Scripts, umbrales previos y reporte |
-| Gate: bugs críticos, duplicación > 5 %, cobertura de código nuevo < 80 % | — | Gate en el pipeline |
+| Gate: bugs críticos, duplicación > 5 %, cobertura de código nuevo < 80 % | ✅ `.github/scripts/sonar-gate.js` en el job `sonar` (§188); desde §191 también vulnerabilidades críticas | — |
 | Cobertura del existente ≥ 80 % (nivel 3) | Backend 92,94 % líneas | **Frontend sin medir** (R1) |
 | Informe PDF, demo con despliegue nuevo | Guion de defensa (otro propósito) | Informe con los números del pipeline |
 
