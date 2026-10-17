@@ -5154,3 +5154,26 @@ Encaja con el modelo estándar de "1 marketplace + 1 vendedor por transacción":
 ### ⚠️ NO verificado
 - **Qué archivos de más contaba Node 22:** no vi la tabla completa del CI, ni tengo Node 22 local. El run #3 tiene que dar alrededor de 92,9 %. Si no da eso, la hipótesis está mal.
 - D5: el usuario eligió **SonarCloud** (registrado en `PLAN_CALIDAD_TP.md §0`).
+
+## 188. SonarCloud + el quality gate del TP (prueba de concepto en la rama `sonar-poc`, D5)
+
+**Qué se hizo:**
+- `sonar-project.properties` (raíz): organización `santiagoplanasm-1`, proyecto `SantiagoPlanasM_voluntariar-PF` (creados por el usuario en SonarCloud, plan Free). Fuentes: `backend/src`, `backend/scripts`, `frontend/src` sin tests (lo mismo que mide la cobertura). Cobertura: los dos `lcov` del CI.
+- Job `sonar` en `ci.yml`: corre después de `backend-sqlite` y `frontend-tests`, baja los artefactos de UTC, **prefija las rutas del `lcov`** con `backend/` o `frontend/` (los runners las escriben relativas a cada paquete: `SF:src/...`), corre `sonarqube-scan-action@v8` y después el gate del TP. Si falta `SONAR_TOKEN`, el job **falla** (antes de corregirlo, se salteaba y quedaba en verde: ver errores propios).
+- `.github/scripts/sonar-gate.js`: como el plan gratis solo tiene el gate "Sonar way", este script espera a que SonarCloud procese el análisis (`report-task.txt` → `ce/task`), lee `duplicated_lines_density`, `new_coverage` y los issues BUG con severidad BLOCKER/CRITICAL abiertos (por rama o PR) y **bloquea** si hay ≥ 1 bug crítico, duplicación > 5 % o cobertura de código nuevo < 80 %. Si falta la duplicación o los bugs, bloquea; si no hay código nuevo, esa condición "no aplica" y lo dice. Sin dependencias.
+
+### Verificación
+- **Tests primero:** 11 tests (`sonar-gate.test.js`, Arrange–Act–Assert, valores límite 5 % / 5,1 % y 80 % / 79,9 %). Contra un stub: **10 de 11 en rojo** (el que pasa es "todo dentro de los umbrales", que el stub aprueba siempre). Con el código: **11/11**.
+- **Mutation testing** (sobre `evaluateGate`, `parseMeasures`, `parseReportTask`; corrida de control en verde antes): **13 mutantes, 0 sobrevivientes** (bordes `<=`/`<` y `>=`/`>`, umbrales 5→6 y 80→70, nulos que aprueban, `every`→`some`, `period` ignorado, métrica ausente → 0, valor cortado en el segundo `=`, número como string).
+- Versiones de las acciones verificadas en GitHub: `sonarqube-scan-action` v8.3.0 (`node24`), `download-artifact` v8.0.2 (`node24`). SonarCloud no necesita `SONAR_HOST_URL`.
+
+### Errores propios
+- La primera versión del job salteaba el análisis y el gate si faltaba `SONAR_TOKEN`, con lo que el job quedaba **en verde sin medir**. Lo vi al releerlo, antes del commit.
+
+### ⚠️ NO verificado
+- **Nada corrió en GitHub todavía.** La rama no dispara el CI con `push` (solo `main`): se prueba abriendo un PR `sonar-poc → main`.
+- `main()` del script (fetch, espera del análisis, consultas a la API) **no tiene tests**: depende de SonarCloud real. Lo prueba el run.
+- Que `types=BUG&severities=BLOCKER,CRITICAL` siga funcionando en SonarCloud (Sonar pasó a una taxonomía nueva de severidades; los parámetros viejos pueden estar deprecados).
+- Que la definición de "código nuevo" del proyecto sea la que el usuario eligió, y cómo se ve `new_coverage` en un PR que no cambia código fuente (se espera "no aplica").
+- Que el análisis automático de SonarCloud esté apagado (si estuviera prendido, el escaneo desde el CI falla).
+- Que SonarCloud analice bien TypeScript 7.
