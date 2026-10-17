@@ -216,26 +216,26 @@ export function VolunteerProfile() {
             <h2 className="font-bold text-sm text-gray-900">Editar perfil</h2>
 
             <div>
-              <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Nombre completo *</label>
-              <input className={inp} aria-label="Nombre completo" value={form.name}
+              <label htmlFor="perfil-nombre" className="text-xs font-semibold text-gray-500 mb-1.5 block">Nombre completo *</label>
+              <input id="perfil-nombre" className={inp} aria-label="Nombre completo" value={form.name}
                 onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setSaveErr(''); }} />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Sobre mí</label>
-              <textarea className={inp + ' resize-none'} rows={3}
+              <label htmlFor="perfil-bio" className="text-xs font-semibold text-gray-500 mb-1.5 block">Sobre mí</label>
+              <textarea id="perfil-bio" className={inp + ' resize-none'} rows={3}
                 placeholder="Contá quién sos y por qué querés ser voluntario..."
                 aria-label="Sobre mí" value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Ubicación</label>
-              <input className={inp} placeholder="Ej: Córdoba Capital"
+              <label htmlFor="perfil-ubicacion" className="text-xs font-semibold text-gray-500 mb-1.5 block">Ubicación</label>
+              <input id="perfil-ubicacion" className={inp} placeholder="Ej: Córdoba Capital"
                 aria-label="Ubicación" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Habilidades</label>
+              <p className="text-xs font-semibold text-gray-500 mb-1.5 block">Habilidades</p>
               {skillsUnavailable ? (
                 <p className="text-xs text-gray-500">No pudimos cargar tus habilidades: reintentá para editarlas.</p>
               ) : (<>

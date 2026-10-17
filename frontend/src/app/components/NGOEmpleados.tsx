@@ -93,24 +93,24 @@ export function NGOEmpleados() {
             <h2 className="font-bold text-sm text-gray-900">Nuevo miembro del equipo</h2>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">Nombre *</label>
-                <input className={inp} placeholder="Ana" aria-label="Nombre" value={form.nombre}
+                <label htmlFor="empleado-nombre" className="text-xs font-semibold text-gray-500 mb-1 block">Nombre *</label>
+                <input id="empleado-nombre" className={inp} placeholder="Ana" aria-label="Nombre" value={form.nombre}
                   onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">Apellido *</label>
-                <input className={inp} placeholder="García" aria-label="Apellido" value={form.apellido}
+                <label htmlFor="empleado-apellido" className="text-xs font-semibold text-gray-500 mb-1 block">Apellido *</label>
+                <input id="empleado-apellido" className={inp} placeholder="García" aria-label="Apellido" value={form.apellido}
                   onChange={e => setForm(f => ({ ...f, apellido: e.target.value }))} />
               </div>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 mb-1 block">Email *</label>
-              <input className={inp} type="email" placeholder="ana@ong.org" aria-label="Email" value={form.email}
+              <label htmlFor="empleado-email" className="text-xs font-semibold text-gray-500 mb-1 block">Email *</label>
+              <input id="empleado-email" className={inp} type="email" placeholder="ana@ong.org" aria-label="Email" value={form.email}
                 onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 mb-1 block">Rol</label>
-              <select className={inp} aria-label="Rol" value={form.rol}
+              <label htmlFor="empleado-rol" className="text-xs font-semibold text-gray-500 mb-1 block">Rol</label>
+              <select id="empleado-rol" className={inp} aria-label="Rol" value={form.rol}
                 onChange={e => setForm(f => ({ ...f, rol: e.target.value }))}>
                 {ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
               </select>

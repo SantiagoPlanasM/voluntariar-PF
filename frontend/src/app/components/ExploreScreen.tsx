@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback, useId } from 'react';
-import { useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import { Search, SlidersHorizontal, MapPin, X, Laptop, Sparkles, ChevronRight, ChevronLeft, Star, Users, Heart, Globe, RefreshCw } from 'lucide-react';
 import { api, Project } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
@@ -21,7 +21,6 @@ interface RecommendedProject extends Project {
 }
 
 export function ExploreScreen() {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const isVolunteer = user?.role === 'volunteer';
 
@@ -373,9 +372,9 @@ export function ExploreScreen() {
                 /* Vista expandida: grid vertical */
                 <div className="space-y-3">
                   {recommendations.map(p => (
-                    <div
+                    <Link
                       key={p.id}
-                      onClick={() => navigate(`/project/${p.id}`)}
+                      to={`/project/${p.id}`}
                       className="bg-white rounded-2xl border border-gray-100 p-3 shadow-sm hover:shadow-md hover:border-emerald-200/80 transition-all cursor-pointer flex items-center gap-3.5 group"
                     >
                       {p.image ? (
@@ -416,7 +415,7 @@ export function ExploreScreen() {
                           </p>
                         )}
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               ) : (
@@ -441,9 +440,9 @@ export function ExploreScreen() {
                     className="flex gap-3 overflow-x-auto scroll-smooth scrollbar-hide pb-2 pt-0.5"
                   >
                     {recommendations.map(p => (
-                      <div
+                      <Link
                         key={p.id}
-                        onClick={() => navigate(`/project/${p.id}`)}
+                        to={`/project/${p.id}`}
                         className="min-w-[240px] max-w-[260px] bg-white rounded-2xl border border-gray-100 p-2.5 shadow-sm hover:shadow-md hover:border-emerald-200/80 transition-all cursor-pointer flex-shrink-0 group select-none"
                       >
                         {/* Imagen */}
@@ -487,7 +486,7 @@ export function ExploreScreen() {
                             {p.recommendation_reasons[0]}
                           </p>
                         )}
-                      </div>
+                      </Link>
                     ))}
                   </div>
 
@@ -597,9 +596,9 @@ export function ExploreScreen() {
                 className="flex gap-3.5 overflow-x-auto scroll-smooth scrollbar-hide pb-2 pt-0.5"
               >
                 {genericProjects.map(p => (
-                  <div
+                  <Link
                     key={p.id}
-                    onClick={() => navigate(`/project/${p.id}`)}
+                    to={`/project/${p.id}`}
                     className="min-w-[250px] max-w-[270px] bg-white rounded-2xl border border-gray-100 p-2.5 shadow-sm hover:shadow-md hover:border-emerald-200/80 transition-all cursor-pointer flex-shrink-0 group select-none flex flex-col justify-between"
                   >
                     <div>
@@ -655,7 +654,7 @@ export function ExploreScreen() {
                         </span>
                       ) : null}
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
 
@@ -676,9 +675,9 @@ export function ExploreScreen() {
             /* Vista lista vertical: cuando está expandido o con filtros activos */
             <div className="space-y-3">
               {(hasActiveFilters ? filteredProjects : genericProjects).map(p => (
-                <div
+                <Link
                   key={p.id}
-                  onClick={() => navigate(`/project/${p.id}`)}
+                  to={`/project/${p.id}`}
                   className="bg-white rounded-2xl border border-gray-100 p-3 shadow-sm hover:shadow-md hover:border-emerald-200/80 transition-all cursor-pointer flex items-center gap-3.5 group"
                 >
                   {/* Foto cuadrada */}
@@ -763,7 +762,7 @@ export function ExploreScreen() {
                       </div>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}

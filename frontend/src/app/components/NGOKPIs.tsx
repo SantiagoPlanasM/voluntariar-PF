@@ -165,21 +165,21 @@ export function NGOKPIs() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-gray-500 mb-1 block">Nombre *</label>
-              <input className={inp} placeholder="Ej: Árboles plantados, Familias beneficiadas"
+              <label htmlFor="kpi-nombre" className="text-xs font-semibold text-gray-500 mb-1 block">Nombre *</label>
+              <input id="kpi-nombre" className={inp} placeholder="Ej: Árboles plantados, Familias beneficiadas"
                 aria-label="Nombre" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-gray-500 mb-1 block">Descripción</label>
-              <input className={inp} placeholder="Qué mide este indicador"
+              <label htmlFor="kpi-descripcion" className="text-xs font-semibold text-gray-500 mb-1 block">Descripción</label>
+              <input id="kpi-descripcion" className={inp} placeholder="Qué mide este indicador"
                 aria-label="Descripción" value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">Tipo</label>
-                <select className={inp} aria-label="Tipo" value={form.tipo_valor}
+                <label htmlFor="kpi-tipo" className="text-xs font-semibold text-gray-500 mb-1 block">Tipo</label>
+                <select id="kpi-tipo" className={inp} aria-label="Tipo" value={form.tipo_valor}
                   onChange={e => setForm(f => ({ ...f, tipo_valor: e.target.value }))}>
                   {TIPOS_EDITABLES.map(v => <option key={v} value={v}>{TIPO_LABELS[v]}</option>)}
                 </select>
@@ -197,13 +197,13 @@ export function NGOKPIs() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">Unidad</label>
-                <input className={inp} placeholder="árboles, familias, hs..."
+                <label htmlFor="kpi-unidad" className="text-xs font-semibold text-gray-500 mb-1 block">Unidad</label>
+                <input id="kpi-unidad" className={inp} placeholder="árboles, familias, hs..."
                   aria-label="Unidad" value={form.unidad} onChange={e => setForm(f => ({ ...f, unidad: e.target.value }))} />
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">Fecha de medición</label>
-                <input className={inp} type="date"
+                <label htmlFor="kpi-fecha" className="text-xs font-semibold text-gray-500 mb-1 block">Fecha de medición</label>
+                <input id="kpi-fecha" className={inp} type="date"
                   aria-label="Fecha de medición" value={form.fecha} onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))} />
               </div>
             </div>

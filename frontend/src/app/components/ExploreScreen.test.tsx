@@ -162,3 +162,26 @@ describe('ExploreScreen: catálogo vacío', () => {
     expect(await screen.findByText('Huerta comunitaria')).toBeInTheDocument();
   });
 });
+
+// §203 (SonarCloud S6848): las tarjetas de Explorar eran <div onClick={navigate}>: con el teclado no se podían enfocar
+// ni abrir. Criterio: cada tarjeta (catálogo, destacados y "Para vos", en móvil y escritorio) es un LINK a su
+// proyecto, así que se enfoca con Tab y se abre con Enter (y también se puede abrir en otra pestaña).
+describe('ExploreScreen: las tarjetas de proyecto son links (teclado)', () => {
+  test('catálogo y recomendaciones: cada tarjeta es un link a /project/:id', async () => {
+    // Arrange: un proyecto en el catálogo y otro en "Para vos"
+    vi.mocked(api.projects.recommended).mockResolvedValue({
+      recommendations: [project('p2', 'Taller de lectura')], based_on_history: true,
+    } as never);
+    // Act
+    mount();
+    await screen.findAllByText('Taller de lectura');
+    await screen.findAllByText('Huerta comunitaria');
+    // Assert
+    const catalogo = screen.getAllByRole('link', { name: /Huerta comunitaria/ });
+    const paraVos = screen.getAllByRole('link', { name: /Taller de lectura/ });
+    expect(catalogo.length).toBeGreaterThan(0);
+    expect(paraVos.length).toBeGreaterThan(0);
+    for (const a of catalogo) expect(a).toHaveAttribute('href', '/project/p1');
+    for (const a of paraVos) expect(a).toHaveAttribute('href', '/project/p2');
+  });
+});

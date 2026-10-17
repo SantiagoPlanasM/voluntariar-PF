@@ -161,9 +161,9 @@ export function FilterModal({
           {/* 1. Categorías de Impacto */}
           <div>
             <div className="flex items-center justify-between mb-2.5">
-              <label className="font-bold text-gray-900 text-sm">
+              <p className="font-bold text-gray-900 text-sm">
                 Categorías de Impacto
-              </label>
+              </p>
               {draft.categories.length > 0 && (
                 <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
                   {draft.categories.length} seleccionadas
@@ -207,9 +207,9 @@ export function FilterModal({
 
           {/* 2. Tipo de Voluntariado */}
           <div>
-            <label className="font-bold text-gray-900 text-sm block mb-1">
+            <p className="font-bold text-gray-900 text-sm block mb-1">
               Tipo de Compromiso
-            </label>
+            </p>
             <p className="text-xs text-gray-500 mb-3">
               Elige según el tiempo y dedicación que desees aportar
             </p>
@@ -254,9 +254,9 @@ export function FilterModal({
 
           {/* 3. Modalidad */}
           <div>
-            <label className="font-bold text-gray-900 text-sm block mb-1">
+            <p className="font-bold text-gray-900 text-sm block mb-1">
               Modalidad de Participación
-            </label>
+            </p>
             <div className="grid grid-cols-2 gap-2.5 mt-2">
               {[
                 { id: 'all', label: 'Cualquiera', icon: Sparkles },
@@ -289,9 +289,9 @@ export function FilterModal({
 
           {/* 4. Costo */}
           <div>
-            <label className="font-bold text-gray-900 text-sm block mb-1">
+            <p className="font-bold text-gray-900 text-sm block mb-1">
               Costo para el Voluntario
-            </label>
+            </p>
             <div className="grid grid-cols-2 gap-2.5 mt-2">
               {[
                 { id: 'all', label: 'Cualquiera', desc: 'Con o sin aporte' },

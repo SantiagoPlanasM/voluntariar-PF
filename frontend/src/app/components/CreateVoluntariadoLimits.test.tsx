@@ -67,3 +67,39 @@ describe('Crear voluntariado: los topes del backend también en el formulario', 
     expect(screen.getByLabelText('Descripción completa')).toHaveAttribute('maxLength', '5000');
   });
 });
+
+// §203 (SonarCloud S6853): las etiquetas visibles no estaban asociadas a su campo (sin htmlFor/id): el nombre accesible
+// salía solo del aria-label, y tocar el texto de la etiqueta no llevaba al campo. Se busca por el texto VISIBLE de la
+// etiqueta (con el "*" o el "(opcional)", que el aria-label no tiene): solo lo encuentra si está asociada.
+describe('Crear voluntariado: cada etiqueta está asociada a su campo', () => {
+  test('pasos 1, 2 y 3: el texto de la etiqueta lleva a su campo', () => {
+    // Arrange / Act: paso 1
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: /Sostenido/ }));
+    // Assert
+    expect(screen.getByLabelText('Título del voluntariado *')).toHaveAttribute('id', 'crear-titulo');
+    expect(screen.getByLabelText('Descripción corta *')).toHaveAttribute('id', 'crear-descripcion');
+
+    fill('Título del voluntariado', 'Limpieza del río');
+    fill('Descripción corta', 'Juntamos residuos en la costanera');
+    fireEvent.click(screen.getByRole('button', { name: /Continuar/ }));
+    expect(screen.getByLabelText('Horas por semana *')).toHaveAttribute('id', 'crear-horas');
+    expect(screen.getByLabelText('Voluntarios necesarios *')).toHaveAttribute('id', 'crear-voluntarios');
+
+    fill('Ubicación', 'Córdoba');
+    fill('Horas por semana', '4');
+    fill('Voluntarios necesarios', '10');
+    fireEvent.click(screen.getByRole('button', { name: /Continuar/ }));
+    // el espacio antes de "(opcional)" es un margen (ml-1), no texto: JSX descarta el salto de línea
+    expect(screen.getByLabelText(/^Descripción completa\s*\(opcional\)$/)).toHaveAttribute('id', 'crear-descripcion-completa');
+    expect(screen.getByText('Meta de financiamiento', { selector: 'label' })).toHaveAttribute('for', 'crear-meta');
+  });
+
+  test('fugaz: "Duración del evento *" lleva a su campo', () => {
+    mount();
+    fill('Título del voluntariado', 'Limpieza del río');
+    fill('Descripción corta', 'Juntamos residuos en la costanera');
+    fireEvent.click(screen.getByRole('button', { name: /Continuar/ }));
+    expect(screen.getByLabelText('Duración del evento *')).toHaveAttribute('id', 'crear-duracion');
+  });
+});

@@ -250,16 +250,16 @@ export function CreateVoluntariado() {
 
             <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
               <div id="field-title">
-                <label className={lbl}>Título del voluntariado *</label>
-                <input className={inp('title')} placeholder="Ej: Jornada de limpieza en el río"
+                <label htmlFor="crear-titulo" className={lbl}>Título del voluntariado *</label>
+                <input id="crear-titulo" className={inp('title')} placeholder="Ej: Jornada de limpieza en el río"
                   aria-label="Título del voluntariado" maxLength={80} value={form.title} onChange={e => set('title', e.target.value)} />
                 <p className={hint}>{form.title.length}/80 caracteres</p>
                 {err('title')}
               </div>
 
               <div id="field-description">
-                <label className={lbl}>Descripción corta *</label>
-                <textarea className={inp('description') + ' resize-none'} rows={3}
+                <label htmlFor="crear-descripcion" className={lbl}>Descripción corta *</label>
+                <textarea id="crear-descripcion" className={inp('description') + ' resize-none'} rows={3}
                   placeholder="Contá en pocas palabras qué harán los voluntarios y por qué es importante..."
                   aria-label="Descripción corta" maxLength={1000} value={form.description} onChange={e => set('description', e.target.value)} />
                 <p className={hint}>{form.description.length}/1000 caracteres · mínimo 10</p>
@@ -274,7 +274,7 @@ export function CreateVoluntariado() {
           <div className="space-y-6 animate-in fade-in duration-300">
             <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
               <div>
-                <label className={lbl}>Categoría</label>
+                <p className={lbl}>Categoría</p>
                 <div className="flex flex-wrap gap-2 mt-1">
                   {CATEGORIES.map(c => (
                     <button key={c} type="button" onClick={() => set('category', c)}
@@ -291,7 +291,7 @@ export function CreateVoluntariado() {
 
               {/* Modalidad */}
               <div>
-                <label className={lbl}>Modalidad del voluntariado *</label>
+                <p className={lbl}>Modalidad del voluntariado *</p>
                 <div className="grid grid-cols-3 gap-2.5 mt-1">
                   {([
                     { val: 'presencial', label: 'Presencial', icon: MapPin, desc: 'En sede física' },
@@ -369,15 +369,15 @@ export function CreateVoluntariado() {
 
               {form.type === 'fugaz' ? (
                 <div id="field-duration">
-                  <label className={lbl}>Duración del evento *</label>
-                  <input className={inp('duration')} placeholder="Ej: 1 jornada (4 hs), 2 días, sábado 9 a 13 hs"
+                  <label htmlFor="crear-duracion" className={lbl}>Duración del evento *</label>
+                  <input id="crear-duracion" className={inp('duration')} placeholder="Ej: 1 jornada (4 hs), 2 días, sábado 9 a 13 hs"
                     aria-label="Duración del evento" value={form.duration} onChange={e => set('duration', e.target.value)} />
                   {err('duration')}
                 </div>
               ) : (
                 <div id="field-hours_per_week">
-                  <label className={lbl}>Horas por semana *</label>
-                  <input className={inp('hours_per_week')} type="number" min="1" max="40"
+                  <label htmlFor="crear-horas" className={lbl}>Horas por semana *</label>
+                  <input id="crear-horas" className={inp('hours_per_week')} type="number" min="1" max="40"
                     placeholder="Ej: 4"
                     aria-label="Horas por semana" value={form.hours_per_week} onChange={e => set('hours_per_week', e.target.value)} />
                   <p className={hint}>Tiempo estimado que dedicará cada voluntario por semana</p>
@@ -386,10 +386,10 @@ export function CreateVoluntariado() {
               )}
 
               <div id="field-volunteers_needed">
-                <label className={lbl}>Voluntarios necesarios *</label>
+                <label htmlFor="crear-voluntarios" className={lbl}>Voluntarios necesarios *</label>
                 <div className="relative">
                   <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input className={inp('volunteers_needed') + ' pl-9'} type="number" min="1"
+                  <input id="crear-voluntarios" className={inp('volunteers_needed') + ' pl-9'} type="number" min="1"
                     placeholder="Ej: 20"
                     aria-label="Voluntarios necesarios" value={form.volunteers_needed} onChange={e => set('volunteers_needed', e.target.value)} />
                 </div>
@@ -404,11 +404,11 @@ export function CreateVoluntariado() {
           <div className="space-y-6 animate-in fade-in duration-300">
             <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
               <div>
-                <label className={lbl}>
+                <label htmlFor="crear-descripcion-completa" className={lbl}>
                   Descripción completa
                   <span className="text-gray-400 font-normal ml-1">(opcional)</span>
                 </label>
-                <textarea className={inp('full_description') + ' resize-none'} rows={4}
+                <textarea id="crear-descripcion-completa" className={inp('full_description') + ' resize-none'} rows={4}
                   placeholder="Agregá más detalles: horarios, qué deben traer, cómo será el día..."
                   aria-label="Descripción completa" maxLength={5000} value={form.full_description} onChange={e => set('full_description', e.target.value)} />
               </div>
@@ -425,8 +425,8 @@ export function CreateVoluntariado() {
                   <p className={hint}>Transporte, materiales, etc.</p>
                 </div>
                 <div>
-                  <label className={lbl}>Meta de financiamiento</label>
-                  <input className={inp('funding_goal')} type="number" min="0" placeholder="0"
+                  <label htmlFor="crear-meta" className={lbl}>Meta de financiamiento</label>
+                  <input id="crear-meta" className={inp('funding_goal')} type="number" min="0" placeholder="0"
                     aria-label="Meta de financiamiento" value={form.funding_goal} onChange={e => set('funding_goal', e.target.value)} />
                   <p className={hint}>Opcional</p>
                 </div>
@@ -435,10 +435,10 @@ export function CreateVoluntariado() {
 
             {/* Roles */}
             <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-              <label className={lbl}>
+              <p className={lbl}>
                 Roles necesitados
                 <span className="text-gray-400 font-normal ml-1">(opcional)</span>
-              </label>
+              </p>
               <p className="text-xs text-gray-400 mb-3">¿Qué tareas específicas necesitás cubrir?</p>
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {SUGGESTED_ROLES.filter(r => !roles.includes(r)).map(r => (
@@ -476,10 +476,10 @@ export function CreateVoluntariado() {
 
             {/* Requisitos */}
             <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-              <label className={lbl}>
+              <p className={lbl}>
                 Requisitos
                 <span className="text-gray-400 font-normal ml-1">(opcional)</span>
-              </label>
+              </p>
               <p className="text-xs text-gray-400 mb-3">¿Qué deben saber o tener los voluntarios?</p>
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {SUGGESTED_REQS.filter(r => !requirements.includes(r)).map(r => (
