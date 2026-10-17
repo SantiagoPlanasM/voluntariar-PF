@@ -5601,3 +5601,28 @@ De los 13 `S5145`, **SonarCloud cerró 12, o sea que reconoció `forLog()`** com
 
 ### ⚠️ NO verificado
 - Si las 6 issues que aceptó el usuario quedaron con "Share this comment with Sonar" tildado (no se puede ver desde la API pública).
+
+## 205. Métricas del producto, del proceso y del proyecto (T11): `docs/calidad/METRICAS.md`
+
+**Qué se hizo:** un solo documento con todas las métricas, interpretadas, y **cada número trazable a una ejecución**:
+- **CI #15** (`80042fb`), leído con `gh run view --log`: tests 808/810/699, cobertura del backend 92,95/84,57/90,59 % (UTC; Córdoba 92,99/84,62/90,59) y del frontend 83,26/79,75/74,08/67,99 %, y la tabla del gate del TP;
+- **SonarCloud**, API pública: medidas actuales del proyecto, del backend y del frontend; los 5 archivos más complejos; el historial de análisis;
+- **Carga #1** (k6);
+- **`gh run list`**: los 24 runs.
+
+**Métricas elegidas:**
+- **de proceso**, la tasa de éxito del pipeline (CI 86,7 %, Deploy 62,5 %) y el tiempo hasta volver a verde (5,1 min y 30,0 min en el CI); además, los defectos escapados del registro (22,2 %, sobre la selección);
+- **de proyecto**, la densidad de pruebas: backend 145,5 y frontend 60,6 tests/KLOC (ncloc de SonarCloud);
+- **la mejora antes/después**, la de SonarCloud: `77f4fdf` → estado actual.
+
+`PLAN_CALIDAD_TP.md`: D3 resuelto así (la duplicación de `safeMoney` queda como deuda).
+
+### Verificación
+- Los números del documento se compararon con las salidas crudas: logs del CI #15, JSON de `gh run list`, respuestas de la API de SonarCloud (`measures/component`, `component_tree`, `search_history`, `project_analyses`). Los 5 análisis de la tabla de mejora coinciden con `search_history`.
+
+### Errores propios
+- **En el plan (§183) había estimado la densidad con líneas físicas de `git ls-files`** (106 y 55 tests/KLOC). Para el informe se usa el ncloc de SonarCloud, que no cuenta comentarios ni líneas en blanco (145,5 y 60,6). Las dos se pueden defender, pero no hay que mezclarlas.
+- **El primer análisis de la historia de SonarCloud no sirve como línea de base:** 33.577 líneas, porque fue el análisis automático, que contaba los tests. Se usa el primero del CI.
+
+### ⚠️ NO verificado
+- Lo listado al final de `METRICAS.md`: qué mide la duración del deploy, el tiempo de trabajo dentro del tiempo de recuperación, la deuda como estimación de la herramienta, y las calificaciones A/A sin un análisis nuevo del CI.

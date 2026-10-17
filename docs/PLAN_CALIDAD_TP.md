@@ -29,7 +29,7 @@ posterior y los dos runs quedan en el historial.
   Deja **una donación `pendiente` por deploy** en la base de prod (no suma a `recaudado`, §170). Es distinto del
   smoke y el stress, que **no** tocan MP. Necesita tu OK.
 - **D2 — Instalar devDependencies** (regla 18): cobertura del frontend, lint, duplicación, stress. Una por una, con OK.
-- **D3 — Mejora medida antes/después** (eje 4): candidato real, la función de plata duplicada (`safeMoney` en
+- **D3 — Mejora medida antes/después** (eje 4) — **resuelto (§200–§205):** la mejora medida fue la de SonarCloud (157 → 63 issues; bugs 39 → 0 abiertos; fiabilidad E → A), con números del historial de análisis del pipeline; `safeMoney` quedó como deuda (2,1 % de duplicación del frontend). Propuesta original: candidato real, la función de plata duplicada (`safeMoney` en
   `ProjectDetails` y copias en `ProjectCard`, `FeedPostCard`, `PublicFeed`; deuda vista en §172). Regla 16: necesita OK.
 - **D4 — `/health` con el commit desplegado** (para que el pipeline sepa cuándo terminó el deploy). Cambio chico de
   backend con test (lee `RENDER_GIT_COMMIT`, que Render define; **NO verificado** en este servicio).
