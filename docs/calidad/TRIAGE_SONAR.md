@@ -14,8 +14,8 @@
 | Vulnerabilidad | `javascript:S5693` límite de tamaño | 2 | **Aceptado** (los límites existen) | abajo |
 | Vulnerabilidad | `tssecurity:S8475` storage poisoning | 1 | **Aceptado** | abajo |
 | Vulnerabilidad | `tssecurity:S8480` WebSocket | 1 | **Aceptado**, con una mejora anotada | abajo |
-| Smell | `S8786` regex con backtracking | 6 | **2 arreglados** (vulnerabilidad real de DoS en el email), **4 aceptados** | §201 |
-| Smell | `S6853` / `S6848` / `S6845` accesibilidad | 34 | Se tratan aparte | §203 |
+| Smell | `S8786` regex con backtracking | 6 | **2 mitigados** (vulnerabilidad real de DoS en el email: tope de 254 antes del regex), **4 aceptados**; los 6 se marcan "Accept" | §201 |
+| Smell | `S6853` / `S6848` / `S6845` accesibilidad | 34 | **32 arreglados** (29 etiquetas, 4 tarjetas que no se podían abrir con el teclado), **2 aceptados** (`Modal`, `PhotoCarousel`) | §203 |
 | Smell | `S7773` `Number.parseInt` en vez de `parseInt` | 63 | **Sin tocar**: es cosmético y no cambia el comportamiento. Va en la tabla de métricas | — |
 
 ## Para marcar en SonarCloud ("Accept", con este comentario)
@@ -37,6 +37,19 @@ En SonarCloud: **Issues** → filtrar por la regla → abrir la issue → **"Cha
 
 **`S8786`, los 4 que no se cambiaron** (`backend/src/lib/email.js`, `backend/src/lib/time.js`, `frontend/src/lib/format.ts` ×2)
 > Aceptado: medido con entradas armadas para el peor caso (PROJECT_ANALYSIS.md §201). Ninguno recibe texto de un usuario: email.js valida una variable de entorno; hasZone (time.js y format.ts) corre sobre fechas que genera la base; el \s+$ de format.ts corre sobre un texto ya recortado a un largo fijo. El que sí recibía texto del usuario (EMAIL_RE en auth.js y AuthModal.tsx) se arregló con un tope de 254 caracteres. docs/calidad/TRIAGE_SONAR.md.
+
+**`S8786`, los 2 del email** (`backend/src/routes/auth.js` `EMAIL_RE` y `frontend/src/app/components/AuthModal.tsx`)
+> Mitigado: el regex sigue teniendo backtracking cuadrático, pero ahora validateEmail corta en 254 caracteres (RFC 5321) ANTES de aplicarlo, así que el peor caso es de microsegundos. Antes, un email de 80 mil caracteres bloqueaba la API 3,4 s por pedido (reproducido). Con test de tiempo: test/unit/validators.test.js y test/integration/email-redos.test.js. PROJECT_ANALYSIS.md §201.
+
+**`typescript:S6848`, `frontend/src/app/components/Modal.tsx`** (clic en el fondo del modal)
+> Aceptado: el fondo oscuro cierra el modal con un clic, que es la convención; no es la única forma: Escape también cierra, el foco queda atrapado adentro y el botón "Cerrar" es accesible con teclado (REVISION F12, §79–§81). El fondo no tiene que ser enfocable. docs/calidad/TRIAGE_SONAR.md.
+
+**`typescript:S6845`, `frontend/src/app/components/PhotoCarousel.tsx`** (`tabIndex` en el carrusel)
+> Aceptado: el carrusel es role="group" con aria-roledescription="carrusel" y nombre, y necesita tabIndex=0 para recibir el foco y pasar las fotos con las flechas del teclado (onKeyDown). Solo lo tiene cuando hay más de una foto. docs/calidad/TRIAGE_SONAR.md.
+
+## Resultado del análisis de `2a53138` (después de §200–§202)
+
+**Bugs 37 → 1** (queda el `S8985` del test, que se acepta). **Vulnerabilidades 17 → 5**: de los 13 `S5145`, SonarCloud cerró 12, es decir que **reconoció `forLog()` como sanitizador**. El que quedaba (línea del webhook: `ts` y `user_id`, que ya eran solo dígitos) se pasó también por `forLog()` en §203. Los 6 `S8786` siguen marcados, porque el regex no cambió (en el email se agregó el tope), y se aceptan con los textos de arriba.
 
 ## Si después del próximo análisis SonarCloud sigue marcando los S5145
 

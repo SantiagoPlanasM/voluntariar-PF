@@ -186,7 +186,7 @@ router.post('/webhook', async (req, res) => {
     const liveMode = typeof body.live_mode === 'boolean' ? String(body.live_mode) : '?';
     const userId = typeof body.user_id === 'number' || /^\d{1,20}$/.test(String(body.user_id)) ? String(body.user_id) : '?';
     console.warn(`[donaciones] aviso con firma inválida (data.id=${forLog(dataId, 40)}; request-id: ${req.get('x-request-id') ? 'sí' : 'no'}; `
-      + `ts=${tsMatch ? tsMatch[1] : '?'}; live_mode=${liveMode}; user_id=${userId})`);
+      + `ts=${tsMatch ? forLog(tsMatch[1]) : '?'}; live_mode=${liveMode}; user_id=${forLog(userId)})`);   // ya son solo dígitos; forLog para que todo valor externo pase por el mismo lugar (S5145)
     return res.status(401).json({ error: 'Firma inválida' });
   }
   if (q.type !== 'payment') {   // merchant_order, chargebacks, …: no se usan

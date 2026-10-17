@@ -5537,3 +5537,44 @@ Con el tope del JSON (5 MB), el crecimiento cuadrático daría horas por pedido.
 ### ⚠️ NO verificado
 - **Si SonarCloud reconoce `forLog()` como sanitizador:** se ve en el próximo análisis. Si no, se marcan como "Accept" con el texto de `TRIAGE_SONAR.md`.
 - **Las marcas "Accept" en SonarCloud las hace el usuario** (hace falta su sesión).
+
+## 203. Accesibilidad (SonarCloud S6853/S6848/S6845) verificada en Chrome; resultado medido de §200–§202; último S5145
+
+**Resultado medido de la mejora (eje 4):** el análisis de SonarCloud de `2a53138` (CI #14 y Deploy #7 en verde, 2026-10-17 20:56 UTC), comparado con el de `df86dde` (§200):
+
+| | Antes | Después |
+|---|---|---|
+| Bugs | 37 | **1** (`S8985`, en un test: se acepta) |
+| Vulnerabilidades | 17 | **5** |
+| Issues abiertas | 157 | 109 |
+| Calificación de fiabilidad / seguridad | C / — | C (por el bug MAJOR que queda) / C |
+
+De los 13 `S5145`, **SonarCloud cerró 12, o sea que reconoció `forLog()`** como sanitizador. El que quedaba (`ts` y `user_id` en la línea de firma inválida, ya validados como dígitos) se pasó también por `forLog()` (no cambia nada: un dígito queda igual). Los 6 `S8786` siguen marcados, porque el regex no cambió (en el email se agregó el tope): se aceptan con los textos de `TRIAGE_SONAR.md`.
+
+**Accesibilidad (34 smells; decisión del usuario):**
+- **`S6853`, 29 `<label>` sin asociar** (CreateVoluntariado, FilterModal, NGOEmpleados, NGOKPIs, VolunteerProfile):
+  - **20** tenían un campo: se agregó `htmlFor` + `id` (ids descriptivos y únicos: `crear-*`, `empleado-*`, `kpi-*`, `perfil-*`). Se mantiene el `aria-label`, porque el texto visible lleva "*" u "(opcional)" y no se quiso cambiar el nombre accesible ni los tests.
+  - **9** titulaban un grupo de botones (Categoría, Modalidad, Roles, Requisitos, Habilidades, los 4 filtros): pasaron de `<label>` a `<p>` con las mismas clases.
+  - **Pendiente:** sumar `role="group"` y `aria-labelledby` a esos grupos (mejora anotada, no hecha).
+- **`S6848`, 4 tarjetas de Explorar** ("Para vos" en móvil y escritorio, Destacados y el catálogo) eran `<div onClick={navigate}>`. **Con el teclado no se podían enfocar ni abrir.** Ahora son `<Link to="/project/:id">`, y `useNavigate` se sacó porque ya no se usa. Se verificó antes que no tuvieran botones adentro ni arrastre con el mouse.
+- **`S6848` en `Modal` (clic en el fondo) y `S6845` en `PhotoCarousel` (`tabIndex`):** son a propósito y se aceptan (`TRIAGE_SONAR.md`).
+- Los cambios se hicieron con scripts que verifican el contenido de cada línea antes de tocarla y respetan CRLF/LF. `FRONTEND_CONTEXT.md` suma la convención.
+
+### Verificación
+- **Tests primero:**
+  - `ExploreScreen.test.tsx`: "cada tarjeta es un link a /project/:id". **Rojo** antes (no había links), verde después.
+  - `CreateVoluntariadoLimits.test.tsx`: busca los 7 campos **por el texto visible** de su etiqueta (con el "*", que el `aria-label` no tiene). **Rojo 2/2 con el componente anterior** (se cambió el archivo por el de `HEAD` y se restauró desde una copia), verde con el nuevo.
+- **Error propio en un test:** esperaba "Descripción completa (opcional)" con espacio, pero JSX descarta el salto de línea antes del `<span>` y el espacio que se ve es un margen (`ml-1`). Se usa un regex.
+- **Chrome** (backend local con SQLite + seed, sin Resend, Cloudinary ni Mercado Pago, y Vite con `VITE_API_URL` local; el `frontend/.env` apunta a producción):
+  - **Explorar:** 12 links a `/project/…`, `display: block` y 240 px de ancho, igual que antes. Se enfocó una tarjeta y **Enter abrió el proyecto**.
+  - **Perfil (voluntaria):** clic en el texto "Ubicación" → foco en su campo (borde verde); las 3 etiquetas encuentran su campo; "Habilidades" es un `<p>` con el mismo aspecto.
+  - **Crear voluntariado (ONG local del seed, sesión puesta por la API y restaurada al final):** pasos 1 y 2, etiquetas asociadas; clic en "Descripción corta" y en "Duración del evento" → foco en el campo; "Categoría" y "Modalidad" en `<p>` con el mismo aspecto.
+  - **KPIs** (`/ngo/kpis/proj-4`) y **Equipo** (`/ngo/empleados/ngo-4`): 5 y 4 etiquetas asociadas; el clic lleva al campo.
+  - **Filtros de Explorar:** los títulos son `<p>`, no queda ningún `<label>` suelto y el aspecto es el mismo.
+- **Suites:** backend SQLite **808/808**, Postgres **810/810**, Córdoba **808/808**; frontend **699/699** (+3), `typecheck` 0; cobertura del frontend: líneas 83,26 %, sentencias 79,75 %, ramas 74,05 %, funciones 68,09 % (subió un poco por los tests nuevos).
+
+### ⚠️ NO verificado
+- **Lector de pantalla real y celular:** no se probó.
+- **El paso 3 de crear voluntariado no se abrió en Chrome** (lo cubre el test).
+- **No se mandó ningún formulario:** se escribieron datos de prueba sin guardar.
+- **El análisis de SonarCloud de estos cambios:** sale con el próximo push.
