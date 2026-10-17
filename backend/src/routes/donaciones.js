@@ -252,3 +252,4 @@ router.get('/:id', requireAuth, async (req, res) => {
 
 module.exports = router;
 module.exports.applyPayment = applyPayment;   // mismo patrón de exports que projects.js
+module.exports.amountError = amountError;     // para los tests unitarios de clases y límites (§199)

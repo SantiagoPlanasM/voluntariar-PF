@@ -284,6 +284,8 @@ describe('CV del voluntario', () => {
       configured = false;
       const r = await view(lucia);
       assert.equal(r.status, 503);
+      // Regla R4 de la tabla de decisión (docs/calidad/DISENO_CASOS.md §3): ONG CON permiso → también 503 (§199)
+      assert.equal((await view(ngo4)).status, 503);
       notFound(await view(ngo1));
     });
   });

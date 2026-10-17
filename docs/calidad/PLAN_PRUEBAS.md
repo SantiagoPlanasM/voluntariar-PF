@@ -14,6 +14,7 @@
 | 0.4 | 2026-10-17 | O6: el gate (SonarCloud + `sonar-gate.js`) también bloquea ante vulnerabilidades críticas (§191) |
 | 0.5 | 2026-10-17 | Niveles: smoke y E2E de Mercado Pago definidos y automatizados en `deploy.yml` (T9, §193) |
 | 0.6 | 2026-10-17 | O9 y nivel no funcional: k6 con umbrales fijados antes de correr y workflow `Carga` (T10, §197) |
+| 0.7 | 2026-10-17 | Diseño de casos, AAA y rojo/verde en `DISENO_CASOS.md` (T6 y T7, §199) |
 
 El documento se versiona en git: cada cambio entra en un commit propio y suma una fila a esta tabla.
 

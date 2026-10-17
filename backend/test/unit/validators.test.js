@@ -97,3 +97,40 @@ describe('validateEmail / validateName / validatePassword', () => {
   test('password sin mayúscula → rechazada', () => { assert.match(validatePassword('password1'), /mayúscula/); });
   test('password sin número → rechazada', () => { assert.match(validatePassword('Password'), /número/); });
 });
+
+// Valores límite de la contraseña (TP de Calidad, eje 5; docs/calidad/DISENO_CASOS.md §2; PROJECT_ANALYSIS.md §199).
+// Hueco encontrado por mutación: con `v.length < 7` en vez de `< 8` ningún test fallaba (solo se probaba 'Ab1').
+describe('validatePassword — valores límite (8 caracteres y 72 bytes)', () => {
+  const MIN = 'Mínimo 8 caracteres';
+  const MAX = 'Máximo 72 caracteres (los acentos, la ñ y los emojis cuentan como más de uno)';
+
+  test('mínimo: 7 caracteres no, 8 sí', () => {
+    // Arrange
+    const siete = 'Passwo1';
+    const ocho = 'Passwor1';
+    // Act
+    const results = [validatePassword(siete), validatePassword(ocho)];
+    // Assert
+    assert.equal(siete.length, 7);
+    assert.deepEqual(results, [MIN, null]);
+  });
+
+  test('máximo en bytes: 72 sí, 73 no (ASCII)', () => {
+    const p72 = 'Password1' + 'a'.repeat(63);
+    const p73 = p72 + 'a';
+    assert.deepEqual([Buffer.byteLength(p72), Buffer.byteLength(p73)], [72, 73]);
+    assert.deepEqual([validatePassword(p72), validatePassword(p73)], [null, MAX]);
+  });
+
+  test('cuenta bytes, no caracteres: con ñ (2 bytes) 72 sí, 73 no', () => {
+    const p72 = 'A1' + 'ñ'.repeat(35);          // 2 + 70 = 72 bytes, 37 caracteres
+    const p73 = p72 + 'a';
+    assert.deepEqual([Buffer.byteLength(p72), p72.length], [72, 37]);
+    assert.deepEqual([validatePassword(p72), validatePassword(p73)], [null, MAX]);
+  });
+
+  test('lo que no es texto → "Mínimo 8" (no 500)', () => {
+    const results = [undefined, null, 12345678, ['Password1']].map(validatePassword);
+    assert.deepEqual(results, [MIN, MIN, MIN, MIN]);
+  });
+});

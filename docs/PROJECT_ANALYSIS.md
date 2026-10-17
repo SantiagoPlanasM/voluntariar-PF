@@ -5427,3 +5427,31 @@ Con esto, **T9 queda cumplida para el nivel 3**: deploy por el pipeline después
 
 ### ⚠️ NO verificado
 - Que el máximo de 2,6 s en producción sea el pedido de `setup()`. Se ve en `prod.json` (artefacto `carga-produccion`), que no abrí.
+
+## 199. Diseño de casos (eje 5) y contraste rojo/verde de un defecto real (eje 2): `docs/calidad/DISENO_CASOS.md` (T6 y T7)
+
+**Qué se hizo:**
+- **T7, rojo/verde del defecto B7:** el test de regresión de integración `comments-badwords.test.js` (de `da8ac95`) se corrió en dos worktrees aparte (en el scratchpad, con `node_modules` enlazado por junction y borrado después **sacando primero la junction**):
+  - sobre `ae17116`, el commit anterior al arreglo: **2/2 rojo**. "computadora" → 400, se esperaba 201 (falso positivo); "imbécil" → 201, se esperaba 400 (falso negativo por los acentos);
+  - sobre `da8ac95`: **2/2 verde**.
+
+  Las salidas, sin rutas locales ni stack, quedaron en `docs/calidad/evidencia/b7-{antes,despues}.txt`. El test unitario del arreglo **se descartó para el contraste**: importa `src/lib/badWords.js`, que crea el mismo commit, y daría un rojo débil.
+- **T6, monto de donación:** `amountError` exportada (mismo patrón que `applyPayment`). Test unitario nuevo `test/unit/donation-amount.test.js` (7 tests AAA) con 5 clases de equivalencia y los valores límite 99/100/101 y 499.999/500.000/500.001. Los que faltaban antes eran 101, 499.999 y un valor válido del medio.
+- **T6, contraseña:** 4 tests AAA de valores límite en `test/unit/validators.test.js`: 7/8 caracteres, 72/73 bytes en ASCII y con ñ, y entradas que no son texto.
+- **T6, tabla de decisión del CV:** 10 reglas mapeadas a los tests de `cv.test.js`. Se agregó la que faltaba (R4: una **ONG con permiso** y Cloudinary sin configurar → 503).
+- `docs/calidad/DISENO_CASOS.md`: AAA y criterio previo, las tablas, la cobertura de sentencia y decisión de `amountError` y el contraste B7. `PLAN_PRUEBAS.md` v0.7.
+
+### Verificación
+- **Rojo:** `donation-amount.test.js` dio 7/7 en rojo **débil** (la función no estaba exportada). Los tests de la contraseña y del CV son de **caracterización** (el código ya era correcto). El rojo con sentido lo dieron los mutantes:
+  - `amountError`: mueren 6 (`<`→`<=`, `>`→`>=`, sin `isInteger`, mínimo 99, máximo 500.001, `return ''`). **Sobrevive 1 equivalente:** "sin `typeof`", porque `Number.isInteger` ya rechaza lo que no es un número;
+  - `validatePassword`: **antes de los tests nuevos, `v.length < 7` sobrevivía** (ningún test probaba el borde: solo `'Ab1'`). Después mueren los 5 mutantes de los bordes;
+  - regla del CV: "la ONG nunca tiene permiso" (3 fallas) y "cualquier estado de inscripción" (1 falla), mueren los dos.
+- **Cobertura de `amountError` medida** (lcov del runner, solo ese test): 6/6 líneas y todas las ramas. **Con un solo caso válido: 6/6 líneas pero 1 de 4 ramas.** Es el ejemplo de sentencia ≠ decisión. Salvedades: el runner mide líneas, no sentencias, y la cantidad de ramas de V8 cambia entre corridas. Por eso la decisión se documenta con una tabla a mano.
+- Suite completa: SQLite **797/797**, Postgres **799/799**, Córdoba **797/797** (+11). `CLAUDE.md` actualizado.
+
+### Errores propios
+- El primer intento de guardar la evidencia usó un `sed` con paréntesis mal escapados: los archivos quedaron solo con el encabezado. Se rehízo con un script de Node desde las salidas guardadas, y se verificó que no quedaran rutas locales (0).
+- El primer intento de crear las junctions con `cmd //c mklink` falló por el escapado desde Git Bash: se hicieron con PowerShell.
+
+### ⚠️ NO verificado
+- Que las tablas no omitan una condición: salen de leer el código, y la mutación lo refuerza pero no lo garantiza.
