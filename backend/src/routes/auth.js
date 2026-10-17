@@ -1,7 +1,7 @@
 // src/routes/auth.js
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { randomUUID } = require('node:crypto');
+const { randomUUID, randomBytes, createHash } = require('node:crypto');
 const db = require('../db');
 const { signToken, requireAuth } = require('../middleware/auth');
 const { checkText, firstError } = require('../lib/inputs');
@@ -9,6 +9,8 @@ const { isUniqueViolation } = require('../lib/dbErrors');
 const { createLimiter } = require('../lib/rateLimit');
 const multer = require('multer');
 const storage = require('../lib/storage');   // por propiedad (storage.uploadImage), para poder reemplazarlo en tests
+const email = require('../lib/email');       // por propiedad (email.sendEmail), ídem
+const { accountDeletionEmail } = require('../lib/emailTemplates');
 
 const router = express.Router();
 
@@ -346,6 +348,112 @@ router.put('/me/photo', requireAuth, (req, res, next) => {
   } catch (err) {
     console.error('PUT /auth/me/photo error:', err);
     res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── Borrar la propia cuenta, con confirmación por email (PROJECT_ANALYSIS.md §177) ───────────────────────────
+// 1) POST /me/delete-request (con sesión): genera un código de 256 bits, guarda SOLO su hash (sha256) con vencimiento
+//    en 1 hora (ISO calculado en JS: no depende del motor ni de la zona) y lo manda por email como link a
+//    APP_URL/cuenta/borrar?token=…. Un pedido nuevo invalida el anterior. Sin email no hay link: si Resend no está
+//    configurado (503) o falla (502), no queda nada guardado.
+// 2) POST /delete-account { token } (sin sesión: el link puede abrirse en otro dispositivo): si el código existe y no
+//    venció, en UNA transacción corrige los contadores que la cascada no toca (seguidores de ONG, proyectos y
+//    voluntarios; cupos de sus inscripciones aprobadas) y borra el usuario: el resto cae por ON DELETE CASCADE (perfil,
+//    inscripciones, mensajes, notificaciones, Momentos, follows y, si es ONG, sus proyectos). Después del COMMIT se
+//    borran, en lo posible, el CV y las fotos de Momentos en Cloudinary.
+const DELETION_TTL_MS = 60 * 60 * 1000;
+const DELETION_REQUESTS_PER_USER = createLimiter({ max: 3, windowMs: 60 * 60 * 1000 });
+const INVALID_LINK = 'El link no es válido o ya se usó. Pedí uno nuevo desde tu perfil.';
+const sha256 = (t) => createHash('sha256').update(t).digest('hex');
+const appUrl = () => process.env.APP_URL || 'http://localhost:5173';
+
+router.post('/me/delete-request', requireAuth, async (req, res) => {
+  try {
+    const wait = DELETION_REQUESTS_PER_USER.blocked(req.user.id);
+    if (wait) {
+      res.set('Retry-After', String(wait));
+      return res.status(429).json({ error: 'Pediste borrar la cuenta muchas veces seguidas. Esperá un rato.' });
+    }
+    const user = await db.get('SELECT id, name, email FROM users WHERE id=$1', [req.user.id]);
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+    DELETION_REQUESTS_PER_USER.hit(req.user.id);
+
+    const token = randomBytes(32).toString('base64url');
+    const tokenHash = sha256(token);
+    await db.transaction(async (tx) => {
+      await tx.run('DELETE FROM account_deletion_tokens WHERE user_id=$1', [user.id]);   // un pedido nuevo invalida el anterior
+      await tx.run('INSERT INTO account_deletion_tokens (token_hash, user_id, expires_at) VALUES ($1,$2,$3)',
+        [tokenHash, user.id, new Date(Date.now() + DELETION_TTL_MS).toISOString()]);
+    });
+
+    // El email va DESPUÉS del COMMIT (regla 21). Si no sale, el link no sirve: se descarta.
+    const { subject, html } = accountDeletionEmail({ name: user.name, link: `${appUrl()}/cuenta/borrar?token=${token}` });
+    const result = await email.sendEmail({ to: user.email, subject, html });
+    if (!result?.ok) {
+      await db.run('DELETE FROM account_deletion_tokens WHERE token_hash=$1', [tokenHash]);
+      if (result?.skipped) {
+        return res.status(503).json({ error: 'No podemos mandar emails por el momento, así que no se puede confirmar el borrado.' });
+      }
+      return res.status(502).json({ error: 'No pudimos mandar el email. Probá de nuevo en un rato.' });
+    }
+    res.json({ sent: true });
+  } catch (err) {
+    console.error('POST /auth/me/delete-request error:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.post('/delete-account', async (req, res) => {
+  try {
+    const token = req.body?.token;
+    // base64url de 32 bytes = 43 caracteres. Cualquier otra cosa ni se busca.
+    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) return res.status(400).json({ error: INVALID_LINK });
+    const tokenHash = sha256(token);
+    const row = await db.get('SELECT user_id, expires_at FROM account_deletion_tokens WHERE token_hash=$1', [tokenHash]);
+    if (!row) return res.status(400).json({ error: INVALID_LINK });
+    if (!(Date.parse(row.expires_at) > Date.now())) {
+      await db.run('DELETE FROM account_deletion_tokens WHERE token_hash=$1', [tokenHash]);
+      return res.status(400).json({ error: 'El link venció. Pedí uno nuevo desde tu perfil.' });
+    }
+    const userId = row.user_id;
+
+    // Archivos a limpiar en Cloudinary DESPUÉS del COMMIT (la cascada borra las filas que los referencian).
+    const cv = await db.get('SELECT cv_url FROM voluntarios WHERE user_id=$1', [userId]);
+    const media = await db.all(
+      `SELECT pm.provider_id FROM post_media pm
+       JOIN posts po ON po.id = pm.post_id
+       LEFT JOIN projects pr ON pr.id = po.project_id
+       LEFT JOIN ngos n ON n.id = pr.ngo_id
+       WHERE po.user_id = $1 OR n.user_id = $1`, [userId]);
+
+    let deleted = false;
+    await db.transaction(async (tx) => {
+      // Contadores que la cascada no corrige (los CHECK >= 0 se respetan: nunca baja de 0).
+      await tx.run(`UPDATE ngos SET followers = followers - 1
+                    WHERE followers > 0 AND id IN (SELECT ngo_id FROM ngo_follows WHERE user_id = $1)`, [userId]);
+      await tx.run(`UPDATE projects SET followers = followers - 1
+                    WHERE followers > 0 AND id IN (SELECT project_id FROM project_follows WHERE user_id = $1)`, [userId]);
+      await tx.run(`UPDATE voluntarios SET followers = followers - 1
+                    WHERE followers > 0 AND user_id IN (SELECT following_id FROM volunteer_follows WHERE follower_id = $1)`, [userId]);
+      await tx.run(`UPDATE projects SET cupos_ocupados = cupos_ocupados - 1
+                    WHERE cupos_ocupados > 0 AND id IN (SELECT project_id FROM enrollments WHERE user_id = $1 AND status = 'approved')`, [userId]);
+      const del = await tx.run('DELETE FROM users WHERE id=$1', [userId]);
+      deleted = del.changes === 1;
+    });
+    if (!deleted) return res.status(400).json({ error: INVALID_LINK });
+
+    if (storage.isConfigured()) {
+      const jobs = [];
+      if (cv?.cv_url) jobs.push(storage.deletePdf(cv.cv_url));
+      for (const m of media) if (m.provider_id) jobs.push(storage.deleteImage(m.provider_id));
+      const results = await Promise.allSettled(jobs);
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      if (failed) console.error(`POST /auth/delete-account: no se pudieron borrar ${failed} archivo(s) de Cloudinary`);
+    }
+    res.json({ deleted: true });
+  } catch (err) {
+    console.error('POST /auth/delete-account error:', err);
+    res.status(500).json({ error: 'No pudimos borrar la cuenta. Probá de nuevo.' });
   }
 });
 

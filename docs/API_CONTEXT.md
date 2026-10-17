@@ -21,6 +21,8 @@
 | GET | `/api/auth/me` | Sí | cualquiera | `routes/auth.js` |
 | PUT | `/api/auth/me` | Sí | cualquiera | `routes/auth.js` |
 | PUT | `/api/auth/me/photo` | Sí | cualquiera | `routes/auth.js` |
+| POST | `/api/auth/me/delete-request` | Sí | cualquiera | `routes/auth.js` |
+| POST | `/api/auth/delete-account` | No (código del email) | — | `routes/auth.js` |
 | GET | `/api/projects` | Opcional | — | `routes/projects.js` |
 | GET | `/api/projects/recommended` | Sí | volunteer | `routes/projects.js` |
 | GET | `/api/projects/:id` | Opcional | — | `routes/projects.js` |
@@ -134,6 +136,16 @@
 - **Validación (`PROJECT_ANALYSIS.md §76`):** `name`, si viene (también `""` o `null`), pasa por `validateName` y se guarda recortado; `bio` ≤ 500, `location` ≤ 150, `avatar` ≤ 1000, todos texto o `null`. Si no → **400**.
 - **Body:** `{ name?, bio?, location?, avatar? }` — solo lee esos cuatro, todos de `users` (no toca la tabla del rol). Parcial: un campo que no viene conserva su valor.
 - **Respuesta 200:** `{ user }` actualizado (`id, name, email, role, avatar, bio, location`). `404` si el usuario ya no existe.
+
+### Borrar la propia cuenta (`PROJECT_ANALYSIS.md §177`)
+**`POST /api/auth/me/delete-request`** — Auth. Manda un email con el link `APP_URL/cuenta/borrar?token=<código>`, que vence en **1 hora** y sirve **una vez**. Un pedido nuevo invalida el anterior. En la base se guarda solo el hash sha256 del código.
+- **Respuesta 200:** `{ sent: true }`.
+- **Errores:** `401` · `429` con `Retry-After` (más de **3 por hora**) · **`503`** si Resend no está configurado, o **`502`** si el email falla. En los dos casos **no queda ningún link**: sin email no hay borrado.
+
+**`POST /api/auth/delete-account`** — Sin sesión (el link puede abrirse en otro dispositivo). Body `{ token }`.
+- Si el código vale, en **una transacción** corrige los contadores (seguidores de ONG, proyectos y voluntarios; `cupos_ocupados` de sus inscripciones aprobadas) y borra el usuario. El resto cae por `ON DELETE CASCADE`: perfil, inscripciones, mensajes, notificaciones, Momentos, follows y, **si es ONG, sus proyectos con las inscripciones de otros**. Después del COMMIT, en lo posible, borra el CV y las fotos de Momentos en Cloudinary.
+- **Respuesta 200:** `{ deleted: true }`.
+- **Errores:** `400` "El link no es válido o ya se usó…" (forma incorrecta, inexistente o ya usado) · `400` "El link venció…" (y se descarta) · `500` "No pudimos borrar la cuenta…": no se borra nada y el mismo link sirve para reintentar.
 
 ### `PUT /api/auth/me/photo` — Auth (cualquier rol)
 > Agregado en `PROJECT_ANALYSIS.md §162` (`PLAN_FALTANTE.md`, Etapa 1). Foto de perfil subida como archivo a Cloudinary (`lib/storage.js`).

@@ -117,8 +117,24 @@ function sponsorDecisionEmail({ empresaName, projectTitle, ngoName, accepted, ap
   };
 }
 
+/** Confirmación para borrar la propia cuenta (§177). El link vence en 1 hora y sirve una sola vez. */
+function accountDeletionEmail({ name, link }) {
+  return {
+    subject: 'Confirmá si querés borrar tu cuenta de VoluntariAR',
+    html: wrapper(
+      'Pediste borrar tu cuenta',
+      `<p>Hola ${esc(name) || ''},</p>
+       <p>Recibimos un pedido para <strong>borrar tu cuenta</strong> de VoluntariAR. Si fuiste vos, tocá el botón: vas a
+          tener que confirmar una vez más. El link vence en <strong>1 hora</strong> y sirve una sola vez.</p>
+       <p>Si no lo pediste, ignorá este email: tu cuenta sigue igual.</p>`,
+      'Borrar mi cuenta',
+      link
+    ),
+  };
+}
+
 module.exports = {
   newEnrollmentEmail, enrollmentApprovedEmail, enrollmentRejectedEmail,
-  sponsorProposalEmail, sponsorDecisionEmail,
+  sponsorProposalEmail, sponsorDecisionEmail, accountDeletionEmail,
   esc, // lo reusa lib/email.js para el aviso del modo prueba
 };

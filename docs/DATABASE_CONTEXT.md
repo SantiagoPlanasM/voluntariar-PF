@@ -147,6 +147,9 @@ id · project_id (FK→projects, CASCADE) · nombre (NOT NULL) · descripcion ·
 | created_at / updated_at | TIMESTAMP | |
 | — | — | `UNIQUE(user_id, project_id)` → un voluntario no puede inscribirse dos veces al mismo proyecto |
 
+### `account_deletion_tokens` (`PROJECT_ANALYSIS.md §177`)
+token_hash (PK, sha256 del código del email) · user_id (NOT NULL FK→users **CASCADE**) · expires_at (TEXT, ISO calculado en JS: no se usa la hora de la base, para no depender del motor ni de la zona) · created_at. Un pedido nuevo borra los anteriores del mismo usuario. Índice `idx_account_deletion_user`.
+
 ### `donaciones`
 id · user_id (NOT NULL FK→users CASCADE) · project_id (FK→projects, ON DELETE **SET NULL**) · ngo_id (FK→ngos, ON DELETE **SET NULL**) · monto (NOT NULL, CHECK > 0) · fecha (TIMESTAMP) · estado (CHECK IN `pendiente`,`completada`,`fallida`,`reembolsada`, default `completada`) · created_at · **external_id** (id de la preferencia de Mercado Pago) · **external_payment_id** (el pago que la acreditó) · **external_status** (último estado informado por Mercado Pago) · **moneda** (default `'ARS'`). Las cuatro últimas son de §170 y se agregan con `addColumnIfNotExists`; el índice es `idx_donaciones_external` sobre `external_id`.
 

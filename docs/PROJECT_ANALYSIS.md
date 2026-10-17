@@ -4892,3 +4892,33 @@ Se le pidió al usuario mirar la línea `Pagos:` del arranque, volver a copiar l
 ### ⚠️ NO verificado
 - Cuánto tiempo sigue reintentando Mercado Pago los avisos viejos que respondimos con 401. Seguirán apareciendo líneas de "firma inválida" de pagos viejos; son inofensivas.
 - Si con **credenciales productivas** los avisos sí validan: no se probó (no se van a usar para la tesis).
+
+## 177. Borrar la propia cuenta, con confirmación por email (backend)
+
+**Por qué:** para la página de privacidad (Etapa 11) hacía falta decir cómo se borra una cuenta, y no existía ningún endpoint. El usuario prefirió agregarlo antes que publicar un email de contacto.
+
+**Qué se hizo:**
+- **Tabla nueva** `account_deletion_tokens(token_hash PK, user_id → users ON DELETE CASCADE, expires_at TEXT, created_at)` e índice por `user_id`. Se guarda **solo el hash sha256** del código. `expires_at` es un ISO calculado en JS: no se usa la hora de la base, para no depender del motor ni de la zona horaria.
+- **`POST /api/auth/me/delete-request`** (con sesión; 3 por hora):
+  - genera un código de 256 bits (`randomBytes(32)` en base64url, 43 caracteres), borra los pedidos anteriores e inserta el nuevo en una transacción;
+  - **después del COMMIT** manda el email (`accountDeletionEmail`) con el link `APP_URL/cuenta/borrar?token=…`;
+  - si Resend no está configurado responde **503**, y si falla, **502**. En los dos casos **se descarta el link**: sin email no hay borrado.
+- **`POST /api/auth/delete-account { token }`** (sin sesión, porque el link puede abrirse en otro dispositivo):
+  - el código tiene que tener la forma exacta y existir; si no, 400 "El link no es válido o ya se usó…". Si venció, 400 "El link venció…" y se descarta;
+  - si vale, en **una transacción** corrige los contadores que la cascada no toca y borra el usuario. Los contadores son los seguidores de ONG, proyectos y voluntarios, que nunca bajan de 0 por los CHECK, y los `cupos_ocupados` de sus inscripciones **aprobadas**. Lo demás cae por `ON DELETE CASCADE`, y todas las claves a `users` lo tienen (lo revisé en `migrate.js`): perfil, inscripciones, mensajes, notificaciones, Momentos, follows y, si es ONG, sus proyectos con las inscripciones de otros. Las donaciones de otros a esos proyectos quedan con `project_id`/`ngo_id` en NULL;
+  - **después del COMMIT** borra, en lo posible, el CV y las fotos de Momentos en Cloudinary (las propias y, si es ONG, las de sus proyectos). Si Cloudinary falla, solo se loguea.
+- El email se llama por propiedad (`email.sendEmail`) para poder reemplazarlo en los tests. Las rutas viejas lo desestructuran y no se tocaron.
+
+### Verificación
+- Test nuevo `test/integration/account-deletion.test.js` (15):
+  - el pedido: el email, el link, el hash sin el código en claro, el vencimiento en ~1 hora; uno nuevo invalida el anterior; sin email (503) y con el email fallando (502) no queda link; 401; el límite de 3 por hora;
+  - el borrado: 7 formas inválidas de código; vencido (se descarta y la cuenta sigue); **la voluntaria completa** (todo lo suyo borrado, los cuatro contadores corregidos, el cupo de la pendiente intacto, el CV y la foto borrados en Cloudinary, sin poder volver a iniciar sesión); un solo uso; un contador en 0 que no baja; **la ONG** (sus proyectos, las inscripciones y fotos de otros en ellos, las donaciones sin proyecto); la empresa; Cloudinary caído; **la base que falla a mitad** (no se borra nada, los contadores no bajan, Cloudinary no se toca y el mismo link sirve para reintentar).
+- Rojo: los 15 fallaban (no existían las rutas).
+- Backend SQLite **782/782** y con TZ 782/782; Postgres **784/784** y con TZ 784/784. 0 fail, 0 cancelled. `npm audit` 0. CRLF conservados.
+- **Mutación** (control en verde): **27 mutantes, sobrevive 1, equivalente**: "aceptar cualquier forma de código". Un código mal formado igual no coincide con ningún hash y da el mismo 400; el chequeo solo ahorra una consulta.
+
+### ⚠️ NO verificado
+- **El email real:** con el remitente de prueba de Resend y `EMAIL_REDIRECT_TO`, el link le llega **al usuario del proyecto**, no a la cuenta que se borra. Para la demo alcanza; para un sitio real hace falta un dominio verificado. No lo probé en Render.
+- **Las fotos de perfil y de proyectos** en Cloudinary no se borran: no guardamos su id (pendiente conocido).
+- **El JWT de la cuenta borrada** sigue siendo válido hasta que vence, pero apunta a un usuario que no existe: `/auth/me` da 404 y el frontend cierra la sesión.
+- Dos borrados simultáneos con el mismo link: el segundo no encuentra el usuario (`changes = 0`) y responde 400. No lo probé con concurrencia real.

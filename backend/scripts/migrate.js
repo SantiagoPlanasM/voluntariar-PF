@@ -379,6 +379,16 @@ async function migrate() {
       created_at  ${NOW},
       PRIMARY KEY (post_id, user_id)
     )`,
+
+    // ── 29. Links para borrar la propia cuenta (2026-10-16, PROJECT_ANALYSIS.md §177) ─────
+    // Se guarda SOLO el hash (sha256) del código que va en el email. `expires_at` es un ISO calculado en JS, no la
+    // hora de la base: así la comparación no depende del motor ni de la zona horaria.
+    `CREATE TABLE IF NOT EXISTS account_deletion_tokens (
+      token_hash  TEXT PRIMARY KEY,
+      user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at  TEXT NOT NULL,
+      created_at  ${NOW}
+    )`,
   ];
 
   // ── Crear tablas ──────────────────────────────────────────────────────────
@@ -487,6 +497,7 @@ async function migrate() {
     `CREATE INDEX IF NOT EXISTS idx_posts_user            ON posts(user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_post_media_post       ON post_media(post_id)`,
     `CREATE INDEX IF NOT EXISTS idx_post_likes_user       ON post_likes(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_account_deletion_user ON account_deletion_tokens(user_id)`,
   ];
 
   for (const idx of indexes) {
