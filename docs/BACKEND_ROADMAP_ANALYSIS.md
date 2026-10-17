@@ -27,11 +27,11 @@
 | Chatbot FAQ (sin IA) | ✅ Hecho | `§27` — el diseño final difiere del original, ver §1.2 |
 | Follows / feed / mapa / explorar | ✅ Hecho (por el usuario) | `§28`, bugs corregidos en `§29` |
 | **Dashboard de Empresa (KPIs)** | ✅ Hecho | §2.3 — `PROJECT_ANALYSIS.md §33` |
-| **Multimedia (Cloudinary)** | 🟡 En curso: **Momentos** (publicaciones con fotos) — backend ✅ (`PROJECT_ANALYSIS.md §43`), frontend ⏳. Pendiente: fotos de perfil y la base para el CV | §1.1 |
-| **Gestión de CV** | ⏳ Depende de Multimedia; privacidad decidida | §1.3 |
+| **Multimedia (Cloudinary)** | ✅ Hecho: Momentos (`PROJECT_ANALYSIS.md §43`, §46–§48), fotos de perfil (§162–§163) y PDF privados para el CV (§164) | §1.1 |
+| **Gestión de CV** | ✅ Hecho (§165–§168; probado en producción, §167). La ONG lo ve con inscripción pendiente o aprobada (decisión C1) | §1.3 |
 | **"Empleados" de empresa (usuario real)** | ⏳ Decidido; queda una sub-decisión (consentimiento) | §2.4 |
 | **Chat Empresa↔ONG/Voluntario** | ⏳ Sin bloqueos; queda una decisión menor | §2.5 |
-| **Pagos (Mercado Pago, modo prueba)** | 🟡 En curso: `lib/payments.js` ✅ (`PROJECT_ANALYSIS.md §169`); faltan endpoints y frontend | §1.4 |
+| **Pagos (Mercado Pago, modo prueba)** | ✅ Hecho (§169–§176; probado en producción). Se acredita por la vuelta; en modo prueba el aviso no valida (§176) | §1.4 |
 | Chatbot con IA | ⏸ Sin decidir, no es prioridad | — |
 
 **Orden recomendado para lo pendiente, y por qué:**
@@ -343,7 +343,7 @@ async function canMessage(senderRole, senderUserId, receiverId) {
 
 | Riesgo existente | Cómo lo agrava lo pendiente |
 |---|---|
-| **`JWT_SECRET` con fallback hardcodeado** (`middleware/auth.js`) | Con Pagos y CV de por medio, un token forjado deja de ser "ver el feed de otro" y pasa a ser iniciar checkouts o pedir fichas con CV a nombre de otro usuario. Exigir la variable de entorno sin fallback **antes** de sumar estos módulos. |
+| ~~**`JWT_SECRET` con fallback hardcodeado**~~ ✅ **Resuelto en `PROJECT_ANALYSIS.md §94`** (obligatorio en producción, `src/lib/jwtSecret.js`). *(Texto original:)* (`middleware/auth.js`) | Con Pagos y CV de por medio, un token forjado deja de ser "ver el feed de otro" y pasa a ser iniciar checkouts o pedir fichas con CV a nombre de otro usuario. Exigir la variable de entorno sin fallback **antes** de sumar estos módulos. |
 | ~~**Adaptador sin transacciones**~~ | ✅ **Resuelto** (`PROJECT_ANALYSIS.md §34`). Era el prerrequisito técnico más importante de esta lista; Pagos ya puede apoyarse en `db.transaction()`. |
 | **`voluntarios.ubicacion` duplicada/no usada** | El endpoint de ficha de voluntario (§1.3) invita a leer la columna equivocada — es el mismo error que ya pasó con las recomendaciones. La columna viva es `users.location`; dejar un comentario en el código nuevo. |
 | **Sin rate limiting** | Multimedia (agota la cuota gratuita de Cloudinary) y Pagos (llena `donaciones` de filas `pendiente`) crean dos superficies de abuso nuevas. |

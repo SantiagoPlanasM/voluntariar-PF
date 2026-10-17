@@ -28,6 +28,9 @@ VoluntariAR es una plataforma web que permite:
 - **ONGs**: publicar proyectos, gestionar inscripciones, aprobar/rechazar voluntarios y ver estadísticas
 - **Empresas**: patrocinar voluntariados (RSE)
 - **Momentos**: voluntarios y ONGs comparten fotos de las jornadas (estilo Instagram, con "me gusta"); cualquier persona puede verlas
+- **Perfiles con foto y CV**: cada cuenta sube su foto; los voluntarios suben su CV en PDF, privado: solo lo abren las ONG donde se postularon, con un link que vence
+- **Donaciones**: a proyectos activos, con Mercado Pago (Checkout Pro, **modo prueba**: no se cobra dinero real)
+- **Privacidad**: página `/privacidad` y "Borrar mi cuenta" desde el perfil, con confirmación por email
 - **Feed público**: cualquier persona puede ver los proyectos sin registrarse
 
 ### Roles del sistema
@@ -294,7 +297,7 @@ En `voluntariar` (frontend) → Environment:
 ### ⚠️ Plan gratuito de Render
 
 - Los servicios **se duermen tras 15 min** sin uso. La primera request tarda ~30s.
-- La BD PostgreSQL gratuita **expira a los 90 días**.
+- La BD PostgreSQL gratuita **vence a los 30 días de creada** (este README decía 90). La de este proyecto vence el **14 de noviembre de 2026**, según el panel de Render (`PROJECT_ANALYSIS.md §180`). Después hay que crear otra y volver a cargar los datos.
 - Para la demo, abrí el backend 2 minutos antes para que despierte.
 
 ---

@@ -4977,3 +4977,29 @@ Se le pidió al usuario mirar la línea `Pagos:` del arranque, volver a copiar l
 - **No es asesoramiento legal.** La mención a la Ley 25.326 la escribí con lo que sé, no consulté la ley hoy. Para la tesis alcanza como aviso de una demo académica; para un servicio real habría que revisarlo con alguien que sepa.
 - Nada visual: la página y el renglón del registro.
 - `DEMO_DATOS.md` no lo seguí yo: lo vas a ejecutar vos en producción. Si algún paso no coincide con la interfaz, se corrige.
+
+## 180. Guion de la defensa y docs viejos (PLAN_FALTANTE.md, Etapa 13)
+
+**Qué se hizo:**
+- **`docs/GUION_DEFENSA.md`** (nuevo):
+  - el checklist de los días antes: datos cargados, último deploy, una donación de prueba, credenciales fuera del repo, un video de respaldo y el plan B local con el seed;
+  - el checklist del día: despertar la API con `/health`, **un navegador o perfil por cuenta** (la sesión vive en el `localStorage` de cada navegador) y el checkout con el comprador de prueba;
+  - un **recorrido de ~15 minutos** por los módulos con qué decir en cada uno, qué contar de lo técnico, **las limitaciones con respuesta corta** (el aviso de Mercado Pago en modo prueba, los emails de prueba, el plan gratuito, la paginación), el trabajo futuro y un plan B por cada falla probable.
+  - **A confirmar con la cátedra:** la duración y el formato de la defensa.
+- **Docs viejos que encontré al armar el plan (2026-10-16):**
+  - `README.md`: decía que la base gratuita "expira a los 90 días". Pasó a "30 días de creada; la de este proyecto vence el 14 de noviembre de 2026", que es lo que vio el usuario en el panel. Además, la descripción suma fotos y CV, donaciones y privacidad.
+  - `PROJECT_CONTEXT.md §7`: decía que `NGOEmpleados` hace `fetch()` directo; quedó tachado como resuelto en §98.
+  - `BACKEND_ROADMAP_ANALYSIS.md §0`: Multimedia, CV y Pagos pasan a ✅ con sus secciones, y en §3 el riesgo del fallback de `JWT_SECRET` queda como resuelto (§94).
+
+### Verificación
+- Lo que afirma el guion, contra el código o esta sesión:
+  - `/health` (`render.yaml`, `healthCheckPath`);
+  - las líneas `Fotos:`, `Pagos:` y `Email:` del arranque (`index.js`);
+  - `npm run db:reset` (§116);
+  - los cupos atómicos (§39), las horas que carga la ONG (§22) y el tope de 500 en Explorar (§119);
+  - los números de tests de la última corrida: backend 782/784 y frontend 694.
+- Solo documentación: no se corrieron los tests de nuevo.
+
+### ⚠️ NO verificado
+- El formato y la duración de la defensa (a confirmar con la cátedra).
+- Que el plan B local ande en la notebook del usuario el día de la defensa: hay que probarlo antes.
