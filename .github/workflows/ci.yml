@@ -18,11 +18,13 @@ concurrency:
 
 env:
   NODE_VERSION: '22'   # la misma que Render (render.yaml: NODE_VERSION "22")
+# runs-on fijo en ubuntu-24.04: ubuntu-latest pasa a Ubuntu 26 desde el 2026-10-19 y no queremos que el runner
+# cambie justo antes de la entrega del TP (§186).
 
 jobs:
   backend-sqlite:
     name: Backend · SQLite · ${{ matrix.tz }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -64,7 +66,7 @@ jobs:
             echo '```'
             echo '</details>'
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: backend-sqlite-${{ strategy.job-index }}
@@ -72,7 +74,7 @@ jobs:
 
   backend-postgres:
     name: Backend · Postgres 16 · ${{ matrix.tz }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -120,7 +122,7 @@ jobs:
             grep -E '^# (tests|suites|pass|fail|cancelled|skipped|todo|duration_ms) ' reports/tap.txt || echo 'sin reporte TAP'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: backend-postgres-${{ strategy.job-index }}
@@ -128,7 +130,7 @@ jobs:
 
   frontend-tests:
     name: Frontend · tests · ${{ matrix.tz }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -147,7 +149,7 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - name: Tests + cobertura (vitest, v8; informativa, sin umbral todavía)
+      - name: Tests + cobertura (vitest, v8; umbral de 80 % en líneas, en vite.config.ts)
         run: npm run test:coverage -- --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml
       - name: Resumen en la página del run
         if: always()
@@ -161,7 +163,7 @@ jobs:
             node -e "const t=require('./reports/coverage/coverage-summary.json').total; for (const k of ['lines','statements','branches','functions']) console.log(k.padEnd(11), t[k].pct + '%', t[k].covered + '/' + t[k].total)" || echo 'sin reporte de cobertura'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: frontend-tests-${{ strategy.job-index }}
@@ -169,7 +171,7 @@ jobs:
 
   frontend-build:
     name: Frontend · tipos y build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     defaults:
       run:
@@ -189,7 +191,7 @@ jobs:
 
   audit:
     name: npm audit (backend y frontend)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5

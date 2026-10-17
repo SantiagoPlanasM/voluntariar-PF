@@ -47,6 +47,8 @@ export default defineConfig({
       exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**'],
       reporter: ['text', 'text-summary', 'json-summary', 'lcov'],
       reportsDirectory: './reports/coverage',
+      // Umbral bloqueante solo en líneas (decisión del usuario, §186): sentencias, ramas y funciones se informan.
+      thresholds: { lines: 80 },
     },
   },
 })

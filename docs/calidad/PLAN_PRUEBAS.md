@@ -27,7 +27,7 @@ dispositivos táctiles (no hay forma de automatizarlos en este proyecto: quedan 
 |---|---|---|---|---|---|
 | O1 | Ninguna regresión llega a `main` | Tests fallidos o cancelados | 0 | Pipeline (`ci.yml`) | 0 en el **run #1** (2026-10-17): SQLite UTC 782/782, Postgres UTC y Córdoba 784/784, frontend UTC y Córdoba 694/694 (782 incluye `helpers.js`, ver §4) |
 | O2 | El código existente está cubierto | Cobertura de líneas, ramas y funciones del backend | ≥ 80 % en las tres | `--experimental-test-coverage` en el pipeline (umbral bloqueante) | Run #1: umbral superado (job en verde). Local: 92,94 / 84,20 / 90,54 % |
-| O3 | Ídem en el frontend | Cobertura del frontend (v8) | ≥ 80 % (métrica a decidir: ver §185) | `npm run test:coverage` en el pipeline (informativa) | Local: líneas **83,14 %**, sentencias **79,63 %**, ramas **73,97 %**, funciones **67,82 %** |
+| O3 | Ídem en el frontend | Cobertura del frontend (v8) | Líneas ≥ 80 % (bloqueante, decisión del usuario, §186); sentencias, ramas y funciones se informan | `npm run test:coverage` en el pipeline | Local: líneas **83,14 %**, sentencias **79,63 %**, ramas **73,97 %**, funciones **67,82 %** |
 | O4 | El código nuevo viene con pruebas | Cobertura sobre código nuevo | ≥ 80 % (gate) | Quality gate (T5) | Sin gate |
 | O5 | Poca duplicación | Líneas duplicadas | ≤ 5 % (gate) | Herramienta de duplicación (T5) | Sin medir |
 | O6 | Sin bugs críticos del análisis estático | Hallazgos bloqueantes o críticos | 0 (gate) | Linter / análisis estático (T5) | Sin linter; `typecheck` en 0 errores en el run #1 |

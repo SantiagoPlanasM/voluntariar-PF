@@ -5118,3 +5118,21 @@ Encaja con el modelo estándar de "1 marketplace + 1 vendedor por transacción":
 - **Qué métrica cuenta para el "80 % del código existente" del nivel 3.** Con líneas el frontend pasa (83,14 %); con sentencias queda apenas abajo (79,63 %); con ramas (73,97 %) y funciones (67,82 %), lejos. El eje 5 del TP habla de cobertura de **sentencia** y de **decisión** (ramas). El backend da líneas, ramas y funciones (el runner de Node no informa sentencias).
 - La cobertura del frontend en el CI (Linux, UTC) todavía no corrió: puede variar unas décimas con la zona horaria.
 - Los conteos del job SQLite en Córdoba y la tabla de cobertura del backend del run #1 no los vi (el usuario no los pegó).
+
+## 186. CI: umbral de cobertura del frontend, runner fijo y `upload-artifact` en Node 24 (decisiones del usuario sobre §185)
+
+**Qué se hizo:**
+- **Umbral bloqueante del frontend: líneas ≥ 80 %** (`coverage.thresholds` en `vite.config.ts`, así que vale igual en local y en el CI). Sentencias, ramas y funciones se siguen informando, sin umbral. Decisión del usuario sobre la pregunta de §185.
+- **`runs-on: ubuntu-24.04`** en los 5 jobs (antes `ubuntu-latest`, que migra a Ubuntu 26 desde el 2026-10-19), para que el runner no cambie antes de la entrega.
+- **`actions/upload-artifact@v7`** (antes v4, que corre en Node 20 y GitHub lo marca deprecado). Verificado en el `action.yml` de cada tag: v5 todavía es `node20`, v6 y v7 son `node24`. v7 (2026-02-26, última 7.0.2) agrega `archive: false` y pasa a ESM; con el valor por defecto se comporta como antes.
+
+### Verificación
+- `npm run test:coverage` (local): salida 0, 694/694, líneas 83,14 %.
+- Control del umbral: con `--coverage.thresholds.lines=90` la salida es **1** con `ERROR: Coverage for lines (83.14%) does not meet global threshold (90%)`, y los 694 tests pasan igual (el rojo viene del umbral, no de un test).
+
+### Errores propios
+- Ninguno detectado.
+
+### ⚠️ NO verificado
+- El run #2 en GitHub (se pushea con este commit): `upload-artifact@v7` y `ubuntu-24.04` en la práctica, y la cobertura del frontend en Linux y UTC.
+- No subí `checkout` ni `setup-node` (v5; hay v7): el run #1 no avisó nada sobre ellas.
