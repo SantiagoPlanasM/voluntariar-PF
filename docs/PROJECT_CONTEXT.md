@@ -38,6 +38,7 @@ Monorepo con dos paquetes npm independientes (`frontend/`, `backend/`) más un `
 │  /enrollments /ngos /empresas  │
 │  /follows /faqs /voluntarios   │
 │  /notifications /messages      │
+│  /posts /donaciones            │
 │  /categorias /roles /habilidades │
 └───────────────┬────────────────┘
                 │ SQL (adaptador dual)
@@ -46,7 +47,7 @@ Monorepo con dos paquetes npm independientes (`frontend/`, `backend/`) más un `
 │  Base de datos                 │
 │  SQLite (local, better-sqlite3)│
 │  PostgreSQL (prod, Render)     │
-│  31 tablas · 20+ índices       │
+│  33 tablas · 33 índices        │
 └──────────────────────────────┘
 ```
 
@@ -77,14 +78,14 @@ No usa: gestor de estado global (Redux/Zustand — todo vive en `AuthContext` + 
 | better-sqlite3 | 13.0.3 | Driver SQLite síncrono (local). Trae binarios precompilados; `backend/.npmrc` (`ignore-scripts=true`) evita que npm intente compilarlo (ver `PROJECT_ANALYSIS.md §36` y `§38`) |
 | pg | 8.12 | Driver PostgreSQL (producción) |
 | cors | 2.8 | CORS configurable por `CORS_ORIGINS` |
-| multer | 2.4 | Subida multipart de las fotos de Momentos (`routes/posts.js`, a Cloudinary — `PROJECT_ANALYSIS.md §43`). Se subió de 1.x, que estaba deprecada con vulnerabilidades (`§37`) |
+| multer | 2.4 | Subida multipart a Cloudinary: fotos de Momentos (`routes/posts.js`, §43), foto de perfil (`auth.js`, §162) y CV en PDF (`voluntarios.js`, §165). Se subió de 1.x, que estaba deprecada con vulnerabilidades (`§37`) |
 | `node --watch` | incluido en Node ≥ 22 | Hot-reload en desarrollo (`npm run dev`). Reemplazó a `nodemon` (`PROJECT_ANALYSIS.md §41`); el backend ya no tiene devDependencies |
 
 No usa: ORM (todo es SQL crudo con parámetros posicionales `$1, $2...`), sistema de migraciones versionado (un único script `migrate.js` idempotente con `CREATE TABLE IF NOT EXISTS`), linter. Los tests usan `node:test` (sin dependencias): `npm test` en SQLite y `npm run test:pg` contra Postgres.
 
 ### Base de datos
 - **Local:** SQLite, archivo `backend/data/voluntariar.sqlite` (creado automáticamente, con WAL habilitado).
-- **Producción:** PostgreSQL, gestionado por Render (plan free, expira a los 90 días).
+- **Producción:** PostgreSQL, gestionado por Render (plan free: vence a los 30 días de creada; la de este proyecto, el **14/11/2026**).
 - El adaptador (`backend/src/db/index.js`) decide en tiempo de arranque cuál usar según `USE_POSTGRES` / presencia de `DATABASE_URL`, y traduce sobre la marcha la sintaxis específica de Postgres a SQLite (ver `BACKEND_CONTEXT.md §2`).
 
 ## 5. Roles del sistema
@@ -154,25 +155,27 @@ voluntariar-v2/
 │   │   ├── db/index.js       # Adaptador SQLite/PostgreSQL (dual)
 │   │   ├── middleware/auth.js # requireAuth, optionalAuth, requireRole, signToken
 │   │   └── routes/
-│   │       ├── auth.js       # register, login, me (GET/PUT)
+│   │       ├── auth.js       # register, login, me (GET/PUT), foto de perfil, borrar la cuenta (§162, §177)
 │   │       ├── projects.js   # CRUD proyectos, comments, ratings, kpis, recomendaciones
 │   │       ├── enrollments.js # inscripciones, aprobación, horas
 │   │       ├── ngos.js       # perfil ONG, dashboard, empleados, patrocinios (lado ONG)
 │   │       ├── empresas.js   # perfil Empresa, patrocinios (lado Empresa)
 │   │       ├── follows.js    # seguir ONG/proyecto/voluntario, feed personalizado
-│   │       ├── voluntarios.js # habilidades del voluntario, perfil público
+│   │       ├── voluntarios.js # habilidades, perfil público y CV privado (§165)
 │   │       ├── faqs.js       # catálogo + matching del Chatbot FAQ
 │   │       ├── messages.js   # chat 1 a 1 (REST)
+│   │       ├── posts.js      # Momentos: publicaciones con fotos (Cloudinary)
+│   │       ├── donaciones.js # donaciones con Mercado Pago (§170–§176)
 │   │       └── notifications.js
 │   ├── scripts/
-│   │   ├── migrate.js        # DDL completo (31 tablas + 20+ índices + datos base)
+│   │   ├── migrate.js        # DDL completo (33 tablas + 33 índices + datos base)
 │   │   └── seed.js           # Datos de demo (usuarios, ONGs, empresa, 12+ proyectos, follows)
 │   └── data/voluntariar.sqlite # DB local (generada, no versionar en git real)
 └── frontend/
     └── src/
         ├── app/
         │   ├── routes.tsx    # Definición de rutas (createBrowserRouter, 3 layouts raíz)
-        │   └── components/   # 47 componentes, todos "screen-level" o cercanos
+        │   └── components/   # 56 componentes (sin contar tests), casi todos "screen-level"
         ├── lib/
         │   ├── api.ts        # Cliente HTTP + todos los tipos TS del dominio
         │   └── AuthContext.tsx # Estado global de sesión (React Context)
@@ -227,7 +230,7 @@ Ver diagrama de secuencia completo en `BACKEND_CONTEXT.md §4`.
 - Lógica de negocio y validaciones duplicadas en frontend y backend (regex de email/nombre/password, blacklist de palabras) sin una fuente única de verdad — mantenerlas sincronizadas es manual.
 - ~~`NGOEmpleados.tsx` evita el cliente `api.ts`~~ — resuelto en `PROJECT_ANALYSIS.md §98`.
 - ~~Falta de guardas de rol en el frontend para las rutas `/ngo/*` y `/company/*`~~ — **resuelto en `PROJECT_ANALYSIS.md §97`** (`RequireRole` en los layouts).
-- Dependencia de un plan gratuito de Render con expiración de base de datos a los 90 días y "sleep" tras 15 minutos de inactividad — aceptable para una demo académica, no para producción real.
+- Dependencia de un plan gratuito de Render con vencimiento de la base de datos a los 30 días (la actual vence el 14/11/2026) y "sleep" tras 15 minutos de inactividad — aceptable para una demo académica, no para producción real.
 
 ## 15. Deuda técnica encontrada (resumen — detalle en `PROJECT_ANALYSIS.md`)
 

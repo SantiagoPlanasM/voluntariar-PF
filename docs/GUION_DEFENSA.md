@@ -13,7 +13,7 @@
 - [ ] **Una donación de prueba completa** (con el comprador de prueba) que termine en "¡Gracias!".
 - [ ] **Credenciales a mano**, en papel o en el celular, no en el repo: las cuentas de la demo, el **usuario comprador de prueba**
       de Mercado Pago y la tarjeta de prueba (titular `APRO`).
-- [ ] **Plan B grabado:** un video corto (3–5 min) del recorrido, por si el sitio no responde.
+- [ ] **Capturas de respaldo:** el usuario decidió no grabar un video. Sacá capturas de las pantallas clave (portada, CV, panel de la ONG, donación con "¡Gracias!" y el panel de la empresa) por si el sitio no responde.
 - [ ] **Plan B local** probado en tu notebook: backend con `npm run db:reset` (seed) y `npm run dev`, frontend con `npm run dev`.
       Sin Cloudinary, Mercado Pago ni Resend configurados, se ve todo menos subir fotos y CV y donar.
 - [ ] **La base gratuita vence el 14 de noviembre**: no la toques después de cargar los datos.
@@ -71,7 +71,7 @@
 
 | Si pasa… | Hacé… |
 |---|---|
-| El sitio no despierta | Esperá 1 minuto más; si sigue sin responder, el **video** o el **plan B local** |
+| El sitio no despierta | Esperá 1 minuto más; si sigue sin responder, el **plan B local** o las **capturas** |
 | Mercado Pago falla en el checkout | Verificá que estés **logueado con el comprador de prueba**. Si igual falla, mostrá una donación ya hecha (lo recaudado y la notificación) y explicá el flujo |
 | El email de borrar la cuenta no llega | Explicá la limitación del remitente de prueba (`/privacidad` → "Limitaciones de esta demo") |
 | Se cae la red | Datos del celular o plan B local |

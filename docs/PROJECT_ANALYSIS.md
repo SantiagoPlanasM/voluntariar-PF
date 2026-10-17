@@ -5036,3 +5036,23 @@ Encaja con el modelo estándar de "1 marketplace + 1 vendedor por transacción":
 - El intercambio del `code` por los tokens y todo lo que sigue (la preferencia con el token de la ONG, la acreditación en su cuenta): bloqueado por la activación de producción.
 - Lo de la IA de Mercado Pago es una respuesta de soporte, no documentación. Coincide con la doc oficial en lo que se pudo cotejar.
 - Quedó configurada la URL de redireccionamiento en la aplicación y el vendedor de prueba 3772556008 autorizó la aplicación: no molesta, y se puede revocar desde esa cuenta de prueba.
+
+## 182. Pasada final de documentación (2026-10-17, pedido del usuario antes de cerrar)
+
+**Qué se corrigió (solo docs):**
+- **Conteos:** "31 tablas / 20+ índices" pasó a **33 tablas y 33 índices** (contados en `migrate.js`: `CREATE TABLE` y `CREATE INDEX`) en `README.md`, `PROJECT_CONTEXT.md` y `BACKEND_CONTEXT.md`. Componentes: de "47" a **56** (sin tests).
+- **`PROJECT_CONTEXT.md`:**
+  - en el diagrama y el árbol de rutas faltaban `posts.js` y `donaciones.js`, y `auth.js` y `voluntarios.js` ahora mencionan la foto, el borrado de la cuenta y el CV;
+  - `multer` se usa también para la foto de perfil y el CV;
+  - Render: "expira a los 90 días" pasó a "vence a los 30 días; la de este proyecto, el 14/11/2026".
+- **`BACKEND_CONTEXT.md`:** el ejemplo de transacción decía "Stripe"; ahora dice "llamadas externas (Cloudinary, Mercado Pago)".
+- **`CLAUDE.md`, "Pendientes conocidos":**
+  - el deploy figuraba "no verificado" y ahora está verificado, con el auto-deploy apagado y la fecha de vencimiento de la base;
+  - lo de Cloudinary al borrar la cuenta;
+  - las limitaciones de Mercado Pago en modo prueba (§173, §176, §181).
+- **`GUION_DEFENSA.md`:** el usuario decidió **no grabar video**. El plan B pasa a ser el local más capturas de las pantallas clave.
+- **`PLAN_FALTANTE.md`:** un bloque **"Estado al 2026-10-17"** arriba de todo, con lo hecho, lo decidido como trabajo futuro y lo que le queda al usuario. Así el próximo chat no tiene que reconstruirlo.
+
+### Verificación
+- `grep` sin restos de "31 tablas" ni "90 días" en `README`, `PROJECT_CONTEXT`, `BACKEND_CONTEXT` y `CLAUDE.md`. Las referencias históricas que quedan en `PROJECT_ANALYSIS.md` y `PLAN_FALTANTE.md` son registro de lo que se decía antes, y no se tocan.
+- Sin cambios de código: los tests no se volvieron a correr. Los últimos conteos son de §177–§179.

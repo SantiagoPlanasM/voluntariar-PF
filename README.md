@@ -96,7 +96,7 @@ El adaptador en `backend/src/db/index.js` cambia automáticamente según `USE_PO
 │   Base de datos                 │
 │   SQLite (local)                │
 │   PostgreSQL (producción)       │
-│   31 tablas + 31 índices        │
+│   33 tablas + 33 índices        │
 └─────────────────────────────────┘
 ```
 
@@ -148,7 +148,7 @@ voluntariar-v2/
     │       ├── faqs.js           ← Chatbot de preguntas frecuentes
     │       └── posts.js          ← Momentos: fotos, "me gusta", moderación
     ├── scripts/
-    │   ├── migrate.js            ← Crea las 31 tablas + índices + datos base
+    │   ├── migrate.js            ← Crea las 33 tablas + índices + datos base
     │   └── seed.js               ← 12 proyectos y usuarios de prueba
     ├── .env.example
     └── package.json
@@ -183,7 +183,7 @@ npm install
 # Configurar entorno (en local no hay que cambiar nada)
 cp .env.example .env
 
-# Crear las 31 tablas + índices + categorías/roles/habilidades base
+# Crear las 33 tablas + índices + categorías/roles/habilidades base
 npm run db:migrate
 
 # Insertar 12 proyectos y usuarios de prueba
@@ -479,7 +479,7 @@ La carpeta [`docs/`](docs/) contiene el detalle de cada parte del proyecto:
 |---|---|
 | [`PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) | Visión general, flujos y rutas del sistema |
 | [`BACKEND_CONTEXT.md`](docs/BACKEND_CONTEXT.md) | Backend: estructura, variables de entorno, emails, fotos |
-| [`DATABASE_CONTEXT.md`](docs/DATABASE_CONTEXT.md) | Las 31 tablas, columnas, restricciones e índices |
+| [`DATABASE_CONTEXT.md`](docs/DATABASE_CONTEXT.md) | Las 33 tablas, columnas, restricciones e índices |
 | [`API_CONTEXT.md`](docs/API_CONTEXT.md) | Todos los endpoints y la forma exacta de sus respuestas |
 | [`FRONTEND_CONTEXT.md`](docs/FRONTEND_CONTEXT.md) | Rutas, componentes y reglas del frontend (incluye Momentos) |
 | [`AI_RULES.md`](docs/AI_RULES.md) | Reglas de trabajo del proyecto |

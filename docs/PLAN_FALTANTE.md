@@ -6,6 +6,16 @@
 > secciones §0, §1.1, §1.3, §1.4, §2.4 y §2.5 del roadmap, dos secciones de `REVISION.md`, los 115 bloques
 > "NO verificado" de `PROJECT_ANALYSIS.md` y algunos archivos de código puntuales (citados en cada punto).
 
+## Estado al 2026-10-17 (cierre de este plan)
+
+**Hecho y probado en producción:** fotos de perfil (§162–§163), CV (§164–§168), donaciones con Mercado Pago en modo prueba (§169–§176), notificaciones de la ONG (§173), borrar la cuenta (§177–§178) y `/privacidad` (§179). Además, la guía de datos de demo (`docs/DEMO_DATOS.md`) y el guion de la defensa (`docs/GUION_DEFENSA.md`, §180). Tests al cierre: backend **782** (SQLite) / **784** (Postgres), frontend **694**; `typecheck` y `npm audit` en 0.
+
+**Decidido como trabajo futuro:** que cada ONG cobre en su cuenta (Marketplace OAuth, validado hasta la autorización, §181), empleados de empresa, chat de la empresa, chatbot con IA, conciliación de donaciones pendientes, paginación real y `recaudado` en `NUMERIC`.
+
+**Pendiente del usuario antes del 5/11:** cargar los datos de demo, probar el plan B local, sacar las capturas de respaldo (no va a haber video), confirmar con la cátedra el formato de la defensa y probar en un celular real.
+
+Lo que sigue abajo es el plan tal como se armó el 2026-10-16, con las marcas de avance de cada etapa.
+
 ## 0. Respuestas del usuario (base de la prioridad)
 
 | Pregunta | Respuesta |
@@ -356,4 +366,4 @@ futuro". Las etapas 0, 11 y 13 no se cortan.
   ver: quedan para la Etapa 12.
 - **No corrí** las suites con `TZ=America/Argentina/Cordoba` hoy (no hubo cambios de código).
 - **Riesgo de la defensa en vivo:** la API gratuita dormida (~1 min) y la base que vence. Mitigación: despertarla 5
-  minutos antes, tener el backup de la Etapa 0 y un video corto de respaldo (a confirmar con la cátedra).
+  minutos antes, tener capturas de respaldo (el usuario decidió no hacer backup ni video) (a confirmar con la cátedra).

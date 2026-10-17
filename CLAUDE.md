@@ -55,6 +55,7 @@ Respondé en español rioplatense (voseo).
 `render.yaml`, `backend/.npmrc` y cualquier archivo de versión de Node (`.nvmrc`, `.node-version`) si se agrega.
 
 ## Pendientes conocidos (no "arreglar" sin preguntar, regla 16)
-- Prod (Render): los valores de `RESEND_API_KEY` y `CLOUDINARY_*` (`sync: false`) se cargan en el panel; deploy no verificado.
-- Borrar usuario/proyecto no borra los archivos en Cloudinary; el límite de 10 posts/hora no es estricto.
+- Prod (Render): desplegado y verificado (§156, §161, §167, §173–§178). Los valores `sync: false` (`RESEND_API_KEY`, `CLOUDINARY_*`, `MP_*`) se cargan en el panel. **Auto-deploy apagado**: después de cada push hay que desplegar **los dos servicios** a mano. La base gratuita vence el **14/11/2026**.
+- Borrar un proyecto no borra sus archivos en Cloudinary; borrar la cuenta borra el CV y las fotos de Momentos, pero no las fotos de perfil anteriores (no se guarda su id). El límite de 10 posts/hora no es estricto.
+- Mercado Pago en modo prueba: las credenciales de prueba son `APP_USR-` y hay que pagar logueado con el comprador de prueba (§173). Los avisos reales no validan la firma: las donaciones se acreditan por la vuelta (§176). Que cada ONG cobre en su cuenta (Marketplace OAuth) queda como trabajo futuro (§181).
 - ~~Fallback inseguro de `JWT_SECRET`~~ — resuelto en §94 (con permiso): obligatorio en producción, un solo lugar (`src/lib/jwtSecret.js`). Si tu `.env` local tiene `NODE_ENV=production`, necesita `JWT_SECRET`.

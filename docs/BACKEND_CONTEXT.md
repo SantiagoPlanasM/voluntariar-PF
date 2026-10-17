@@ -34,7 +34,7 @@ backend/
 │   └── ws/
 │       └── index.js        # servidor de WebSocket (chat en tiempo real), colgado del mismo puerto HTTP
 └── scripts/
-    ├── migrate.js          # DDL: 31 tablas, 20+ índices, datos base (categorías/roles/habilidades/FAQs)
+    ├── migrate.js          # DDL: 33 tablas, 33 índices, datos base (categorías/roles/habilidades/FAQs)
     └── seed.js              # datos de demo idempotentes (se niega con NODE_ENV=production)
 ```
 
@@ -79,7 +79,7 @@ const outcome = await db.transaction(async (tx) => {
   await tx.run('UPDATE projects SET cupos_ocupados = cupos_ocupados + 1 WHERE id=$1', [pid]);
   return 'applied';
 });
-// emails / notificaciones / Stripe: acá, DESPUÉS del COMMIT
+// emails / notificaciones / llamadas externas (Cloudinary, Mercado Pago): acá, DESPUÉS del COMMIT
 ```
 COMMIT si el callback termina; ROLLBACK y se relanza el mismo error si lanza. Devuelve lo que retorne el callback. `tx` tiene `query/run/get/all` con la misma forma que `db`.
 
