@@ -208,3 +208,47 @@ jobs:
         if: always()
         run: npm audit
         working-directory: frontend
+
+  # SonarCloud (la herramienta nueva del TP, D5) + el quality gate del TP. El plan gratis solo tiene el gate
+  # "Sonar way": los umbrales del TP los evalúa .github/scripts/sonar-gate.js con las métricas del análisis.
+  sonar:
+    name: SonarCloud + quality gate del TP
+    needs: [backend-sqlite, frontend-tests]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - name: Falta SONAR_TOKEN → el gate no aprueba sin medir
+        if: env.SONAR_TOKEN == ''
+        run: |
+          echo "::error::Falta el secreto SONAR_TOKEN: sin análisis no hay gate, y el gate no aprueba sin medir"
+          exit 1
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0          # Sonar usa la historia para "código nuevo" y para atribuir líneas
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Tests del script del gate
+        run: node --test ".github/scripts/*.test.js"   # una carpeta suelta no sirve: la toma como archivo (run #4, §189)
+      - name: Cobertura del backend (job SQLite · UTC)
+        uses: actions/download-artifact@v8
+        with:
+          name: backend-sqlite-0
+          path: coverage/backend
+      - name: Cobertura del frontend (job tests · UTC)
+        uses: actions/download-artifact@v8
+        with:
+          name: frontend-tests-0
+          path: coverage/frontend
+      - name: Rutas del lcov relativas a la raíz del repo
+        run: |
+          sed -i 's#^SF:#SF:backend/#' coverage/backend/lcov.info
+          sed -i 's#^SF:#SF:frontend/#' coverage/frontend/coverage/lcov.info
+          grep -m1 '^SF:' coverage/backend/lcov.info
+          grep -m1 '^SF:' coverage/frontend/coverage/lcov.info
+      - name: Análisis de SonarCloud
+        uses: SonarSource/sonarqube-scan-action@v8
+      - name: Quality gate del TP (bugs críticos, duplicación > 5 %, cobertura de código nuevo < 80 %)
+        run: node .github/scripts/sonar-gate.js
