@@ -43,6 +43,16 @@ describe('signParams() — algoritmo de firma', () => {
     assert.equal(a, b);
   });
 
+  test('ordena por código de carácter, como Cloudinary, NO por idioma (localeCompare cambiaría la firma)', () => {
+    // Arrange: claves donde los dos órdenes difieren (mayúscula y "_" contra letras). SonarCloud (S2871) sugería
+    // localeCompare: con él, "Z_key" iría última y la firma no coincidiría con la de Cloudinary (§191).
+    const params = { ab: 3, timestamp: 4, Z_key: 1, a_b: 2 };
+    // Act
+    const sig = signParams(params, 's');
+    // Assert
+    assert.equal(sig, crypto.createHash('sha1').update('Z_key=1&a_b=2&ab=3&timestamp=4' + 's').digest('hex'));
+  });
+
   test('los valores vacíos, null y undefined no se firman (porque tampoco se mandan)', () => {
     const base = signParams({ timestamp: 1 }, 's');
     assert.equal(signParams({ timestamp: 1, folder: '', tags: null, context: undefined }, 's'), base);

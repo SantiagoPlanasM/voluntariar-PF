@@ -50,11 +50,15 @@ function isConfigured() {
   return Boolean(c.cloudName && c.apiKey && c.apiSecret);
 }
 
+// Orden por código de carácter (el de Cloudinary): explícito para que nadie lo "arregle" con localeCompare,
+// que pone mayúsculas y signos en otro lugar y rompe la firma (SonarCloud S2871 lo sugería; §191).
+const byCodeUnit = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+
 /** Firma de un request a la API de Cloudinary. Ver el encabezado del archivo. */
 function signParams(params, apiSecret) {
   const toSign = Object.keys(params)
     .filter((k) => !UNSIGNED_FIELDS.has(k) && params[k] !== undefined && params[k] !== null && params[k] !== '')
-    .sort()
+    .sort(byCodeUnit)
     .map((k) => `${k}=${params[k]}`)
     .join('&');
   return crypto.createHash('sha1').update(toSign + apiSecret).digest('hex');
