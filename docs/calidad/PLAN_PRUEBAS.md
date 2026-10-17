@@ -10,6 +10,7 @@
 |---|---|---|
 | 0.1 | 2026-10-17 | Primera versión: objetivos, contingencia, niveles, matriz ISO/IEC 25010, riesgos, criterios, principios, plantillas y trazabilidad inicial |
 | 0.2 | 2026-10-17 | O1–O3 y O6–O7 con los números del primer run del CI (#1) y la cobertura del frontend medida (T4, §185) |
+| 0.3 | 2026-10-17 | O2 y O3 con los números del run #2; la cobertura del backend del run #2 estaba inflada (§187) |
 
 El documento se versiona en git: cada cambio entra en un commit propio y suma una fila a esta tabla.
 
@@ -26,8 +27,8 @@ dispositivos táctiles (no hay forma de automatizarlos en este proyecto: quedan 
 | # | Objetivo | Métrica | Meta | Fuente | Hoy (2026-10-17) |
 |---|---|---|---|---|---|
 | O1 | Ninguna regresión llega a `main` | Tests fallidos o cancelados | 0 | Pipeline (`ci.yml`) | 0 en el **run #1** (2026-10-17): SQLite UTC 782/782, Postgres UTC y Córdoba 784/784, frontend UTC y Córdoba 694/694 (782 incluye `helpers.js`, ver §4) |
-| O2 | El código existente está cubierto | Cobertura de líneas, ramas y funciones del backend | ≥ 80 % en las tres | `--experimental-test-coverage` en el pipeline (umbral bloqueante) | Run #1: umbral superado (job en verde). Local: 92,94 / 84,20 / 90,54 % |
-| O3 | Ídem en el frontend | Cobertura del frontend (v8) | Líneas ≥ 80 % (bloqueante, decisión del usuario, §186); sentencias, ramas y funciones se informan | `npm run test:coverage` en el pipeline | Local: líneas **83,14 %**, sentencias **79,63 %**, ramas **73,97 %**, funciones **67,82 %** |
+| O2 | El código existente está cubierto | Cobertura de líneas, ramas y funciones del backend | ≥ 80 % en las tres | `--experimental-test-coverage` en el pipeline (umbral bloqueante) | Run #2 informó 96,51 / 91,61 / 95,78 % (UTC), **inflado**: medía otros archivos (§187). Local con `include` explícito: 92,90 / 84,06 / 90,54 %. Número válido: el del run #3 |
+| O3 | Ídem en el frontend | Cobertura del frontend (v8) | Líneas ≥ 80 % (bloqueante, decisión del usuario, §186); sentencias, ramas y funciones se informan | `npm run test:coverage` en el pipeline | Run #2 (UTC y Córdoba iguales): líneas **83,14 %**, sentencias **79,63 %**, ramas **74 %**, funciones **67,72 %** (local en Windows: ramas 73,97 % y funciones 67,82 %, una unidad de diferencia) |
 | O4 | El código nuevo viene con pruebas | Cobertura sobre código nuevo | ≥ 80 % (gate) | Quality gate (T5) | Sin gate |
 | O5 | Poca duplicación | Líneas duplicadas | ≤ 5 % (gate) | Herramienta de duplicación (T5) | Sin medir |
 | O6 | Sin bugs críticos del análisis estático | Hallazgos bloqueantes o críticos | 0 (gate) | Linter / análisis estático (T5) | Sin linter; `typecheck` en 0 errores en el run #1 |

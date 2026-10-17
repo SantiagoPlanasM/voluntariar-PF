@@ -33,7 +33,10 @@ posterior y los dos runs quedan en el historial.
   `ProjectDetails` y copias en `ProjectCard`, `FeedPostCard`, `PublicFeed`; deuda vista en §172). Regla 16: necesita OK.
 - **D4 — `/health` con el commit desplegado** (para que el pipeline sepa cuándo terminó el deploy). Cambio chico de
   backend con test (lee `RENDER_GIT_COMMIT`, que Render define; **NO verificado** en este servicio).
-- **D5 — La herramienta nueva** (eje 8): la elegís vos con la matriz de §5.
+- **D5 — La herramienta nueva** (eje 8): la elegís vos con la matriz de §5. **Decidido (2026-10-17): SonarCloud.**
+  Como el plan gratis solo tiene el gate "Sonar way" (no permite gates propios), el gate del TP (bugs críticos,
+  duplicación > 5 %, cobertura de código nuevo < 80 %) lo evalúa un paso del workflow con las métricas del análisis.
+  k6 se usa para el stress, dentro del mapa de herramientas.
 
 ## 1. Línea base real (corrida hoy, 2026-10-17, sobre `950e558`, Node v24.21.0, Windows)
 

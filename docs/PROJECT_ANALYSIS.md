@@ -5136,3 +5136,21 @@ Encaja con el modelo estándar de "1 marketplace + 1 vendedor por transacción":
 ### ⚠️ NO verificado
 - El run #2 en GitHub (se pushea con este commit): `upload-artifact@v7` y `ubuntu-24.04` en la práctica, y la cobertura del frontend en Linux y UTC.
 - No subí `checkout` ni `setup-node` (v5; hay v7): el run #1 no avisó nada sobre ellas.
+
+## 187. La cobertura del backend en el CI estaba inflada (96,51 % contra 92,9 %): `include` explícito
+
+**Qué pasó:** el resumen del run #2 (`15bb69c`) dio `all files` **96,51 % líneas / 91,61 % ramas / 95,78 % funciones** (UTC; Córdoba 96,52 / 91,60 / 95,78). Localmente da **92,94 / 84,20 / 90,54 %**. La tabla del CI tiene la columna de archivos mucho más ancha (nombres más largos), así que en Node 22 el reporte incluye **otros archivos** que en Node 24. Lo más probable es que sean los propios tests, que están cerca del 100 % y suben el total. Es un **defecto del pipeline**, no del producto: el número que habría ido al informe era falso. Lo detectó la comparación pipeline ↔ local.
+
+**Corrección:** `--test-coverage-include='src/**' --test-coverage-include='scripts/**'` en el job de SQLite. El umbral de 80 % sigue igual.
+
+### Verificación
+- Local con el `include` explícito: **92,90 / 84,06 / 90,54 %**, los mismos 31 archivos que el reporte por defecto de Node 24.
+- **Variación entre corridas:** dos corridas locales difieren en ramas de `auth.js` (90,64 contra 90,12 %), `messages.js` (91,96 contra 90,45 % de líneas) y `projects.js` (88,17 contra 87,99 %). El total se mueve unas centésimas. Hay caminos que dependen de los tiempos (WebSocket, carreras). Para el informe vale el número de un run identificado, no "el" número.
+- La cobertura del frontend en el pipeline (run #2, UTC y Córdoba): líneas 83,14 %, sentencias 79,63 %, ramas 74 % (2343/3166), funciones 67,72 % (682/1007). En Windows local dan ramas 73,97 % y funciones 67,82 %: una unidad de diferencia en cada una.
+
+### Errores propios
+- En §185 di por buena la cobertura del CI ("en Linux también supera el 80 %") sin mirar el número. Pasaba el umbral, pero con un total inflado. El run #1 tiene el mismo problema.
+
+### ⚠️ NO verificado
+- **Qué archivos de más contaba Node 22:** no vi la tabla completa del CI, ni tengo Node 22 local. El run #3 tiene que dar alrededor de 92,9 %. Si no da eso, la hipótesis está mal.
+- D5: el usuario eligió **SonarCloud** (registrado en `PLAN_CALIDAD_TP.md §0`).

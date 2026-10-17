@@ -44,9 +44,12 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci            # respeta backend/.npmrc (ignore-scripts): better-sqlite3 usa su prebuild linux-x64
       - run: mkdir -p reports
+      # include explícito: sin él, el run #2 (Node 22) informó 96,51 % de líneas contra 92,9 % en Node 24 local,
+      # con otra lista de archivos (§187). Así se mide solo el código productivo en cualquier versión de Node.
       - name: Tests + cobertura (umbral 80 % en líneas, ramas y funciones)
         run: >
           node --test --experimental-test-coverage
+          --test-coverage-include='src/**' --test-coverage-include='scripts/**'
           --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80
           --test-reporter=spec --test-reporter-destination=stdout
           --test-reporter=tap  --test-reporter-destination=reports/tap.txt
