@@ -72,7 +72,7 @@ export function MainFeed() {
       .then(r => setUrgentProjects((r.projects || []).slice(0, 3)))
       .catch(() => {});
   };
-  const retrySidebar = () => { loadSidebarData(); loadUrgentProjects(); };
+  const retrySidebar = () => { void loadSidebarData(); loadUrgentProjects(); };
 
   // Error al seguir una ONG sugerida: se muestra debajo de esa ONG (antes solo se logueaba, REVISION S6).
   const [followError, setFollowError] = useState<FollowNgoError | null>(null);
@@ -87,7 +87,7 @@ export function MainFeed() {
       await api.follows.followNgo(ngoId);
       setFollowingNgoIds(prev => new Set([...prev, ngoId]));
       setSuggestedNgos(prev => prev.filter(n => n.id !== ngoId));
-      loadFollowingFeed();
+      void loadFollowingFeed();
     } catch (err) {
       setFollowError({ ngoId, message: userMessage(err, FOLLOW_ERROR) });
     } finally {
@@ -97,9 +97,9 @@ export function MainFeed() {
 
   useEffect(() => {
     if (isVolunteer) {
-      loadSidebarData();
+      void loadSidebarData();
       loadUrgentProjects();
-      loadFollowingFeed();
+      void loadFollowingFeed();
     }
   }, [isVolunteer]);
 

@@ -59,10 +59,10 @@ export function PublicFeed() {
       navigate('/feed', { replace: true });
       return;
     }
-    load();
+    void load();
   }, [user, initializing]);
 
-  useEffect(() => { if (!initializing && !user) load(); }, [cat]);
+  useEffect(() => { if (!initializing && !user) void load(); }, [cat]);
 
   // load() se llama al cambiar de categoría y al buscar, y las respuestas pueden llegar en cualquier orden:
   // solo se aplica la del último pedido (antes una vieja podía pisar a la nueva, REVISION F15).
@@ -113,7 +113,7 @@ export function PublicFeed() {
           </div>
 
           {/* Search en desktop */}
-          <form onSubmit={e => { e.preventDefault(); load(); }} className="hidden md:flex flex-1 max-w-md mx-6">
+          <form onSubmit={e => { e.preventDefault(); void load(); }} className="hidden md:flex flex-1 max-w-md mx-6">
             <div className="relative w-full">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input type="text" aria-label="Buscar proyectos" value={search} onChange={e => setSearch(e.target.value)}

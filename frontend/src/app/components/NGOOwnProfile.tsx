@@ -19,7 +19,7 @@ export function NGOOwnProfile() {
   const [saveErr, setSaveErr] = useState('');
   const [form, setForm] = useState({ name: '', description: '', mission: '', location: '', category: '' });
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   const load = async () => {
     setLoading(true);
@@ -34,7 +34,7 @@ export function NGOOwnProfile() {
   const handleSave = async () => {
     if (!form.name.trim()) { setSaveErr('El nombre es obligatorio'); return; }
     setSaving(true); setSaveErr('');
-    try { await api.ngos.update(form); setEditing(false); load(); }
+    try { await api.ngos.update(form); setEditing(false); void load(); }
     catch (e: any) { setSaveErr(e.message); }
     finally { setSaving(false); }
   };

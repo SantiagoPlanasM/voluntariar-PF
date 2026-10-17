@@ -15,7 +15,7 @@ export function CompanyDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   const load = async () => {
     setLoading(true);

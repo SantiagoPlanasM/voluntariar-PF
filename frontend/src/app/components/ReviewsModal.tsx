@@ -83,7 +83,7 @@ export function ReviewsModal({
       setUserComment('');
       setErrorMsg('');
       setSuccessMsg('');
-      loadRatings();
+      void loadRatings();
     }
   }, [isOpen, projectId]);
 

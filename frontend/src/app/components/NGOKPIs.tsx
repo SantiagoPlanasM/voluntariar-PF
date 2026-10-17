@@ -49,7 +49,7 @@ export function NGOKPIs() {
     if (!projectId) return;
     let cancelled = false; // el título del proyecto anterior no pisa al del actual
     api.projects.get(projectId).then(({ project }) => { if (!cancelled) setProjectTitle(project.title || ''); }).catch(() => {});
-    load();
+    void load();
     return () => { cancelled = true; };
   }, [projectId]);
 
@@ -79,7 +79,7 @@ export function NGOKPIs() {
       };
       if (editing) await api.projects.kpis.update(projectId!, editing.id, body);
       else await api.projects.kpis.create(projectId!, body);
-      setForm(emptyForm); setShowForm(false); setEditing(null); load();
+      setForm(emptyForm); setShowForm(false); setEditing(null); void load();
     } catch (e: any) { setErr(e.message); }
     finally { setSaving(false); }
   };

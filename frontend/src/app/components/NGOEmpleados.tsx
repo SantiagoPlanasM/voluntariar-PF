@@ -23,7 +23,7 @@ export function NGOEmpleados() {
 
   // Solo vale la respuesta del último pedido (al cambiar de :id o recargar tras un alta): REVISION F15, §89.
   const latest = useLatestRequest();
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => { void load(); }, [id]);
 
   const load = async () => {
     if (!id) return;
@@ -50,7 +50,7 @@ export function NGOEmpleados() {
       await api.ngos.empleados.create(id!, form);
       setForm({ nombre: '', apellido: '', email: '', rol: 'coordinador' });
       setShowForm(false);
-      load();
+      void load();
     } catch (e: any) { setErr(e.message); }
     finally { setSaving(false); }
   };

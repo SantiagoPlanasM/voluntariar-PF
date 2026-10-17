@@ -24,7 +24,7 @@ export function NGOProjectDetail() {
 
   // Solo vale la respuesta del último pedido (al cambiar de proyecto, reintentar o recargar tras aprobar): F15, §89.
   const latest = useLatestRequest();
-  useEffect(() => { if (projectId) load(); }, [projectId]);
+  useEffect(() => { if (projectId) void load(); }, [projectId]);
 
   const load = async () => {
     const req = latest.start();
@@ -43,7 +43,7 @@ export function NGOProjectDetail() {
 
   const handle = async (id: string, status: 'approved' | 'rejected') => {
     setProcessing(id);
-    try { await api.enrollments.updateStatus(id, status); load(); }
+    try { await api.enrollments.updateStatus(id, status); void load(); }
     catch (e: any) { alert(e.message); }
     finally { setProcessing(null); }
   };

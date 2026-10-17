@@ -140,7 +140,7 @@ export function ExploreScreen() {
       setLoading(false);
     }
   };
-  useEffect(() => { loadProjects(); }, []);
+  useEffect(() => { void loadProjects(); }, []);
 
   // Cargar recomendaciones si el usuario es voluntario. Son secundarias: si fallan, la sección "Para vos"
   // avisa con su propio "Reintentar" y el catálogo se muestra igual (REVISION S1).
@@ -158,7 +158,7 @@ export function ExploreScreen() {
   };
   useEffect(() => {
     if (!isVolunteer) return;
-    loadRecs();
+    void loadRecs();
   }, [isVolunteer]);
 
   // Filtrado de proyectos en memoria

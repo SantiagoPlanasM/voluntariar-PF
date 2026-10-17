@@ -40,7 +40,7 @@ export function CompanyOwnProfile() {
   const preselectId = searchParams.get('proponer');
   const preselectDone = useRef(false);
 
-  useEffect(() => { load(); loadPatrocinios(); }, []);
+  useEffect(() => { void load(); void loadPatrocinios(); }, []);
 
   const loadPatrocinios = async () => {
     setPatrociniosError('');
@@ -85,7 +85,7 @@ export function CompanyOwnProfile() {
     try {
       await api.empresas.patrocinios.propose(proposeProjectId, proposeMsg || undefined);
       setShowPropose(false); setProposeProjectId(''); setProposeMsg('');
-      loadPatrocinios();
+      void loadPatrocinios();
     } catch (e: any) { setProposeErr(e.message); }
     finally { setProposing(false); }
   };
@@ -93,7 +93,7 @@ export function CompanyOwnProfile() {
   const handleWithdraw = async (projectId: string) => {
     if (!window.confirm('¿Retirar esta propuesta de patrocinio?')) return;
     setWithdrawError('');
-    try { await api.empresas.patrocinios.withdraw(projectId); loadPatrocinios(); }
+    try { await api.empresas.patrocinios.withdraw(projectId); void loadPatrocinios(); }
     catch (e) { setWithdrawError(userMessage(e, 'No se pudo retirar la propuesta. Revisá tu conexión y probá de nuevo.')); }
   };
 
@@ -113,7 +113,7 @@ export function CompanyOwnProfile() {
   const handleSave = async () => {
     if (!form.name.trim()) { setSaveErr('El nombre es obligatorio'); return; }
     setSaving(true); setSaveErr('');
-    try { await api.empresas.update(form); setEditing(false); load(); }
+    try { await api.empresas.update(form); setEditing(false); void load(); }
     catch (e: any) { setSaveErr(e.message); }
     finally { setSaving(false); }
   };

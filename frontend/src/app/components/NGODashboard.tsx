@@ -21,7 +21,7 @@ export function NGODashboard() {
   const [processing, setProcessing] = useState<string|null>(null);
   const [loadError, setLoadError] = useState('');
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
   // No leídas, para la campanita del encabezado (§173). Si falla, la campanita queda sin número.
   const [unread, setUnread] = useState(0);
   useEffect(() => {
@@ -45,7 +45,7 @@ export function NGODashboard() {
 
   const handleEnrollment = async (id: string, status: 'approved'|'rejected') => {
     setProcessing(id);
-    try { await api.enrollments.updateStatus(id, status); load(); }
+    try { await api.enrollments.updateStatus(id, status); void load(); }
     catch (e: any) { alert(e.message); }
     finally { setProcessing(null); }
   };

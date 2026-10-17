@@ -57,7 +57,7 @@ export function ProjectDetails() {
     // Otro proyecto con el componente montado: el formulario del anterior no sirve.
     setUserRating(5); setRatingComment(''); setRatingMsg(''); setRatingErr('');
     prefillPending.current = true;
-    load(id);
+    void load(id);
   }, [id]);
 
   useEffect(() => {
@@ -109,7 +109,7 @@ export function ProjectDetails() {
   const handleEnroll = async () => {
     if (!user) { openAuthModal('Iniciá sesión para inscribirte'); return; }
     setEnrolling(true); setEnrollMsg('');
-    try { await api.enrollments.enroll(id!); setEnrollMsg('Inscripción enviada.'); load(id!); }
+    try { await api.enrollments.enroll(id!); setEnrollMsg('Inscripción enviada.'); void load(id!); }
     catch (e: any) { setEnrollMsg(e.message); }
     finally { setEnrolling(false); }
   };
@@ -121,7 +121,7 @@ export function ProjectDetails() {
     if (!c || c.length < 3) { setCommentErr('Muy corto'); return; }
     if (hasBadWord(c)) { setCommentErr('Contiene palabras no permitidas'); return; }
     setCommenting(true); setCommentErr('');
-    try { await api.projects.comment(id!, c); setComment(''); load(id!); }
+    try { await api.projects.comment(id!, c); setComment(''); void load(id!); }
     catch (e: any) { setCommentErr(e.message); }
     finally { setCommenting(false); }
   };
@@ -138,7 +138,7 @@ export function ProjectDetails() {
       setRatingMsg('¡Calificación guardada con éxito!');
       // No se vacía: al recargar, el formulario muestra lo que guardó el servidor (que ahora es "tu reseña").
       prefillPending.current = true;
-      load(id);
+      void load(id);
     } catch (err: any) {
       setRatingErr(err.message || 'Error al calificar');
     } finally {

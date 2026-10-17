@@ -31,7 +31,7 @@ export function NotificationsScreen({ inPanel = false }: { inPanel?: boolean } =
   const [loadError, setLoadError] = useState('');
   const [actionError, setActionError] = useState('');
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   const load = async () => {
     setLoading(true);
@@ -44,7 +44,7 @@ export function NotificationsScreen({ inPanel = false }: { inPanel?: boolean } =
   const markAll = async () => {
     setMarking(true);
     setActionError('');
-    try { await api.notifications.markAllRead(); load(); }
+    try { await api.notifications.markAllRead(); void load(); }
     catch (e) { setActionError(userMessage(e, 'No pudimos marcar las notificaciones como leídas. Revisá tu conexión.')); }
     finally { setMarking(false); }
   };

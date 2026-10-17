@@ -74,7 +74,7 @@ export function NGOPublicProfile() {
     if (!id) return;
     const req = latest.start();
     setRetryingStatus(true);
-    fetchFollowStatus(id).then((status) => {
+    void fetchFollowStatus(id).then((status) => {
       if (!latest.isLatest(req)) return;
       setFollowing(status.following);
       setStatusError(status.error);

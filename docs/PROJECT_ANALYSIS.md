@@ -5455,3 +5455,22 @@ Con esto, **T9 queda cumplida para el nivel 3**: deploy por el pipeline después
 
 ### ⚠️ NO verificado
 - Que las tablas no omitan una condición: salen de leer el código, y la mutación lo refuerza pero no lo garantiza.
+
+## 200. Mejora medida (eje 4): las 36 "promesas sin manejar" de SonarCloud (S9383) — revisión una por una y `void`
+
+**Decisión del usuario (2026-10-17):** atacar las issues de SonarCloud por prioridad, y no las 157 de una: S9383 como la **mejora medida antes/después**, revisar los regex (S8786), hacer el triage del resto y la accesibilidad (§201–§203). El usuario habilitó Chrome para verificar la UI.
+
+**Antes** (análisis de SonarCloud de `df86dde`, 2026-10-17 19:51 UTC, API pública): **bugs 37** (36 `typescript:S9383` "Promises should not be left unhandled" + 1 `S8985` en un test), **calificación de fiabilidad C (3.0)**, vulnerabilidades 17, code smells 103, duplicación 2,2 %, cobertura 86,3 %.
+
+**Revisión (no a ciegas):** las 36 líneas llaman a **12 funciones**: `handleSend`, `ask`, `load` (en 11 pantallas), `loadPatrocinios`, `loadProjects`, `loadRecs`, `loadSidebarData`, `loadFollowingFeed`, `loadRatings` y `fetchFollowStatus`. Se leyó el cuerpo de cada una (script en el scratchpad que extrae la función entera). **Todas capturan cualquier error**: `try/catch` alrededor de cada `await`, `Promise.allSettled` (`loadSidebarData`) o `.then(ok, err)` (`fetchFollowStatus`). Ninguna promesa puede rechazarse, así que **ninguna de las 36 era un bug real** (no había rechazos sin manejar). Si alguna no hubiera capturado, se arreglaba con su test en vez de silenciarla.
+
+**Cambio:** `void` adelante de las 36 llamadas (35 líneas en 17 componentes), con un script que toca solo esas líneas y respeta CRLF/LF. `void` deja explícito que el resultado no se espera, y **el comportamiento no cambia**.
+
+### Verificación
+- `git diff`: 35 líneas en 17 archivos, una por línea marcada (ningún cambio de fin de línea).
+- Frontend: `npm run typecheck` 0 errores; `vitest run --coverage` **694/694**, cobertura igual (líneas 83,14 %, sentencias 79,63 %, ramas 73,97 %, funciones 67,82 %).
+- No hace falta mutación: no hay lógica nueva (es la misma llamada con `void`).
+
+### ⚠️ NO verificado
+- **El "después" de SonarCloud:** sale del análisis del pipeline después del push. Se espera bugs 37 → 1 (el `S8985` del test queda para el triage, §202).
+- Lo visual no cambia (no hay cambios de UI): no se miró en Chrome.

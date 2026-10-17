@@ -12,7 +12,7 @@ export function NGOPatrocinios() {
   const [loadError, setLoadError] = useState('');
   const [actionError, setActionError] = useState('');
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   const load = async () => {
     setLoading(true);
