@@ -5056,3 +5056,22 @@ Encaja con el modelo estándar de "1 marketplace + 1 vendedor por transacción":
 ### Verificación
 - `grep` sin restos de "31 tablas" ni "90 días" en `README`, `PROJECT_CONTEXT`, `BACKEND_CONTEXT` y `CLAUDE.md`. Las referencias históricas que quedan en `PROJECT_ANALYSIS.md` y `PLAN_FALTANTE.md` son registro de lo que se decía antes, y no se tocan.
 - Sin cambios de código: los tests no se volvieron a correr. Los últimos conteos son de §177–§179.
+
+## 183. TP de Calidad: plan (`docs/PLAN_CALIDAD_TP.md`) y plan de pruebas (`docs/calidad/PLAN_PRUEBAS.md`) — T0 y T1
+
+**Qué se hizo (solo docs):**
+- `docs/PLAN_CALIDAD_TP.md`: decisiones del usuario (nivel 3, GitHub Issues, Mercado Pago, PDF aparte), línea base real, brecha requisito del TP → repo → falta, plan día por día hasta el 26/10, borrador de la matriz de decisión de la herramienta nueva (sin elegir), métrica de proyecto propuesta (densidad de pruebas), defectos reutilizados y riesgos.
+- `docs/calidad/PLAN_PRUEBAS.md` (v0.1): objetivos medibles, contingencia por dependencia (con archivo y línea), niveles de prueba, matriz ISO/IEC 25010 (8 características, 2011) con evidencia y top 3, riesgos P×I, QA vs QC, criterios de entrada/salida, los 7 principios, plantillas de caso y de defecto, trazabilidad inicial.
+
+### Verificación
+- Línea base del 2026-10-17 (Windows, Node 24.21, `950e558`): `node --test --experimental-test-coverage` → **782 pass**, 0 fail, 0 cancelled; cobertura **92,94 % líneas / 84,20 % ramas / 90,54 % funciones**. Frontend `vitest run` → **694 pass**. Las dos también con `TZ=UTC` (782 y 694). Build de Vite en verde (a una carpeta temporal).
+- Los tests del backend pasan sin `backend/.env`: corridos desde un directorio vacío → 781/781.
+
+### Errores propios
+- **El "782" que veníamos informando incluye `test/integration/helpers.js`**: `node --test` toma por defecto `**/test/**/*.js` y cuenta ese archivo (que no define tests) como un test que pasa (TAP `ok 25 - test\integration\helpers.js`). Los tests reales son **781**. No lo cambié en el código (el conteo de `CLAUDE.md` se aclara); los docs del TP usan 781.
+- En el primer borrador de `PLAN_PRUEBAS.md` §9 atribuí A6 a "los tests de concurrencia" (lo encontró una sonda de la revisión) y usé un conteo de tests de otra fecha para §168: corregidos antes del commit.
+
+### ⚠️ NO verificado
+- `npm run test:pg`, `typecheck` y `npm audit` no se corrieron en esta sesión (los números de Postgres siguen siendo los de `CLAUDE.md`).
+- Los datos de las herramientas del borrador de la matriz (licencias, planes gratis) son de memoria: se verifican en el paso 2 (mercado).
+- La trazabilidad inicial se armó por nombres de archivo y comentarios, no revisando test por test.
