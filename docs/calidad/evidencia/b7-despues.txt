@@ -1,0 +1,25 @@
+# Defecto B7 (REVISION.md, PROJECT_ANALYSIS.md §93): test/integration/comments-badwords.test.js de da8ac95, corrido sobre da8ac95, el commit del ARREGLO.
+# Comando: cd backend && node --test --test-reporter=spec test/integration/comments-badwords.test.js
+# Corrido el 2026-10-17 (Node v24.21.0, Windows) en un worktree aparte (§199). Stack y rutas locales recortados.
+
+🗄️  Conectado a SQLite (local)
+
+🚀 Voluntariar API → http://localhost:0
+   WebSocket (chat) → ws://localhost:0/ws
+   Entorno: test
+   DB:      SQLite
+   Email:   desactivado (sin RESEND_API_KEY: los emails se omiten)
+   Fotos:   sin configurar (faltan variables CLOUDINARY_*): no se pueden subir fotos
+
+▶ Comentarios: filtro por palabras completas
+  ✔ "Traigan la computadora" se publica (antes 400) (13.3501ms)
+  ✔ la palabra sola sigue rechazada, también con acento (13.0259ms)
+✔ Comentarios: filtro por palabras completas (1524.8679ms)
+ℹ tests 2
+ℹ suites 1
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1676.4446
