@@ -5263,3 +5263,4 @@ Así queda la secuencia que pide el TP: **run fallido real (#7) → triage → c
 ### ⚠️ NO verificado
 - SHA-256 contra Cloudinary real: falta el deploy manual de `voluntariar-api` y las pruebas de §191 (foto de perfil, Momento con foto, CV: subir, abrir desde la ONG, borrar).
 - Los 37 bugs MAJOR (36 son promesas sin `await` ni `.catch` en el frontend) y las 17 vulnerabilidades no críticas no bloquean el gate: entran en la tabla de métricas del informe, sin triage todavía.
+- ~~SHA-256 contra Cloudinary real~~ **Verificado por el usuario el 2026-10-17** después del deploy manual de `voluntariar-api` con `959f74b`: respondió "anda" a la lista de pruebas (foto de perfil, Momento con foto, CV: subir, abrir desde la ONG, borrar). No detalló cuáles hizo una por una.
