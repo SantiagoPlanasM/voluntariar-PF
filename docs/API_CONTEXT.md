@@ -603,7 +603,7 @@ Chat 1 a 1 básico. El historial y el envío tienen doble vía: REST (siempre di
 - **Respuesta 200:** `{ active_projects, volunteers, ngos }`, números: proyectos con `status = 'active'`, perfiles de `voluntarios` y filas de `ngos`. Los `COUNT` se normalizan con `Number(x) || 0` (en Postgres llegan como string). Los usa la portada (`PublicFeed`) en lugar de los números fijos que tenía (`PROJECT_ANALYSIS.md §129`). Está en `public-columns.test.js`.
 
 ### `GET /health` — Público (fuera de `/api`)
-- **Respuesta 200:** `{ status: 'ok', timestamp }` — usado por Render para health checks.
+- **Respuesta 200:** `{ status: 'ok', timestamp, commit }` — usado por Render para health checks. `commit` es `RENDER_GIT_COMMIT` (el commit desplegado; `null` en local), leído en cada pedido: el pipeline de deploy espera a verlo antes del smoke (`PROJECT_ANALYSIS.md §193`). No consulta la base.
 
 ---
 

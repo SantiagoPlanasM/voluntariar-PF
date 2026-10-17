@@ -1,0 +1,68 @@
+# .github/workflows/deploy.yml — deploy a Render, smoke y E2E de Mercado Pago (TP de Calidad, T9; §193).
+# Corre cuando el CI de un push a main termina EN VERDE (o a mano con "Run workflow"). Dispara los deploy hooks de
+# Render (el auto-deploy de Render sigue apagado y render.yaml no se toca), espera a que la API muestre el commit
+# nuevo en /health, corre el smoke de solo lectura y la donación E2E con la cuenta dedicada (sin pagar).
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-produccion   # un deploy a la vez; no se cancela uno a medias
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '22'
+  API_URL: https://voluntariar-api-lxq7.onrender.com
+  WEB_URL: https://voluntariar-g0u6.onrender.com
+
+jobs:
+  deploy:
+    name: Deploy en Render + smoke + E2E de Mercado Pago
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
+      RENDER_DEPLOY_HOOK_API: ${{ secrets.RENDER_DEPLOY_HOOK_API }}
+      RENDER_DEPLOY_HOOK_WEB: ${{ secrets.RENDER_DEPLOY_HOOK_WEB }}
+      E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+      E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+    steps:
+      - name: Faltan secretos → no se despliega
+        run: |
+          missing=""
+          for v in RENDER_DEPLOY_HOOK_API RENDER_DEPLOY_HOOK_WEB E2E_EMAIL E2E_PASSWORD; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then echo "::error::Faltan los secretos:$missing"; exit 1; fi
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.COMMIT }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Tests de los scripts de post-deploy
+        run: node --test ".github/scripts/*.test.js"
+      - name: Disparar el deploy en Render (API y sitio)
+        run: |
+          curl -fsS -X POST "$RENDER_DEPLOY_HOOK_API" -o /dev/null
+          curl -fsS -X POST "$RENDER_DEPLOY_HOOK_WEB" -o /dev/null
+          echo "Deploy pedido para ${COMMIT:0:7}" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Esperar a que la API muestre el commit nuevo en /health
+        env:
+          EXPECTED_COMMIT: ${{ env.COMMIT }}
+        run: node .github/scripts/post-deploy.js wait
+      - name: Smoke (solo lectura)
+        run: node .github/scripts/post-deploy.js smoke
+      - name: E2E de donación con Mercado Pago (modo prueba, sin pagar)
+        run: node .github/scripts/post-deploy.js e2e

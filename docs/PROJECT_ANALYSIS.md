@@ -5264,3 +5264,43 @@ Así queda la secuencia que pide el TP: **run fallido real (#7) → triage → c
 - SHA-256 contra Cloudinary real: falta el deploy manual de `voluntariar-api` y las pruebas de §191 (foto de perfil, Momento con foto, CV: subir, abrir desde la ONG, borrar).
 - Los 37 bugs MAJOR (36 son promesas sin `await` ni `.catch` en el frontend) y las 17 vulnerabilidades no críticas no bloquean el gate: entran en la tabla de métricas del informe, sin triage todavía.
 - ~~SHA-256 contra Cloudinary real~~ **Verificado por el usuario el 2026-10-17** después del deploy manual de `voluntariar-api` con `959f74b`: respondió "anda" a la lista de pruebas (foto de perfil, Momento con foto, CV: subir, abrir desde la ONG, borrar). No detalló cuáles hizo una por una.
+
+## 193. Deploy desde el pipeline, smoke y E2E de Mercado Pago (T9)
+
+**Decisiones del usuario (2026-10-17):** E2E con una **cuenta voluntaria dedicada** hasta la preferencia (sin pagar); `/health` con el commit; deploy por **deploy hook** cuando el CI de `main` termina en verde (el auto-deploy de Render sigue apagado; `render.yaml` sin tocar). El usuario mencionó que más adelante quizá quiera dos cuentas vendedoras (el Marketplace de §181): sería otra tarea, y el E2E se adaptaría.
+
+**Qué se hizo:**
+- `GET /health` → `{ status, timestamp, commit }`, con `commit = RENDER_GIT_COMMIT || null`, leído en cada pedido (`backend/src/index.js`; `API_CONTEXT.md`).
+- `.github/scripts/post-deploy.js`, con tres modos:
+  - `wait`: reintenta `/health` hasta ver el commit esperado (60 intentos × 20 s);
+  - `smoke` (solo lectura): despierta la API, `/api/projects`, `/api/stats`, la portada y `/explore` (rewrite del SPA);
+  - `e2e`: login de la cuenta dedicada → primer proyecto activo → `POST /api/donaciones` de $100 → `checkout_url` https de Mercado Pago → el checkout responde → `GET /api/donaciones/:id` = `pending`.
+
+  Resumen en la página del run. Nunca imprime el token ni la contraseña. Sin dependencias.
+- `.github/workflows/deploy.yml`: `workflow_run` del CI (solo si terminó en verde y fue un push a `main`) o `workflow_dispatch`. Pasos: falla si falta algún secreto (`RENDER_DEPLOY_HOOK_API`, `RENDER_DEPLOY_HOOK_WEB`, `E2E_EMAIL`, `E2E_PASSWORD`) → tests de los scripts → deploy hooks → `wait` → `smoke` → `e2e`. `concurrency` sin cancelar: un deploy a la vez.
+- **Corrección de lo dicho en el plan:** `GET /api/donaciones/:id` consulta a Mercado Pago **solo con `payment_id`**. En el E2E, lo que habla con Mercado Pago es la creación de la preferencia (nuestra API → MP) y abrir el checkout.
+
+### Verificación
+- **Tests primero.**
+  - `health-commit.test.js`: 3 tests, **3/3 en rojo** antes del cambio, después verdes.
+  - `post-deploy.test.js`: 16 tests, **11 en rojo** contra un stub (los 5 que pasaban son los casos "todo bien", que el stub aprueba); con el código, verdes.
+- **Mutation testing** de `post-deploy.js`: primera corrida **19 mutantes, 6 sobrevivientes**.
+  - 1 era **equivalente**: el `typeof v === 'number'` sobraba, porque `Number.isInteger` ya rechaza strings. Se sacó del código.
+  - 5 eran **agujeros de los tests**: un 500 con `status: ok`; estadísticas con decimales; dominios que contienen "mercadopago.com" (al final o al principio); un 201 sin `donation_id`.
+  - Se agregaron esos casos (ahora 17 tests). Segunda corrida: **18 mutantes, 0 sobrevivientes**.
+- Scripts del CI: `node --test ".github/scripts/*.test.js"` → **29/29**.
+- **Smoke real contra producción** (solo lectura, desde local): los 5 chequeos en verde (API despierta al primer intento, projects, stats, portada, `/explore`).
+- Backend completo: SQLite **786/786**, Postgres **788/788**, Córdoba **786/786** (+3 por `/health`).
+
+### Errores propios
+- En el plan dije que el E2E "consulta a MP" con `GET /api/donaciones/:id`: no es así sin `payment_id` (corregido arriba).
+- La primera versión de los tests de `post-deploy` dejaba pasar 5 mutantes: la cobertura de casos de borde era más floja de lo que parecía.
+
+### ⚠️ NO verificado
+- **`deploy.yml` no corrió nunca:** faltan los secretos y la cuenta de E2E.
+- **Que Render defina `RENDER_GIT_COMMIT`** en este servicio: si no lo define, `wait` agota el tiempo (~20 min) y falla. Se ve en el primer deploy.
+- **El sitio estático no informa su commit:** el pipeline espera solo a la API. El smoke del sitio puede ver la versión anterior si el build del frontend tarda más.
+- **El deploy hook despliega el último commit de la rama**, no necesariamente el del run. Si entra otro push en el medio, `wait` no ve el commit esperado y falla. El siguiente run lo despliega.
+- **Cada push a `main` en verde despliega**, también los de solo documentación, y cada deploy consume minutos de build del plan gratuito de Render (el límite exacto no lo verifiqué).
+- **El E2E deja una donación `pendiente` por deploy** en la base de producción.
+- **El E2E puede fallar si no hay proyectos activos**, o con 429 si se corre más de 10 veces en una hora con la misma cuenta.

@@ -33,7 +33,9 @@ app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // ── Health check ──────────────────────────────────────────────────────────
-app.get('/health', (_, res) => res.json({ status: 'ok', timestamp: new Date() }));
+// `commit`: el que desplegó Render (RENDER_GIT_COMMIT; null en local). El pipeline de deploy espera a verlo antes
+// del smoke (PROJECT_ANALYSIS.md §193). El repo es público: el hash no expone nada.
+app.get('/health', (_, res) => res.json({ status: 'ok', timestamp: new Date(), commit: process.env.RENDER_GIT_COMMIT || null }));
 
 // ── Rutas principales ─────────────────────────────────────────────────────
 app.use('/api/auth',           require('./routes/auth'));

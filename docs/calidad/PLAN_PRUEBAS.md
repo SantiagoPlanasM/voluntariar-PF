@@ -12,6 +12,7 @@
 | 0.2 | 2026-10-17 | O1–O3 y O6–O7 con los números del primer run del CI (#1) y la cobertura del frontend medida (T4, §185) |
 | 0.3 | 2026-10-17 | O2 y O3 con los números del run #2; la cobertura del backend del run #2 estaba inflada (§187) |
 | 0.4 | 2026-10-17 | O6: el gate (SonarCloud + `sonar-gate.js`) también bloquea ante vulnerabilidades críticas (§191) |
+| 0.5 | 2026-10-17 | Niveles: smoke y E2E de Mercado Pago definidos y automatizados en `deploy.yml` (T9, §193) |
 
 El documento se versiona en git: cada cambio entra en un commit propio y suma una fila a esta tabla.
 
@@ -61,8 +62,8 @@ que lee de la base.
 | Unitario | Funciones puras y módulos aislados (validadores, traducción SQL, firma de MP, tiempo, límites) | `backend/test/unit/` (14 archivos) | `node:test` | Pipeline, cada push |
 | Integración (API) | Endpoints de punta a punta contra una base real temporal, con dobles para MP, Cloudinary y Resend | `backend/test/integration/` (60 archivos + `helpers.js`) | `node:test` + `fetch` contra el servidor en un puerto efímero | Pipeline: SQLite y Postgres 16, en UTC y en Córdoba |
 | Componente (frontend) | Pantallas y componentes con la API simulada | `frontend/src/**/*.test.tsx` (75 archivos) | Vitest + Testing Library + jsdom | Pipeline |
-| Sistema (smoke) | El despliegue responde: API despierta, lecturas públicas, portada | Script de solo lectura (T9) | A definir en T9 | Después de cada deploy |
-| Integración externa (E2E) | Donación hasta la preferencia y la conciliación en Mercado Pago (modo prueba) | Job post-deploy (T9, decisión D1) | A definir | Después de cada deploy |
+| Sistema (smoke) | El despliegue responde: API despierta, `/api/projects`, `/api/stats`, portada y una ruta del SPA | `.github/scripts/post-deploy.js smoke` (solo lectura) | Node (`fetch`), sin dependencias | Después de cada deploy (`deploy.yml`) |
+| Integración externa (E2E) | Login de una cuenta dedicada → `POST /api/donaciones` crea la preferencia en Mercado Pago → el link de checkout responde → la donación queda `pending` (no se paga) | `.github/scripts/post-deploy.js e2e` | Node (`fetch`) | Después de cada deploy (`deploy.yml`) |
 | No funcional (stress y esfuerzo sostenido) | Latencia y errores con carga de lectura | Scripts (T10) | Herramienta a elegir (D5) | A pedido y antes de la demo |
 | Aceptación | Recorrido de la demo por rol | `GUION_DEFENSA.md §3` | Manual | Antes de la defensa |
 
