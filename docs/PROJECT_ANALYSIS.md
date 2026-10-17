@@ -5304,3 +5304,27 @@ Así queda la secuencia que pide el TP: **run fallido real (#7) → triage → c
 - **Cada push a `main` en verde despliega**, también los de solo documentación, y cada deploy consume minutos de build del plan gratuito de Render (el límite exacto no lo verifiqué).
 - **El E2E deja una donación `pendiente` por deploy** en la base de producción.
 - **El E2E puede fallar si no hay proyectos activos**, o con 429 si se corre más de 10 veces en una hora con la misma cuenta.
+
+## 194. Deploy #1: el primer deploy desde el pipeline anduvo; el E2E falló en el login (401) — y el chequeo del checkout no servía
+
+**Deploy #1** (https://github.com/SantiagoPlanasM/voluntariar-PF/actions/runs/39059784573, disparado por el CI #9 de `f414c07`, en verde): pasaron los deploy hooks, **`wait`** y el **smoke**; falló el **E2E**. Lo que esto deja verificado:
+- **Render define `RENDER_GIT_COMMIT`** (era un NO verificado de §193): la API respondió `"commit":"f414c073…"` y `wait` lo vio.
+- El deploy hook funciona, con el auto-deploy apagado.
+
+**Por qué falló el E2E:** el resumen del run (lo pegó el usuario) dice `❌ login de la cuenta de E2E: login respondió 401`. Los secretos `E2E_EMAIL` / `E2E_PASSWORD` no coinciden con la cuenta creada en producción. Es un **error de configuración**, no del código: el script cortó ahí y **no creó ninguna donación**. El pipeline lo detectó, que es para lo que está. No se reescribe: el próximo deploy corre con los secretos corregidos.
+
+**Error propio, con hallazgo real:** antes de ver el resumen supuse que había fallado el chequeo "el link de checkout responde", y la suposición estaba mal. Al investigarla, igual apareció un problema verdadero, que habría hecho fallar el próximo run:
+- el checkout de Mercado Pago (`sandbox.mercadopago.com.ar/checkout/v1/redirect?pref_id=…`) responde **403** a `curl` y al `fetch` de Node, porque CloudFront bloquea los clientes que no son navegadores;
+- con un User-Agent de navegador responde **200 aun con un `pref_id` inventado**.
+
+O sea, el chequeo **no podía pasar** desde un script, y aunque se lo forzara **no probaba nada**. Mi supuesto de §193 ("el checkout responde") estaba mal.
+
+**Corrección (commit posterior):** el E2E ya no abre el checkout. `checkDonationCreated` exige un link **https de Mercado Pago con `pref_id` no vacío** (no se asume un formato de `pref_id`: el repo no tiene ninguno real). La evidencia de que Mercado Pago creó la preferencia es que nuestra API solo responde 201 si `createPreference` tuvo éxito (`routes/donaciones.js`), más el `pref_id` en el link.
+
+### Verificación
+- **Test nuevo:** link sin `pref_id` o con `pref_id=` vacío → falla (**rojo** antes del cambio: 17/18; después 18/18). Scripts del CI: **30/30**.
+- **Mutación:** con el cambio reaparecieron 3 sobrevivientes ("acepta http", "sin ancla final", "sin ancla inicial"). Las URLs falsas de los tests no traían `pref_id`, así que fallaban por eso y no por lo que cada test quería probar. Se les agregó `?pref_id=1-abc`. Resultado: **19 mutantes, 0 sobrevivientes** (incluido "sin pref_id").
+
+### ⚠️ NO verificado
+- El E2E completo en producción: falta que el usuario corrija los secretos.
+- El formato real de un `pref_id` de Mercado Pago (no hay ninguno en el repo; se exige solo que no esté vacío).

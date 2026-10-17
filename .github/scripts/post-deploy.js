@@ -2,7 +2,7 @@
 //
 //   node .github/scripts/post-deploy.js wait    espera a que /health muestre EXPECTED_COMMIT (el deploy terminó)
 //   node .github/scripts/post-deploy.js smoke   chequeos de SOLO LECTURA de la API y del sitio
-//   node .github/scripts/post-deploy.js e2e     donación de punta a punta con Mercado Pago (modo prueba), sin pagar
+//   node .github/scripts/post-deploy.js e2e     donación de punta a punta con Mercado Pago (modo prueba), sin pagar ni abrir el checkout
 //
 // Entorno: API_URL y WEB_URL (sin "/" final), EXPECTED_COMMIT (wait), E2E_EMAIL y E2E_PASSWORD (e2e: una cuenta
 // voluntaria creada a mano solo para esto). El smoke no crea nada, no manda emails, no sube archivos ni llama a
@@ -35,10 +35,13 @@ function checkIndexHtml(status, text) {
   return /<div id="root"/.test(text || '') ? [] : ['la portada no es el HTML del SPA (falta <div id="root">)'];
 }
 
+// https, dominio de Mercado Pago y un pref_id no vacío. No se abre el checkout: desde un script CloudFront responde
+// 403, y con un User-Agent de navegador da 200 aun con un pref_id inventado, así que no probaría nada (§194).
 function isMercadoPagoCheckout(url) {
   try {
     const u = new URL(url);
-    return u.protocol === 'https:' && /(^|\.)mercadopago\.com(\.[a-z]{2})?$/.test(u.hostname);
+    return u.protocol === 'https:' && /(^|\.)mercadopago\.com(\.[a-z]{2})?$/.test(u.hostname)
+      && Boolean(u.searchParams.get('pref_id'));
   } catch { return false; }
 }
 
@@ -123,10 +126,7 @@ async function e2e(api) {
   if (!record('hay un proyecto activo para donar', project ? [] : ['no hay proyectos activos'])) return;
 
   const created = await http(`${api}/api/donaciones`, json('POST', { project_id: project.id, amount: 100 }, token));
-  if (!record('POST /api/donaciones ($100) crea la preferencia en Mercado Pago', checkDonationCreated(created.status, created.body))) return;
-
-  const checkout = await http(created.body.checkout_url, { redirect: 'follow' });
-  record('el link de checkout de Mercado Pago responde', checkout.status < 400 ? [] : [`respondió ${checkout.status}`]);
+  if (!record('POST /api/donaciones ($100) crea la preferencia en Mercado Pago (201 + link con pref_id)', checkDonationCreated(created.status, created.body))) return;
 
   const st = await http(`${api}/api/donaciones/${created.body.donation_id}`, json('GET', undefined, token));
   record('GET /api/donaciones/:id: pendiente (no se paga)', checkDonationStatus(st.status, st.body, created.body.donation_id));

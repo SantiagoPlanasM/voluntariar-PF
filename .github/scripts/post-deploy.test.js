@@ -66,12 +66,18 @@ describe('E2E de donación', () => {
     assert.deepEqual(checkDonationCreated(201, { ...created, checkout_url: 'https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=1' }), []);
   });
   test('link que no es de Mercado Pago, http o falta: falla', () => {
-    assert.equal(checkDonationCreated(201, { ...created, checkout_url: 'https://evil.example/mercadopago.com' }).length, 1);
-    assert.equal(checkDonationCreated(201, { ...created, checkout_url: 'http://www.mercadopago.com.ar/x' }).length, 1);
+    assert.equal(checkDonationCreated(201, { ...created, checkout_url: 'https://evil.example/mercadopago.com?pref_id=1-abc' }).length, 1);
+    assert.equal(checkDonationCreated(201, { ...created, checkout_url: 'http://www.mercadopago.com.ar/x?pref_id=1-abc' }).length, 1);
     assert.equal(checkDonationCreated(201, { donation_id: created.donation_id }).length, 1);
     // dominios que CONTIENEN "mercadopago.com" pero no son de Mercado Pago
-    assert.equal(checkDonationCreated(201, { ...created, checkout_url: 'https://www.mercadopago.com.evil.example/x' }).length, 1);
-    assert.equal(checkDonationCreated(201, { ...created, checkout_url: 'https://evilmercadopago.com/x' }).length, 1);
+    assert.equal(checkDonationCreated(201, { ...created, checkout_url: 'https://www.mercadopago.com.evil.example/x?pref_id=1-abc' }).length, 1);
+    assert.equal(checkDonationCreated(201, { ...created, checkout_url: 'https://evilmercadopago.com/x?pref_id=1-abc' }).length, 1);
+  });
+  test('link de Mercado Pago sin pref_id (o vacío): falla — sin preferencia no hay checkout', () => {
+    // El checkout de MP no se puede abrir desde un script (CloudFront responde 403 sin navegador y 200 con un
+    // pref_id inventado: §194), así que la evidencia de que MP creó la preferencia es el 201 + el pref_id del link.
+    assert.equal(checkDonationCreated(201, { ...created, checkout_url: 'https://www.mercadopago.com.ar/checkout/v1/redirect' }).length, 1);
+    assert.equal(checkDonationCreated(201, { ...created, checkout_url: 'https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=' }).length, 1);
   });
   test('201 sin donation_id: falla aunque el link sea bueno', () => {
     assert.equal(checkDonationCreated(201, { checkout_url: created.checkout_url }).length, 1);

@@ -63,7 +63,7 @@ que lee de la base.
 | Integración (API) | Endpoints de punta a punta contra una base real temporal, con dobles para MP, Cloudinary y Resend | `backend/test/integration/` (60 archivos + `helpers.js`) | `node:test` + `fetch` contra el servidor en un puerto efímero | Pipeline: SQLite y Postgres 16, en UTC y en Córdoba |
 | Componente (frontend) | Pantallas y componentes con la API simulada | `frontend/src/**/*.test.tsx` (75 archivos) | Vitest + Testing Library + jsdom | Pipeline |
 | Sistema (smoke) | El despliegue responde: API despierta, `/api/projects`, `/api/stats`, portada y una ruta del SPA | `.github/scripts/post-deploy.js smoke` (solo lectura) | Node (`fetch`), sin dependencias | Después de cada deploy (`deploy.yml`) |
-| Integración externa (E2E) | Login de una cuenta dedicada → `POST /api/donaciones` crea la preferencia en Mercado Pago → el link de checkout responde → la donación queda `pending` (no se paga) | `.github/scripts/post-deploy.js e2e` | Node (`fetch`) | Después de cada deploy (`deploy.yml`) |
+| Integración externa (E2E) | Login de una cuenta dedicada → `POST /api/donaciones` crea la preferencia en Mercado Pago (201 + link con `pref_id`; el checkout no se abre, §194) → la donación queda `pending` (no se paga) | `.github/scripts/post-deploy.js e2e` | Node (`fetch`) | Después de cada deploy (`deploy.yml`) |
 | No funcional (stress y esfuerzo sostenido) | Latencia y errores con carga de lectura | Scripts (T10) | Herramienta a elegir (D5) | A pedido y antes de la demo |
 | Aceptación | Recorrido de la demo por rol | `GUION_DEFENSA.md §3` | Manual | Antes de la defensa |
 
