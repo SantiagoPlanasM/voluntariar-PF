@@ -4809,3 +4809,34 @@ Sigue la regla 24 en orden: sesión → límite de **10 subidas por hora** por u
 - **El rechazo con titular `OTHE` y el reintento con `APRO`**: el usuario no lo probó todavía.
 - Nada visual: la campanita del panel en el celular, el renglón "Recaudado en donaciones" y la pantalla de notificaciones dentro del panel.
 - `NotificationsScreen`, dentro del panel, sigue con su botón "Volver" (`navigate(-1)`): no lo cambié.
+
+## 174. Verificación en producción de §173 (2026-10-16, hecha por el usuario en Render)
+
+**Lo que probó el usuario, con los dos servicios desplegados:**
+- **Donación** (logueado como comprador de prueba en el checkout) → la vuelta dice "¡Gracias!".
+- **La ONG dueña del proyecto ve la notificación** "Recibiste una donación" (campanita / barra lateral, §173).
+- **"Recaudado en donaciones"** aparece en el detalle del proyecto sin meta, **con el total correcto**.
+- **Logs de `voluntariar-api`** (buscando `[donaciones]`):
+  ```
+  [donaciones] aviso IPN ignorado (topic=payment)
+  [donaciones] aviso con firma inválida (data.id=183571855741)
+  [donaciones] aviso IPN ignorado (topic=merchant_order)
+  [donaciones] aviso con firma inválida (data.id=183571855741)
+  [donaciones] conciliación del pago 183571855741 (donación 65368646-…): credited
+  ```
+
+**Qué muestran los logs:**
+- Mercado Pago manda **las dos cosas**: avisos IPN (`topic=payment` y `topic=merchant_order`), que se ignoran como estaba previsto (§171), y **webhooks con el `data.id` correcto**, que **no pasaron la verificación de firma**.
+- **La acreditación se hizo por la conciliación de la vuelta**, que es el respaldo diseñado en §171: una sola vez y con el pago correcto. El flujo funciona de punta a punta aunque el aviso no valide.
+
+**Por qué puede fallar la firma (sin resolver todavía):**
+1. `MP_WEBHOOK_SECRET` no está cargada en Render. Hoy el log dice "firma inválida" también en ese caso: no se distinguen.
+2. La clave es de otra aplicación o de otra configuración de webhooks.
+3. Los webhooks disparados por la `notification_url` de la preferencia podrían no firmarse con esa clave (la documentación no lo aclara).
+
+Se le pidió al usuario mirar la línea `Pagos:` del arranque, volver a copiar la clave desde Webhooks → Configurar notificaciones y probar con "Simular notificación".
+
+### ⚠️ NO verificado
+- Que el webhook valide con la clave correcta: queda pendiente la prueba con "Simular notificación".
+- El rechazo con titular `OTHE` y el reintento con `APRO`.
+- Nada en un celular.
