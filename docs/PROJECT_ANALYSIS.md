@@ -5250,3 +5250,16 @@ El run #7 no se toca: se corrige en commits posteriores.
 ### ⚠️ NO verificado (§191 en general)
 - El próximo run de `main` con las cuatro tareas: que SonarCloud cierre los 2 bugs y la vulnerabilidad de SHA-1, y que el código cambiado no traiga issues nuevos críticos. Si el gate vuelve a bloquear, se documenta igual.
 - La posible carrera de la cola de SQLite (tarea 1) sigue abierta.
+
+## 192. Run #8 en verde: el gate del TP pasa sobre todo el proyecto
+
+Run #8 (`959f74b`, push a `main`, https://github.com/SantiagoPlanasM/voluntariar-PF/actions/runs/39050538062): **los 9 jobs en verde**, incluido el job `sonar` con el gate. SonarCloud después del run (API pública):
+- bugs BLOCKER/CRITICAL abiertos: **0** (eran 2: los cerró el cambio de §191); vulnerabilidades BLOCKER/CRITICAL: **0** (era 1, SHA-1);
+- bugs **37** (todos MAJOR), vulnerabilidades **17**, code smells **103**, duplicación **2,2 %**, cobertura total **86,2 %**, 17.064 líneas de código;
+- **cobertura del código nuevo: 96,875 %** (lo cambiado desde el primer análisis de `main`; umbral 80 %).
+
+Así queda la secuencia que pide el TP: **run fallido real (#7) → triage → corrección en commits posteriores → run en verde (#8)**, sin reescribir nada.
+
+### ⚠️ NO verificado
+- SHA-256 contra Cloudinary real: falta el deploy manual de `voluntariar-api` y las pruebas de §191 (foto de perfil, Momento con foto, CV: subir, abrir desde la ONG, borrar).
+- Los 37 bugs MAJOR (36 son promesas sin `await` ni `.catch` en el frontend) y las 17 vulnerabilidades no críticas no bloquean el gate: entran en la tabla de métricas del informe, sin triage todavía.
