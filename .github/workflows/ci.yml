@@ -232,6 +232,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - name: Tests del script del gate
         run: node --test ".github/scripts/*.test.js"   # una carpeta suelta no sirve: la toma como archivo (run #4, §189)
+      - name: Tests del reporte de carga (k6)
+        run: node --test "load/lib/*.test.js"
       - name: Cobertura del backend (job SQLite · UTC)
         uses: actions/download-artifact@v8
         with:

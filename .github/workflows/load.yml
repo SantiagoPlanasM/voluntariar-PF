@@ -1,0 +1,100 @@
+# .github/workflows/load.yml — pruebas de carga con k6 (TP de Calidad, T10; PROJECT_ANALYSIS.md §197).
+# Solo a mano ("Run workflow"). Siempre corre el stress y el esfuerzo sostenido contra una API LOCAL en el runner
+# (SQLite + datos de demo): repetible y sin tocar producción. Con la opción `produccion`, además una carga corta
+# contra Render. Todo es de solo lectura (load/common.js). Los umbrales están en cada script y se fijaron antes de
+# correr; si no se cumplen, el job falla. Los reportes quedan en el resumen del run y como artefactos.
+name: Carga
+
+on:
+  workflow_dispatch:
+    inputs:
+      produccion:
+        description: 'Además, carga corta contra producción (Render, 10 usuarios, 2 min). Nunca después del 25/10/2026.'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: carga
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '22'
+  K6_VERSION: '2.3.0'   # la misma que se usó en local (imagen grafana/k6)
+
+jobs:
+  runner:
+    name: Stress y esfuerzo sostenido (API local en el runner)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      NODE_ENV: development     # el seed se niega a correr en production
+      USE_POSTGRES: 'false'
+      SQLITE_PATH: /tmp/carga.sqlite
+      PORT: '3001'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Tests del reporte de carga
+        run: node --test "load/lib/*.test.js"
+      - name: API local con datos de demo
+        working-directory: backend
+        run: |
+          npm ci
+          node scripts/migrate.js
+          node scripts/seed.js
+          nohup node src/index.js > /tmp/api.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:3001/health > /dev/null && break; sleep 1; done
+          curl -sf http://localhost:3001/health
+      - uses: grafana/setup-k6-action@v1
+        with:
+          k6-version: ${{ env.K6_VERSION }}
+      - run: mkdir -p load/reports && k6 version | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Stress (rampa hasta 100 usuarios; umbral hasta 50)
+        run: k6 run -q -e BASE_URL=http://localhost:3001 load/stress.js
+      - name: Esfuerzo sostenido (20 usuarios, 10 minutos)
+        if: always()
+        run: k6 run -q -e BASE_URL=http://localhost:3001 load/soak.js
+      - name: Reporte en la página del run
+        if: always()
+        run: |
+          for f in stress soak; do [ -f load/reports/$f.md ] && cat load/reports/$f.md >> "$GITHUB_STEP_SUMMARY"; done
+          cp /tmp/api.log load/reports/api.log || true
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: carga-runner
+          path: load/reports/
+
+  produccion:
+    name: Carga corta contra producción (Render)
+    if: inputs.produccion
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Nunca después del 25/10/2026 (la defensa es el 05/11)
+        run: |
+          if [ "$(date -u +%F)" \> "2026-10-25" ]; then
+            echo "::error::La carga contra producción está bloqueada después del 25/10/2026 (PROJECT_ANALYSIS.md §197)"; exit 1
+          fi
+      - uses: actions/checkout@v5
+      - uses: grafana/setup-k6-action@v1
+        with:
+          k6-version: ${{ env.K6_VERSION }}
+      - run: mkdir -p load/reports && k6 version | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Carga corta (10 usuarios, 2 min; el setup despierta la API)
+        run: k6 run -q -e BASE_URL=https://voluntariar-api-lxq7.onrender.com load/prod.js
+      - name: Reporte en la página del run
+        if: always()
+        run: '[ -f load/reports/prod.md ] && cat load/reports/prod.md >> "$GITHUB_STEP_SUMMARY" || true'
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: carga-produccion
+          path: load/reports/

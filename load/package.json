@@ -1,0 +1,5 @@
+{
+  "//": "Solo para que Node trate los .js de load/ como módulos ES (los tests del helper). Sin dependencias: k6 es un binario.",
+  "type": "module",
+  "private": true
+}

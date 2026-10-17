@@ -13,6 +13,7 @@
 | 0.3 | 2026-10-17 | O2 y O3 con los números del run #2; la cobertura del backend del run #2 estaba inflada (§187) |
 | 0.4 | 2026-10-17 | O6: el gate (SonarCloud + `sonar-gate.js`) también bloquea ante vulnerabilidades críticas (§191) |
 | 0.5 | 2026-10-17 | Niveles: smoke y E2E de Mercado Pago definidos y automatizados en `deploy.yml` (T9, §193) |
+| 0.6 | 2026-10-17 | O9 y nivel no funcional: k6 con umbrales fijados antes de correr y workflow `Carga` (T10, §197) |
 
 El documento se versiona en git: cada cambio entra en un commit propio y suma una fila a esta tabla.
 
@@ -36,7 +37,7 @@ dispositivos táctiles (no hay forma de automatizarlos en este proyecto: quedan 
 | O6 | Sin bugs ni vulnerabilidades críticas del análisis estático | Issues BUG y VULNERABILITY BLOCKER/CRITICAL abiertos en SonarCloud | 0 (gate) | Job `sonar` + `sonar-gate.js` | Run #7 (primer análisis de `main`): **2 bugs y 1 vulnerabilidad críticos** → gate en rojo; triage y corrección en §191. `typecheck` en 0 |
 | O7 | Dependencias sin vulnerabilidades conocidas | Avisos de `npm audit` | 0 en los dos paquetes | Pipeline | 0 en el run #1 (el job falla con cualquier aviso) |
 | O8 | Cada despliegue queda probado | Smoke después del deploy | 100 % de los deploys | `deploy.yml` (T9) | Smoke a mano (`GUION_DEFENSA.md §2`) |
-| O9 | La API aguanta la carga esperada de la demo | p95 de latencia y % de errores en `GET` | A definir **antes** de correr (T10) | Reporte de stress del pipeline | Sin medir |
+| O9 | La API aguanta la carga esperada de la demo | p95 de latencia y % de errores en `GET` | Fijados antes de correr (§197): **stress** hasta 50 usuarios p95 < 500 ms; **sostenido** 20 usuarios 10 min p95 < 300 ms; **producción** 10 usuarios 2 min p95 < 2 s; errores < 1 % en los tres | Workflow `Carga` (k6) | Solo corridas locales de validación (§197); el número oficial sale del pipeline |
 | O10 | Cada defecto corregido tiene su prueba de regresión | Defectos cerrados con test enlazado / total cerrados | 100 % | GitHub Issues + matriz §10 | Ver §10 |
 
 ## 3. Plan de contingencia ante la caída de una dependencia crítica
@@ -64,7 +65,7 @@ que lee de la base.
 | Componente (frontend) | Pantallas y componentes con la API simulada | `frontend/src/**/*.test.tsx` (75 archivos) | Vitest + Testing Library + jsdom | Pipeline |
 | Sistema (smoke) | El despliegue responde: API despierta, `/api/projects`, `/api/stats`, portada y una ruta del SPA | `.github/scripts/post-deploy.js smoke` (solo lectura) | Node (`fetch`), sin dependencias | Después de cada deploy (`deploy.yml`) |
 | Integración externa (E2E) | Login de una cuenta dedicada → `POST /api/donaciones` crea la preferencia en Mercado Pago (201 + link con `pref_id`; el checkout no se abre, §194) → la donación queda `pending` (no se paga) | `.github/scripts/post-deploy.js e2e` | Node (`fetch`) | Después de cada deploy (`deploy.yml`) |
-| No funcional (stress y esfuerzo sostenido) | Latencia y errores con carga de lectura | Scripts (T10) | Herramienta a elegir (D5) | A pedido y antes de la demo |
+| No funcional (stress y esfuerzo sostenido) | Latencia y errores con carga de solo lectura: rampa hasta 100 usuarios, 20 usuarios durante 10 min, y una corrida corta contra Render | `load/stress.js`, `load/soak.js`, `load/prod.js` | k6 2.3.0 | A mano: workflow `Carga` (producción opcional, nunca después del 25/10) |
 | Aceptación | Recorrido de la demo por rol | `GUION_DEFENSA.md §3` | Manual | Antes de la defensa |
 
 **Ojo con el conteo:** `node --test` toma por defecto todo `**/test/**/*.js`, así que también ejecuta

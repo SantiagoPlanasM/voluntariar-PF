@@ -32,3 +32,6 @@ Thumbs.db
 # ── IDEs ──────────────────────────────────────────
 .vscode/settings.json
 .idea/
+
+# ── Reportes de carga (k6; los genera el workflow Carga) ──
+load/reports/

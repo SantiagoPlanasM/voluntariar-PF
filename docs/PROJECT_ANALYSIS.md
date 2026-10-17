@@ -5363,3 +5363,45 @@ Con esto, **T9 queda cumplida para el nivel 3**: deploy por el pipeline después
 ### ⚠️ NO verificado
 - El número y el link del deploy manual en verde (se completan cuando vuelva el cupo de la API, o con el link que pase el usuario).
 - Cada E2E que pasa deja **una donación pendiente** en producción (por diseño). No revisé cuántas hay.
+
+## 197. Pruebas de carga con k6: stress, esfuerzo sostenido y una corrida corta en producción (T10)
+
+**Decisiones del usuario (2026-10-17, antes de correr nada):**
+- **Umbrales:**
+  - **stress:** rampa 0→25→50 usuarios con umbral p95 < 500 ms y errores < 1 %; de 50 a 100 usuarios ("quiebre") se mide sin umbral;
+  - **esfuerzo sostenido:** 20 usuarios constantes 10 min, p95 < 300 ms y errores < 1 %;
+  - **producción:** 10 usuarios 2 min, p95 < 2 s y errores < 1 %.
+- **Dónde:** el stress y el sostenido corren siempre contra una API local en el runner. Producción, solo a mano.
+- **k6 en local:** con la imagen Docker oficial.
+
+**Qué se hizo:**
+- `load/common.js`: solo lectura. Cada "visita" hace `GET /api/projects?limit=20`, `GET /api/stats` y el detalle de un proyecto al azar, y después espera un rato (tiempo de lectura). No hace login, registro, donaciones ni subidas: así no aparecen 429 de los limitadores y no se crean datos.
+  - `setup()` despierta la API (hasta 10 intentos de 60 s) y elige los proyectos. **Todos los umbrales están acotados a su escenario** (`{scenario:…}`), así que el pedido que despierta la API no cuenta.
+- `load/stress.js` (escenarios `hasta50` y `quiebre`, el segundo con métricas propias), `load/soak.js` (`SOAK_DURATION`, solo para una corrida corta de prueba) y `load/prod.js`. `summaryTrendStats` incluye el p99.
+- `load/lib/summary.js`: el reporte en Markdown que arma `handleSummary`, con el veredicto, p95/p99/mediana/máximo, errores, pedidos por segundo y **cada umbral con su valor medido**. Escribe `load/reports/<escenario>.md` y `.json` (ignorados por git). `load/package.json` existe solo para que Node trate esos `.js` como módulos ES en los tests: no tiene dependencias.
+- `.github/workflows/load.yml` ("Carga", solo `workflow_dispatch`):
+  - job `runner`: SQLite + seed + API en `localhost:3001` → k6 2.3.0 (`grafana/setup-k6-action@v1`) → stress → sostenido; reporte en el resumen y artefacto `carga-runner`;
+  - job `produccion` (opción `produccion`): **se niega a correr después del 25/10/2026**.
+- `ci.yml`: el job `sonar` también corre `node --test "load/lib/*.test.js"`.
+
+### Verificación
+- **Tests primero** (`load/lib/summary.test.js`):
+  - 8 tests, **7 en rojo** contra un stub. Al ver el primer reporte real faltaban el valor medido de cada umbral y la unidad: 2 tests más (rojo → verde) y un tercero para "ms". Total **9/9**.
+  - **Mutación:** **13 mutantes, 0 sobrevivientes**.
+- **Corridas locales de validación** (Windows, Docker Desktop, `grafana/k6:latest` = **k6 v2.3.0**, API local con SQLite + seed: 12 proyectos activos). **No son las oficiales:** la red pasa por Docker Desktop y la máquina es otra que el runner.
+  - **Stress:** ✅. 77.364 pedidos (286,5/s) en 270 s; p95 19,38 ms, p99 48,57 ms, máximo 127,09 ms; errores 0 %. Umbral `hasta50`: p95 **8,03 ms** (< 500). Quiebre (50→100): p95 24,89 ms, errores 0 %.
+  - **Sostenido corto (1 min, no el oficial de 10):** ✅. p95 10,11 ms, errores 0 %.
+  - **`prod.js` apuntado a la API LOCAL** (solo para probar el script): ✅. p95 8,98 ms.
+  - Antes de agregar el p99 y el valor medido hubo una primera corrida del stress: ✅, 78.128 pedidos, p95 10,83 ms, quiebre p95 12,94 ms.
+
+### Errores propios
+- La primera versión del reporte no mostraba **el valor medido** de cada umbral (solo ✅) ni el p99, porque k6 no lo calcula si no se le pide. Lo vi en la primera corrida real. También había puesto `node --test load/lib/` en un comentario: el mismo error de §189, corregido antes del commit.
+- Al cambiar un test con `sed`, los escapes no coincidieron y no se modificó nada. Me di cuenta porque el test siguió en verde cuando tenía que ponerse rojo, y lo rehice con el editor.
+
+### Hallazgo para el informe
+- **En local, la API no mostró un punto de quiebre hasta 100 usuarios** (p95 < 25 ms, 0 errores). Con este tamaño de datos (seed) y solo lecturas, 100 usuarios no alcanzan para degradarla. Encontrar el quiebre real necesitaría más carga (otra decisión con el usuario: no se cambió lo aprobado).
+
+### ⚠️ NO verificado
+- **El workflow `Carga` no corrió nunca** en GitHub: hace falta el push y "Run workflow". Los números del informe tienen que salir de ahí.
+- Los inputs de `setup-k6-action@v1` (`k6-version`) los saqué de su README, no de su `action.yml` (no lo pude leer: 404 y la API de GitHub sin cupo).
+- La corrida contra producción no se hizo todavía.
