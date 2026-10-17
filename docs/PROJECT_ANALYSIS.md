@@ -5344,3 +5344,22 @@ O sea, el chequeo **no podía pasar** desde un script, y aunque se lo forzara **
 
 ### ⚠️ NO verificado
 - El E2E completo con una cuenta voluntaria: pendiente de que el usuario la cree y cambie los secretos.
+
+## 196. Primer deploy completo en verde desde el pipeline: deploy + smoke + E2E de Mercado Pago (T9 cerrada)
+
+**Deploy #3** (https://github.com/SantiagoPlanasM/voluntariar-PF/actions/runs/39062074795, CI #11 de `528afeb` en verde): deploy, `wait` y smoke en verde; **E2E en rojo**. El usuario dijo "creo que puse mal el mail" y corrigió `E2E_EMAIL`. **La causa exacta del #3 no está confirmada**: no se vio su resumen.
+
+**Deploy disparado a mano** ("Run workflow", `workflow_dispatch`, sobre `528afeb`): el usuario pegó el resumen del E2E, **todo en verde**:
+- ✅ login de la cuenta de E2E (voluntaria);
+- ✅ hay un proyecto activo para donar;
+- ✅ `POST /api/donaciones` ($100) crea la preferencia en Mercado Pago (201 + link con `pref_id`);
+- ✅ `GET /api/donaciones/:id`: pendiente (no se paga).
+
+Con esto, **T9 queda cumplida para el nivel 3**: deploy por el pipeline después del CI en verde, smoke automático y flujo E2E con la plataforma externa en cada despliegue. La secuencia completa de runs de deploy quedó en el historial sin reescribir: #1 (login 401), #2 (la cuenta era ONG), #3 (secreto mal cargado, sin confirmar) y el manual en verde.
+
+### Errores propios
+- **Agoté el cupo de la API pública de GitHub** (60 pedidos por hora sin sesión) siguiendo los runs cada 30 segundos con varias consultas por vuelta. Por eso no pude confirmar por la API el número ni el link del deploy en verde. **Lección:** seguir los runs cada 60–90 s, con una sola consulta por vuelta.
+
+### ⚠️ NO verificado
+- El número y el link del deploy manual en verde (se completan cuando vuelva el cupo de la API, o con el link que pase el usuario).
+- Cada E2E que pasa deja **una donación pendiente** en producción (por diseño). No revisé cuántas hay.
