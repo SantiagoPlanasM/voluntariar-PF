@@ -5177,3 +5177,17 @@ Encaja con el modelo estándar de "1 marketplace + 1 vendedor por transacción":
 - Que la definición de "código nuevo" del proyecto sea la que el usuario eligió, y cómo se ve `new_coverage` en un PR que no cambia código fuente (se espera "no aplica").
 - Que el análisis automático de SonarCloud esté apagado (si estuviera prendido, el escaneo desde el CI falla).
 - Que SonarCloud analice bien TypeScript 7.
+
+## 189. Primer run fallido real del CI (#4, PR `sonar-poc`): `node --test <carpeta>` no corre los tests
+
+**Qué pasó:** run #4 (https://github.com/SantiagoPlanasM/voluntariar-PF/actions/runs/39047958104, evento `pull_request`, commit `15c8622`): los 8 jobs de tests en verde y el job **`sonar` en rojo** en el paso "Tests del script del gate" (`node --test .github/scripts/`). El análisis de SonarCloud y el gate no llegaron a correr. Reproducido en local: `node --test` con una carpeta como argumento **no la recorre**: la toma como un módulo, falla con `Cannot find module '…\.github\scripts'` y lo cuenta como 1 test fallido (salida 1).
+
+Es el **primer run fallido real** del pipeline (decisión del usuario: no se arma uno a propósito y no se reescribe). Detectó un defecto real del propio pipeline: un comando que en la máquina de desarrollo parecía andar.
+
+**Corrección (commit posterior, sin reescribir el run):** `node --test ".github/scripts/*.test.js"` (el runner expande el patrón). Local: 11/11, salida 0.
+
+### Errores propios
+- **El rojo de §188 lo vi mal.** La primera corrida contra el stub usó `node --test .github/scripts/` y no mostró nada, porque el `grep` buscaba líneas TAP que no aparecieron. No me pregunté por qué no salía nada y pasé a correr el archivo directo, que sí dio 10 de 11 en rojo. Ese silencio era este mismo error. **Lección:** una corrida sin salida no es un rojo ni un verde; hay que mirar el código de salida.
+
+### ⚠️ NO verificado
+- El run del PR con la corrección: análisis real de SonarCloud y el gate del TP.
