@@ -5191,3 +5191,18 @@ Es el **primer run fallido real** del pipeline (decisión del usuario: no se arm
 
 ### ⚠️ NO verificado
 - El run del PR con la corrección: análisis real de SonarCloud y el gate del TP.
+
+## 190. Runs #3 y #5: cobertura del backend corregida y primer análisis de SonarCloud (PR #1)
+
+**Run #3** (`main`, `aca9058`, push, en verde). Cobertura del backend con `include` explícito (§187), job SQLite · UTC, datos que pegó el usuario: **`all files` 92,94 % líneas / 84,49 % ramas / 90,54 % funciones**. Coincide con la corrida local (92,90–92,94 / 84,06–84,20 / 90,54). **El defecto de §187 queda corregido.** De la hipótesis se confirma la magnitud (el total inflado era el problema), pero **no qué archivos de más contaba Node 22**: no se vio la tabla completa del run #2. Las ramas varían unas décimas entre corridas.
+
+**Run #5** (PR #1 `sonar-poc → main`, `71295d4`, en verde, con los 9 jobs; el run #4 es el fallido de §189). El job `sonar` analizó y el gate del TP pasó. Lo medido, leído de la API pública de SonarCloud (`pullRequest=1`):
+- cobertura total **86,3 %**, duplicación **2,2 %**, bugs **0**, vulnerabilidades **0**, code smells **0**;
+- bugs BLOCKER/CRITICAL abiertos: **0** (es la consulta que hace el gate: funcionó con `types`/`severities`);
+- `new_coverage`: **no viene** (el PR no cambia código fuente) → la condición "no aplica", como estaba previsto;
+- gate "Sonar way" de SonarCloud: **OK**.
+
+### ⚠️ NO verificado
+- **En un PR, Sonar informa issues solo del código cambiado.** Los ceros no describen el proyecto entero: el análisis completo es el de `main`, después del merge.
+- Si `duplicated_lines_density` del PR es de todo el proyecto o solo de lo cambiado.
+- Cómo se comporta "código nuevo" en `main` (primer análisis de la rama principal).
