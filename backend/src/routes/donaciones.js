@@ -33,9 +33,9 @@ const MIN_AMOUNT = 100;
 const MAX_AMOUNT = 500000;
 const DONATIONS_PER_USER = createLimiter({ max: 10, windowMs: 60 * 60 * 1000 });   // sin límite, se llenaría de pendientes
 const appUrl = () => process.env.APP_URL || 'http://localhost:5173';
-// URL pública de esta API, para el aviso de Mercado Pago. Render define RENDER_EXTERNAL_URL solo; en local no hay
-// (Mercado Pago no puede llegar a localhost) y la donación se confirma por la conciliación.
-const apiPublicUrl = () => (process.env.API_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/+$/, '');
+// Sin notification_url en la preferencia (§175): en producción, los avisos que disparaba no pasaban la firma y llegaban
+// junto con IPN que no se pueden validar (§174). El aviso que vale es el del webhook configurado en el panel de Mercado
+// Pago (Tus integraciones → Webhooks), y la conciliación de GET /:id cubre lo demás.
 
 function amountError(amount) {
   if (typeof amount !== 'number' || !Number.isInteger(amount)) return 'El monto tiene que ser un número entero de pesos';
@@ -76,13 +76,11 @@ router.post('/', requireAuth, requireRole('volunteer', 'company'), async (req, r
 
     let preference;
     try {
-      const api = apiPublicUrl();
       preference = await payments.createPreference({
         donationId: id,
         title: `Donación: ${project.titulo}`.slice(0, 250),
         amount,
         successUrl: `${appUrl()}/donaciones/vuelta`,
-        notificationUrl: api ? `${api}/api/donaciones/webhook` : undefined,
       });
     } catch (err) {
       console.error('POST /donaciones: no se pudo crear la preferencia:', err.message);
@@ -181,7 +179,13 @@ router.post('/webhook', async (req, res) => {
     xSignature: req.get('x-signature'), xRequestId: req.get('x-request-id'), dataId,
   });
   if (!valid) {
-    console.warn(`[donaciones] aviso con firma inválida (data.id=${dataId.slice(0, 40)})`);
+    // Diagnóstico (§175): solo datos que no son secretos, y solo si tienen la forma esperada (números o booleanos).
+    const tsMatch = /(?:^|,)\s*ts=(\d{1,20})\s*(?:,|$)/i.exec(req.get('x-signature') || '');
+    const body = req.body || {};
+    const liveMode = typeof body.live_mode === 'boolean' ? String(body.live_mode) : '?';
+    const userId = typeof body.user_id === 'number' || /^\d{1,20}$/.test(String(body.user_id)) ? String(body.user_id) : '?';
+    console.warn(`[donaciones] aviso con firma inválida (data.id=${dataId.slice(0, 40)}; request-id: ${req.get('x-request-id') ? 'sí' : 'no'}; `
+      + `ts=${tsMatch ? tsMatch[1] : '?'}; live_mode=${liveMode}; user_id=${userId})`);
     return res.status(401).json({ error: 'Firma inválida' });
   }
   if (q.type !== 'payment') {   // merchant_order, chargebacks, …: no se usan

@@ -4840,3 +4840,29 @@ Se le pidió al usuario mirar la línea `Pagos:` del arranque, volver a copiar l
 - Que el webhook valide con la clave correcta: queda pendiente la prueba con "Simular notificación".
 - El rechazo con titular `OTHE` y el reintento con `APRO`.
 - Nada en un celular.
+
+## 175. Sin `notification_url` en la preferencia + diagnóstico en "firma inválida" (pendiente de §174)
+
+**Contexto (pruebas del usuario en producción, 2026-10-16):**
+- **Simular notificación** desde el panel de Mercado Pago dio `[donaciones] aviso del pago 123456: Mercado Pago no lo encuentra` y 200. **La firma validó**, así que la clave cargada es la correcta y el algoritmo (sacado del SDK, §169) también.
+- En una **donación real**, los dos webhooks del pago (`data.id=183574351421`, en el mismo segundo) dieron **firma inválida**. Llegaron además 3 IPN (ignorados). La donación se acreditó por la conciliación de la vuelta.
+- El usuario confirmó que la clave **era la misma** antes y después. O sea: **los avisos simulados validan y los reales no.** Hipótesis, sin confirmar porque la documentación no lo dice: las credenciales de prueba nuevas (`APP_USR-`, §173) pertenecen a una cuenta vendedora de prueba que Mercado Pago crea por detrás, y los avisos reales podrían salir firmados con la clave de esa cuenta.
+
+**Qué se hizo (aprobado por el usuario):**
+- **`POST /api/donaciones` ya no manda `notification_url`.** Esos avisos no validaban y venían con IPN. Queda solo el webhook del panel (Tus integraciones → Webhooks), más la conciliación de la vuelta. Se sacó `apiPublicUrl()` (`API_PUBLIC_URL`/`RENDER_EXTERNAL_URL`), que ya no se usa.
+- **La línea de "firma inválida"** suma datos de diagnóstico que no son secretos: si vino `x-request-id` (sí/no, nunca el valor), el `ts` del header (solo dígitos) y, del cuerpo, `live_mode` (solo si es booleano) y `user_id` (solo si es numérico). Con el `user_id` se puede ver si el aviso viene de la cuenta de la aplicación o de otra. Nunca se loguean el hash, el secreto, otros headers ni otros campos del cuerpo.
+
+### Verificación
+- Tests:
+  - `donaciones.test.js`: la preferencia ya no lleva `notificationUrl`, ni con `API_PUBLIC_URL` ni con `RENDER_EXTERNAL_URL` (+1);
+  - `donaciones-webhook.test.js` (+1): la línea de diagnóstico con los cuatro datos, y con valores que no tienen la forma esperada (`'x"; DROP'`, `'quizás'`, sin header) muestra `?`, sin copiarlos, y nunca el hash, el request-id ni un email del cuerpo.
+- Rojo: 3 fallaban antes del cambio.
+- Backend SQLite **767/767** y con TZ 767/767; Postgres **769/769** y con TZ 769/769. `npm audit` 0. Frontend sin cambios.
+- **Mutación** (control en verde): **7 mutantes, 0 sobrevivientes**: que vuelva la `notification_url`, `live_mode` y `user_id` sin chequear, el request-id al revés o copiado, y el `ts` sin regex o siempre `?`.
+
+### Errores propios
+- El primer intento de aplicar el cambio con `node -e` falló por los escapes del regex dentro de las comillas de bash (la memoria del proyecto ya lo advertía). No escribió nada; lo pasé a un archivo de script.
+
+### ⚠️ NO verificado
+- **Que el webhook del panel llegue y valide en un pago real.** Hace falta una donación más después del deploy. Si llega con firma inválida, la línea nueva muestra el `user_id`, y con eso se confirma o se descarta la hipótesis de la cuenta vendedora de prueba.
+- Si dejaran de llegar avisos del todo (porque el panel no los manda para estos pagos), la acreditación sigue por la vuelta. Esto se verificó dos veces, en §173 y §174.

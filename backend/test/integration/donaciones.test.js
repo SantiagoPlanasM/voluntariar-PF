@@ -110,8 +110,19 @@ describe('Donaciones (Mercado Pago)', () => {
       assert.equal(prefs[0].amount, 1500);
       assert.match(prefs[0].title, /^Donación: /);
       assert.equal(prefs[0].successUrl, 'http://localhost:5173/donaciones/vuelta');
-      assert.equal(prefs[0].notificationUrl, 'https://api.ejemplo.com/api/donaciones/webhook');
+      // §175: la preferencia ya NO manda notification_url, ni siquiera con una URL pública configurada. Los avisos que
+      // disparaba no pasaban la firma en producción (§174); los del webhook del panel de Mercado Pago llegan igual.
+      assert.equal(prefs[0].notificationUrl, undefined);
       assert.equal(await recaudado(), 0, 'crear la donación no suma nada');
+    });
+
+    test('tampoco con RENDER_EXTERNAL_URL (la que Render define solo)', async () => {
+      process.env.RENDER_EXTERNAL_URL = 'https://voluntariar-api.onrender.com';
+      try {
+        const r = await donate(maria, { project_id: 'proj-1', amount: 100 });
+        assert.equal(r.status, 201);
+        assert.equal(prefs[0].notificationUrl, undefined);
+      } finally { delete process.env.RENDER_EXTERNAL_URL; }
     });
 
     test('sin URL pública de la API (en local) no manda notification_url', async () => {

@@ -208,7 +208,7 @@ router.get('/:userId/perfil-completo', requireAuth, async (req, res) => {
 
 **API usada (verificada el 2026-10-16 contra el código del SDK oficial `mercadopago@3.6.1`, porque la documentación web carga esas partes con JavaScript):**
 - Base `https://api.mercadopago.com`, `Authorization: Bearer <MP_ACCESS_TOKEN>`.
-- `POST /checkout/preferences` → `{ id, init_point, sandbox_init_point }`. Se manda un ítem en `ARS` y `external_reference` = id de la donación, más `back_urls`, `auto_return: 'approved'` y `notification_url`. Con un token `TEST-` se usa `sandbox_init_point`.
+- `POST /checkout/preferences` → `{ id, init_point, sandbox_init_point }`. Se manda un ítem en `ARS` y `external_reference` = id de la donación, más `back_urls` y `auto_return: 'approved'`. **Sin `notification_url`** (§175: sus avisos no validaban en producción); el aviso llega por el webhook del panel. Con un token `TEST-` se usa `sandbox_init_point`.
 - `GET /v1/payments/:id` → `status` (`approved`, `pending`, `rejected`, `cancelled`, …), `external_reference`, `transaction_amount` y `currency_id`.
 - Aviso (webhook): `x-signature: ts=<ts>,v1=<hash>` y `x-request-id`; `data.id` viene en la **query**. Manifiesto `id:<data.id>;request-id:<x-request-id>;ts:<ts>;` (sin las partes vacías), HMAC-SHA256 en hex con `MP_WEBHOOK_SECRET`, comparación en tiempo constante. Hay que responder 200/201 dentro de 22 s; si no, Mercado Pago reintenta cada 15 minutos (esto sí está en la doc oficial de webhooks).
 

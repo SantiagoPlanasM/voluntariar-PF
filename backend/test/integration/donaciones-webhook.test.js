@@ -205,6 +205,38 @@ describe('Aviso de Mercado Pago y conciliación', () => {
       assert.ok(!all.includes('v1='), 'la firma no se loguea');
     });
 
+    // §175: en producción, los avisos REALES de pago no validan y el simulado del panel sí (§174). Para saber por qué,
+    // la línea de "firma inválida" suma datos que no son secretos: si vino x-request-id, el ts, y del cuerpo live_mode y
+    // user_id (de qué cuenta viene el aviso). Nunca el hash, el secreto ni otros headers.
+    test('firma inválida: la línea trae datos de diagnóstico (request-id, ts, live_mode, user_id) y nada secreto', async () => {
+      const lines = [];
+      const warn = mock.method(console, 'warn', (...a) => lines.push(a.join(' ')));
+      try {
+        await notify('type=payment&data.id=150', {
+          headers: { 'x-signature': 'ts=1742505638683,v1=' + 'ab'.repeat(32), 'x-request-id': 'req-xyz' },
+          body: { type: 'payment', live_mode: false, user_id: 1005068765, data: { id: '150' }, email: 'no@loguear.com' },
+        });
+        await notify('type=payment&data.id=151', {
+          headers: { 'x-signature': 'basura' },
+          body: { user_id: 'x"; DROP', live_mode: 'quizás' },
+        });
+      } finally { warn.mock.restore(); }
+      const [a, b] = lines.filter((l) => l.startsWith('[donaciones]'));
+      assert.match(a, /firma inválida/);
+      assert.match(a, /data\.id=150/);
+      assert.match(a, /request-id: sí/);
+      assert.match(a, /ts=1742505638683/);
+      assert.match(a, /live_mode=false/);
+      assert.match(a, /user_id=1005068765/);
+      assert.ok(!a.includes('ab'.repeat(32)) && !a.includes('req-xyz') && !a.includes('loguear'), a);
+      // Valores que no son lo esperado (texto, sin header) no se copian al log.
+      assert.match(b, /request-id: no/);
+      assert.match(b, /ts=\?/);
+      assert.match(b, /live_mode=\?/);
+      assert.match(b, /user_id=\?/);
+      assert.ok(!b.includes('DROP') && !b.includes('quizás'), b);
+    });
+
     test('es público (Mercado Pago no manda sesión) y no expone nada de la donación', async () => {
       const id = await newDonation();
       payment = approved(id);
