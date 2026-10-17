@@ -198,7 +198,15 @@ if (USE_POSTGRES) {
   // transacciones hacen cola (una a la vez).
   let turn = Promise.resolve(); // cola de transacciones
   let openTx = null;            // { done: Promise } mientras haya una abierta
-  const waitForOpenTx = async () => { while (openTx) await openTx.done; };
+  // Recursivo en vez de `while (openTx) await openTx.done`: hace lo mismo (esperar y volver a mirar, porque
+  // la transacción pone openTx = null en su finally DURANTE el await), pero SonarCloud (regla S2189) no ve esa
+  // escritura desde otra función y marcaba el while como loop infinito (BLOCKER, PROJECT_ANALYSIS.md §191).
+  const waitForOpenTx = async () => {
+    const tx = openTx;
+    if (!tx) return;
+    await tx.done;
+    await waitForOpenTx();
+  };
   const gated = (name) => outsideTx(name, async (sql, params) => {
     await waitForOpenTx();
     return ops[name](sql, params);

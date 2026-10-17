@@ -5206,3 +5206,22 @@ Es el **primer run fallido real** del pipeline (decisión del usuario: no se arm
 - **En un PR, Sonar informa issues solo del código cambiado.** Los ceros no describen el proyecto entero: el análisis completo es el de `main`, después del merge.
 - Si `duplicated_lines_density` del PR es de todo el proyecto o solo de lo cambiado.
 - Cómo se comporta "código nuevo" en `main` (primer análisis de la rama principal).
+
+## 191. Segundo run fallido real (#7): el gate del TP bloqueó por 2 bugs críticos de SonarCloud — triage y correcciones
+
+**Qué pasó:** run #7 (`77f4fdf`, merge del PR #1 en `main`, https://github.com/SantiagoPlanasM/voluntariar-PF/actions/runs/ — run_number 7): los 8 jobs de tests en verde, el análisis de SonarCloud completo y **el gate del TP en rojo**. Es el primer análisis de todo el proyecto (el del PR #1 solo veía lo cambiado). El gate encontró **2 bugs BLOCKER/CRITICAL** abiertos. El gate "Sonar way" de SonarCloud dio OK: solo mira código nuevo, y en el primer análisis de `main` no hay.
+
+Análisis completo de `main` (API pública de SonarCloud, después del run #7): 17.058 líneas de código; cobertura **86,2 %**; duplicación **2,2 %**; **39 bugs** (BLOCKER 1, CRITICAL 1, MAJOR 37: 36 son `typescript:S9383`, "promesa sin await ni .catch", en el frontend); **18 vulnerabilidades** (CRITICAL 1, MAJOR 2, MINOR 15; 13 son `jssecurity:S5145`, log injection); 103 code smells; complejidad ciclomática 4.041 y cognitiva 2.715; deuda técnica 416 min.
+
+**Triage de los 2 bugs críticos (los dos, falsos positivos):**
+1. **BLOCKER `javascript:S2189`, `backend/src/db/index.js:201`:** `while (openTx) await openTx.done;`: "openTx no se modifica en el loop". Falso: la transacción hace `openTx = null` en su `finally` (línea 242) **durante** el `await`; Sonar no ve una escritura desde otra función asíncrona. Decisión del usuario: arreglarlo (ver tarea 1).
+2. **CRITICAL `javascript:S2871`, `backend/src/lib/storage.js:57`:** `.sort()` sin comparador en la firma de Cloudinary; Sonar sugiere `localeCompare`. Falso, y la sugerencia sería un defecto: Cloudinary firma ordenando por código de carácter (lo que hace `.sort()` por defecto). Probado: con los parámetros de hoy los dos órdenes coinciden, pero con mayúsculas o signos no (`Z_key` va primera por código y última con `localeCompare`). Decisión del usuario: comparador explícito + test (tarea 2).
+
+Además, una vulnerabilidad CRITICAL que el gate todavía no miraba: **`javascript:S4790`, `storage.js:60`, SHA-1 en la firma**. Decisión del usuario: el gate también bloquea ante vulnerabilidades BLOCKER/CRITICAL, y la firma pasa a SHA-256 (tareas 3 y 4).
+
+El run #7 no se toca: se corrige en commits posteriores.
+
+### Tarea 1 — `waitForOpenTx` recursivo (mismo comportamiento, sin el `while`)
+- `backend/src/db/index.js`: `const tx = openTx; if (!tx) return; await tx.done; await waitForOpenTx();`. Igual que el `while`: espera y vuelve a mirar.
+- **Verificación:** `db-transaction.test.js` 12/12. Mutante "no esperar" (antes y después del cambio): **muere** (2 fallas). Suite completa: SQLite **782/782**, Postgres **784/784**, SQLite con `TZ=America/Argentina/Cordoba` **782/782**.
+- **Mutante que sobrevive, y un hallazgo:** "esperar una sola vez, sin volver a mirar" sobrevive (0 fallas en 3 corridas): ningún test distingue las dos versiones. Al analizarlo apareció una **posible carrera en la cola de SQLite**. Cuando la transacción A termina, su `finally` resuelve `A.done` y libera el turno de B. La consulta que esperaba a A y la transacción B se reanudan en microtareas casi seguidas. Si B hace `BEGIN` antes de que la consulta llegue a ejecutarse, la consulta corre **dentro de B** (y se perdería con un ROLLBACK de B), que es justo lo que la cola quiere evitar. **No está probado con un test**: es una hipótesis por lectura del orden de las microtareas. Solo afecta a SQLite (desarrollo y tests); producción usa Postgres con pool. **No se corrigió** (regla 16): queda para decidir con el usuario.
