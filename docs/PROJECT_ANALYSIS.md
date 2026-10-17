@@ -5349,7 +5349,7 @@ O sea, el chequeo **no podía pasar** desde un script, y aunque se lo forzara **
 
 **Deploy #3** (https://github.com/SantiagoPlanasM/voluntariar-PF/actions/runs/39062074795, CI #11 de `528afeb` en verde): deploy, `wait` y smoke en verde; **E2E en rojo**. El usuario dijo "creo que puse mal el mail" y corrigió `E2E_EMAIL`. **La causa exacta del #3 no está confirmada**: no se vio su resumen.
 
-**Deploy disparado a mano** ("Run workflow", `workflow_dispatch`, sobre `528afeb`): el usuario pegó el resumen del E2E, **todo en verde**:
+**Deploy #4, disparado a mano** ("Run workflow", `workflow_dispatch`, sobre `528afeb`; https://github.com/SantiagoPlanasM/voluntariar-PF/actions/runs/39062374570): el usuario pegó el resumen del E2E, **todo en verde**:
 - ✅ login de la cuenta de E2E (voluntaria);
 - ✅ hay un proyecto activo para donar;
 - ✅ `POST /api/donaciones` ($100) crea la preferencia en Mercado Pago (201 + link con `pref_id`);
@@ -5361,7 +5361,7 @@ Con esto, **T9 queda cumplida para el nivel 3**: deploy por el pipeline después
 - **Agoté el cupo de la API pública de GitHub** (60 pedidos por hora sin sesión) siguiendo los runs cada 30 segundos con varias consultas por vuelta. Por eso no pude confirmar por la API el número ni el link del deploy en verde. **Lección:** seguir los runs cada 60–90 s, con una sola consulta por vuelta.
 
 ### ⚠️ NO verificado
-- El número y el link del deploy manual en verde (se completan cuando vuelva el cupo de la API, o con el link que pase el usuario).
+- ~~El número y el link del deploy manual en verde~~ Completado en §198: es el **Deploy #4**.
 - Cada E2E que pasa deja **una donación pendiente** en producción (por diseño). No revisé cuántas hay.
 
 ## 197. Pruebas de carga con k6: stress, esfuerzo sostenido y una corrida corta en producción (T10)
@@ -5405,3 +5405,25 @@ Con esto, **T9 queda cumplida para el nivel 3**: deploy por el pipeline después
 - **El workflow `Carga` no corrió nunca** en GitHub: hace falta el push y "Run workflow". Los números del informe tienen que salir de ahí.
 - Los inputs de `setup-k6-action@v1` (`k6-version`) los saqué de su README, no de su `action.yml` (no lo pude leer: 404 y la API de GitHub sin cupo).
 - La corrida contra producción no se hizo todavía.
+
+## 198. Números oficiales: Carga #1 del pipeline (k6 2.3.0) y Deploy #5, el primer deploy automático completo en verde
+
+**CI #12 → Deploy #5** (`df86dde`, https://github.com/SantiagoPlanasM/voluntariar-PF/actions/runs/39064610099): en verde, **disparado solo** por el CI de un push. Es el primer deploy automático completo (deploy + smoke + E2E de Mercado Pago). El #4 (§196) había sido manual.
+
+**Carga #1** (https://github.com/SantiagoPlanasM/voluntariar-PF/actions/runs/39065266810, `workflow_dispatch` con `produccion`, sobre `df86dde`, después del Deploy #5): **los dos jobs en verde**, runner 886 s y producción 130 s. Números del resumen del run (los pegó el usuario), **k6 v2.3.0 (go1.26.8, linux/amd64)**:
+
+| Prueba | Pedidos | p95 | p99 | Mediana | Máximo | Errores | Umbral (medido) |
+|---|---|---|---|---|---|---|---|
+| **Stress** (runner, rampa 0→100 usuarios, 270 s) | 79.811 (295,6/s) | 3,99 ms | 7,58 ms | 1,41 ms | 97,31 ms | 0,00 % | `hasta50`: p95 < 500 ms → **3,06 ms** ✅; errores < 1 % → **0** ✅ |
+| └ Quiebre (50→100 usuarios, sin umbral) | — | 4,56 ms | — | — | 97,31 ms | 0,00 % | — |
+| **Esfuerzo sostenido** (runner, 20 usuarios, 601 s) | 35.828 (59,6/s) | 3,17 ms | 6,46 ms | 1,39 ms | 40,07 ms | 0,00 % | p95 < 300 ms → **3,17 ms** ✅; errores < 1 % → **0** ✅ |
+| **Producción** (Render gratis, 10 usuarios, 122 s) | 2.414 (19,8/s) | 418,69 ms | 799,16 ms | 103,00 ms | 2.637,10 ms | 0,00 % | p95 < 2 s → **418,90 ms** ✅; errores < 1 % → **0** ✅ |
+
+**Lectura para el informe:**
+- En el runner, la API **no se degradó hasta 100 usuarios**: el p95 pasó de 3,06 ms (hasta 50) a 4,56 ms (50→100), sin errores. Con solo lecturas y los datos del seed, **no se encontró el punto de quiebre** dentro de la carga aprobada. Encontrarlo exige más usuarios o más datos (decisión pendiente).
+- En el sostenido no se vio degradación en 10 minutos: p95 3,17 ms y máximo 40 ms. Lo que no se midió es si **crece con el tiempo**: k6 da el agregado, no la evolución minuto a minuto.
+- **Producción es unas 100 veces más lenta que el runner** (mediana 103 ms contra 1,4 ms). Es lo esperable en el plan gratuito de Render (poca CPU, Postgres por red y la latencia desde GitHub hasta Render), pero no está medido qué parte corresponde a cada cosa. El máximo de 2,6 s probablemente sea el pedido que despierta la API en `setup()`, que entra en el agregado general pero no en el umbral (el umbral está acotado al escenario: 418,90 ms contra 418,69 ms del agregado). Eso **no está verificado**.
+- Las corridas locales de §197 dieron números más altos (p95 8–19 ms) que el runner (3–4 ms): Docker Desktop en Windows agrega la red virtual. **Los números del informe son los del pipeline.**
+
+### ⚠️ NO verificado
+- Que el máximo de 2,6 s en producción sea el pedido de `setup()`. Se ve en `prod.json` (artefacto `carga-produccion`), que no abrí.
