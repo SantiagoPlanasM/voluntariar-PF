@@ -4943,7 +4943,7 @@ Se le pidió al usuario mirar la línea `Pagos:` del arranque, volver a copiar l
 - Los dos huecos de tests que encontró la mutación.
 
 ### ⚠️ NO verificado
-- Nada visual (la tarjeta roja al final de cada perfil, la página de confirmación) ni el flujo real en Render: pedir el email, recibirlo (con `EMAIL_REDIRECT_TO` llega al usuario del proyecto) y abrir el link.
+- ~~El flujo real en Render~~ **Verificado por el usuario el 2026-10-16**: pedir el email, recibirlo y borrar la cuenta desde el link funciona en producción. Sigue sin verificarse lo visual en un celular.
 - La pantalla de confirmación no sabe de qué rol es la cuenta (no hay sesión): por eso el aviso de la ONG va siempre, como "Si sos una ONG…".
 
 ## 179. Privacidad y términos (`/privacidad`) y la guía de datos de demo (PLAN_FALTANTE.md, Etapa 11)
