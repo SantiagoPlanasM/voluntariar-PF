@@ -324,7 +324,7 @@ nunca llaman a Cloudinary ni a Mercado Pago de verdad (dobles).
 | 8 | ✅ (§171) MP: webhook + `GET /donaciones/:id` con conciliación. Los avisos IPN (sin firma posible) se responden 200 sin procesar | yo | 1 |
 | 9 | ✅ (§172) MP: frontend (botón, modal, `/donaciones/vuelta`) | yo | 1 |
 | 10 | ✅ (§173–§176) Donaciones verificadas en prod 3 veces: se acreditan por la vuelta. En modo prueba los avisos de pagos reales no validan / no llegan por el panel (§176). Sin probar: el rechazo `OTHE`. — MP en prod: variables (P5), URL del webhook en el panel de la aplicación, deploy, donación con el usuario comprador de prueba y una tarjeta de prueba | **vos** (yo guío y verifico por Chrome si me das la sesión) | docs |
-| 11 | Datos de demo en prod (K1) + privacidad y términos (T6) | yo + vos | 1–2 |
+| 11 | ✅ (§177–§179) Borrar la cuenta + `/privacidad` + `docs/DEMO_DATOS.md`. ⏳ Cargar los datos de demo en prod (vos, siguiendo esa guía) | yo + vos | 1–2 |
 | 12 | Celular real: login de los 3 roles, subir foto y CV desde la galería, donar, chat, mapa, barras inferiores | **vos** | — |
 | 13 | Guion de la defensa + checklist del día (despertar la API, sesiones abiertas, usuario comprador de prueba y tarjeta a mano) + docs viejos (R3) | yo | 1 |
 

@@ -170,3 +170,18 @@ describe('<AuthModal /> registro: contraseña de hasta 72 bytes', () => {
     expect(await screen.findByText(MSG)).toBeInTheDocument();
   });
 });
+
+// §179: al registrarse se acepta la página de privacidad y términos (se abre en otra pestaña para no perder el formulario).
+describe('<AuthModal /> registro: link a privacidad y términos', () => {
+  test('en "Crear cuenta" aparece el aviso con el link; en "Iniciar sesión", no', async () => {
+    render(<MemoryRouter><AuthProvider><OpenOnce /><AuthModal /></AuthProvider></MemoryRouter>);
+    await screen.findByRole('dialog', { name: 'Iniciar sesión' });
+    expect(screen.queryByRole('link', { name: 'la política de privacidad y los términos de uso' })).toBeNull();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Crear cuenta' })[0]);
+    const link = screen.getByRole('link', { name: 'la política de privacidad y los términos de uso' });
+    expect(link).toHaveAttribute('href', '/privacidad');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(link.closest('p')).toHaveTextContent('Al crear tu cuenta aceptás la política de privacidad y los términos de uso.');
+  });
+});

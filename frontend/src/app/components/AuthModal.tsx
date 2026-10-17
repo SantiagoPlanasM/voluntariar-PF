@@ -233,6 +233,13 @@ export function AuthModal() {
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {tab === 'login' ? 'Entrar' : 'Crear mi cuenta gratis'}
             </button>
+            {/* §179: en otra pestaña, para no perder lo que ya se escribió en el formulario. */}
+            {tab === 'register' && (
+              <p className="text-center text-[11px] text-gray-400">
+                Al crear tu cuenta aceptás{' '}
+                <a href="/privacidad" target="_blank" rel="noopener noreferrer" className="underline hover:text-gray-600">la política de privacidad y los términos de uso</a>.
+              </p>
+            )}
           </form>
 
           <p className="text-center text-xs text-gray-400 mt-4">

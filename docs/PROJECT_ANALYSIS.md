@@ -4945,3 +4945,35 @@ Se le pidió al usuario mirar la línea `Pagos:` del arranque, volver a copiar l
 ### ⚠️ NO verificado
 - Nada visual (la tarjeta roja al final de cada perfil, la página de confirmación) ni el flujo real en Render: pedir el email, recibirlo (con `EMAIL_REDIRECT_TO` llega al usuario del proyecto) y abrir el link.
 - La pantalla de confirmación no sabe de qué rol es la cuenta (no hay sesión): por eso el aviso de la ONG va siempre, como "Si sos una ONG…".
+
+## 179. Privacidad y términos (`/privacidad`) y la guía de datos de demo (PLAN_FALTANTE.md, Etapa 11)
+
+**Qué se hizo:**
+- **`PrivacyPage.tsx`** (nuevo, ruta pública `/privacidad`). Ocho secciones (`<section aria-labelledby>`): quién es responsable, qué datos se guardan, quién ve qué, con quién se comparten, cuánto tiempo, derechos (Ley 25.326), reglas de uso y **limitaciones de la demo**.
+  - Responsable: **"proyecto final de la Universidad Católica de Córdoba (UCC)"**, sin nombres ni email (decisión del usuario). Aclara que es una demo académica.
+  - Para borrar los datos remite a **"Borrar mi cuenta"** (§177–§178).
+- **Links:** en el registro, "Al crear tu cuenta aceptás la política de privacidad y los términos de uso". Se abre en otra pestaña (`target="_blank" rel="noopener noreferrer"`) para no perder el formulario, y no aparece al iniciar sesión. También está en el pie de la barra del feed (`FeedSidebar`).
+- **`docs/DEMO_DATOS.md`** (nuevo): qué cuentas crear, qué cargar y en qué orden para que la defensa muestre todos los módulos, más un checklist final. **Sin contraseñas**, porque el repo está en GitHub, y sin datos de personas reales. Los datos de demo se cargan por la interfaz (decisión del usuario; el seed sigue bloqueado en producción, §116).
+
+**Cada afirmación de la página, verificada en el código el 2026-10-16:**
+- **Sin cookies ni analítica:** no hay `gtag`, `analytics`, `plausible` ni `hotjar` en `frontend/src` ni en `index.html`, y no se usa `document.cookie` ni `res.cookie`. La sesión es `v_token` en `localStorage` (`api.ts`), que se borra al cerrar sesión.
+- **La contraseña se guarda con bcrypt** (`auth.js`, `bcrypt.hash(password, 10)`).
+- **El CV:** privado, solo para la ONG con inscripción pendiente o aprobada, con un link de 10 minutos (§165).
+- **Los mensajes** los ven los dos participantes. **La donación** la ve solo quien donó (§171), y la ONG recibe un aviso con el monto (§170).
+- **Mercado Pago no le pasa la tarjeta a la app:** Checkout Pro se paga en su página (§169).
+- **Los emails "van al equipo del proyecto":** con el remitente de prueba de Resend, solo se entregan al dueño de la cuenta, y con `EMAIL_REDIRECT_TO` todos se redirigen a esa dirección.
+- **Las fotos de perfil anteriores** pueden quedar en Cloudinary (§162: no se guarda su id).
+
+### Verificación
+- Tests: `PrivacyPage.test.tsx` (10: título y fecha, responsable, las 8 secciones, CV, proveedores y "no vendemos", derechos, limitaciones, cookies, **que no publique ningún email**, y el link del pie) y `AuthModal.test.tsx` (+1: el link solo en el registro, con `target` y `rel`).
+- Rojo: el módulo no existía, y el test del registro fallaba.
+- Frontend **694/694** (antes 683, +11), también con TZ; `typecheck` 0. Backend sin cambios.
+- **Mutación** (control en verde): **16 mutantes, 0 sobrevivientes**: el aviso también en el login, el aviso ausente, la misma pestaña, sin `noopener`, sin el link del pie, y que la página pierda el responsable, "demo académica", el vencimiento del CV o su restricción, "no vendemos", Resend, la ley, "Borrar mi cuenta", el aviso de los emails, el de las cookies o la fecha.
+
+### Errores propios
+- Un test buscaba el `<strong>CV</strong>` en vez del renglón (`closest('li')`).
+
+### ⚠️ NO verificado
+- **No es asesoramiento legal.** La mención a la Ley 25.326 la escribí con lo que sé, no consulté la ley hoy. Para la tesis alcanza como aviso de una demo académica; para un servicio real habría que revisarlo con alguien que sepa.
+- Nada visual: la página y el renglón del registro.
+- `DEMO_DATOS.md` no lo seguí yo: lo vas a ejecutar vos en producción. Si algún paso no coincide con la interfaz, se corrige.

@@ -228,6 +228,8 @@ export function FeedSidebar({
           <Link to="/notifications" className="hover:text-gray-600 transition-colors">Notificaciones</Link>
           <span>•</span>
           <a href="#ayuda" className="hover:text-gray-600 transition-colors">Ayuda</a>
+          <span>•</span>
+          <Link to="/privacidad" className="hover:text-gray-600 transition-colors">Privacidad y términos</Link>
         </div>
         <p className="text-gray-400 text-[10px] uppercase font-bold tracking-wider">
           © 2026 Voluntariar
