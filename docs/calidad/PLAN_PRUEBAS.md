@@ -15,6 +15,7 @@
 | 0.5 | 2026-10-17 | Niveles: smoke y E2E de Mercado Pago definidos y automatizados en `deploy.yml` (T9, §193) |
 | 0.6 | 2026-10-17 | O9 y nivel no funcional: k6 con umbrales fijados antes de correr y workflow `Carga` (T10, §197) |
 | 0.7 | 2026-10-17 | Diseño de casos, AAA y rojo/verde en `DISENO_CASOS.md` (T6 y T7, §199) |
+| 0.8 | 2026-10-17 | Registro de defectos en GitHub Issues (#2–#19) y trazabilidad completa en `REGISTRO_DEFECTOS.md` (T12, §204) |
 
 El documento se versiona en git: cada cambio entra en un commit propio y suma una fila a esta tabla.
 
@@ -183,7 +184,9 @@ Título: `[DEF] <qué falla, en una línea>` · Labels: `defecto`, severidad (`s
 | Evidencia | Salida del test en rojo, run del pipeline, log |
 | Corrección | Commit del fix y test de regresión (en verde) |
 
-### Trazabilidad requisito → caso → defecto (inicial; los números de Issue se completan en T12)
+### Trazabilidad requisito → caso → defecto (inicial)
+
+> **Desde T12 (§204), la trazabilidad completa con los Issues está en `REGISTRO_DEFECTOS.md`**: 18 defectos (#2–#19 en GitHub Issues), cada uno con su requisito, su caso de prueba, el commit del arreglo y la prueba de regresión. La tabla de abajo es la versión inicial (v0.1), por requisito.
 
 | Requisito | Tests que lo cubren | Defectos documentados |
 |---|---|---|

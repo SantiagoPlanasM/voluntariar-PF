@@ -5578,3 +5578,26 @@ De los 13 `S5145`, **SonarCloud cerró 12, o sea que reconoció `forLog()`** com
 - **El paso 3 de crear voluntariado no se abrió en Chrome** (lo cubre el test).
 - **No se mandó ningún formulario:** se escribieron datos de prueba sin guardar.
 - **El análisis de SonarCloud de estos cambios:** sale con el próximo push.
+
+## 204. Registro de defectos en GitHub Issues (T12) y cierre del triage de SonarCloud
+
+**Registro de defectos:** 18 defectos ya documentados (nada inventado), cargados en **GitHub Issues #2–#19** (el #1 es el PR de Sonar) con `gh` 2.102.0, autorizado y logueado por el usuario. Todo se publicó después del "publicá" explícito del usuario.
+- **13 labels:** `defecto`, `sev:alta/media/baja`, `encontrado:revision/ci/sonar/mutacion/prod`, `area:backend/frontend/ci/tests`.
+- **Cada Issue** sigue la plantilla de `PLAN_PRUEBAS.md §10`: requisito, caso, origen, entorno, pasos, esperado, obtenido, commit del arreglo y prueba de regresión. Se **cerró como "completado"** con un comentario que linkea el commit.
+- `docs/calidad/REGISTRO_DEFECTOS.md` (trazabilidad requisito → caso → defecto → Issue) y los cuerpos de los Issues **salen del mismo archivo de datos**, así que dicen lo mismo.
+- `.github/ISSUE_TEMPLATE/defecto.md` deja la plantilla para los defectos que aparezcan de acá en adelante. `PLAN_PRUEBAS.md` v0.8.
+- Severidad: alta 2, media 8, baja 8. **Dónde se encontraron:** revisión 6, CI 4, SonarCloud 3, mutación 1, **producción 4**. Tasa de escapados **4/18 = 22,2 % sobre este registro**. El documento aclara que es una **selección**: con todos los hallazgos de `REVISION.md` el denominador sería mucho mayor.
+
+**Triage de SonarCloud, cierre:** 14 issues aceptadas con su comentario (6 por el usuario y 8 por Claude en Chrome, con autorización explícita; se destildó la opción de compartir el comentario con Sonar), 17 FIXED, **gate "Sonar way" en OK**, y 63 abiertas, todas `S7773` (cosméticas). `TRIAGE_SONAR.md` actualizado.
+
+### Verificación
+- `gh issue view 12`: CLOSED/COMPLETED, 4 labels y el comentario con el commit. `gh issue list --label defecto --state all`: **18**.
+- SonarCloud (API): los 14 triados en `ACCEPTED` con 1 comentario cada uno; `qualitygates/project_status` = **OK**; issues abiertas: **63**.
+
+### Errores propios
+- **El primer borrador del registro tenía 15 defectos y dejaba afuera los 3 de producción de §173**, aunque `PLAN_CALIDAD_TP.md` decía que §173 se había encontrado en producción. Con eso la tasa de escapados daba 1/15: estaba sesgada a favor. Se agregaron D16–D18 antes de publicar.
+- **En D05 había puesto una fecha de ejemplo que no estaba documentada** (15/10). Se cambió por la probada en `REVISION.md` (2026-10-01 → "30 de sept").
+- **En Chrome, varias veces el clic cayó en la pestaña "More info"** porque el panel se desplazaba solo al cargar el código. Fue inofensivo (no cambia nada) y se resolvió verificando cada issue (archivo y línea) por la página antes de aceptarla.
+
+### ⚠️ NO verificado
+- Si las 6 issues que aceptó el usuario quedaron con "Share this comment with Sonar" tildado (no se puede ver desde la API pública).

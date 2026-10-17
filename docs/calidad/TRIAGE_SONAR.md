@@ -58,3 +58,11 @@ con test unitario y uno de punta a punta (`donaciones-webhook.test.js`). Si el m
 `forLog()` como sanitizador, se marcan como **"Accept"** con:
 
 > Corregido en el código: el valor pasa por forLog() (backend/src/lib/logSafe.js), que reemplaza los caracteres de control por espacios y limita el largo; probado en test/unit/logSafe.test.js y en donaciones-webhook.test.js ("un data.id con salto de línea no parte la línea del log"). SonarCloud no reconoce la función como sanitizador. PROJECT_ANALYSIS.md §202.
+
+## Estado final del triage (2026-10-17, API pública de SonarCloud)
+
+- **14 issues aceptadas, cada una con su comentario de justificación**: 6 las marcó el usuario y 8 las marcó Claude en Chrome con la sesión del usuario (autorizado). Al aceptar se destildó "Share this comment with Sonar to help us improve analyzers" (venía tildada por defecto).
+- **17 cerradas como FIXED** por los cambios de código (§200–§203).
+- El S5145 de `donaciones.js:188` se aceptó: Sonar sigue `dataId` a través de `forLog()` en esa línea y no lo da por sanitizado (en las otras 12 sí); el test de punta a punta prueba que está protegido.
+- **Gate "Sonar way": OK.** Antes fallaba por "Security Rating B en código nuevo": la línea 188 se había modificado y su issue contaba como nueva. El gate del TP (`sonar-gate.js`) pasaba igual: son dos gates distintos.
+- **Issues abiertas: 63**, todas `S7773` (`Number.parseInt` en vez de `parseInt`): deuda cosmética que se deja a propósito y va a la tabla de métricas.
