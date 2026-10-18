@@ -9,9 +9,16 @@
  *  (Antes se le pegaba una "Z" a todo, así que un ISO con "Z" daba una fecha inválida.) */
 export function parseBackendDate(value: string): number {
   const s = value.trim().replace(' ', 'T');
-  // La zona solo se busca DESPUÉS de la hora: el "-10" de "2026-08-10" no es un offset.
-  const hasZone = /T.*(Z|[+-]\d{2}(:?\d{2})?)$/i.test(s);
-  return new Date(hasZone || !s.includes('T') ? s : s + 'Z').getTime();
+  return new Date(hasZone(s) || !s.includes('T') ? s : s + 'Z').getTime();
+}
+
+// La zona solo se busca DESPUÉS de la hora: el "-10" de "2026-08-10" no es un offset.
+// Antes era /T.*(Z|[+-]\d{2}(:?\d{2})?)$/i, cuadrático por el `.*` (SonarCloud S8786, §231). Acepta lo mismo: la
+// zona no tiene ninguna T, así que alcanza con que haya una T en la misma línea (el `.` no cruzaba saltos de línea).
+const ZONE_AT_END = /(?:Z|[+-]\d{2}(?::?\d{2})?)$/i;
+export function hasZone(s: string): boolean {
+  const lastLine = s.split(/[\n\r\u2028\u2029]/).pop() ?? '';
+  return /t/i.test(lastLine) && ZONE_AT_END.test(lastLine);
 }
 
 /** "hace cuánto" en español, a partir de un timestamp del backend (ver parseBackendDate). */
@@ -70,7 +77,9 @@ export function truncateText(text: string, max: number, maxLines = 4): { text: s
       if (lastSpace > max * 0.4) cut = cut.slice(0, lastSpace);
     }
   }
-  return { text: cut.replace(/\s+$/, '') + '…', truncated: true };
+  // trimEnd y no /\s+$/: el regex era cuadrático con muchos espacios en el medio (SonarCloud S8786, §231). Sacan los
+  // mismos caracteres: los dos usan los espacios y saltos de línea de la especificación.
+  return { text: cut.trimEnd() + '…', truncated: true };
 }
 
 /** Texto para comparar sin distinguir mayúsculas ni acentos: "Córdoba" → "cordoba", "Ñandú" → "nandu".

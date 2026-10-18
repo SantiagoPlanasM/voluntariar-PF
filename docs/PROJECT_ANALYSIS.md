@@ -6390,3 +6390,35 @@ Con esto queda verificado el último punto que §222 y §224 dejaban sin verific
 ### ⚠️ NO verificado
 - **El aspecto del PDF:** no pude renderizar las páginas (falta `pdftoppm`). Solo sé que siguen siendo 9. Conviene mirar las tablas de la sección 4, que tienen una fila más cada una.
 - La densidad de pruebas (75,9 tests/KLOC en el frontend, CI #19) no se recalculó con los 896 tests.
+
+## 231. SonarCloud S8786: los 6 regex con backtracking, reescritos lineales y con la misma respuesta
+
+**Contexto:** el usuario preguntó por las 14 issues **aceptadas** de SonarCloud (§204), que no cuentan como abiertas. Se revisaron una por una y propuse arreglar en el código 10 de ellas; el usuario dijo "dale". Van en cuatro commits: §231 (regex), §232 (topes de subida), §233 (un test) y §234 (fondo del modal). Quedan aceptadas 4, que se explican en `TRIAGE_SONAR.md`.
+
+**Qué se hizo:** los 6 `S8786` (en §201 se había puesto un tope delante de 2 de ellos y se habían aceptado los otros 4) ahora son lineales:
+- **email** (`EMAIL_RE` de `routes/auth.js` y de `AuthModal.tsx`; `looksLikeEmail` de `lib/email.js`): el punto del dominio entraba en las dos clases que lo rodeaban (`[^\s@]+\.[^\s@]+`). Ahora se busca **el primer punto después del primer carácter del dominio** (`@[^\s@][^\s@.]*\.`). Hay un punto válido justo cuando ese primero lo es, así que acepta lo mismo. El tope de 254 queda, porque es el máximo de RFC 5321.
+- **`hasZone`** (`lib/time.js` y `lib/format.ts`; ahora es una función exportada): `/T.*(zona)$/i` pasa a "hay una T en la última línea" + `/(?:Z|[+-]\d{2}(?::?\d{2})?)$/i`. La zona no contiene ninguna T, y el `.` viejo no cruzaba saltos de línea (`\n`, `\r`, ` `, ` `), por eso se mira solo la última línea.
+- **`truncateText`** (`format.ts`): `/\s+$/` → `trimEnd()`. Según la especificación, los dos usan el mismo conjunto de espacios y saltos de línea.
+
+**Tests primero** (`backend/test/unit/regexLineales.test.js`, 7, y `frontend/src/lib/regexLineales.test.ts`, 7):
+- Primero se exportaron las funciones **viejas**, sin cambiarlas, y se escribieron los tests contra ellas: las comparaciones pasaron y los tiempos fallaron (3,1–3,3 s en el backend; 2,4–3,3 s en el frontend). Fue un rojo real, no un "el módulo no existe".
+- **Equivalencia contra un oráculo:** el regex viejo vive en el test y se compara con la versión nueva en **todas** las cadenas cortas de un alfabeto armado con los caracteres que importan: más de 1,9 millones para `hasZone` (11 letras, hasta 6 caracteres), 488 mil para `looksLikeEmail`, 349 mil para `EMAIL_RE`, y los 16 espacios de `\s` para `trimEnd`.
+- **Tiempo:** entradas de 50 mil caracteres armadas para el peor caso, que tienen que tardar menos de 100 ms (antes, 2,3–4,3 s). El de `EMAIL_RE` va **sin** pasar por el tope de 254.
+
+### Verificación
+- Unitarios de los archivos tocados (`time`, `email`, `validators`, `format`, `AuthModal`) en verde.
+- **Mutación**, con corrida de control verde en cada archivo: **49 mutantes, 0 sobrevivientes**. Entre ellos están:
+  - sacar la T, la `i`, el split o cada separador de línea;
+  - `.pop()` → `.shift()`, `:?` → `:`, `\d{2}` → `\d{1,2}`, sin `$`, sin `Z`;
+  - `trimEnd` → `trim` o nada;
+  - en los emails: sin el primer carácter del dominio, `*` → `+`, punto opcional, sin anclas, `{2,}` → `+`, y **volver a la clase vieja**, que solo se detecta por tiempo.
+- Las suites completas se corrieron con los cuatro commits juntos (§234).
+
+### Errores propios
+- **El Edit y el Write convirtieron los escapes ` `/` ` en los caracteres literales.** Dentro de un regex literal eso es un salto de línea, y `time.js` no compilaba (lo marcó la primera corrida). Con un script se volvieron a escribir como escapes, y se revisó que no quedaran espacios invisibles en los archivos tocados.
+- Un primer script de reemplazo perdió las barras de los regex por el heredoc. Se cortó antes de escribir nada y se pasó a Edit.
+- Puse `hasZone` entre el JSDoc de `toMillis` y la función. Lo corregí antes del commit.
+- En el test de `trimEnd`, el primer armado hacía que `truncateText` retrocediera hasta la última palabra. Lo corregí antes de correrlo.
+
+### ⚠️ NO verificado
+- Que SonarCloud dé por cerradas estas 6 issues aceptadas: se ve en el análisis después del push.

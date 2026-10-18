@@ -31,12 +31,15 @@ const tooMany = (res, seconds) => {
 const DUMMY_HASH = bcrypt.hashSync('cuenta-inexistente', 10);
 
 // ── Validaciones ──────────────────────────────────────────────────────────
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+// Dominio con un punto que no sea el primer carácter y con 2 o más caracteres después. Antes,
+// [^\s@]+\.[^\s@]{2,}: el punto entraba en las dos clases y el backtracking era cuadrático (SonarCloud S8786,
+// §201 y §231). Ahora se busca el primer punto después del primer carácter: acepta lo mismo.
+const EMAIL_RE = /^[^\s@]+@[^\s@][^\s@.]*\.[^\s@]{2,}$/;
 const NAME_RE  = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]{2,50}$/;
 
 // `typeof v !== 'string'` primero: antes un número o un array reventaba en `.trim()` y daba 500 (REVISION B13).
-// Largo máximo ANTES del regex: EMAIL_RE tiene backtracking cuadrático y un email de 80 mil caracteres bloqueaba la
-// API 3,4 s por pedido (SonarCloud S8786, PROJECT_ANALYSIS.md §201). 254 es el máximo de RFC 5321.
+// Largo máximo ANTES del regex: con el EMAIL_RE viejo, un email de 80 mil caracteres bloqueaba la API 3,4 s por
+// pedido (§201). El regex ya es lineal (§231); el tope queda porque 254 es el máximo de RFC 5321.
 const EMAIL_MAX = 254;
 function validateEmail(v) {
   if (typeof v !== 'string') return 'Email inválido';
@@ -470,5 +473,6 @@ module.exports = router;
 // Exportadas aparte para poder testearlas de forma aislada, sin pegarle a la
 // API completa (mismo patrón que insertMessage en routes/messages.js).
 module.exports.validateEmail = validateEmail;
+module.exports.EMAIL_RE = EMAIL_RE;
 module.exports.validateName = validateName;
 module.exports.validatePassword = validatePassword;

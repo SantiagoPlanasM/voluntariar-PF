@@ -8,11 +8,12 @@ import { Modal } from './Modal';
 type Tab = 'login' | 'register';
 
 // ── Validaciones frontend (espejo del backend) ────────────────────────────
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+// Igual que el backend: el primer punto después del primer carácter del dominio, con 2 o más caracteres después.
+// Antes, [^\s@]+\.[^\s@]{2,}, cuadrático por el backtracking (SonarCloud S8786, §201 y §231); acepta lo mismo.
+export const EMAIL_RE = /^[^\s@]+@[^\s@][^\s@.]*\.[^\s@]{2,}$/;
 const NAME_RE  = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]{2,50}$/;
 
-// Tope de 254 (RFC 5321) ANTES del regex, como el backend: EMAIL_RE tiene backtracking cuadrático (SonarCloud
-// S8786, PROJECT_ANALYSIS.md §201).
+// Tope de 254 (RFC 5321) antes del regex, como el backend (§201). El regex ya es lineal (§231).
 const EMAIL_MAX = 254;
 function validateEmail(v: string) {
   const email = v.trim();

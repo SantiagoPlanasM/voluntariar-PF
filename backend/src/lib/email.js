@@ -32,7 +32,10 @@ const { esc } = require('./emailTemplates');
 const { forLog } = require('./logSafe');   // S5145 (§202)
 
 const DEFAULT_FROM = 'VoluntariAR <onboarding@resend.dev>';
-const looksLikeEmail = (s) => /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(s);
+// Dominio con un punto que no sea ni el primero ni el último carácter. Antes, [^\s@<>"]+\.[^\s@<>"]+: el punto
+// entraba en las dos clases y el backtracking era cuadrático (SonarCloud S8786, §231). Ahora se busca el primer
+// punto después del primer carácter, que existe justo cuando existe alguno válido: acepta lo mismo.
+const looksLikeEmail = (s) => /^[^\s@<>"]+@[^\s@<>"][^\s@<>".]*\.[^\s@<>"]+$/.test(s);
 
 // Se lee en cada llamada (no al cargar el módulo): así la configuración es visible y testeable.
 function getConfig() {
@@ -148,4 +151,4 @@ function describeEmailConfig() {
   return `Resend (${from})`;
 }
 
-module.exports = { sendEmail, describeEmailConfig };
+module.exports = { sendEmail, describeEmailConfig, looksLikeEmail };
