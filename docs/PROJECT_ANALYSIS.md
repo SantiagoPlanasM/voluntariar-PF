@@ -5816,3 +5816,16 @@ Se escribió en HTML con estilos de impresión A4 y se convirtió con Chrome hea
 
 ### ⚠️ NO verificado
 - Nada visual. No hay nada que ver: el componente no se mostraba en ninguna pantalla.
+
+## 212. Umbral bloqueante del 80 % en las cuatro métricas de cobertura del frontend (decisión del usuario)
+
+**Qué se hizo:** en `frontend/vite.config.ts` el umbral pasa de `{ lines: 80 }` (§186) a `{ lines: 80, statements: 80, branches: 80, functions: 80 }`. El job del frontend del CI corre `npm run test:coverage`, así que el pipeline **falla si cualquiera de las cuatro baja del 80 %**.
+
+### Verificación
+- `npm run test:coverage` con los umbrales nuevos: 864/864, **salida 0**.
+- **Rojo del umbral:** misma corrida con `--coverage.thresholds.branches=82` → **salida 1**, con `ERROR: Coverage for branches (81.14%) does not meet global threshold (82%)`. El umbral bloquea de verdad.
+
+### ⚠️ NO verificado
+- La corrida en el CI (después del push).
+- **El margen es chico:** ramas 81,14 % es **~35 ramas** sobre el mínimo. Código nuevo del frontend sin tests puede romper el pipeline. Es el efecto buscado, pero hay que tenerlo en cuenta cerca de la defensa.
+- `METRICAS.md`, `PLAN_PRUEBAS.md` (O3) y el informe todavía dicen "solo líneas". Se actualizan con el número del run del CI que lo confirme.
