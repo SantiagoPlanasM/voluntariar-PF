@@ -24,6 +24,7 @@ const tokenCrypto = require('../lib/tokenCrypto');
 const sellerAccounts = require('../lib/sellerAccounts');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { checkText } = require('../lib/inputs');
+const { forLog } = require('../lib/logSafe');   // S5145 (§225)
 
 const router = express.Router();
 router.use(requireAuth, requireRole('ngo'));
@@ -106,7 +107,7 @@ router.post('/callback', async (req, res) => {
 
     const saved = await sellerAccounts.saveAccount(ngoId, tokens, 'oauth');
     if (saved.conflict) return res.status(409).json({ error: 'Esa cuenta de Mercado Pago ya está vinculada a otra ONG.' });
-    console.log(`[mercadopago] ONG ${ngoId} vinculó la cuenta ${tokens.mpUserId}`);
+    console.log(`[mercadopago] ONG ${ngoId} vinculó la cuenta ${forLog(tokens.mpUserId, 40)}`);
     res.json({ account: await sellerAccounts.publicAccount(ngoId) });
   } catch (err) {
     console.error('POST /ngos/me/mercadopago/callback error:', err.message);

@@ -17,6 +17,7 @@ require('dotenv').config();
 const db = require('../src/db');
 const payments = require('../src/lib/payments');
 const sellerAccounts = require('../src/lib/sellerAccounts');
+const { forLog } = require('../src/lib/logSafe');   // S5145 (§225): lo que manda Mercado Pago no entra crudo
 
 // --solo-ver (§221): de quién es el token, sin guardar nada. El token de prueba del panel de la aplicación puede ser
 // de una cuenta oculta de Mercado Pago (§181) y no del vendedor de la ONG: hay que verlo antes de vincular.
@@ -42,19 +43,29 @@ async function linkManually({ ngoId, accessToken, getUser = (t) => payments.getS
   return { ngoName: ngo.nombre, mpUserId: String(user.id), nickname: user.nickname ?? null };
 }
 
+// Los mensajes de la terminal, con todo lo externo por forLog (§225).
+function describeInspection(r) {
+  const tags = r.tags.map((t) => forLog(t, 40)).join(', ') || '(ninguno)';
+  return [
+    `Cuenta de Mercado Pago ${forLog(r.mpUserId, 40)}${r.nickname ? ` (${forLog(r.nickname, 80)})` : ''}; tags: ${tags}`,
+    r.isTestUser ? 'Es un usuario de prueba: se puede vincular.' : 'NO trae el tag test_user: el script no la va a vincular.',
+  ];
+}
+const describeLinked = (r) =>
+  `✅ ${forLog(r.ngoName, 120)} quedó vinculada a la cuenta de prueba ${forLog(r.mpUserId, 40)}${r.nickname ? ` (${forLog(r.nickname, 80)})` : ''}`;
+
 if (require.main === module && process.argv.includes('--solo-ver')) {
   inspectToken({ accessToken: process.env.MP_MANUAL_SELLER_TOKEN })
     .then((r) => {
-      console.log(`Cuenta de Mercado Pago ${r.mpUserId}${r.nickname ? ` (${r.nickname})` : ''}; tags: ${r.tags.join(', ') || '(ninguno)'}`);
-      console.log(r.isTestUser ? 'Es un usuario de prueba: se puede vincular.' : 'NO trae el tag test_user: el script no la va a vincular.');
+      for (const line of describeInspection(r)) console.log(line);
       process.exit(0);
     })
-    .catch((err) => { console.error(`❌ ${err.message}`); process.exit(1); });
+    .catch((err) => { console.error(`❌ ${forLog(err.message)}`); process.exit(1); });
 } else if (require.main === module) {
   const ngoId = process.argv[2];
   linkManually({ ngoId, accessToken: process.env.MP_MANUAL_SELLER_TOKEN })
-    .then((r) => { console.log(`✅ ${r.ngoName} quedó vinculada a la cuenta de prueba ${r.mpUserId}${r.nickname ? ` (${r.nickname})` : ''}`); process.exit(0); })
-    .catch((err) => { console.error(`❌ ${err.message}`); process.exit(1); });
+    .then((r) => { console.log(describeLinked(r)); process.exit(0); })
+    .catch((err) => { console.error(`❌ ${forLog(err.message)}`); process.exit(1); });
 }
 
-module.exports = { linkManually, inspectToken };
+module.exports = { linkManually, inspectToken, describeInspection, describeLinked };

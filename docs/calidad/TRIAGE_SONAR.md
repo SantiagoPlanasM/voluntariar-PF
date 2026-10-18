@@ -66,3 +66,21 @@ con test unitario y uno de punta a punta (`donaciones-webhook.test.js`). Si el m
 - El S5145 de `donaciones.js:188` se aceptó: Sonar sigue `dataId` a través de `forLog()` en esa línea y no lo da por sanitizado (en las otras 12 sí); el test de punta a punta prueba que está protegido.
 - **Gate "Sonar way": OK.** Antes fallaba por "Security Rating B en código nuevo": la línea 188 se había modificado y su issue contaba como nueva. El gate del TP (`sonar-gate.js`) pasaba igual: son dos gates distintos.
 - **Issues abiertas: 63**, todas `S7773` (`Number.parseInt` en vez de `parseInt`): deuda cosmética que se deja a propósito y va a la tabla de métricas.
+
+## Análisis del 2026-10-18 (`e3c57af`, el Marketplace de Mercado Pago, §215–§224)
+
+SonarCloud marcó **3 vulnerabilidades nuevas**, las tres `S5145` (inyección en logs) y de severidad menor. Con ellas, la seguridad pasó de **A a B**. El gate del TP no bloqueó porque solo frena las críticas.
+
+| Dónde | Qué entraba crudo al log | Riesgo real |
+|---|---|---|
+| `routes/mercadopago.js:109` | el `mpUserId` que devuelve Mercado Pago | bajo: `payments.oauthToken` ya exige solo dígitos |
+| `scripts/vincular-mp-manual.js:48` y `:56` | el nickname, los tags y los mensajes de error que vienen de Mercado Pago | bajo: salen en la terminal de quien corre el script |
+
+**Decisión: se corrigen, no se aceptan.** Es la regla del proyecto desde §202: todo valor externo pasa por `forLog()`. Los mensajes del script pasaron a funciones puras (`describeInspection`, `describeLinked`), con un test que manda saltos de línea. La ruta tiene un test de punta a punta del log (§225). Se ve en el próximo análisis: si Sonar no reconoce `forLog()`, se acepta con el comentario de arriba.
+
+**Medidas de ese análisis** (API pública):
+- bugs 0;
+- vulnerabilidades 3, que §225 corrige;
+- code smells 57; deuda 114 min; duplicación 1,9 %;
+- 17.573 líneas; cobertura 89,6 %;
+- código nuevo: cobertura 94,4 %, duplicación 0,0 %, 0 bugs, 0 críticas.

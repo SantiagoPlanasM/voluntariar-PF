@@ -23,7 +23,7 @@ const REFRESH = 'TG-refresh-de-la-ong-RECONOCIBLE';
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 
 describe('Cuenta de Mercado Pago de la ONG (Marketplace)', () => {
-  let server, baseUrl, db, payments, tokenCrypto, linkManually, inspectToken;
+  let server, baseUrl, db, payments, tokenCrypto, linkManually, inspectToken, describeInspection, describeLinked;
   let ngo1, ngo2, maria;
   let exchanges, exchangeImpl, saved;
 
@@ -35,7 +35,7 @@ describe('Cuenta de Mercado Pago de la ONG (Marketplace)', () => {
     db = require('../../src/db');
     payments = require('../../src/lib/payments');
     tokenCrypto = require('../../src/lib/tokenCrypto');
-    ({ linkManually, inspectToken } = require('../../scripts/vincular-mp-manual'));
+    ({ linkManually, inspectToken, describeInspection, describeLinked } = require('../../scripts/vincular-mp-manual'));
     mock.method(payments, 'exchangeCode', async (code) => { exchanges.push(code); return exchangeImpl(code); });
     ngo1 = await login('admin@sustentando.org');
     ngo2 = await login('admin@greencba.org');
@@ -262,6 +262,18 @@ describe('Cuenta de Mercado Pago de la ONG (Marketplace)', () => {
       assert.equal(Number((await db.get('SELECT COUNT(*) AS n FROM ngo_cuentas_mp')).n), 1);
     });
 
+    test('§225: el log de la vinculación no deja pasar saltos de línea (S5145)', async () => {
+      const lines = [];
+      mock.method(console, 'log', (...a) => lines.push(a.join(' ')));
+      try {
+        exchangeImpl = async () => ({ accessToken: ACCESS, refreshToken: REFRESH, mpUserId: '1\n[mercadopago] línea falsa', expiresIn: 100, liveMode: false });
+        await api('/callback', { token: ngo1, method: 'POST', body: { code: 'TG-c', state: await connect() } });
+      } finally { console.log.mock.restore(); }
+      const mine = lines.filter((l) => l.includes('vinculó la cuenta'));
+      assert.equal(mine.length, 1);
+      assert.ok(!/[\r\n]/.test(mine[0]), mine[0]);
+    });
+
     test('ningún token ni el secreto llegan a los logs', async () => {
       const lines = [];
       for (const m of ['log', 'warn', 'error']) mock.method(console, m, (...a) => lines.push(a.join(' ')));
@@ -333,6 +345,20 @@ describe('Cuenta de Mercado Pago de la ONG (Marketplace)', () => {
       let asked = 0;
       await assert.rejects(inspectToken({ accessToken: '', getUser: async () => { asked++; return testUser(); } }), /token/i);
       assert.equal(asked, 0);
+    });
+
+    // §225 (SonarCloud S5145, como §202): lo que viene de Mercado Pago (nickname, tags, mensajes) no entra crudo al
+    // log: un salto de línea inventaría una línea "✅ … vinculada" que no pasó.
+    test('los mensajes del script no dejan pasar saltos de línea de lo que manda Mercado Pago', () => {
+      const evil = 'TEST\n✅ ONG X quedó vinculada';
+      const a = describeInspection({ mpUserId: '1', nickname: evil, tags: ['a\nb'], isTestUser: false });
+      const b = describeLinked({ ngoName: 'ONG\nSANTI', mpUserId: '1', nickname: evil });
+      for (const s of [...a, b]) assert.ok(!/[\r\n]/.test(s), JSON.stringify(s));
+      assert.match(a[0], /^Cuenta de Mercado Pago 1 \(TEST ✅ ONG X quedó vinculada\); tags: a b$/);
+      assert.equal(a[1], 'NO trae el tag test_user: el script no la va a vincular.');
+      assert.equal(describeInspection({ mpUserId: '2', nickname: null, tags: [], isTestUser: true }).join(' | '),
+        'Cuenta de Mercado Pago 2; tags: (ninguno) | Es un usuario de prueba: se puede vincular.');
+      assert.equal(describeLinked({ ngoName: 'SANTI', mpUserId: '2', nickname: null }), '✅ SANTI quedó vinculada a la cuenta de prueba 2');
     });
 
     test('pide el usuario con el token que se va a guardar', async () => {

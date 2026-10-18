@@ -6213,3 +6213,27 @@ Las tablas y los endpoints se documentan en la tarea en que se crean.
 - **Que el saldo de prueba esté en la cuenta 3772556008 y no en la de la aplicación** lo dice el usuario ("anda perfecto"). Yo no vi el panel de Mercado Pago del vendedor.
 - **La vinculación por OAuth (el botón)** no se probó en vivo: sin `client_secret`, por decisión del usuario. Tampoco la renovación del token, que no aplica a las cuentas manuales, ni el webhook con el `user_id` del vendedor.
 - **Nada visual de §218**, salvo lo que vio el usuario al donar.
+
+## 225. SonarCloud sobre el Marketplace: 3 S5145 (inyección en logs) corregidas con `forLog`
+
+**Cómo apareció:** al juntar los números para el informe del TP, la API pública de SonarCloud mostró **3 vulnerabilidades nuevas** en el análisis de `e3c57af`. El informe decía 0.
+- Son tres `S5145`, de severidad menor. La seguridad bajó de A a B.
+- El gate del TP no bloqueó, porque solo frena las críticas.
+- Estaban en `routes/mercadopago.js` (el `mpUserId` en el log de la vinculación) y en `scripts/vincular-mp-manual.js` (nickname, tags y mensajes de error de Mercado Pago).
+
+**Qué se hizo:**
+- Todo valor externo pasa por `forLog()`, como en §202.
+- Los mensajes del script pasaron a funciones puras (`describeInspection`, `describeLinked`), exportadas para el test.
+- Detalle y medidas en `docs/calidad/TRIAGE_SONAR.md`.
+
+### Verificación
+- **Rojo:** 2 tests nuevos que mandan saltos de línea (en el nickname y en el `mpUserId`) fallaban con stubs.
+- **Backend:** `npm test` 897/897; `TZ=America/Argentina/Cordoba npm test` 897/897; `npm run test:pg` 899/899.
+- **Mutación:** 7 mutantes (sacar cada `forLog`, el "(ninguno)" y el mensaje de prueba o no prueba), los 7 muertos.
+- `--solo-ver` sin token sigue fallando con su mensaje.
+
+### Errores propios
+- **Escribí logs con datos externos crudos**, contra la regla de §202 que yo mismo había aplicado antes. Ningún test de §216 ni de §221 lo miraba; lo encontró SonarCloud.
+
+### ⚠️ NO verificado
+- Que el próximo análisis las dé por cerradas: hasta ahora Sonar no siempre reconoció `forLog()` como sanitizador (§202). Si no las cierra, se aceptan con el comentario de `TRIAGE_SONAR.md`.
