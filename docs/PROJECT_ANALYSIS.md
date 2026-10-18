@@ -6153,3 +6153,27 @@ Las tablas y los endpoints se documentan en la tarea en que se crean.
 ### ⚠️ NO verificado
 - Qué devuelve `GET /users/me` con cada token real: lo va a mostrar `--solo-ver`.
 - Si el vendedor 3772556008 puede tener su propio token sin OAuth.
+
+## 222. Marketplace en producción (5/5, primera parte): la ONG SANTI vinculada con su vendedor de prueba
+
+**Qué se hizo, con el usuario y en modo prueba:**
+- **El token:** el usuario creó una integración **dentro de la cuenta del vendedor de prueba** 3772556008 y dejó su access token en `backend/.env.local`, que está ignorado por git. Nunca pasó por el chat. La IA de Mercado Pago confirmó el 2026-10-18 que las credenciales son del dueño de la aplicación.
+- **`--solo-ver`:** "Cuenta de Mercado Pago 3772556008 (TESTUSER…); tags: user_product_seller, test_user, normal". Es el vendedor de la ONG y no la cuenta oculta de la aplicación, 3771872304 (§181).
+- **`MP_TOKEN_KEY`:** se generó en `backend/.env` sin mostrarla, y el usuario la cargó en Render.
+- **Con el OK del usuario, contra la base de Render:**
+  - `scripts/migrate.js` creó `ngo_cuentas_mp` y `mp_oauth_states`, agregó `donaciones.cobrador_mp_user_id` y el índice;
+  - `vincular-mp-manual.js` vinculó a la ONG SANTI (`378f6338-…`).
+- El usuario decidió no activar las credenciales productivas: la vinculación por OAuth sigue sin probarse en vivo.
+
+### Verificación
+- **Consulta de solo lectura en producción:** la fila de SANTI tiene `mp_user_id` 3772556008, `estado` `activa`, `origen` `manual`, `version` 1, sin vencimiento ni refresh token.
+- **Cifrado:** el token guardado se descifra con la `MP_TOKEN_KEY` local y coincide con el original. Hay 1 cuenta vinculada en total.
+- **Quedan verificadas** dos suposiciones de §216: el tag `test_user` existe, y `GET /users/me` devuelve el `id` y los `tags`.
+
+### Errores propios
+- Ninguno en este paso. La primera versión de `.env.local` traía el token vacío y la URL **interna** de la base. Se detectó revisando el archivo sin mostrar los valores, antes de correr nada.
+
+### ⚠️ NO verificado (sigue la segunda parte)
+- **La API desplegada todavía es la de antes de §215:** no hubo push.
+- **Falta comprobar** que la donación al proyecto "Test" cree la preferencia con el token del vendedor y que, pagada con el comprador de prueba, el saldo de prueba aparezca en la cuenta 3772556008.
+- Falta crear la variable de GitHub `E2E_PROJECT_ID` antes del push.
