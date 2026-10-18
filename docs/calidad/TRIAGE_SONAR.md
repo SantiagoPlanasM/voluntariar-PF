@@ -95,3 +95,23 @@ Las **57 issues abiertas** del análisis de `6e4a51c` eran todas `S7773` (38 `ty
   - en `ProjectMap.tsx` (`getProjectCoords`) el argumento era `p.latitude`, que puede llegar como string: ahora se convierte con `Number()` antes de mirar `NaN`. Tests de caracterización escritos y pasados con el código viejo; el reemplazo mecánico los rompe.
 
 **Resultado** (análisis de `8e7d9e4`, CI #27, API pública): **0 issues abiertas**, las 57 en FIXED; code smells 0, deuda **0 min**, bugs 0, vulnerabilidades 0, calificaciones A/A/A, gate "Sonar way" OK. Código nuevo: cobertura 92,8 %, duplicación 0,0 %.
+
+## Aceptadas que se arreglaron en el código (2026-10-18, §231–§235)
+
+De las 14 aceptadas en §204, **10 se arreglaron**. SonarCloud las pasó a FIXED en el análisis de  (CI #29):
+
+| Regla | Cant. | Arreglo | Dónde |
+|---|---|---|---|
+|  regex con backtracking | 6 | Reescritos lineales, con equivalencia exhaustiva contra el regex viejo | §231 |
+|  límite de subida | 2 | Tope de 8 MiB → 8.000.000 bytes, el máximo de la regla (también en el frontend) | §232 |
+|  efecto dentro de  | 1 | El clic sale del  | §233 |
+|  fondo del modal | 1 |  | §234 |
+
+**Siguen aceptadas 4**, con el comentario de arriba:
+-  de : ya pasa por ;
+-  (localStorage) y  (WebSocket): análisis de flujo, sin texto del usuario;
+-  del carrusel: sacar el  cambia cómo se usa con teclado.
+
+**Medidas de ese análisis** (API pública):
+- 0 issues abiertas; bugs, vulnerabilidades, code smells y hotspots en 0; deuda 0 min; A/A/A; gate OK;
+- 17.594 líneas; cobertura 89,7 %; código nuevo 93,0 %; duplicación 1,9 %.

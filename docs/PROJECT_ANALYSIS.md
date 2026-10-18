@@ -6487,3 +6487,23 @@ Con esto queda verificado el último punto que §222 y §224 dejaban sin verific
 ### ⚠️ NO verificado
 - **Lo visual y táctil del modal:** el atributo no cambia estilos, pero no lo puedo ver.
 - **Que SonarCloud reconozca `role="presentation"` como arreglo de `S6848`:** la regla de jsx-a11y en la que se basa ignora los elementos con ese rol, pero lo confirma el análisis después del push.
+
+## 235. SonarCloud: las 10 aceptadas de §231–§234 quedan cerradas; push, CI #29 y Deploy #22 en verde
+
+**Qué se hizo:** push de `58532ba..d7efe16`.
+- **CI #29 en verde** y **Deploy #22 en verde** (hooks de Render, smoke y E2E): el código de §231–§234 está en producción.
+- **SonarCloud** (API pública, análisis de `d7efe16`):
+  - aceptadas **14 → 4**; las 10 de §231–§234 pasaron a FIXED;
+  - **0 abiertas**; bugs, vulnerabilidades, code smells y hotspots en 0; deuda 0 min; A/A/A; gate "Sonar way" OK;
+  - código nuevo: cobertura 93,0 %; 17.594 líneas; cognitiva 2.856.
+- `TRIAGE_SONAR.md` con la tabla de las 10 y las 4 que siguen aceptadas.
+
+### Verificación
+- `gh run watch` de las dos corridas y `gh run list` para los resultados.
+- API de SonarCloud: `issues/search` (`issueStatuses=ACCEPTED` y abiertas), `measures/component`, `qualitygates/project_status` y `project_analyses`.
+
+### Errores propios
+- Ninguno.
+
+### ⚠️ NO verificado
+- **El informe del TP no se actualizó:** su corte sigue en `8e7d9e4` / CI #27 (§230). Los números de SonarCloud que muestra no cambian (0 issues abiertas), pero sí los tests (907/909/904) y las 14 aceptadas, que ahora son 4.
