@@ -285,7 +285,9 @@ router.put('/me', requireAuth, async (req, res) => {
 // toca: users.avatar es la única foto del voluntario (PLAN_FALTANTE.md, decisión F2).
 // Orden de la regla 24 de AI_RULES: sesión → límite → validar todo (cabecera real incluida) → subir fuera de la
 // transacción → guardar en una transacción → si falla, borrar lo subido.
-const PHOTO_MAX_BYTES = 8 * 1024 * 1024;   // como Momentos (el frontend comprime antes de subir)
+// Como Momentos (el frontend comprime antes de subir). 8.000.000 y no 8 MiB: es el máximo para subidas de
+// SonarCloud S5693 (§232), y el frontend usa el mismo tope.
+const PHOTO_MAX_BYTES = 8_000_000;
 const PHOTO_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const PHOTO_CHANGES_PER_USER = createLimiter({ max: 10, windowMs: 60 * 60 * 1000 });   // cada subida gasta cuota
 const PROFILE_TABLE = { ngo: 'ngos', company: 'empresas' };   // tablas fijas, nunca texto del cliente

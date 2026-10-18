@@ -28,7 +28,9 @@ const { clampInt, checkText } = require('../lib/inputs');
 const router = express.Router();
 
 const MAX_PHOTOS = 5;
-const MAX_FILE_BYTES = 8 * 1024 * 1024;   // 8 MB por foto (el frontend las comprime antes de subir)
+// 8 MB por foto (el frontend las comprime antes de subir). 8.000.000 y no 8 MiB: es el máximo para subidas de
+// SonarCloud S5693 (§232), y el frontend usa el mismo tope.
+const MAX_FILE_BYTES = 8_000_000;
 const MAX_CAPTION = 500;
 const POSTS_PER_HOUR = 10;                // límite de frecuencia por usuario
 const DEFAULT_LIMIT = 12;

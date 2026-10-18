@@ -123,7 +123,7 @@ describe('compressImage()', () => {
 
   test('las constantes coinciden con los límites del servidor', () => {
     expect(MAX_SIDE).toBe(1600);
-    expect(MAX_UPLOAD_BYTES).toBe(8 * 1024 * 1024);
+    expect(MAX_UPLOAD_BYTES).toBe(8_000_000);   // §232: no 8 MiB, para no pasar el tope del servidor
     expect([...ACCEPTED_TYPES].sort()).toEqual(['image/jpeg', 'image/png', 'image/webp']);
   });
 });

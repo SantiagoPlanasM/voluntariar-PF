@@ -149,7 +149,7 @@
 
 ### `PUT /api/auth/me/photo` — Auth (cualquier rol)
 > Agregado en `PROJECT_ANALYSIS.md §162` (`PLAN_FALTANTE.md`, Etapa 1). Foto de perfil subida como archivo a Cloudinary (`lib/storage.js`).
-- **Body:** `multipart/form-data` con **un** archivo en el campo `photo` (JPEG, PNG o WebP; hasta 8 MB). El cliente no fija `Content-Type` (lo pone el navegador con el boundary).
+- **Body:** `multipart/form-data` con **un** archivo en el campo `photo` (JPEG, PNG o WebP; hasta 8 MB = **8.000.000 bytes**, §232). El cliente no fija `Content-Type` (lo pone el navegador con el boundary).
 - **Qué guarda:** la miniatura cuadrada de Cloudinary (`storage.thumbUrl`, 480 px) en **`users.avatar`**, que es la foto que muestran el chat, Momentos, comentarios y reseñas. Si el rol es `ngo` o `company`, la misma URL va también a `ngos.foto_perfil` / `empresas.foto_perfil` (el `logo` de `fmtNgo`/`fmtEmpresa`), en la misma transacción. **`voluntarios.foto_perfil` no se toca**: la foto del voluntario es `users.avatar` (decisión F2 de `PLAN_FALTANTE.md`).
 - **Respuesta 200:** `{ user }` con las mismas claves que `PUT /api/auth/me`.
 - **Errores (en este orden, sin subir nada antes de validar):** `401` sin sesión · `429` (con `Retry-After`) pasadas **10 subidas por hora** por usuario (en memoria, por proceso, `lib/rateLimit.js`) · `503` si Cloudinary no está configurado · `400` "Solo se aceptan fotos JPEG, PNG o WebP" (tipo declarado), "Elegí una foto" (sin archivo, o en otro campo) o "El archivo no es una imagen válida (JPEG, PNG o WebP)" (la **cabecera real** no es de imagen) · `413` más de 8 MB · `404` "Perfil no encontrado" (ONG/empresa sin fila de perfil) · `502` si falla Cloudinary (la foto anterior sigue) · `500` "Error al guardar la foto" si falla la base después de subir: se borra de Cloudinary lo subido y no cambia nada.
@@ -481,7 +481,7 @@
 - **Errores:** `401`; `403` si el rol es `company`.
 
 ### `POST /api/posts` — Auth, role `volunteer` o `ngo`; `multipart/form-data`
-- **Campos:** `project_id` (obligatorio), `caption` (opcional, ≤ 500 caracteres, filtro de lenguaje inapropiado), `photos` (1 a 5 archivos JPEG/PNG/WebP, ≤ 8 MB c/u).
+- **Campos:** `project_id` (obligatorio), `caption` (opcional, ≤ 500 caracteres, filtro de lenguaje inapropiado), `photos` (1 a 5 archivos JPEG/PNG/WebP, ≤ 8 MB c/u: **8.000.000 bytes**, no 8 MiB, §232).
 - **Quién puede publicar:** un voluntario con inscripción **aprobada** en ese proyecto (también cuando ya terminó), o la **ONG dueña**. Una empresa, una ONG ajena, una inscripción pendiente o sin inscripción → `403`.
 - **Orden de las validaciones (deliberado):** sesión y rol → ¿Cloudinary configurado? (`503`) → lectura del formulario (`413` si una foto pesa más de 8 MB; `400` si hay más de 5 o un tipo no permitido) → campos (`400`) → el proyecto existe (`404`) → permiso (`403`) → límite de frecuencia (`429`: más de 10 publicaciones en la última hora por usuario) → **cabecera real de cada archivo** (`400`; el `mimetype` lo declara el cliente y no se confía en él) → recién ahí se sube. Todo se valida **antes** de subir, para no gastar cuota de Cloudinary en pedidos inválidos.
 - **Subida y atomicidad:** las fotos se suben en paralelo; si alguna falla se **borran las que sí se subieron** y se responde `502` (sin detalles internos). El post y sus fotos se guardan en una sola transacción **después** de las llamadas externas; si esa transacción falla también se limpia lo subido.

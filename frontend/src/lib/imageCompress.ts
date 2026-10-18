@@ -11,7 +11,7 @@
 
 export const MAX_SIDE = 1600;                       // lado mayor de la foto ya comprimida
 export const JPEG_QUALITY = 0.82;
-export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;    // mismo tope que el servidor (HTTP 413 si lo supera)
+export const MAX_UPLOAD_BYTES = 8_000_000;    // mismo tope que el servidor (HTTP 413 si lo supera; §232)
 export const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const SKIP_IF_SMALLER_THAN = 1.5 * 1024 * 1024;     // una foto chica y liviana no se recomprime
 

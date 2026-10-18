@@ -6422,3 +6422,26 @@ Con esto queda verificado el último punto que §222 y §224 dejaban sin verific
 
 ### ⚠️ NO verificado
 - Que SonarCloud dé por cerradas estas 6 issues aceptadas: se ve en el análisis después del push.
+
+## 232. SonarCloud S5693: el tope de subida pasa de 8 MiB a 8.000.000 bytes (servidor y frontend)
+
+**Qué se hizo:** los 2 `S5693` aceptados en §204 ("el límite existe y es chico") tenían una causa concreta. Según la API de SonarCloud (`rules/show`), el parámetro `fileUploadSizeLimit` de la regla vale **8.000.000** bytes por defecto, y el tope era `8 * 1024 * 1024` = 8.388.608.
+- `PHOTO_MAX_BYTES` (`routes/auth.js`, foto de perfil) y `MAX_FILE_BYTES` (`routes/posts.js`, Momentos) → `8_000_000`. Los mensajes siguen diciendo "8 MB", que ahora es exacto.
+- **También el frontend:** `MAX_UPLOAD_BYTES` (`lib/imageCompress.ts`) dice "mismo tope que el servidor". Si se bajaba solo el backend, una foto comprimida de entre 7,63 y 8 MiB pasaba el control del navegador y el servidor la rechazaba con 413.
+- `API_CONTEXT.md` y `FRONTEND_CONTEXT.md` con el número exacto.
+
+**Tests primero** (rojo con el tope viejo: 201 y 200 donde se esperaba 413; y `8388608` contra `8000000`):
+- `posts.test.js`: 8.000.001 bytes → 413; 8.000.000 justos → 201. Este último lo publica Juan, porque María ya está cerca del límite de 10 publicaciones por hora del archivo.
+- `profile-photo.test.js`: 8.000.001 → 413 y 8.000.000 → 200.
+- `imageCompress.test.ts`: la constante vale 8.000.000.
+
+### Verificación
+- **Mutación** (`7_999_999`, `8_000_001` y el valor viejo, en los tres archivos), con control verde: **9 mutantes, 0 sobrevivientes**. En la primera corrida sobrevivió `7_999_999` en `posts.js`: ningún test subía una foto de 8.000.000 justos a Momentos. Agregué ese test y murió.
+- Las suites completas se corrieron con los cuatro commits juntos (§234).
+
+### Errores propios
+- Mi propuesta al usuario decía "creo que Sonar marca todo lo que pase de 8.000.000". Lo confirmé con la API antes de cambiar nada.
+
+### ⚠️ NO verificado
+- Una subida real desde el celular con una foto cerca del tope (prod usa Cloudinary; los tests usan un doble).
+- Que SonarCloud cierre las 2 issues: se ve después del push.

@@ -228,6 +228,20 @@ describe('Publicaciones (Momentos)', () => {
         await rejected(maria, { project_id: 'proj-1', files: [huge] }, 'más de 8 MB', 413);
       });
 
+      // Borde: el tope es 8.000.000 bytes, no 8 MiB (8.388.608), que pasaba el máximo de SonarCloud S5693 (§232).
+      test('una foto de 8.000.001 bytes → 413', async () => {
+        const over = { data: Buffer.concat([JPEG_HEAD, Buffer.alloc(8_000_001 - JPEG_HEAD.length)]), type: 'image/jpeg', name: 'justo-de-mas.jpg' };
+        await rejected(maria, { project_id: 'proj-1', files: [over] }, '8.000.001 bytes', 413);
+      });
+
+      // Con juan (aprobado en proj-8): maria ya está cerca del límite de 10 publicaciones por hora.
+      test('una foto de 8.000.000 bytes justos se acepta', async () => {
+        const exact = { data: Buffer.concat([JPEG_HEAD, Buffer.alloc(8_000_000 - JPEG_HEAD.length)]), type: 'image/jpeg', name: 'justo.jpg' };
+        const r = await createPost(juan, { project_id: 'proj-8', files: [exact] });
+        assert.equal(r.status, 201, JSON.stringify(r.body));
+        assert.equal(uploaded.length, 1);
+      });
+
       test('si Cloudinary no está configurado → 503 y no se intenta nada', async () => {
         configured = false;
         await rejected(maria, { project_id: 'proj-1' }, 'sin configurar', 503);

@@ -155,6 +155,17 @@ describe('PUT /api/auth/me/photo: foto de perfil', () => {
       assert.equal(uploaded.length, 0);
     });
 
+    // Borde: el tope es 8.000.000 bytes, no 8 MiB (8.388.608), que pasaba el máximo de SonarCloud S5693 (§232).
+    test('8.000.001 bytes → 413; 8.000.000 justos se aceptan', async () => {
+      const ofSize = (n) => ({ data: Buffer.concat([JPEG_HEAD, Buffer.alloc(n - JPEG_HEAD.length)]), type: 'image/jpeg', name: 'borde.jpg' });
+      const over = await upload(maria, { file: ofSize(8_000_001) });
+      assert.equal(over.status, 413);
+      assert.equal(uploaded.length, 0);
+      const exact = await upload(maria, { file: ofSize(8_000_000) });
+      assert.equal(exact.status, 200, JSON.stringify(exact.body));
+      assert.equal(uploaded.length, 1);
+    });
+
     test('campo con otro nombre → 400 (no 500)', async () => {
       const r = await upload(maria, { field: 'avatar' });
       assert.equal(r.status, 400);
