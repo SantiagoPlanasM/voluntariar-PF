@@ -29,7 +29,7 @@
 | Complejidad ciclomática | **4.045** | 1.424 | 2.621 | — |
 | Complejidad cognitiva | **2.720** | 1.091 | 1.629 | La más alta: `routes/projects.js` (333 en 934 líneas), `ExploreScreen.tsx` (161), `ProjectDetails.tsx` (123), `CreateVoluntariado.tsx` (92), `ProjectMap.tsx` (88). Son los candidatos a dividir si el proyecto sigue |
 | Densidad de comentarios | 8,3 % | 14,7 % | 5,0 % | El backend explica sus decisiones; el frontend casi no comenta |
-| Deuda técnica (sqale_index) | **126 min** (ratio 0,0 %, calificación **A**) | 38 min | 88 min | Son las 63 de `S7773` (`Number.parseInt`), cosméticas |
+| Deuda técnica (sqale_index) | **126 min** (ratio 0,0 %, calificación **A**) | 38 min | 88 min | Son las 63 de `S7773` (`Number.parseInt`), cosméticas. Arregladas en §229: **0 min** en el análisis de `8e7d9e4` |
 | Bugs / vulnerabilidades abiertos | **0 / 0** (calificaciones **A / A**) | — | — | 1 bug y 5 vulnerabilidades **aceptados con justificación** (`TRIAGE_SONAR.md`) |
 | Gate del TP / gate "Sonar way" | **pasa / OK** | | | Dos gates distintos (§204) |
 

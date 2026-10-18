@@ -94,4 +94,4 @@ Las **57 issues abiertas** del análisis de `6e4a51c` eran todas `S7773` (38 `ty
   - en 8 archivos el argumento es el resultado de `parseFloat`/`parseInt`, que siempre es un número: el cambio es equivalente;
   - en `ProjectMap.tsx` (`getProjectCoords`) el argumento era `p.latitude`, que puede llegar como string: ahora se convierte con `Number()` antes de mirar `NaN`. Tests de caracterización escritos y pasados con el código viejo; el reemplazo mecánico los rompe.
 
-Cuántas cierra se ve en el próximo análisis del CI (después del push).
+**Resultado** (análisis de `8e7d9e4`, CI #27, API pública): **0 issues abiertas**, las 57 en FIXED; code smells 0, deuda **0 min**, bugs 0, vulnerabilidades 0, calificaciones A/A/A, gate "Sonar way" OK. Código nuevo: cobertura 92,8 %, duplicación 0,0 %.

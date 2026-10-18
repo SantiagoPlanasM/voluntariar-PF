@@ -6343,3 +6343,50 @@ Con esto queda verificado el último punto que §222 y §224 dejaban sin verific
 - **Que SonarCloud cierre las 57:** se ve en el próximo análisis del CI, después del push. El informe del TP sigue diciendo "157 → 57" (el análisis de `6e4a51c`); se actualiza cuando esté el análisis nuevo.
 - Los tests (`*.test.*`) no los analiza Sonar y no se tocaron: pueden tener usos globales.
 - Lo visual del mapa con coordenadas raras: no lo puedo ver.
+
+## 230. SonarCloud en 0 issues: push de §229, CI #27 / Deploy #20 en verde e informe del TP actualizado
+
+**Qué se hizo:**
+- Push de `8e7d9e4` (§229) con el permiso del usuario ("dale").
+- **CI #27 en verde**, sus 10 jobs. **Deploy #20 en verde:** hooks de Render, `/health` con el commit nuevo, smoke y E2E. `8e7d9e4` quedó en producción.
+- **SonarCloud** (API pública, análisis de `8e7d9e4`): **0 issues abiertas** (las 57 `S7773` en FIXED).
+  - code smells 0, deuda 0 min, bugs 0, vulnerabilidades 0, A/A/A;
+  - gate "Sonar way" OK;
+  - 17.584 líneas, cognitiva 2.854, duplicación 1,9 %;
+  - código nuevo: cobertura 92,8 %, duplicación 0,0 %.
+- **Informe del TP** (HTML y PDF), con el corte movido a `8e7d9e4` / CI #27 / Deploy #20:
+  - carátula: último cambio de código;
+  - "En números": 896 tests de frontend, cobertura 93,17 % y 90,38 %, Sonar **157 → 0**, código nuevo 92,8 %, 54 commits (`git rev-list --count 20d881a^..HEAD` antes de este commit, mismo criterio que §226);
+  - tabla de metas: pipeline, gate, cobertura nueva y existente;
+  - métricas: análisis de `8e7d9e4`, deuda 0 min;
+  - sección 4: fila nueva en SonarCloud y en pruebas;
+  - pipeline: CI 23 de 25 terminados (92 %), Deploy 14 de 18 (77,8 %);
+  - anexo: enlaces al CI #27 y al Deploy #20.
+- La cobertura del CI #27 sale del log del run (`gh run view --log`, línea "all files" de cada job), como en §228:
+
+| Job | Líneas | Ramas | Funciones | Sentencias |
+|---|---|---|---|---|
+| Backend · SQLite · UTC | 93,17 % | 85,31 % | 90,19 % | — |
+| Backend · SQLite · Córdoba | 93,21 % | 85,37 % | 90,19 % | — |
+| Frontend · UTC y Córdoba | 90,38 % | 81,58 % | 82,45 % | 86,75 % |
+
+- **Corridas que no cuentan en la tasa:**
+  - CI #24 y #25, **cancelados** por el push siguiente (`concurrency` del CI);
+  - Deploy #17 y #18, **salteados**: los dispararon esos CI cancelados (5 s después de cada push nuevo), y el job solo corre con un CI en verde.
+  - Mismo criterio que en §226, donde todavía no había ninguno.
+- `TRIAGE_SONAR.md` y `METRICAS.md` con el resultado.
+
+### Verificación
+- Cada número del informe se tomó de la fuente en el momento:
+  - `gh run view` del CI #27 y el Deploy #20 (jobs y pasos);
+  - `gh run list` por workflow para los conteos;
+  - la API de SonarCloud: `issues/search`, `measures/component`, `qualitygates/project_status` y `project_analyses`.
+- Los 18 reemplazos del HTML se hicieron con un script que exige exactamente una aparición de cada texto.
+- PDF regenerado con Chrome headless: **9 páginas**, como antes.
+
+### Errores propios
+- En el primer borrador del informe atribuí los Deploy salteados a "un push reemplazado". Al mirar los tiempos y el `if` del workflow vi que los dispararon los CI cancelados. Lo corregí antes del commit.
+
+### ⚠️ NO verificado
+- **El aspecto del PDF:** no pude renderizar las páginas (falta `pdftoppm`). Solo sé que siguen siendo 9. Conviene mirar las tablas de la sección 4, que tienen una fila más cada una.
+- La densidad de pruebas (75,9 tests/KLOC en el frontend, CI #19) no se recalculó con los 896 tests.
