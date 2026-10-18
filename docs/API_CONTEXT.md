@@ -688,6 +688,7 @@ Si el intercambio falla, el `state` igual queda usado.
 - Guarda el access token de un vendedor de prueba, sin OAuth. Es para cuando no hay `client_secret` (§215).
 - Comprueba con `GET /users/me` que el usuario tenga el tag `test_user`.
 - La cuenta queda con origen `manual`, sin refresh token ni vencimiento.
+- Con `--solo-ver` (§221) solo muestra de quién es el token (`user_id`, nickname, tags) y no guarda nada.
 
 ## Endpoints ausentes (funcionalidad de esquema sin API)
 

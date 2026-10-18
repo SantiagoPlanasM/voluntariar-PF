@@ -23,7 +23,7 @@ const REFRESH = 'TG-refresh-de-la-ong-RECONOCIBLE';
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 
 describe('Cuenta de Mercado Pago de la ONG (Marketplace)', () => {
-  let server, baseUrl, db, payments, tokenCrypto, linkManually;
+  let server, baseUrl, db, payments, tokenCrypto, linkManually, inspectToken;
   let ngo1, ngo2, maria;
   let exchanges, exchangeImpl, saved;
 
@@ -35,7 +35,7 @@ describe('Cuenta de Mercado Pago de la ONG (Marketplace)', () => {
     db = require('../../src/db');
     payments = require('../../src/lib/payments');
     tokenCrypto = require('../../src/lib/tokenCrypto');
-    ({ linkManually } = require('../../scripts/vincular-mp-manual'));
+    ({ linkManually, inspectToken } = require('../../scripts/vincular-mp-manual'));
     mock.method(payments, 'exchangeCode', async (code) => { exchanges.push(code); return exchangeImpl(code); });
     ngo1 = await login('admin@sustentando.org');
     ngo2 = await login('admin@greencba.org');
@@ -318,6 +318,21 @@ describe('Cuenta de Mercado Pago de la ONG (Marketplace)', () => {
       assert.equal(await account(), undefined);
       await linkManually({ ngoId: 'ngo-2', accessToken: ACCESS, getUser: testUser });
       await assert.rejects(linkManually({ ngoId: 'ngo-1', accessToken: ACCESS, getUser: testUser }), /otra ONG/i);
+    });
+
+    // §221: --solo-ver. La IA de Mercado Pago dice que el token de prueba sale del panel de la aplicación, y en §181 ese
+    // era de una cuenta oculta (3771872304), no del vendedor de la ONG: antes de vincular hay que poder ver DE QUIÉN es.
+    test('inspectToken: dice de quién es el token y si es de prueba, sin guardar nada', async () => {
+      assert.deepEqual(await inspectToken({ accessToken: ` ${ACCESS} `, getUser: testUser }),
+        { mpUserId: '3772556008', nickname: 'TESTUSER123', tags: ['normal', 'test_user'], isTestUser: true });
+      let seen;
+      assert.deepEqual(await inspectToken({ accessToken: ` ${ACCESS} `, getUser: async (t) => { seen = t; return { id: 9 }; } }),
+        { mpUserId: '9', nickname: null, tags: [], isTestUser: false }, 'sin nickname ni tags');
+      assert.equal(seen, ACCESS, 'el token va sin espacios');
+      assert.equal(await account(), undefined);
+      let asked = 0;
+      await assert.rejects(inspectToken({ accessToken: '', getUser: async () => { asked++; return testUser(); } }), /token/i);
+      assert.equal(asked, 0);
     });
 
     test('pide el usuario con el token que se va a guardar', async () => {

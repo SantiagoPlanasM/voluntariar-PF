@@ -6,6 +6,7 @@
 //
 // Uso (el token va por variable de entorno, no por argumento, para que no quede en el historial de la terminal):
 //   MP_MANUAL_SELLER_TOKEN=<access token del vendedor de prueba> node scripts/vincular-mp-manual.js <ngo_id>
+//   MP_MANUAL_SELLER_TOKEN=<…> node scripts/vincular-mp-manual.js --solo-ver   → de quién es el token, sin guardar (§221)
 // Necesita MP_TOKEN_KEY y la base del .env (DATABASE_URL en producción). El token se guarda cifrado, con origen
 // 'manual', sin refresh token ni vencimiento: si Mercado Pago lo deja de aceptar, se vuelve a correr el script.
 //
@@ -16,6 +17,16 @@ require('dotenv').config();
 const db = require('../src/db');
 const payments = require('../src/lib/payments');
 const sellerAccounts = require('../src/lib/sellerAccounts');
+
+// --solo-ver (§221): de quién es el token, sin guardar nada. El token de prueba del panel de la aplicación puede ser
+// de una cuenta oculta de Mercado Pago (§181) y no del vendedor de la ONG: hay que verlo antes de vincular.
+async function inspectToken({ accessToken, getUser = (t) => payments.getSellerUser(t) }) {
+  const token = typeof accessToken === 'string' ? accessToken.trim() : '';
+  if (!token) throw new Error('Falta el token del vendedor (MP_MANUAL_SELLER_TOKEN)');
+  const user = await getUser(token);
+  const tags = Array.isArray(user?.tags) ? user.tags : [];
+  return { mpUserId: String(user.id), nickname: user.nickname ?? null, tags, isTestUser: tags.includes('test_user') };
+}
 
 async function linkManually({ ngoId, accessToken, getUser = (t) => payments.getSellerUser(t) }) {
   const token = typeof accessToken === 'string' ? accessToken.trim() : '';
@@ -31,11 +42,19 @@ async function linkManually({ ngoId, accessToken, getUser = (t) => payments.getS
   return { ngoName: ngo.nombre, mpUserId: String(user.id), nickname: user.nickname ?? null };
 }
 
-if (require.main === module) {
+if (require.main === module && process.argv.includes('--solo-ver')) {
+  inspectToken({ accessToken: process.env.MP_MANUAL_SELLER_TOKEN })
+    .then((r) => {
+      console.log(`Cuenta de Mercado Pago ${r.mpUserId}${r.nickname ? ` (${r.nickname})` : ''}; tags: ${r.tags.join(', ') || '(ninguno)'}`);
+      console.log(r.isTestUser ? 'Es un usuario de prueba: se puede vincular.' : 'NO trae el tag test_user: el script no la va a vincular.');
+      process.exit(0);
+    })
+    .catch((err) => { console.error(`❌ ${err.message}`); process.exit(1); });
+} else if (require.main === module) {
   const ngoId = process.argv[2];
   linkManually({ ngoId, accessToken: process.env.MP_MANUAL_SELLER_TOKEN })
     .then((r) => { console.log(`✅ ${r.ngoName} quedó vinculada a la cuenta de prueba ${r.mpUserId}${r.nickname ? ` (${r.nickname})` : ''}`); process.exit(0); })
     .catch((err) => { console.error(`❌ ${err.message}`); process.exit(1); });
 }
 
-module.exports = { linkManually };
+module.exports = { linkManually, inspectToken };

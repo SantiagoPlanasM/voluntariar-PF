@@ -6126,3 +6126,30 @@ Las tablas y los endpoints se documentan en la tarea en que se crean.
   3. vincular la cuenta de Mercado Pago de la ONG SANTI.
 
   Sin el primer paso el deploy no arranca. Sin los otros dos, el E2E falla en "su ONG recibe donaciones".
+
+## 221. `vincular-mp-manual.js --solo-ver`: ver de quién es un token antes de vincularlo
+
+**Por qué:**
+- El usuario eligió la carga manual para la ONG SANTI. La IA de Mercado Pago (2026-10-18) dijo que el access token de prueba "se toma del panel de tu aplicación" y no se deriva del `user_id` del vendedor.
+- En §181, ese token era de la cuenta vendedora **oculta** 3771872304, creada por Mercado Pago, y no del vendedor de prueba de la ONG (3772556008).
+- Vincular a SANTI con ese token hace funcionar todo el mecanismo nuevo (token por ONG, `cobrador_mp_user_id`, conciliación), pero la plata cae en la misma cuenta de siempre. No demuestra que llegue a la ONG.
+- Antes de vincular, hay que poder ver de quién es cada token.
+
+**Qué se hizo:**
+- `inspectToken` y el flag `--solo-ver`: consultan `GET /users/me` y muestran el `user_id`, el nickname, los tags y si es de prueba. **No escriben nada.**
+- Se probó a mano sin token: falla con "Falta el token del vendedor".
+
+### Verificación
+- **Rojo:** el test nuevo fallaba con un stub.
+- **Backend:** `npm test` 895/895; `TZ=America/Argentina/Cordoba npm test` 895/895; `npm run test:pg` 897/897.
+- **Mutación:** 5 mutantes.
+  - 2 murieron de entrada.
+  - Los 3 que sobrevivieron (usuario sin tags, sin nickname, y el `trim` del token) murieron al completar el test.
+- **`MP_TOKEN_KEY` local:** se generó en `backend/.env` sin mostrarla. `.env` está ignorado por git, y `isTokenKeyConfigured()` da `true`. La misma clave tiene que ir en Render.
+
+### Errores propios
+- El primer test de `inspectToken` no cubría un usuario sin tags ni sin nickname. Lo mostró la mutación.
+
+### ⚠️ NO verificado
+- Qué devuelve `GET /users/me` con cada token real: lo va a mostrar `--solo-ver`.
+- Si el vendedor 3772556008 puede tener su propio token sin OAuth.
