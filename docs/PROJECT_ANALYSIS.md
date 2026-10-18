@@ -6096,3 +6096,33 @@ Las tablas y los endpoints se documentan en la tarea en que se crean.
 
 ### ⚠️ NO verificado
 - **Que Render tome las variables nuevas.** El auto-deploy está apagado, y no está confirmado que el servicio se cree desde el Blueprint. Lo seguro es **cargarlas a mano en el panel** de `voluntariar-api`. `MP_TOKEN_KEY` se genera con `node -p "require('crypto').randomBytes(32).toString('base64')"`.
+
+## 220. El E2E post-deploy dona al proyecto de prueba (`E2E_PROJECT_ID`), y su ONG tiene que tener Mercado Pago vinculado
+
+**El problema:**
+- El E2E donaba al primer proyecto de la lista, que es uno real ("Jornada de limpieza en el Lago"). Ver la memoria del 2026-10-18 y §215.
+- Desde §217, si ese proyecto es de una ONG sin cuenta vinculada, la donación da 409 y el deploy daría rojo.
+
+**Qué se hizo:**
+- **`.github/scripts/post-deploy.js`:** `E2E_PROJECT_ID` es **obligatoria**: sin ella el E2E falla con un mensaje claro.
+  - Antes de donar, `checkE2EProject` comprueba con `GET /api/projects/:id` que el proyecto exista, esté activo y tenga `accepts_donations: true`. Si no, el mensaje dice qué revisar.
+  - La donación va a ese proyecto.
+- **`deploy.yml`:** `E2E_PROJECT_ID` sale de `vars` (variable del repositorio, no secreto) y se suma al chequeo inicial "faltan secretos o variables → no se despliega".
+- **`docs/calidad/COMO_CORRER_PRUEBAS.md`:** el comando del E2E lleva `E2E_PROJECT_ID`.
+
+### Verificación
+- **Rojo:** con un stub, 4 de los 5 tests nuevos fallaban.
+- **Tests de los scripts:** `node --test ".github/scripts/*.test.js"` da 38/38 (antes 33).
+- **Mutación:** 7 mutantes en `checkE2EProject`, los 7 muertos.
+
+### Errores propios
+- Ninguno en esta tarea.
+
+### ⚠️ NO verificado
+- **El workflow no corrió:** no hubo push.
+- **Antes del push hay que:**
+  1. crear la variable `E2E_PROJECT_ID` = `32223ac7-2cc6-412b-96ca-9e2b647eac9d` en GitHub (Settings → Secrets and variables → Actions → Variables);
+  2. cargar `MP_TOKEN_KEY` en Render;
+  3. vincular la cuenta de Mercado Pago de la ONG SANTI.
+
+  Sin el primer paso el deploy no arranca. Sin los otros dos, el E2E falla en "su ONG recibe donaciones".

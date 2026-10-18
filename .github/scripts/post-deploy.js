@@ -5,7 +5,7 @@
 //   node .github/scripts/post-deploy.js e2e     donación de punta a punta con Mercado Pago (modo prueba), sin pagar ni abrir el checkout
 //
 // Entorno: API_URL y WEB_URL (sin "/" final), EXPECTED_COMMIT (wait), E2E_EMAIL y E2E_PASSWORD (e2e: una cuenta
-// voluntaria creada a mano solo para esto). El smoke no crea nada, no manda emails, no sube archivos ni llama a
+// voluntaria creada a mano solo para esto) y E2E_PROJECT_ID (e2e: el proyecto de prueba al que dona, §220). El smoke no crea nada, no manda emails, no sube archivos ni llama a
 // Mercado Pago. El e2e crea UNA donación 'pendiente' por corrida (no suma a lo recaudado, §170): es lo único que
 // escribe, y lo hace con la cuenta dedicada. Nunca imprime el token ni la contraseña. Sin dependencias.
 const fs = require('node:fs');
@@ -51,6 +51,17 @@ function checkLogin(status, body) {
   if (status !== 200 || !body || !body.token) return [`login respondió ${status}`];
   const role = body.user && body.user.role;
   return role === 'volunteer' ? [] : [`la cuenta es "${role}"; tiene que ser voluntaria (registrarla de nuevo como voluntario/a)`];
+}
+
+// El proyecto al que dona el E2E (E2E_PROJECT_ID, §220): el "Test" de la ONG de prueba, nunca uno real. Desde el
+// Marketplace (§217) la ONG tiene que tener su cuenta de Mercado Pago vinculada, o la donación da 409.
+function checkE2EProject(status, body, projectId) {
+  if (status !== 200) return [`GET /api/projects/${projectId} respondió ${status}: revisar la variable E2E_PROJECT_ID`];
+  const p = body && body.project;
+  if (!p || p.id !== projectId) return ['GET /api/projects/:id no devolvió el proyecto de E2E'];
+  if (p.status !== 'active') return [`el proyecto de E2E no está activo ("${p.status}")`];
+  return p.accepts_donations === true ? []
+    : ['la ONG del proyecto de E2E no vinculó su cuenta de Mercado Pago (no recibe donaciones)'];
 }
 
 function checkDonationCreated(status, body) {
@@ -123,17 +134,18 @@ async function smoke(api, web) {
 }
 
 async function e2e(api) {
-  const { E2E_EMAIL: email, E2E_PASSWORD: password } = process.env;
+  const { E2E_EMAIL: email, E2E_PASSWORD: password, E2E_PROJECT_ID: projectId } = process.env;
   if (!email || !password) throw new Error('Faltan E2E_EMAIL / E2E_PASSWORD');
+  // Obligatorio (§220): antes donaba al primer proyecto de la lista, que era uno real.
+  if (!projectId) throw new Error('Falta E2E_PROJECT_ID (el proyecto de prueba al que dona el E2E)');
   const login = await http(`${api}/api/auth/login`, json('POST', { email, password }));
   if (!record('login de la cuenta de E2E (voluntaria)', checkLogin(login.status, login.body))) return;
   const token = login.body.token;
 
-  const list = await http(`${api}/api/projects?limit=1`);
-  const project = list.body && Array.isArray(list.body.projects) ? list.body.projects[0] : null;
-  if (!record('hay un proyecto activo para donar', project ? [] : ['no hay proyectos activos'])) return;
+  const p = await http(`${api}/api/projects/${encodeURIComponent(projectId)}`);
+  if (!record('el proyecto de E2E existe, está activo y su ONG recibe donaciones', checkE2EProject(p.status, p.body, projectId))) return;
 
-  const created = await http(`${api}/api/donaciones`, json('POST', { project_id: project.id, amount: 100 }, token));
+  const created = await http(`${api}/api/donaciones`, json('POST', { project_id: projectId, amount: 100 }, token));
   if (!record('POST /api/donaciones ($100) crea la preferencia en Mercado Pago (201 + link con pref_id)', checkDonationCreated(created.status, created.body))) return;
 
   const st = await http(`${api}/api/donaciones/${created.body.donation_id}`, json('GET', undefined, token));
@@ -163,4 +175,5 @@ if (require.main === module) {
 
 module.exports = {
   checkHealth, checkProjects, checkStats, checkIndexHtml, checkDonationCreated, checkDonationStatus, retry, checkLogin,
+  checkE2EProject,
 };

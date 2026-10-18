@@ -23,7 +23,7 @@
 | **Tipos** | `npm run typecheck` | `frontend/` | TypeScript 7 (nunca `npx tsc`) |
 | **Scripts del pipeline** (gate, post-deploy, reporte de carga) | `node --test ".github/scripts/*.test.js"` y `node --test "load/lib/*.test.js"` | raíz | **Con comillas:** una carpeta suelta no anda (§189) |
 | **Smoke** (solo lectura) | `API_URL=https://voluntariar-api-lxq7.onrender.com WEB_URL=https://voluntariar-g0u6.onrender.com node .github/scripts/post-deploy.js smoke` | raíz | `/health`, proyectos, estadísticas, portada y `/explore` |
-| **E2E con Mercado Pago** | `API_URL=… E2E_EMAIL=… E2E_PASSWORD=… node .github/scripts/post-deploy.js e2e` | raíz | Necesita la cuenta voluntaria dedicada. Crea **una** donación pendiente (no paga) |
+| **E2E con Mercado Pago** | `API_URL=… E2E_EMAIL=… E2E_PASSWORD=… E2E_PROJECT_ID=… node .github/scripts/post-deploy.js e2e` | raíz | Necesita la cuenta voluntaria dedicada y el proyecto de prueba ("Test"), cuya ONG tiene que tener vinculada su cuenta de Mercado Pago (§220). Crea **una** donación pendiente (no paga) |
 | **Stress** | `k6 run -e BASE_URL=http://localhost:3001 load/stress.js` | raíz | Rampa hasta 100 usuarios; umbral hasta 50 |
 | **Esfuerzo sostenido** | `k6 run -e BASE_URL=http://localhost:3001 load/soak.js` | raíz | 20 usuarios × 10 min (`-e SOAK_DURATION=1m` para una prueba corta, que no es la oficial) |
 | **Carga corta en producción** | `k6 run -e BASE_URL=https://voluntariar-api-lxq7.onrender.com load/prod.js` | raíz | 10 usuarios × 2 min. **Nunca después del 25/10/2026** |

@@ -10,7 +10,41 @@ const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const {
   checkHealth, checkProjects, checkStats, checkIndexHtml, checkDonationCreated, checkDonationStatus, retry, checkLogin,
+  checkE2EProject,
 } = require('./post-deploy');
+
+// §220: el E2E dona SIEMPRE al proyecto de prueba (E2E_PROJECT_ID, "Test" de la ONG SANTI), nunca al primero de la
+// lista, que era un proyecto real. Desde el Marketplace (§217) además la ONG tiene que tener su cuenta de Mercado Pago
+// vinculada: si no, la donación da 409. Antes de donar se comprueba con GET /api/projects/:id, con un mensaje claro.
+describe('checkE2EProject (el proyecto de prueba)', () => {
+  const ok = { project: { id: 'p-test', status: 'active', accepts_donations: true } };
+  test('200, activo y acepta donaciones: pasa', () => {
+    assert.deepEqual(checkE2EProject(200, ok, 'p-test'), []);
+  });
+  test('404 u otro código: falla diciendo que revise E2E_PROJECT_ID', () => {
+    const errs = checkE2EProject(404, { error: 'Proyecto no encontrado' }, 'p-test');
+    assert.equal(errs.length, 1);
+    assert.match(errs[0], /404/);
+    assert.match(errs[0], /E2E_PROJECT_ID/);
+  });
+  test('otro id en la respuesta, o sin proyecto: falla', () => {
+    assert.equal(checkE2EProject(200, ok, 'otro').length, 1);
+    assert.equal(checkE2EProject(200, {}, 'p-test').length, 1);
+    assert.equal(checkE2EProject(200, null, 'p-test').length, 1);
+  });
+  test('no activo: falla', () => {
+    const errs = checkE2EProject(200, { project: { ...ok.project, status: 'completed' } }, 'p-test');
+    assert.equal(errs.length, 1);
+    assert.match(errs[0], /activo/);
+  });
+  test('la ONG no vinculó Mercado Pago (false o ausente): falla y lo dice', () => {
+    for (const accepts of [false, undefined, 'true']) {
+      const errs = checkE2EProject(200, { project: { ...ok.project, accepts_donations: accepts } }, 'p-test');
+      assert.equal(errs.length, 1, String(accepts));
+      assert.match(errs[0], /Mercado Pago/);
+    }
+  });
+});
 
 describe('checkHealth', () => {
   const body = { status: 'ok', timestamp: '2026-10-17T00:00:00Z', commit: 'abc123' };
