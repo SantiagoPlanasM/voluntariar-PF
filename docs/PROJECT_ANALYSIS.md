@@ -6507,3 +6507,31 @@ Con esto queda verificado el último punto que §222 y §224 dejaban sin verific
 
 ### ⚠️ NO verificado
 - **El informe del TP no se actualizó:** su corte sigue en `8e7d9e4` / CI #27 (§230). Los números de SonarCloud que muestra no cambian (0 issues abiertas), pero sí los tests (907/909/904) y las 14 aceptadas, que ahora son 4.
+
+## 236. Informe del TP: corte en `d7efe16` (CI #29 / Deploy #22), aceptadas 14 → 4
+
+**Qué se hizo:** el usuario pidió actualizar el informe después de §231–§235. Movimos el corte a `d7efe16`, con 18 reemplazos de texto exacto (un script exige una sola aparición de cada uno):
+- carátula: último cambio de código;
+- "En números": 907/909/904, cobertura 93,22 % y 90,42 %, **aceptadas 14 → 4**, código nuevo 93,0 %, 61 commits (`git rev-list --count 20d881a^..HEAD` antes de este commit, como en §226 y §230);
+- tabla de metas: pipeline, gate, cobertura nueva y existente (backend 93,22/85,40/90,21; frontend 90,42/86,79/81,57/82,66);
+- métricas: análisis de `d7efe16` (17.594 líneas, ciclomática 4.245, cognitiva 2.856) y la tasa del pipeline;
+- sección 4: una fila nueva en SonarCloud y otra en pruebas;
+- pipeline: **CI 25 de 27 terminados (92,6 %)**, con #24, #25 y #30 cancelados; **Deploy 16 de 20 (80 %)**, con #17, #18 y #23 salteados porque los dispararon CI cancelados;
+- anexo: CI #29 y Deploy #22.
+- PDF regenerado: 9 páginas.
+
+**Fuente de cada número:**
+- cobertura y tests: log del CI #29 (`gh run view --log`, líneas "all files" y conteos de cada job), con los valores del job en UTC;
+- corridas: `gh run list` por workflow;
+- SonarCloud: API pública (§235).
+
+### Verificación
+- Los reemplazos se aplicaron sin error. Las únicas menciones que quedan de `8e7d9e4` y del CI #27 son filas del historial.
+
+### Errores propios
+- **En §230 no actualicé las tasas del párrafo de métricas** ("CI 91,3 %, Deploy 75 %", del corte del CI #23), aunque sí las de la tabla del pipeline. El informe quedó con dos tasas distintas. Lo encontré ahora al buscar los números viejos y quedó corregido (92,6 % y 80 %).
+
+### ⚠️ NO verificado
+- **El aspecto del PDF:** no puedo renderizar las páginas (falta `pdftoppm`). Solo sé que siguen siendo 9. Las tablas de la sección 4 tienen otra fila más cada una.
+- **El CI #31** (`c574c5c`, solo documentación) estaba corriendo al cerrar el corte, por eso no entra en la tasa.
+- La densidad de pruebas (CI #19) sigue sin recalcularse.
