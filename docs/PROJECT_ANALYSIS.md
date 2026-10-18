@@ -5829,3 +5829,41 @@ Se escribió en HTML con estilos de impresión A4 y se convirtió con Chrome hea
 - La corrida en el CI (después del push).
 - **El margen es chico:** ramas 81,14 % es **~35 ramas** sobre el mínimo. Código nuevo del frontend sin tests puede romper el pipeline. Es el efecto buscado, pero hay que tenerlo en cuenta cerca de la defensa.
 - `METRICAS.md`, `PLAN_PRUEBAS.md` (O3) y el informe todavía dicen "solo líneas". Se actualizan con el número del run del CI que lo confirme.
+
+## 213. Docs del TP con los números del CI #19: la cobertura del frontend pasa a "Cumplida"
+
+**Fuente:** **CI #19** (run `39089747158`, commit `df529c3`), los 9 jobs en verde, y **Deploy #12** en verde (smoke + E2E).
+- **Backend:** 808/808 en SQLite y 810/810 en Postgres, en UTC y en Córdoba, 0 cancelled.
+- **Frontend:** 864/864.
+- **Cobertura del frontend:** sacada del artefacto `frontend-tests-0/1` (`coverage-summary.json`, las dos zonas horarias iguales):
+  - sentencias **86,36 %** (3053/3535);
+  - ramas **81,18 %** (2515/3098);
+  - funciones **82,11 %** (817/995);
+  - líneas **90,11 %** (2563/2844).
+- **Gate del TP:** pasa (duplicación 1,9 %, cobertura de código nuevo 91,1 %, 0 bugs y 0 vulnerabilidades críticas).
+- **ncloc del frontend en SonarCloud** (API, `frontend/src`): **11.386**.
+
+**Qué se actualizó:**
+- `METRICAS.md`: la fila de cobertura del frontend y una fila nueva de densidad, 864 / 11,386 = **75,9 tests/KLOC**.
+- `PLAN_PRUEBAS.md` (O3): umbral en las cuatro métricas y los valores del CI #19.
+- `FRONTEND_CONTEXT.md` (punto 8).
+- El informe:
+  - "En números";
+  - la meta "Cobertura del código existente": de **Parcial** a **Cumplida**;
+  - una fila del CI #19 en la evolución;
+  - el análisis crítico ("el frontend era la deuda") y las conclusiones ("se cumplen todas las metas del nivel 3").
+- **PDF regenerado**: ahora tiene **9 páginas**.
+
+### Verificación
+- Cada edición la hizo un script que corta si el texto original no aparece exactamente una vez.
+- El PDF se miró en Chrome (servido en `127.0.0.1:8099`):
+  - la fila de metas se ve completa, en verde "Cumplida";
+  - la página 9 nueva es el anexo completo, no una hoja casi vacía.
+
+### Errores propios
+- La espera del CI en segundo plano buscaba el run con el **SHA corto** (`--commit df529c3`). `gh` no lo encuentra así y la espera no terminaba nunca: el run ya había terminado en verde. Se detectó listando los runs sin filtro.
+- **Local y CI difieren en una unidad** (local: ramas 2514 y funciones 818; CI: 2515 y 817), igual que en el Run #2. Los documentos usan los números del CI.
+
+### ⚠️ NO verificado
+- El resto del PDF no se miró página por página de nuevo, solo las páginas 3 y 9. El contenido de las otras no cambió, pero se corrió una página.
+- El anexo y la fila "Pipeline" siguen citando el CI #15 como "run en verde". Sigue siendo cierto, y ahora el CI #19 también lo es.

@@ -16,7 +16,7 @@
 | Tests del backend, Postgres 16 (UTC y Córdoba) | **810 / 810** | 0 fallidos | +2 que solo existen en Postgres (concurrencia real) |
 | Tests del frontend (UTC y Córdoba) | **699 / 699** | 0 fallidos | 75 archivos |
 | Cobertura del backend (líneas / ramas / funciones) | **92,95 % / 84,57 % / 90,59 %** (UTC) | ≥ 80 % en las tres (bloqueante) | Holgada. Lo más bajo: `db/index.js`, porque la rama de Postgres no corre en el job de SQLite (§1) |
-| Cobertura del frontend (líneas / sentencias / ramas / funciones) | **83,26 % / 79,75 % / 74,08 % / 67,99 %** | líneas ≥ 80 % (bloqueante; decisión §186) | Pasa en líneas. Sentencias queda 0,25 puntos abajo y **ramas y funciones están lejos**: hay pantallas con caminos de error y botones sin probar (`lib/api.ts` 44 % por los dobles, `ProjectCard`, `FeedPostCard`) |
+| Cobertura del frontend (líneas / sentencias / ramas / funciones) | **90,11 % / 86,36 % / 81,18 % / 82,11 %** (CI #19) | las cuatro ≥ 80 % (bloqueante desde §212; antes solo líneas, §186) | **Pasa en las cuatro.** En el CI #15 era 83,26 / 79,75 / 74,08 / 67,99: sentencias, ramas y funciones no llegaban. Subió con el test de contrato de `lib/api.ts` (§209), tests de componentes (§210) y el borrado de `ProjectCard`, que era código muerto (§211). El margen más chico es ramas: **36 ramas** sobre el 80 % |
 | Cobertura total en SonarCloud (backend + frontend) | **86,3 %** (líneas 90,1 %, ramas 78,0 %) | — | Combina los dos `lcov` del CI |
 | Cobertura del código nuevo (SonarCloud) | **89,9 %** | ≥ 80 % (gate del TP) | Lo que se cambió desde el primer análisis del CI quedó bien cubierto |
 
@@ -76,8 +76,9 @@
 |---|---|---|---|
 | Backend | 807 (sin `helpers.js`) | 5,546 | **145,5 tests/KLOC** |
 | Frontend | 699 | 11,537 | **60,6 tests/KLOC** |
+| Frontend, CI #19 (§209–§211) | 864 | 11,386 | **75,9 tests/KLOC** |
 
-**Lectura:** el backend tiene **2,4 veces más pruebas por línea** que el frontend. Es coherente con la cobertura (backend 92,9 % de líneas contra 83,3 %) y con dónde estuvo el esfuerzo de calidad: la plata, los cupos y la autorización viven en el backend. Si el proyecto sigue, el frontend es donde conviene sumar pruebas, sobre todo de ramas (74 %).
+**Lectura:** el backend tiene **2,4 veces más pruebas por línea** que el frontend. Es coherente con la cobertura (backend 92,9 % de líneas contra 83,3 %) y con dónde estuvo el esfuerzo de calidad: la plata, los cupos y la autorización viven en el backend. Si el proyecto sigue, el frontend es donde conviene sumar pruebas, sobre todo de ramas (74 %). **Actualización (CI #19):** con §209–§211 el frontend pasó a 75,9 tests/KLOC y a 81,18 % de ramas; el backend sigue teniendo casi el doble de densidad.
 
 ## 4. Mejora medida antes/después (SonarCloud, historial de análisis)
 
