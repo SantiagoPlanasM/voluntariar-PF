@@ -5626,3 +5626,27 @@ De los 13 `S5145`, **SonarCloud cerró 12, o sea que reconoció `forLog()`** com
 
 ### ⚠️ NO verificado
 - Lo listado al final de `METRICAS.md`: qué mide la duración del deploy, el tiempo de trabajo dentro del tiempo de recuperación, la deuda como estimación de la herramienta, y las calificaciones A/A sin un análisis nuevo del CI.
+
+## 206. Herramienta nueva (eje 8): SonarCloud con el proceso de 5 pasos, la matriz y el mapa de herramientas — `docs/calidad/HERRAMIENTA_NUEVA.md`
+
+**Qué se hizo:**
+- Los 5 pasos documentados con los hechos reales:
+  1. **requisitos**;
+  2. **mercado**, con 4 alternativas: SonarCloud, ESLint + jscpd + gate propio, Codacy y Qlty;
+  3. **prueba de concepto** en `sonar-poc` (PR #1, runs #4 rojo / #5 verde);
+  4. **matriz de decisión** con los pesos que eligió el usuario (25/15/15/15/10/10/5/5);
+  5. **despliegue incremental**: PR → `main` con gate bloqueante (run #7 rojo real) → corrección y ampliación → mejora medida → triage.
+- **Matriz:** SonarCloud **92**, Codacy **84**, Qlty **72**, ESLint + jscpd **65** (totales recalculados aparte).
+- El **mapa de herramientas** del proyecto, por propósito.
+
+### Verificación del paso 2 (búsquedas del 2026-10-17)
+- **Codacy:** su página oficial de precios dice que el plan Team es **gratis para proyectos open source**, y fuentes de terceros mencionan gates con umbrales configurables. **No se confirmó** una acción oficial de GitHub Actions.
+- **Qlty:** la documentación oficial confirma cobertura, duplicación y quality gates. Los precios para open source solo aparecen en fuentes de terceros (no verificados).
+- **SonarCloud:** gates propios solo en los planes pagos (§188).
+
+### Errores propios / honestidad
+- **Codacy quedó cerca (84 contra 92)** y en el criterio de más peso empata con SonarCloud. La diferencia sale de criterios donde SonarCloud tiene una prueba real y Codacy solo documentación. Queda dicho en el documento, con una prueba de concepto de Codacy como trabajo futuro.
+- **Cronología:** la elección (D5) se hizo con el borrador de la matriz, sin los datos verificados. La matriz completa se terminó después de la prueba de concepto. Queda dicho en el documento.
+
+### ⚠️ NO verificado
+- Las funciones de Codacy y de Qlty en la práctica (sin prueba de concepto).
