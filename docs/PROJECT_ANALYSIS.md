@@ -5793,3 +5793,26 @@ Se escribió en HTML con estilos de impresión A4 y se convirtió con Chrome hea
 - **El umbral bloqueante sigue siendo solo de líneas** (decisión del §186). Subir sentencias, ramas y funciones a bloqueantes es decisión del usuario.
 - `ProjectCard.tsx` (36 ramas sin cubrir) **no se importa en ninguna pantalla**, solo en su propio test: es código muerto. **No se borró:** necesita el OK del usuario (reglas 5 y 16).
 - Nada visual: estos tests miran el DOM, no cómo se ve.
+
+## 211. Borrar `ProjectCard.tsx`, código muerto (con OK del usuario)
+
+**Por qué:** §210 encontró que **ninguna pantalla lo importa**, solo su propio test.
+- `git log -S "import { ProjectCard }"` muestra que el último import se quitó en `f58b72d`, cuando el feed vertical pasó a `FeedPostCard`.
+- Tenía su propia copia de `safeMoney`, la deuda de duplicación vista en §172.
+- Sumaba 36 ramas sin cubrir al total del frontend.
+
+**Qué se hizo:**
+- `git rm` de `ProjectCard.tsx` y `ProjectCard.test.tsx` (3 tests);
+- en `FRONTEND_CONTEXT.md`, la entrada queda tachada con el motivo.
+
+### Verificación
+- `grep` de `ProjectCard` en `frontend/src`: sin referencias fuera de esos dos archivos, antes de borrar.
+- Frontend: **864/864** tests (867 − 3), 79 archivos. `typecheck` 0 errores. `vite build` OK.
+- Cobertura local:
+  - sentencias 85,87 → **86,36 %**;
+  - ramas 80,42 → **81,14 %**;
+  - funciones 81,75 → **82,21 %**;
+  - líneas 89,70 → **90,11 %**.
+
+### ⚠️ NO verificado
+- Nada visual. No hay nada que ver: el componente no se mostraba en ninguna pantalla.
