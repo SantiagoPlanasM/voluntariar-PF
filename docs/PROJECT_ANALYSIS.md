@@ -5867,3 +5867,21 @@ Se escribió en HTML con estilos de impresión A4 y se convirtió con Chrome hea
 ### ⚠️ NO verificado
 - El resto del PDF no se miró página por página de nuevo, solo las páginas 3 y 9. El contenido de las otras no cambió, pero se corrió una página.
 - El anexo y la fila "Pipeline" siguen citando el CI #15 como "run en verde". Sigue siendo cierto, y ahora el CI #19 también lo es.
+
+## 214. Carátula del informe con los dos integrantes
+
+**Qué se hizo:**
+- **Carátula:** el usuario completó los datos. Son **dos integrantes** y la plantilla preveía uno, así que la carátula pasa a una fila por integrante con su legajo al lado, y el nombre del docente en mayúsculas y minúsculas.
+- **Uso de IA (7.3):** "las tomó el alumno" pasa a "las tomó el equipo".
+- **Nota al pie de la carátula:** decía que el último cambio de código era `80042fb` (CI #15) y que lo posterior era solo documentación. Desde §209 eso ya no era cierto. Ahora dice `df529c3` (CI #19).
+- **PDF regenerado:** 9 páginas.
+
+### Verificación
+- Captura de la carátula con Chrome headless: los dos integrantes con sus legajos, el docente, el nivel, la fecha y el repositorio.
+- `git log df529c3..HEAD --stat`: después de ese commit solo cambiaron archivos de `docs/`.
+
+### Errores propios
+- **La nota del último cambio de código quedó vieja en §213.** Se actualizaron los números, pero no esa frase. Se encontró al mirar la carátula.
+
+### ⚠️ NO verificado
+- El orden de los integrantes y el formato de la carátula: el enunciado no fija ninguno.
