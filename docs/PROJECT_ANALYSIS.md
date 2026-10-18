@@ -5714,3 +5714,82 @@ Se escribió en HTML con estilos de impresión A4 y se convirtió con Chrome hea
 ### ⚠️ NO verificado
 - La cobertura en el CI (se ve después del push).
 - El chequeo de rutas contra el backend es por expresión regular sobre el código. Si una ruta se definiera de otra forma (con comillas dobles o armada en tiempo de ejecución), el script no la vería. Hoy todas usan comillas simples.
+
+## 210. Cobertura del frontend, fase 2: tests de componentes (las cuatro métricas pasan el 80 %)
+
+**Por qué:** después de §209 seguían abajo del 80 % **funciones (74,27 %)** y **ramas (74,33 %)**. Se eligieron los archivos por lo que les faltaba cubrir (ranking sacado de `coverage-summary.json`). En los grandes se miraron en el `lcov` las funciones que **nunca se ejecutaban**, para escribir casos sobre comportamiento real y no a ciegas.
+
+**Qué se hizo:** solo tests; **ningún archivo de producto cambió**. Cada archivo nuevo empieza con su **criterio de aceptación**, escrito antes de los casos.
+
+**Archivos nuevos:**
+- `MessagesScreen.test.tsx` (**8**). Estaba en 0 %. Cubre:
+  - el vacío según el rol;
+  - la foto o la inicial y el "Vos: ";
+  - los no leídos con el límite 9 / 10 → "9+";
+  - la ruta del hilo para cada rol.
+- `CompanySidebarNav.test.tsx` (**11**). Estaba en 0 %. Cubre:
+  - las rutas de los links y el resaltado en las subrutas (`/company/profilex` no resalta "Mi Empresa");
+  - los no leídos 0 / 3 / 9 / 10;
+  - foto o inicial, y sin usuario;
+  - "Cerrar sesión", que cierra y vuelve a `/`.
+- `FeedPostCard.test.tsx` (**27**). No tenía test propio. El modal de reseñas se reemplazó por un doble. Cubre:
+  - los textos por defecto;
+  - los montos en pesos (`$1.500 / $10.000`, `$0` si no es número) y el tope de 100 % de las barras;
+  - quién sigue el proyecto, en singular y plural;
+  - roles, costo y hasta 3 comentarios con "Participó";
+  - comentar: sin sesión, éxito, vacío y error;
+  - inscribirse: sin sesión, ONG, éxito con `onRefresh`, error y ya inscripto;
+  - seguir y dejar de seguir con los seguidores del servidor;
+  - el nuevo promedio al calificar.
+- `MyParticipation.test.tsx` (**13**). Cubre:
+  - sin sesión;
+  - las redirecciones de la ONG y de la empresa;
+  - las cantidades y el filtrado;
+  - el vacío de cada filtro;
+  - una carga que falla;
+  - el estado desconocido, que se ve como "Rechazado";
+  - horas en singular y plural;
+  - cancelar: sin confirmar, confirmado y con error.
+
+**Archivos ampliados:**
+- `ExploreScreen.test.tsx` (**+9**, en CRLF). Cubre:
+  - la cruz del buscador;
+  - aplicar los cuatro filtros desde el modal: las pastillas, el contador, "Para vos" que se esconde y la lista filtrada;
+  - cada cruz, "Limpiar todo", y la cruz y "Limpiar filtros" del modal;
+  - "Ver todos"/"Ver menos" de "Para vos" con más de 4 y hasta 3 etiquetas;
+  - "Ver todos"/"Ver carrusel";
+  - las flechas, con medidas simuladas porque jsdom no tiene layout: desplazan el mínimo de 260 px.
+- `NGOKPIs.test.tsx` (**+11**, en CRLF; `useNavigate` pasó a un doble compartido para poder verificar "Volver"). Cubre:
+  - el alta con el cuerpo normalizado (sin espacios de más, el valor como número, los vacíos como `undefined`) y la recarga;
+  - nombre obligatorio y error del alta;
+  - la etiqueta del tipo booleano y la cruz del formulario;
+  - borrar: sin confirmar, confirmado y con error;
+  - "Volver";
+  - el título que no carga.
+
+### Verificación
+- Frontend: **867/867** tests, 80 archivos, salida 0. `typecheck` 0 errores, salida 0. `npm audit` 0.
+- **Cobertura** (local, `vitest run --coverage`):
+
+| Métrica | Antes de §209 | Después de §209 | Ahora |
+|---|---|---|---|
+| Sentencias | 79,75 % | 81,48 % | **85,87 %** (3071/3576) |
+| Ramas | 74,05 % | 74,33 % | **80,42 %** (2548/3168) |
+| Funciones | 68,09 % | 74,27 % | **81,75 %** (820/1003) |
+| Líneas | 83,26 % | 85,39 % | **89,70 %** (2579/2875) |
+
+- **Mutación** sobre los seis componentes (script del scratchpad; corrida de control en verde por archivo; cada archivo se restaura byte a byte; ningún `.tsx` de producto queda modificado en `git status`).
+  - **25 mutantes**. En la primera corrida **sobrevivieron 2**, y **ninguno era equivalente**:
+    - "9+ desde 11" en Mensajes: el test probaba 3 y 12, no el límite;
+    - "dejar de seguir resta 1 localmente" en la tarjeta: el servidor del test devolvía justo 3 − 1.
+  - Se agregó el caso del límite y el servidor pasó a devolver 0. Segunda corrida: **0 de 25**.
+
+### Errores propios
+- **§209 no actualizó el número de tests del frontend en `CLAUDE.md`** (quedó en 699 cuando ya eran 788). Se corrige acá con el número actual.
+- Un caso de "Para vos" falló en la primera corrida: el botón "Ver todos" solo aparece con **más de 4** recomendaciones y yo había puesto 1. Se corrigió el caso, no el componente.
+
+### ⚠️ NO verificado
+- **La cobertura en el CI** (se ve después del push). El margen en ramas es chico: **13 ramas** sobre el 80 %.
+- **El umbral bloqueante sigue siendo solo de líneas** (decisión del §186). Subir sentencias, ramas y funciones a bloqueantes es decisión del usuario.
+- `ProjectCard.tsx` (36 ramas sin cubrir) **no se importa en ninguna pantalla**, solo en su propio test: es código muerto. **No se borró:** necesita el OK del usuario (reglas 5 y 16).
+- Nada visual: estos tests miran el DOM, no cómo se ve.

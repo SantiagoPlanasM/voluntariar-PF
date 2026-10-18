@@ -4,7 +4,7 @@
 // ("No encontramos voluntariados con esos filtros"), como si no hubiera proyectos. Ahora se ve el error con
 // "Reintentar". Las recomendaciones ("Para vos") son secundarias: si fallan, avisan en su sección y el
 // catálogo se muestra igual.
-import { describe, test, expect, vi, beforeEach } from 'vitest';
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 
@@ -183,5 +183,181 @@ describe('ExploreScreen: las tarjetas de proyecto son links (teclado)', () => {
     expect(paraVos.length).toBeGreaterThan(0);
     for (const a of catalogo) expect(a).toHaveAttribute('href', '/project/p1');
     for (const a of paraVos) expect(a).toHaveAttribute('href', '/project/p2');
+  });
+});
+
+// TP de Calidad, cobertura del frontend (§210). Criterio de aceptación (escrito antes de los casos):
+//  - la cruz del buscador lo vacía;
+//  - los filtros se aplican desde el modal: cada filtro activo es una pastilla con su cruz, el botón muestra cuántos
+//    hay, "Para vos" se esconde mientras haya filtros y la lista muestra solo lo que pasa el filtro;
+//  - cada cruz quita solo su filtro; "Limpiar todo" y "Limpiar filtros" (en el modal) los quitan todos;
+//  - "Ver todos" de "Para vos" despliega la lista con hasta 3 etiquetas; "Ver todos" del catálogo cambia a la lista;
+//  - las flechas del carrusel desplazan (mínimo 260 px) solo cuando hay para dónde.
+describe('ExploreScreen: búsqueda y filtros', () => {
+  const catalogo = () => [
+    project('p1', 'Huerta comunitaria', { category: 'Educación', type: 'sostenido', modality: 'remoto' }),
+    project('p2', 'Colecta de ropa', { category: 'Ambiente', type: 'fugaz', modality: 'presencial', cost_per_person: 500 }),
+  ];
+  const aplicarTodos = async () => {
+    fireEvent.click(screen.getByTitle('Abrir filtros de búsqueda'));
+    const modal = await screen.findByRole('dialog');
+    fireEvent.click(within(modal).getByRole('button', { name: /^Educación/ }));
+    fireEvent.click(within(modal).getByRole('button', { name: /Sostenido/ }));
+    fireEvent.click(within(modal).getByRole('button', { name: /Remoto/ }));
+    fireEvent.click(within(modal).getByRole('button', { name: /100% Gratis/ }));
+    fireEvent.click(within(modal).getByRole('button', { name: /Mostrar 1 voluntariados/ }));
+  };
+
+  beforeEach(() => {
+    vi.mocked(api.projects.list).mockResolvedValue({ projects: catalogo() } as never);
+  });
+
+  test('la cruz del buscador lo vacía', async () => {
+    mount();
+    await screen.findByText('Huerta comunitaria');
+    const input = screen.getByRole('textbox', { name: 'Buscar voluntariados' });
+    expect(screen.queryByRole('button', { name: 'Limpiar búsqueda' })).not.toBeInTheDocument();
+    fireEvent.change(input, { target: { value: 'huerta' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar búsqueda' }));
+    expect(input).toHaveValue('');
+  });
+
+  test('aplicar desde el modal: una pastilla por filtro, el contador, sin "Para vos" y solo lo filtrado', async () => {
+    // Arrange
+    mount();
+    await screen.findByText('Colecta de ropa');
+    expect(screen.getByRole('region', { name: 'Para vos' })).toBeInTheDocument();
+    // Act
+    await aplicarTodos();
+    // Assert
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    for (const t of ['Quitar filtro Educación', 'Quitar filtro de tipo', 'Quitar filtro de modalidad', 'Quitar filtro de costo']) {
+      expect(screen.getByTitle(t)).toBeInTheDocument();
+    }
+    expect(screen.getByTitle('Abrir filtros de búsqueda')).toHaveTextContent('4');
+    expect(screen.getByText('Sostenido')).toBeInTheDocument();
+    expect(screen.getByText('Remoto')).toBeInTheDocument();
+    expect(screen.getByText('Gratis')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Para vos' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Colecta de ropa')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Huerta comunitaria').length).toBeGreaterThan(0);
+  });
+
+  test('cada cruz quita solo su filtro, y sin filtros vuelve "Para vos"', async () => {
+    mount();
+    await screen.findByText('Colecta de ropa');
+    await aplicarTodos();
+    await screen.findByTitle('Quitar filtro Educación');
+    fireEvent.click(screen.getByTitle('Quitar filtro Educación'));
+    expect(screen.queryByTitle('Quitar filtro Educación')).not.toBeInTheDocument();
+    expect(screen.getByTitle('Abrir filtros de búsqueda')).toHaveTextContent('3');
+    fireEvent.click(screen.getByTitle('Quitar filtro de tipo'));
+    expect(screen.queryByTitle('Quitar filtro de tipo')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Quitar filtro de modalidad'));
+    expect(screen.queryByTitle('Quitar filtro de modalidad')).not.toBeInTheDocument();
+    expect(screen.getByTitle('Quitar filtro de costo')).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Quitar filtro de costo'));
+    expect(screen.queryByTitle('Quitar filtro de costo')).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Para vos' })).toBeInTheDocument();
+    expect(screen.getAllByText('Colecta de ropa').length).toBeGreaterThan(0);
+  });
+
+  test('"Limpiar todo" quita los filtros y la búsqueda', async () => {
+    mount();
+    await screen.findByText('Colecta de ropa');
+    await aplicarTodos();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Buscar voluntariados' }), { target: { value: 'huerta' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Limpiar todo' }));
+    expect(screen.queryByTitle(/Quitar filtro/)).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Buscar voluntariados' })).toHaveValue('');
+  });
+
+  test('el modal: la cruz lo cierra sin aplicar y "Limpiar filtros" quita los aplicados', async () => {
+    mount();
+    await screen.findByText('Colecta de ropa');
+    fireEvent.click(screen.getByTitle('Abrir filtros de búsqueda'));
+    const modal = await screen.findByRole('dialog');
+    fireEvent.click(within(modal).getByRole('button', { name: /Sostenido/ }));
+    fireEvent.click(within(modal).getByTitle('Cerrar (Esc)'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.queryByTitle('Quitar filtro de tipo')).not.toBeInTheDocument();
+    // Con un filtro aplicado, "Limpiar filtros" del modal lo quita
+    await aplicarTodos();
+    await screen.findByTitle('Quitar filtro de tipo');
+    fireEvent.click(screen.getByTitle('Abrir filtros de búsqueda'));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: /Limpiar filtros/ }));
+    await waitFor(() => expect(screen.queryByTitle(/Quitar filtro/)).not.toBeInTheDocument());
+  });
+});
+
+describe('ExploreScreen: "Para vos" y el catálogo desplegados', () => {
+  test('con más de 4, "Ver todos" de "Para vos" despliega la lista con hasta 3 etiquetas y vuelve con "Ver menos"', async () => {
+    vi.mocked(api.projects.recommended).mockResolvedValue({
+      recommendations: [
+        { ...project('r1', 'Apoyo escolar'), recommendation_tags: ['Educación', 'Cerca', 'Tercera', 'Cuarta'] },
+        ...['r2', 'r3', 'r4', 'r5'].map((id) => project(id, 'Rec ' + id)),
+      ],
+      based_on_history: true,
+    } as never);
+    mount();
+    const recs = screen.getByRole('region', { name: 'Para vos' });
+    await within(recs).findAllByText('Apoyo escolar');
+    expect(within(recs).queryByText('Tercera')).not.toBeInTheDocument();   // el carrusel muestra 2
+    fireEvent.click(within(recs).getByRole('button', { name: /Ver todos/ }));
+    expect(within(recs).getByText('Cerca')).toBeInTheDocument();
+    expect(within(recs).getByText('Tercera')).toBeInTheDocument();
+    expect(within(recs).queryByText('Cuarta')).not.toBeInTheDocument();
+    fireEvent.click(within(recs).getByRole('button', { name: /Ver menos/ }));
+    expect(within(recs).getByRole('button', { name: /Ver todos/ })).toBeInTheDocument();
+  });
+
+  test('"Ver todos" del catálogo pasa a la lista y "Ver carrusel" vuelve', async () => {
+    auth.user = null;
+    mount();
+    await screen.findByText('Huerta comunitaria');
+    fireEvent.click(screen.getByRole('button', { name: /Ver todos/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Ver carrusel/ }));
+    expect(screen.getByRole('button', { name: /Ver todos/ })).toBeInTheDocument();
+  });
+});
+
+describe('ExploreScreen: flechas de los carruseles', () => {
+  const props = ['scrollWidth', 'clientWidth', 'scrollLeft'] as const;
+  const originales = props.map((p) => [p, Object.getOwnPropertyDescriptor(Element.prototype, p)] as const);
+  const scrollBy = vi.fn();
+  beforeEach(() => {
+    scrollBy.mockReset();
+    // jsdom no tiene layout (todo mide 0): se simula un carrusel de 1000 px visto en 300 px, al principio
+    Object.defineProperty(Element.prototype, 'scrollWidth', { configurable: true, get: () => 1000 });
+    Object.defineProperty(Element.prototype, 'clientWidth', { configurable: true, get: () => 300 });
+    Object.defineProperty(Element.prototype, 'scrollLeft', { configurable: true, get: () => 0 });
+    (Element.prototype as unknown as { scrollBy: unknown }).scrollBy = scrollBy;
+  });
+  afterEach(() => {
+    for (const [p, d] of originales) {
+      if (d) Object.defineProperty(Element.prototype, p, d);
+    }
+    delete (Element.prototype as unknown as { scrollBy?: unknown }).scrollBy;
+  });
+
+  test('al principio solo hay "Siguiente", y desplaza 260 px (el mínimo) hacia la derecha', async () => {
+    auth.user = null;
+    mount();
+    await screen.findByText('Huerta comunitaria');
+    const siguiente = await screen.findByRole('button', { name: 'Siguiente' });
+    expect(screen.queryByRole('button', { name: 'Anterior' })).not.toBeInTheDocument();
+    fireEvent.click(siguiente);
+    expect(scrollBy).toHaveBeenCalledWith({ left: 260, behavior: 'smooth' });
+  });
+
+  test('"Para vos" también: "Siguiente" desplaza hacia la derecha', async () => {
+    vi.mocked(api.projects.recommended).mockResolvedValue({
+      recommendations: [project('r1', 'Apoyo escolar')], based_on_history: true,
+    } as never);
+    mount();
+    const recs = screen.getByRole('region', { name: 'Para vos' });
+    await within(recs).findAllByText('Apoyo escolar');
+    fireEvent.click(await within(recs).findByRole('button', { name: 'Siguiente' }));
+    expect(scrollBy).toHaveBeenCalledWith({ left: 260, behavior: 'smooth' });
   });
 });

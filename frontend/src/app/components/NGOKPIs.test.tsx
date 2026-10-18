@@ -6,9 +6,10 @@ import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import type { KPI } from '../../lib/api';
 
+const { navigate } = vi.hoisted(() => ({ navigate: vi.fn() }));
 vi.mock('react-router', async () => {
   const actual = await vi.importActual<typeof import('react-router')>('react-router');
-  return { ...actual, useParams: () => ({ projectId: 'proj-1' }), useNavigate: () => vi.fn() };
+  return { ...actual, useParams: () => ({ projectId: 'proj-1' }), useNavigate: () => navigate };
 });
 
 vi.mock('../../lib/api', async () => {
@@ -87,5 +88,131 @@ describe('<NGOKPIs />: sin tipo "texto"', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     await waitFor(() => expect(api.projects.kpis.update).toHaveBeenCalled());
     expect(vi.mocked(api.projects.kpis.update).mock.calls[0][2]).toMatchObject({ tipo_valor: 'numero' });
+  });
+});
+
+
+// TP de Calidad, cobertura del frontend (§210). Criterio de aceptación (escrito antes de los casos):
+//  - alta: el nombre es obligatorio; se manda el nombre sin espacios de más, el valor como número y los campos
+//    vacíos como `undefined` (no ""); al guardar se cierra el formulario y se recarga la lista; si falla, el error;
+//  - con tipo "booleano" el valor se pide como "Logrado (1=Sí, 0=No)";
+//  - borrar pide confirmación: si se cancela no se borra, si se confirma desaparece, si falla se avisa;
+//  - la cruz cierra el formulario; "Volver" vuelve a la pantalla anterior; si no carga el título, los KPIs se ven igual.
+describe('<NGOKPIs />: alta, borrado y navegación', () => {
+  const abrirFormulario = async () => {
+    render(<NGOKPIs />);
+    await screen.findAllByText('Árboles plantados');
+    fireEvent.click(screen.getByRole('button', { name: /Agregar KPI/ }));
+    return screen.getByLabelText('Nombre').closest('form') as HTMLFormElement;
+  };
+  let confirmSpy: ReturnType<typeof vi.spyOn>;
+  let alertSpy: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    navigate.mockReset();
+    vi.mocked(api.projects.get).mockReset().mockResolvedValue({ project: { title: 'Reforestación Urbana' } } as never);
+    vi.mocked(api.projects.kpis.list).mockReset().mockResolvedValue({ kpis: [kpi] });
+    vi.mocked(api.projects.kpis.create).mockReset().mockResolvedValue({ kpi } as never);
+    vi.mocked(api.projects.kpis.delete).mockReset().mockResolvedValue({} as never);
+    confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+  });
+  afterEach(() => { confirmSpy.mockRestore(); alertSpy.mockRestore(); });
+
+  test('alta con todos los campos: manda el cuerpo normalizado, cierra el formulario y recarga', async () => {
+    // Arrange
+    const form = await abrirFormulario();
+    // Act
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: '  Familias asistidas  ' } });
+    fireEvent.change(screen.getByLabelText('Descripción'), { target: { value: 'Por mes' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Tipo' }), { target: { value: 'porcentaje' } });
+    fireEvent.change(screen.getByLabelText('Valor'), { target: { value: '85' } });
+    fireEvent.change(screen.getByLabelText('Unidad'), { target: { value: 'familias' } });
+    fireEvent.change(screen.getByLabelText('Fecha de medición'), { target: { value: '2026-10-05' } });
+    fireEvent.submit(form);
+    // Assert
+    await waitFor(() => expect(api.projects.kpis.create).toHaveBeenCalledWith('proj-1', {
+      nombre: 'Familias asistidas', descripcion: 'Por mes', valor: 85, tipo_valor: 'porcentaje', unidad: 'familias', fecha: '2026-10-05',
+    }));
+    await waitFor(() => expect(api.projects.kpis.list).toHaveBeenCalledTimes(2));
+    expect(screen.queryByLabelText('Nombre')).not.toBeInTheDocument();
+  });
+
+  test('alta solo con el nombre: los demás campos van como undefined, no ""', async () => {
+    const form = await abrirFormulario();
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Voluntarios' } });
+    fireEvent.submit(form);
+    await waitFor(() => expect(api.projects.kpis.create).toHaveBeenCalledWith('proj-1', {
+      nombre: 'Voluntarios', descripcion: undefined, valor: undefined, tipo_valor: 'numero', unidad: undefined, fecha: undefined,
+    }));
+  });
+
+  test('sin nombre (o solo espacios) no se manda y avisa', async () => {
+    const form = await abrirFormulario();
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: '   ' } });
+    fireEvent.submit(form);
+    expect(await screen.findByText('El nombre es obligatorio')).toBeInTheDocument();
+    expect(api.projects.kpis.create).not.toHaveBeenCalled();
+  });
+
+  test('si el alta falla, muestra el error y el formulario sigue abierto', async () => {
+    vi.mocked(api.projects.kpis.create).mockRejectedValue(new Error('No se pudo guardar'));
+    const form = await abrirFormulario();
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Voluntarios' } });
+    fireEvent.submit(form);
+    expect(await screen.findByText('No se pudo guardar')).toBeInTheDocument();
+    expect(screen.getByLabelText('Nombre')).toHaveValue('Voluntarios');
+  });
+
+  test('tipo "booleano": el valor se pide como "Logrado (1=Sí, 0=No)"', async () => {
+    await abrirFormulario();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Tipo' }), { target: { value: 'booleano' } });
+    expect(screen.getByLabelText('Logrado (1=Sí, 0=No)')).toHaveAttribute('placeholder', '1 o 0');
+    expect(screen.queryByLabelText('Valor')).not.toBeInTheDocument();
+  });
+
+  test('la cruz cierra el formulario y lo vacía', async () => {
+    await abrirFormulario();
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'A medias' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar formulario' }));
+    expect(screen.queryByLabelText('Nombre')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Agregar KPI/ }));
+    expect(screen.getByLabelText('Nombre')).toHaveValue('');
+  });
+
+  test('borrar: si se cancela la confirmación no se borra', async () => {
+    confirmSpy.mockReturnValue(false);
+    render(<NGOKPIs />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Borrar KPI Árboles plantados' }));
+    expect(confirmSpy).toHaveBeenCalledWith('¿Eliminar este KPI?');
+    expect(api.projects.kpis.delete).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Borrar KPI Árboles plantados' })).toBeInTheDocument();
+  });
+
+  test('borrar: confirmado, se borra y desaparece de la lista', async () => {
+    render(<NGOKPIs />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Borrar KPI Árboles plantados' }));
+    await waitFor(() => expect(api.projects.kpis.delete).toHaveBeenCalledWith('proj-1', 'k1'));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Borrar KPI Árboles plantados' })).not.toBeInTheDocument());
+  });
+
+  test('borrar: si falla, avisa con el mensaje y el KPI sigue', async () => {
+    vi.mocked(api.projects.kpis.delete).mockRejectedValue(new Error('No autorizado'));
+    render(<NGOKPIs />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Borrar KPI Árboles plantados' }));
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith('No autorizado'));
+    expect(screen.getByRole('button', { name: 'Borrar KPI Árboles plantados' })).toBeInTheDocument();
+  });
+
+  test('"Volver" vuelve a la pantalla anterior', async () => {
+    render(<NGOKPIs />);
+    fireEvent.click(screen.getByRole('button', { name: 'Volver' }));
+    expect(navigate).toHaveBeenCalledWith(-1);
+  });
+
+  test('si no se puede cargar el título del proyecto, los KPIs se ven igual (sin título)', async () => {
+    vi.mocked(api.projects.get).mockReset().mockRejectedValue(new Error('caído'));
+    render(<NGOKPIs />);
+    expect((await screen.findAllByText('Árboles plantados')).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Reforestación Urbana')).not.toBeInTheDocument();
   });
 });
