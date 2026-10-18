@@ -214,6 +214,37 @@ describe('Autorización por dueño entre ONGs', () => {
     });
   });
 
+  // Marketplace (§216): los endpoints son /me, así que "ajeno" es usar el state de otra ONG o tocar su cuenta.
+  describe('cuenta de Mercado Pago de otra ONG', () => {
+    test('no puede usar el state de la vinculación de otra ONG, ni ver ni desvincular su cuenta; la dueña sí', async () => {
+      const { mock } = require('node:test');
+      const crypto = require('node:crypto');
+      const payments = require('../../src/lib/payments');
+      const env = { MP_CLIENT_ID: '1', MP_CLIENT_SECRET: 's', MP_OAUTH_REDIRECT_URI: 'https://x/ngo/mercadopago/vuelta', MP_TOKEN_KEY: crypto.randomBytes(32).toString('base64') };
+      const saved = Object.fromEntries(Object.keys(env).map((k) => [k, process.env[k]]));
+      Object.assign(process.env, env);
+      const exchange = mock.method(payments, 'exchangeCode', async () => ({ accessToken: 'APP_USR-a', refreshToken: 'TG-r', mpUserId: '3772556008', expiresIn: 100, liveMode: false }));
+      try {
+        const c = await api('/api/ngos/me/mercadopago/connect', { token: owner, method: 'POST' });
+        const state = new URL(c.body.authorization_url).searchParams.get('state');
+        const stolen = await api('/api/ngos/me/mercadopago/callback', { token: other, method: 'POST', body: { code: 'TG-c', state } });
+        assert.equal(stolen.status, 400);
+        assert.equal(exchange.mock.callCount(), 0);
+        assert.equal(await db.get(`SELECT 1 AS x FROM ngo_cuentas_mp WHERE ngo_id='ngo-2'`), undefined);
+
+        assert.equal((await api('/api/ngos/me/mercadopago/callback', { token: owner, method: 'POST', body: { code: 'TG-c', state } })).status, 200);
+        assert.equal((await api('/api/ngos/me/mercadopago', { token: other })).body.account, null);
+        assert.equal((await api('/api/ngos/me/mercadopago', { token: other, method: 'DELETE' })).body.disconnected, false);
+        assert.equal((await api('/api/ngos/me/mercadopago', { token: owner })).body.account.mp_user_id, '3772556008');
+        assert.equal((await api('/api/ngos/me/mercadopago', { token: owner, method: 'DELETE' })).body.disconnected, true);
+      } finally {
+        exchange.mock.restore();
+        for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+        await db.run(`DELETE FROM ngo_cuentas_mp`);
+      }
+    });
+  });
+
   // Control: con los MISMOS ids, la dueña sí puede. Va después de los rechazos porque modifica los datos.
   describe('la ONG dueña SÍ puede (mismos ids)', () => {
     test('ver inscripciones, cargar horas y aprobar', async () => {

@@ -638,6 +638,44 @@ La **única** transición de una donación; la van a usar el aviso y la concilia
 6. Después del COMMIT avisa a la ONG con una notificación `donation_received`; si eso falla, la acreditación queda.
 - Si Mercado Pago o la base fallan, **lanza**, y el que llama decide (el aviso va a responder 5xx para que Mercado Pago reintente).
 
+## Cuenta de Mercado Pago de la ONG (`routes/mercadopago.js`) — Marketplace, modo prueba (`PROJECT_ANALYSIS.md §216`)
+
+Montado en `/api/ngos/me/mercadopago`, **antes** que `/api/ngos` (`src/index.js`). Los cuatro piden Auth y rol `ngo` (401 sin sesión, 403 otro rol). Nunca devuelven tokens.
+
+### `GET /api/ngos/me/mercadopago`
+→ `{ account: null | { mp_user_id, status: 'active'|'needs_reconnect', origin: 'oauth'|'manual', expires_at: string|null }, oauth_available: boolean }`. `oauth_available` exige `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_OAUTH_REDIRECT_URI` y `MP_TOKEN_KEY`.
+
+### `POST /api/ngos/me/mercadopago/connect`
+→ `{ authorization_url }`.
+- Genera un `state` de 32 bytes y guarda **solo su hash**, con 10 minutos de vida.
+- Antes borra cualquier `state` anterior de la misma ONG.
+- Sin configuración responde 503.
+
+### `POST /api/ngos/me/mercadopago/callback` `{ code, state }`
+Lo llama la pantalla del frontend a la que vuelve Mercado Pago, `/ngo/mercadopago/vuelta`, **con la sesión de la ONG**.
+- Consume el `state`: tiene que ser de esa ONG, sin vencer, y de un solo uso (`DELETE` mirando `changes`).
+- **Después**, ya fuera de toda transacción, llama a `payments.exchangeCode`.
+- Guarda los tokens cifrados y responde `{ account }`.
+
+| Situación | Respuesta |
+|---|---|
+| Sin `code` o sin `state`, `state` desconocido, de otra ONG o vencido | 400 |
+| Mercado Pago responde `invalid_grant` | 400 |
+| El token es productivo (`live_token`) | 400 |
+| Otro error de Mercado Pago | 502 |
+| Esa cuenta ya está vinculada a otra ONG | 409 |
+| Sin configuración | 503 |
+
+Si el intercambio falla, el `state` igual queda usado.
+
+### `DELETE /api/ngos/me/mercadopago`
+→ `{ disconnected: boolean }`. Borra la fila con los tokens. Mercado Pago no tiene un endpoint para que la aplicación revoque la autorización; la ONG la puede revocar desde su cuenta.
+
+**Carga manual (no es un endpoint):** `MP_MANUAL_SELLER_TOKEN=… node scripts/vincular-mp-manual.js <ngo_id>`.
+- Guarda el access token de un vendedor de prueba, sin OAuth. Es para cuando no hay `client_secret` (§215).
+- Comprueba con `GET /users/me` que el usuario tenga el tag `test_user`.
+- La cuenta queda con origen `manual`, sin refresh token ni vencimiento.
+
 ## Endpoints ausentes (funcionalidad de esquema sin API)
 
 La tabla `reuniones` **existe en el esquema de base de datos pero no tienen ningún endpoint que las lea o escriba**. *(`donaciones` dejó de estar en esta lista con §170: ver "Donaciones" arriba.)* Cualquier tarea futura que mencione "reuniones/videollamadas" requiere **construir la API desde cero**, no modificar una existente. *(`voluntario_habilidades` dejó de estar en esta lista — ya tiene API completa, ver sección "Voluntarios" arriba y `PROJECT_ANALYSIS.md §17`. El perfil de `empresas` tampoco — ver sección "Empresas" arriba. `empresa_voluntariados` tampoco — ver sección "Patrocinio" arriba y `PROJECT_ANALYSIS.md §26`. `ngo_follows`/`project_follows`/`volunteer_follows` tampoco — ya tienen API completa, ver sección "Follows y Feed personalizado" arriba y `PROJECT_ANALYSIS.md §28`.)*

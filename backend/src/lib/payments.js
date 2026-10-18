@@ -183,6 +183,19 @@ async function refreshAccessToken(refreshToken) {
   return oauthToken({ client_id: clientId, client_secret: clientSecret, grant_type: 'refresh_token', refresh_token: refreshToken });
 }
 
+/** El usuario dueño de un token (carga manual, §216): para guardar su id y comprobar que sea de prueba. */
+async function getSellerUser(accessToken) {
+  if (typeof accessToken !== 'string' || !accessToken) throw new PaymentError('Falta el token', { code: 'bad_request' });
+  const data = await call('GET', '/users/me', { accessToken });
+  const id = typeof data.id === 'number' || typeof data.id === 'string' ? String(data.id) : '';
+  if (!id) throw new PaymentError('Mercado Pago devolvió un usuario sin id', { code: 'bad_response' });
+  return {
+    id,
+    nickname: typeof data.nickname === 'string' ? data.nickname : null,
+    tags: Array.isArray(data.tags) ? data.tags.filter((t) => typeof t === 'string') : [],
+  };
+}
+
 function safeEqual(a, b) {
   const x = Buffer.from(a);
   const y = Buffer.from(b);
@@ -227,5 +240,5 @@ function describePaymentsConfig() {
 
 module.exports = {
   PaymentError, isConfigured, createPreference, getPayment, verifyWebhookSignature, describePaymentsConfig, CURRENCY,
-  isOAuthConfigured, authorizationUrl, exchangeCode, refreshAccessToken,
+  isOAuthConfigured, authorizationUrl, exchangeCode, refreshAccessToken, getSellerUser,
 };

@@ -14,7 +14,7 @@ const { setupTestServer } = require('./helpers');
 const SENTINEL = 'SECRETO-B21-NO-DEBE-SALIR';
 const TABLES = [
   'users', 'ngos', 'empresas', 'voluntarios', 'projects', 'categorias', 'roles', 'habilidades', 'faqs',
-  'posts', 'post_media', 'comments', 'ratings', 'kpis', 'enrollments', 'requisitos',
+  'posts', 'post_media', 'comments', 'ratings', 'kpis', 'enrollments', 'requisitos', 'ngo_cuentas_mp',
 ];
 
 describe('Endpoints públicos: solo columnas elegidas (regla 8)', () => {
@@ -30,6 +30,9 @@ describe('Endpoints públicos: solo columnas elegidas (regla 8)', () => {
     // Un KPI y un comentario en proj-1, para que esas subconsultas devuelvan filas (las calificaciones ya vienen del seed).
     await db.run(`INSERT INTO kpis (id, project_id, nombre, valor) VALUES ('kpi-b21', 'proj-1', 'Árboles', 10)`);
     await db.run(`INSERT INTO comments (id, project_id, user_id, comment) VALUES ('com-b21', 'proj-1', 'user-vol-1', 'Muy lindo')`);
+    // La cuenta de Mercado Pago de ngo-1 (§216), con el centinela en los tokens: nunca sale por un endpoint público.
+    await db.run(`INSERT INTO ngo_cuentas_mp (ngo_id, mp_user_id, access_token_cifrado, refresh_token_cifrado)
+                  VALUES ('ngo-1', '3772556008', '${SENTINEL}', '${SENTINEL}')`);
   });
   after(async () => { if (server) await server.close(); });
 

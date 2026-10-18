@@ -41,6 +41,7 @@ app.get('/health', (_, res) => res.json({ status: 'ok', timestamp: new Date(), c
 app.use('/api/auth',           require('./routes/auth'));
 app.use('/api/projects',       require('./routes/projects'));
 app.use('/api/enrollments',    require('./routes/enrollments'));
+app.use('/api/ngos/me/mercadopago', require('./routes/mercadopago'));   // antes que /api/ngos (§216)
 app.use('/api/ngos',           require('./routes/ngos'));
 app.use('/api/empresas',       require('./routes/empresas'));
 app.use('/api/faqs',           require('./routes/faqs'));

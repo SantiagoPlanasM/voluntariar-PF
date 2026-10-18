@@ -389,6 +389,33 @@ async function migrate() {
       expires_at  TEXT NOT NULL,
       created_at  ${NOW}
     )`,
+
+    // ── 30. Cuenta de Mercado Pago de cada ONG (Marketplace, 2026-10-18, PROJECT_ANALYSIS.md §216) ────────────────
+    // Los tokens van CIFRADOS (lib/tokenCrypto.js, AES-256-GCM con el ngo_id como dato asociado): nunca en claro.
+    // `mp_user_id` UNIQUE: una cuenta de Mercado Pago es de una sola ONG, así un aviso de pago se atribuye sin dudas.
+    // `origen` 'manual' = cargada con scripts/vincular-mp-manual.js (sin refresh token ni vencimiento conocido).
+    // `version` sube en cada cambio de tokens: la renovación hace compare-and-swap sobre ella (§217).
+    // `expires_at` es un ISO calculado en JS, como en account_deletion_tokens.
+    `CREATE TABLE IF NOT EXISTS ngo_cuentas_mp (
+      ngo_id                TEXT PRIMARY KEY REFERENCES ngos(id) ON DELETE CASCADE,
+      mp_user_id            TEXT NOT NULL UNIQUE,
+      access_token_cifrado  TEXT NOT NULL,
+      refresh_token_cifrado TEXT,
+      expires_at            TEXT,
+      estado                TEXT NOT NULL DEFAULT 'activa' CHECK(estado IN ('activa','requiere_reconexion')),
+      origen                TEXT NOT NULL DEFAULT 'oauth' CHECK(origen IN ('oauth','manual')),
+      version               INTEGER NOT NULL DEFAULT 1,
+      created_at            ${NOW},
+      updated_at            ${NOW}
+    )`,
+
+    // ── 31. `state` del OAuth de Mercado Pago (§216): SOLO el hash, de un solo uso, 10 minutos, a lo sumo uno por ONG.
+    `CREATE TABLE IF NOT EXISTS mp_oauth_states (
+      state_hash  TEXT PRIMARY KEY,
+      ngo_id      TEXT NOT NULL REFERENCES ngos(id) ON DELETE CASCADE,
+      expires_at  TEXT NOT NULL,
+      created_at  ${NOW}
+    )`,
   ];
 
   // ── Crear tablas ──────────────────────────────────────────────────────────
@@ -498,6 +525,7 @@ async function migrate() {
     `CREATE INDEX IF NOT EXISTS idx_post_media_post       ON post_media(post_id)`,
     `CREATE INDEX IF NOT EXISTS idx_post_likes_user       ON post_likes(user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_account_deletion_user ON account_deletion_tokens(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_mp_oauth_states_ngo   ON mp_oauth_states(ngo_id)`,
   ];
 
   for (const idx of indexes) {

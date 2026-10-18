@@ -180,6 +180,26 @@ describe('payments: OAuth del Marketplace', () => {
     });
   });
 
+  // Para la carga manual (scripts/vincular-mp-manual.js, §216). `GET /users/me` y el tag `test_user` de los usuarios de
+  // prueba: NO verificado contra Mercado Pago (conocimiento general de la API).
+  describe('getSellerUser()', () => {
+    test('GET /users/me con el token dado; devuelve id (texto), nickname y tags', async () => {
+      fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ id: 3772556008, nickname: 'TESTUSER1', tags: ['normal', 'test_user'], email: 'x' }) });
+      assert.deepEqual(await fresh().getSellerUser('APP_USR-ong'), { id: '3772556008', nickname: 'TESTUSER1', tags: ['normal', 'test_user'] });
+      assert.equal(calls[0].url, 'https://api.mercadopago.com/users/me');
+      assert.equal(calls[0].opts.headers.Authorization, 'Bearer APP_USR-ong');
+    });
+    test('sin tags o sin nickname → [] y null; sin id → bad_response; sin token → no llama', async () => {
+      fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ id: 5, tags: 'raro' }) });
+      assert.deepEqual(await fresh().getSellerUser('t'), { id: '5', nickname: null, tags: [] });
+      fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({}) });
+      await assert.rejects(fresh().getSellerUser('t'), (e) => e.code === 'bad_response');
+      const n = calls.length;
+      await assert.rejects(fresh().getSellerUser(''), (e) => e.code === 'bad_request');
+      assert.equal(calls.length, n);
+    });
+  });
+
   describe('createPreference() / getPayment() con el token de la ONG', () => {
     const input = { donationId: 'don-1', title: 'Donación: X', amount: 1500, successUrl: 'https://app/donaciones/vuelta' };
     const pref = { id: 'pref-1', init_point: 'https://mp/init', sandbox_init_point: 'https://mp/sandbox' };

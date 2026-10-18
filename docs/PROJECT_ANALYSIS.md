@@ -5942,3 +5942,48 @@ Las tablas y los endpoints se documentan en la tarea en que se crean.
 - **La forma real de la respuesta y de los errores de `/oauth/token`** sale del SDK `mercadopago@3.6.1` y de la IA de Mercado Pago. En particular: que la renovación no lleve `test_token`, que un `refresh_token` usado deje de servir y que el error sea `invalid_grant`.
 - Que el token de prueba venga con `live_mode: false` (la barrera depende de eso).
 - Que exista el `client_secret` sin activar las credenciales productivas: según la IA, no existe.
+
+## 216. Marketplace de Mercado Pago (2/5): cuenta de la ONG — esquema, vincular/volver/desvincular y carga manual
+
+**Qué se hizo:**
+- **Esquema** (aditivo, `scripts/migrate.js`):
+  - `ngo_cuentas_mp`: una fila por ONG, `mp_user_id` UNIQUE, tokens cifrados, `estado`, `origen` (`oauth` o `manual`) y `version`.
+  - `mp_oauth_states`: solo el hash del `state`, 10 minutos.
+  - Ver `DATABASE_CONTEXT.md`.
+- **`src/lib/sellerAccounts.js`:** el único lugar que lee o escribe `ngo_cuentas_mp`, con `publicAccount`, `saveAccount` y `deleteAccount`.
+- **`src/routes/mercadopago.js`**, montado en `/api/ngos/me/mercadopago`: `GET /`, `POST /connect`, `POST /callback` y `DELETE /` (`API_CONTEXT.md`).
+  - **La vuelta de Mercado Pago llega al frontend** (`/ngo/mercadopago/vuelta`), que llama a `/callback` con la sesión de la ONG. Así se comprueba que el `state` sea de esa ONG, sin un endpoint público.
+  - El `state` se consume (`DELETE` mirando `changes`) **antes** del intercambio y fuera de toda transacción. Dos vueltas simultáneas hacen un solo intercambio.
+  - Los logs solo llevan el código del error, nunca el code, el `state` ni los tokens.
+- **`scripts/vincular-mp-manual.js` (plan B de §215):** guarda a mano el access token de un vendedor de **prueba**.
+  - El token se lee de `MP_MANUAL_SELLER_TOKEN` y no de un argumento, para que no quede en el historial.
+  - Exige el tag `test_user` en `GET /users/me`.
+  - Para eso se agregó `payments.getSellerUser`.
+- **`backend/.env.example`:** no tenía ninguna variable de Mercado Pago. Ahora tiene un bloque con las seis, comentadas.
+- **Tests:**
+  - `test/integration/mercadopago-cuenta.test.js` (21);
+  - `ownership.test.js`: una ONG no puede usar el `state` de otra, ni ver o desvincular su cuenta, y la dueña sí (regla 15);
+  - `public-columns.test.js`: suma `ngo_cuentas_mp`, con el centinela en los tokens (regla 8);
+  - 2 de `getSellerUser`.
+
+### Verificación
+- **Rojo de comportamiento:** con un router stub que respondía 501 y un `linkManually` vacío fallaban 19 de 20. Pasaba el de la migración, porque el esquema ya estaba escrito.
+- **Backend:**
+  - `npm test`: 864/864;
+  - `TZ=America/Argentina/Cordoba npm test`: 864/864;
+  - `npm run test:pg`: 866/866;
+  - antes eran 840 y 842: +24.
+- **Mutación:** 41 mutantes.
+  - 37 muertos de entrada.
+  - De los 4 sobrevivientes, 3 murieron con tests nuevos: `/callback` sin configuración, y que el script no consulte a Mercado Pago con un token vacío.
+  - El cuarto era equivalente: el filtro por `ngo_id` estaba en el `SELECT` y en el `DELETE` del `state`, y cada uno tapaba al otro. Se dejó solo en el `SELECT`, y con eso también murió el mutante que lo saca de ahí.
+
+### Errores propios
+- **`getSellerUser` se escribió antes de correr su test en rojo.** Los 5 mutantes sobre esa función murieron, así que el test sí la cubre, pero no hubo rojo previo.
+- **El test de acceso le mandaba cuerpo a un GET** (`fetch` lo rechaza): era un error del test, no del código.
+
+### ⚠️ NO verificado
+- Nada habló con Mercado Pago.
+- **Que el tag `test_user` exista en los usuarios de prueba.** Si no existe, el script se niega a guardar la cuenta, que es lo seguro.
+- Que la URL de redireccionamiento de la aplicación acepte `/ngo/mercadopago/vuelta`. En §181 se cargó la raíz del sitio. **El usuario tiene que cambiarla en el panel** cuando se use el OAuth.
+- La pantalla de vuelta no existe todavía (tarea 4).

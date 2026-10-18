@@ -181,6 +181,13 @@ id · post_id (NOT NULL FK→posts CASCADE) · url (NOT NULL; URL base de Cloudi
 ### `post_likes`
 post_id (NOT NULL FK→posts CASCADE) · user_id (NOT NULL FK→users CASCADE) · created_at · **PK `(post_id, user_id)`**: un usuario no puede dar dos likes al mismo post (la API usa `ON CONFLICT DO NOTHING`, así que repetir el like es idempotente).
 
+### `ngo_cuentas_mp` (Marketplace de Mercado Pago, `PROJECT_ANALYSIS.md §216`)
+ngo_id (**PK**, FK→ngos CASCADE) · mp_user_id (NOT NULL **UNIQUE**: una cuenta de Mercado Pago es de una sola ONG) · access_token_cifrado (NOT NULL) · refresh_token_cifrado (NULL si la cargó el script manual) · expires_at (TEXT ISO calculado en JS; NULL si es manual) · estado (CHECK IN `activa`,`requiere_reconexion`, default `activa`) · origen (CHECK IN `oauth`,`manual`, default `oauth`) · version (INTEGER, sube en cada cambio de tokens: la renovación hace compare-and-swap sobre ella) · created_at · updated_at.
+**Los tokens están cifrados** (`lib/tokenCrypto.js`, AES-256-GCM con `MP_TOKEN_KEY` y el `ngo_id` como dato asociado). Solo `lib/sellerAccounts.js` lee o escribe esta tabla, y ningún endpoint la devuelve: `public-columns.test.js` lo controla.
+
+### `mp_oauth_states` (§216)
+state_hash (**PK**, sha256 del `state`; el `state` en claro nunca se guarda) · ngo_id (NOT NULL FK→ngos CASCADE) · expires_at (TEXT ISO, 10 minutos) · created_at. De un solo uso y a lo sumo uno por ONG (`POST /connect` borra el anterior).
+
 ### Tablas intermedias N:M
 
 | Tabla | PK compuesta | Columnas extra |

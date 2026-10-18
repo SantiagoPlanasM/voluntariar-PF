@@ -122,6 +122,13 @@ Los errores son `PaymentError` con `status` y `code` (`not_configured`, `network
 - `authorizationUrl(state)` → `https://auth.mercadopago.com/authorization?client_id&response_type=code&platform_id=mp&state&redirect_uri`.
 - `exchangeCode(code)` y `refreshAccessToken(refreshToken)` → `{ accessToken, refreshToken, mpUserId, expiresIn, liveMode: false }`. `POST /oauth/token` en JSON **sin** el access token de la app; el intercambio manda `test_token: true`, la renovación no. **Un token con `live_mode` distinto de `false` se rechaza** (`live_token`). Del cuerpo de un error solo se toma `error` si es un identificador corto: nunca entran al mensaje el code, el secreto ni el resto del cuerpo.
 
+- `getSellerUser(accessToken)` → `{ id, nickname, tags }` (`GET /users/me`): lo usa la carga manual (§216).
+
+**Cuentas de las ONGs — `lib/sellerAccounts.js` (§216).** Único lugar que lee o escribe `ngo_cuentas_mp`:
+- `publicAccount(ngoId)` → lo que ve la ONG, sin tokens, o `null`;
+- `saveAccount(ngoId, tokens, origin)` → `{ ok }` o `{ conflict }`. Hace un `UPDATE` y, si no hay fila, un `INSERT`, en una transacción. Sube `version` y deja la cuenta `activa`. El `UNIQUE` de `mp_user_id` da `conflict`;
+- `deleteAccount(ngoId)` → boolean.
+
 **Cifrado de los tokens — `lib/tokenCrypto.js` (§215).** `encryptToken(token, ngoId)` / `decryptToken(blob, ngoId)` con AES-256-GCM y la clave `MP_TOKEN_KEY` (32 bytes en base64; `isTokenKeyConfigured()`). Formato `v1:<iv>:<tag>:<cifrado>` en base64url, con el `ngo_id` como dato asociado. Errores `TokenCryptoError` con `code` `not_configured`, `bad_input` o `invalid`, sin el token en el mensaje.
 
 ### Emails (Resend) y modo prueba
