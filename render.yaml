@@ -48,13 +48,26 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
-      # Donaciones (Mercado Pago, modo prueba; PROJECT_ANALYSIS.md §170–§173). Sin MP_ACCESS_TOKEN donar responde 503;
-      # sin MP_WEBHOOK_SECRET no se acepta ningún aviso (la donación igual se confirma cuando el comprador vuelve).
-      # Los valores se cargan en el panel de Render, nunca en este archivo.
+      # Donaciones (Mercado Pago, modo prueba; PROJECT_ANALYSIS.md §170–§173, Marketplace §215–§218).
+      # Cada donación se cobra con la cuenta de la ONG: sin MP_TOKEN_KEY (la clave que cifra sus tokens) nadie puede
+      # donar. MP_ACCESS_TOKEN (la cuenta de la aplicación) solo concilia las donaciones de antes de §217. Sin
+      # MP_WEBHOOK_SECRET no se acepta ningún aviso (la donación igual se confirma cuando el comprador vuelve).
+      # Los valores secretos se cargan en el panel de Render, nunca en este archivo.
       - key: MP_ACCESS_TOKEN
         sync: false
       - key: MP_WEBHOOK_SECRET
         sync: false
+      - key: MP_TOKEN_KEY
+        sync: false
+      # OAuth para que la ONG vincule su cuenta (sin las tres, el perfil dice que la vinculación no está disponible y
+      # queda la carga manual, scripts/vincular-mp-manual.js). La URL tiene que coincidir EXACTAMENTE con la de la
+      # aplicación en Mercado Pago; no es secreta.
+      - key: MP_CLIENT_ID
+        sync: false
+      - key: MP_CLIENT_SECRET
+        sync: false
+      - key: MP_OAUTH_REDIRECT_URI
+        value: https://voluntariar-g0u6.onrender.com/ngo/mercadopago/vuelta
     healthCheckPath: /health
 
   # ── Frontend (Static Site, gratis) ───────────────────────────────────────

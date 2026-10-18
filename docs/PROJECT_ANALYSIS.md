@@ -6079,3 +6079,20 @@ Las tablas y los endpoints se documentan en la tarea en que se crean.
 - **Nada visual ni en un navegador:** el cartel, la sección, el scroll, la pantalla de vuelta, ni cómo se ve en el celular.
 - Que Mercado Pago, cuando la ONG no autoriza, vuelva con `?error=…`. Si vuelve sin `code`, igual se muestra "El link de vuelta no es válido".
 - Al recargar la página de vuelta después de vincular, el `state` ya está usado y la pantalla dice que no se pudo. La cuenta queda vinculada igual; el perfil lo muestra bien.
+
+## 219. `render.yaml`: las variables del Marketplace (con OK del usuario)
+
+**Qué se hizo:**
+- Se agregaron `MP_TOKEN_KEY`, `MP_CLIENT_ID` y `MP_CLIENT_SECRET`, las tres con `sync: false`.
+- Se agregó `MP_OAUTH_REDIRECT_URI` con su valor (`https://voluntariar-g0u6.onrender.com/ngo/mercadopago/vuelta`), porque no es secreta.
+- **Se corrigió el comentario** que decía "sin `MP_ACCESS_TOKEN` donar responde 503": desde §217 la que hace falta para donar es `MP_TOKEN_KEY`.
+
+### Verificación
+- Ningún test lee `render.yaml`: los workflows solo lo nombran en comentarios.
+- El YAML conserva la indentación y los finales de línea (LF).
+
+### Errores propios
+- Ninguno.
+
+### ⚠️ NO verificado
+- **Que Render tome las variables nuevas.** El auto-deploy está apagado, y no está confirmado que el servicio se cree desde el Blueprint. Lo seguro es **cargarlas a mano en el panel** de `voluntariar-api`. `MP_TOKEN_KEY` se genera con `node -p "require('crypto').randomBytes(32).toString('base64')"`.
