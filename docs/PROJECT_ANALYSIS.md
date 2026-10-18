@@ -6192,3 +6192,24 @@ Las tablas y los endpoints se documentan en la tarea en que se crean.
 
 ### ⚠️ NO verificado
 - El run de deploy con este cambio.
+
+## 224. Marketplace en producción (5/5, cierre): deploy en verde y donación de punta a punta a la ONG SANTI
+
+**Qué pasó:**
+- **Deploy de `e3c57af`, desde el pipeline:** `wait`, `smoke` y `e2e` en verde. El E2E pasó por "el proyecto de E2E existe, está activo y su ONG recibe donaciones", y `POST /api/donaciones` creó la preferencia (201 con `pref_id`) con el token del vendedor de la ONG. Ahí se verifica en vivo §220 y §223.
+- **Prueba manual del usuario:** donó $100 al proyecto "Test" y pagó con el comprador de prueba. Informó que "anda perfecto". La acreditación por la vuelta o por el webhook funcionó con la cuenta de la ONG.
+- **El usuario borró `backend/.env.local`**, que tenía el token del vendedor y la URL de la base.
+
+### Verificación
+- **Lecturas públicas de producción:**
+  - `GET /api/projects/32223ac7-…` (Test) da `accepts_donations: true` y `current_funding` 100;
+  - "Jornada de limpieza en el Lago", que era al que donaba antes el E2E, resultó ser también de la ONG SANTI.
+- **El resumen del run de Deploy**, que pegó el usuario.
+
+### Errores propios
+- Ninguno nuevo; el de §223 (variable o secret) ya está anotado.
+
+### ⚠️ NO verificado
+- **Que el saldo de prueba esté en la cuenta 3772556008 y no en la de la aplicación** lo dice el usuario ("anda perfecto"). Yo no vi el panel de Mercado Pago del vendedor.
+- **La vinculación por OAuth (el botón)** no se probó en vivo: sin `client_secret`, por decisión del usuario. Tampoco la renovación del token, que no aplica a las cuentas manuales, ni el webhook con el `user_id` del vendedor.
+- **Nada visual de §218**, salvo lo que vio el usuario al donar.
