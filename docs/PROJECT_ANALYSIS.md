@@ -5666,3 +5666,32 @@ De los 13 `S5145`, **SonarCloud cerró 12, o sea que reconoció `forLog()`** com
 
 ### ⚠️ NO verificado
 - Que los comandos de PowerShell y de Docker de `COMO_CORRER_PRUEBAS.md` anden tal cual en otra máquina. Se corrieron en esta sesión con Git Bash y Docker Desktop.
+
+## 208. Informe del TP en PDF (T13): `docs/calidad/informe/INFORME_TP_CALIDAD.{html,pdf}`
+
+**Qué se hizo:** el informe con la estructura que pide el enunciado (PDF de la cátedra):
+- carátula, con marcadores para nombre, legajo y docente, por decisión del usuario;
+- **nivel declarado (3)**;
+- **metas cumplidas y no cumplidas**, aspecto por aspecto contra la tabla del nivel 3;
+- los 8 ejes más la documentación transversal;
+- **evolución de las métricas** (SonarCloud análisis por análisis, tests y cobertura, pipeline, carga);
+- **análisis crítico** y **conclusiones**;
+- anexo con los entregables, cómo verificar cada número y el uso de IA.
+
+Se escribió en HTML con estilos de impresión A4 y se convirtió con Chrome headless (`--print-to-pdf`, sin instalar nada): **8 páginas, 272 KB**. El HTML queda versionado para regenerarlo.
+
+**Metas declaradas como no cumplidas o parciales:**
+- **cobertura del código existente del frontend**: 83,26 % de líneas, pero sentencias 79,75 %, ramas 74,08 % y funciones 67,99 %;
+- **E2E** "cumplido con un límite": hasta la preferencia en Mercado Pago, sin el pago.
+
+### Verificación
+- Las cifras del informe salen de los documentos de `docs/calidad/`, que ya citan sus runs y análisis. Antes de generar se revisaron con `grep` y `ls` dos que estaban escritas de memoria: los archivos de integración (60, correcto) y las versiones del plan (eran **9**, no 10: corregido).
+- El PDF se miró **página por página en Chrome**, servido en `127.0.0.1:8099` porque la extensión no abre archivos locales: carátula, índice, la tabla de metas en dos páginas, los ejes, la evolución, el análisis crítico y las conclusiones, sin cortes de tabla rotos.
+
+### Errores propios
+- "10 versiones" del plan: eran 9 (corregido antes de generar).
+- La página 3 queda medio vacía por el salto de página forzado antes de la sección 3. Es estético y se dejó así.
+
+### ⚠️ NO verificado
+- Que la cátedra pida un formato distinto (carátula, extensión). El enunciado no fija ninguno.
+- **Los datos personales de la carátula los completa el usuario.** Después de editar el HTML, se regenera con el comando de `COMO_CORRER_PRUEBAS.md` (sección "Regenerar el informe en PDF") o con Chrome → Imprimir → Guardar como PDF.

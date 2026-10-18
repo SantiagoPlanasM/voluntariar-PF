@@ -52,3 +52,13 @@ SQLITE_PATH=/tmp/carga.sqlite NODE_ENV=development PORT=3001 node src/index.js
 | **Carga** (`load.yml`) | A mano ("Run workflow") | Stress + esfuerzo sostenido contra la API del runner; con la opción `produccion`, además la carga corta en Render |
 
 Los reportes quedan en el **resumen de cada run** y como **artefactos**: `tap.txt` y `lcov.info` del backend, `junit.xml` y `coverage/` del frontend, y `stress`/`soak`/`prod` (`.md` y `.json`) de la carga.
+
+## Regenerar el informe en PDF
+
+Después de editar `docs/calidad/informe/INFORME_TP_CALIDAD.html` (por ejemplo, para completar la carátula):
+
+```
+"C:\Program Files\Google\Chrome\Application\chrome.exe" --headless=new --no-pdf-header-footer --print-to-pdf="C:\…\docs\calidad\informe\INFORME_TP_CALIDAD.pdf" "file:///C:/…/docs/calidad/informe/INFORME_TP_CALIDAD.html"
+```
+
+O abrir el HTML en Chrome → Imprimir → Guardar como PDF (márgenes predeterminados, sin encabezados ni pies).
