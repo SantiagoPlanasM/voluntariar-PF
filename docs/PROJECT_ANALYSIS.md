@@ -6237,3 +6237,35 @@ Las tablas y los endpoints se documentan en la tarea en que se crean.
 
 ### ⚠️ NO verificado
 - Que el próximo análisis las dé por cerradas: hasta ahora Sonar no siempre reconoció `forLog()` como sanitizador (§202). Si no las cierra, se aceptan con el comentario de `TRIAGE_SONAR.md`.
+
+## 226. Informe del TP actualizado con el marketplace (corte 18/10/2026) y PDF regenerado
+
+**Qué se hizo:**
+- **`docs/calidad/informe/INFORME_TP_CALIDAD.html`:**
+  - **resumen:** el marketplace;
+  - **"En números":** 897/899, 890, cobertura, Sonar 157 → 57 y 50 commits;
+  - **tabla de metas:** pipeline (CI #23), gate (0 / 0 / 1,9 % / 94,6 %), cobertura nueva y existente, smoke (con el Deploy #14) y E2E (proyecto de prueba, token de la ONG, 4 pagos a mano);
+  - **ejes 3.4, 3.7 y 3.9:** complejidad, tasas del pipeline, densidad corregida (75,9), 62 archivos de integración y §183–§225;
+  - **sección 4:** dos análisis nuevos de SonarCloud, la fila del CI #23 y las corridas (CI 23/21, Deploy 16/12, con el #14);
+  - **análisis crítico:** punto nuevo sobre el marketplace;
+  - **conclusiones y trabajo futuro:** el OAuth en vivo como límite;
+  - **anexo:** enlaces al CI #23 y al Deploy #16.
+- **`docs/calidad/INTEGRACION_MERCADOPAGO.md`:** sección 2.1 del marketplace, los tres niveles de prueba actualizados y el límite del OAuth.
+- **PDF regenerado** con Chrome headless: 9 páginas. Se sacó el salto forzado antes de "5. Análisis crítico", que dejaba una página casi vacía.
+
+### Verificación
+- **Cada número sale de una fuente consultada en el momento:**
+  - corridas: API pública de GitHub (CI #23 y Deploy #16 en verde; 23 y 16 corridas en total);
+  - SonarCloud: API pública, análisis de `6e4a51c` (vulnerabilidades 0, cobertura nueva 94,59 %, duplicación 1,9 %, 17.583 líneas, complejidad 4.240 y 2.851, deuda 114 min, 57 issues);
+  - cobertura del backend: corrida local con los parámetros del CI (93,19 / 85,02 / 90,12);
+  - frontend: §218;
+  - commits: `git log 20d881a^..HEAD` = 50;
+  - archivos de integración: `ls` = 62.
+- **PDF revisado página por página.**
+
+### Errores propios
+- **Inconsistencia vieja:** en 3.4 decía 60,6 tests/KLOC en el frontend y en el análisis crítico, 75,9. Corregida.
+
+### ⚠️ NO verificado
+- **La cobertura que informa el CI #23:** su resumen no se lee sin sesión. El informe usa la corrida local y lo aclara. El CI pasó los umbrales.
+- **Que el saldo de prueba llegue a la cuenta de la ONG** lo dice el usuario: no vi el panel del vendedor.
