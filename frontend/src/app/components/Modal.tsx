@@ -79,8 +79,11 @@ export function Modal({
   }, []);
 
   return (
+    // role="presentation": el clic en el fondo es un atajo del mouse; con teclado cierran Escape y el botón de
+    // adentro (SonarCloud S6848, §234).
     <div
       data-testid="modal-overlay"
+      role="presentation"
       className={overlayClassName}
       onClick={(e) => { if (closeOnOverlay && e.target === e.currentTarget) onClose(); }}
     >

@@ -50,6 +50,15 @@ describe('<Modal />', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  // SonarCloud S6848 (§234): el clic en el fondo es un atajo del mouse; con teclado se cierra con Escape. El fondo
+  // se marca como presentación y el diálogo de adentro sigue siendo accesible.
+  test('el fondo es solo presentación: no es interactivo para los lectores de pantalla y el diálogo sigue visible', () => {
+    render(<Modal label="M" onClose={vi.fn()}><button>adentro</button></Modal>);
+    expect(screen.getByTestId('modal-overlay')).toHaveAttribute('role', 'presentation');
+    expect(screen.getByRole('dialog', { name: 'M' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'adentro' })).toBeInTheDocument();
+  });
+
   test('closeOnOverlay={false}: el fondo no cierra (Escape sí)', () => {
     const onClose = vi.fn();
     render(<Modal label="M" onClose={onClose} closeOnOverlay={false}><p>x</p></Modal>);

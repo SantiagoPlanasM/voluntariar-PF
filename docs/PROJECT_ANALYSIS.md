@@ -6464,3 +6464,26 @@ Con esto queda verificado el último punto que §222 y §224 dejaban sin verific
 
 ### ⚠️ NO verificado
 - Que no sea inestable en el CI: 8 corridas locales no lo garantizan.
+
+## 234. SonarCloud S6848: el fondo del `Modal` es `role="presentation"`; verificación de §231–§234
+
+**Qué se hizo:** el fondo oscuro de `Modal.tsx` cierra con un clic. En §204 se había aceptado porque con teclado cierran Escape y el botón de adentro, y el foco queda atrapado en el diálogo. Ahora el fondo lleva `role="presentation"`, que dice justamente eso: es un atajo del mouse sin papel para los lectores de pantalla. El diálogo y su contenido siguen expuestos igual.
+- Test primero en `Modal.test.tsx` (rojo sin el atributo): el fondo tiene `role="presentation"`, y el diálogo y el botón de adentro se siguen encontrando por rol.
+
+**Quedan aceptadas 4** (`TRIAGE_SONAR.md`):
+- el `S5145` de `donaciones.js`, que ya pasa por `forLog()`;
+- `S8475` (localStorage) y `S8480` (token en la URL del WebSocket), de análisis de flujo;
+- `S6845` del carrusel, porque sacar el `tabIndex` cambia cómo se usa con teclado.
+
+### Verificación (los cuatro cambios juntos, §231–§234)
+- Backend: `npm test` **907/907** en SQLite y con `TZ=America/Argentina/Cordoba`; `npm run test:pg` **909/909** (Postgres 16 en Docker). 0 fail, 0 cancelled. Son 10 tests más: 7 de regex y 3 de topes.
+- Frontend: `npm test` **904/904** (8 más: 7 de regex y 1 del modal); `npm run typecheck` sin errores.
+- Scripts del CI: 38/38.
+- Finales de línea: cada archivo tocado conserva los suyos (CRLF o LF), contados con Node.
+
+### Errores propios
+- Ninguno en este cambio.
+
+### ⚠️ NO verificado
+- **Lo visual y táctil del modal:** el atributo no cambia estilos, pero no lo puedo ver.
+- **Que SonarCloud reconozca `role="presentation"` como arreglo de `S6848`:** la regla de jsx-a11y en la que se basa ignora los elementos con ese rol, pero lo confirma el análisis después del push.
