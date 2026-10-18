@@ -115,7 +115,14 @@ API REST con `fetch`, sin el SDK. Variables: `MP_ACCESS_TOKEN` (sin él, `isConf
 - `verifyWebhookSignature({ xSignature, xRequestId, dataId })` → boolean, nunca lanza.
 - `describePaymentsConfig()` → línea para el log de arranque, sin el token ni el secreto.
 
-Los errores son `PaymentError` con `status` y `code` (`not_configured`, `network`, `not_found`, `http`, `bad_response`, `bad_request`). Rutas y firma sacadas del código del SDK oficial `mercadopago@3.6.1` (ver el encabezado del archivo y `BACKEND_ROADMAP_ANALYSIS.md §1.4`). Todavía no lo usa ningún endpoint.
+Los errores son `PaymentError` con `status` y `code` (`not_configured`, `network`, `not_found`, `unauthorized` (401, desde §215), `http`, `bad_response`, `bad_request`, y en OAuth `invalid_grant` y `live_token`). Rutas y firma sacadas del código del SDK oficial `mercadopago@3.6.1` (ver el encabezado del archivo y `BACKEND_ROADMAP_ANALYSIS.md §1.4`).
+
+**Marketplace: cada ONG con su cuenta de vendedor (`PROJECT_ANALYSIS.md §215`, todo en modo prueba).** Variables `MP_CLIENT_ID`, `MP_CLIENT_SECRET` y `MP_OAUTH_REDIRECT_URI` (`isOAuthConfigured()` exige las tres).
+- `createPreference({ ..., accessToken })` y `getPayment(id, { accessToken })`: con el token de la ONG la preferencia y la consulta van contra **su** cuenta; sin él, `MP_ACCESS_TOKEN`. Sin `marketplace_fee` (sin comisión, decisión del usuario).
+- `authorizationUrl(state)` → `https://auth.mercadopago.com/authorization?client_id&response_type=code&platform_id=mp&state&redirect_uri`.
+- `exchangeCode(code)` y `refreshAccessToken(refreshToken)` → `{ accessToken, refreshToken, mpUserId, expiresIn, liveMode: false }`. `POST /oauth/token` en JSON **sin** el access token de la app; el intercambio manda `test_token: true`, la renovación no. **Un token con `live_mode` distinto de `false` se rechaza** (`live_token`). Del cuerpo de un error solo se toma `error` si es un identificador corto: nunca entran al mensaje el code, el secreto ni el resto del cuerpo.
+
+**Cifrado de los tokens — `lib/tokenCrypto.js` (§215).** `encryptToken(token, ngoId)` / `decryptToken(blob, ngoId)` con AES-256-GCM y la clave `MP_TOKEN_KEY` (32 bytes en base64; `isTokenKeyConfigured()`). Formato `v1:<iv>:<tag>:<cifrado>` en base64url, con el `ngo_id` como dato asociado. Errores `TokenCryptoError` con `code` `not_configured`, `bad_input` o `invalid`, sin el token en el mensaje.
 
 ### Emails (Resend) y modo prueba
 `lib/email.js` manda por la API de Resend con `fetch` nativo; nunca lanza ni bloquea la respuesta HTTP (fire-and-forget). Eventos que mandan email: nueva inscripción (a la ONG), aprobación y rechazo de inscripción (al voluntario), propuesta de patrocinio (a la ONG) y su respuesta (a la empresa). La configuración se **lee en cada envío** (no al cargar el módulo).

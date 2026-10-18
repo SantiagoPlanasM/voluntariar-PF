@@ -5885,3 +5885,60 @@ Se escribió en HTML con estilos de impresión A4 y se convirtió con Chrome hea
 
 ### ⚠️ NO verificado
 - El orden de los integrantes y el formato de la carátula: el enunciado no fija ninguno.
+
+## 215. Marketplace de Mercado Pago (1/5): diseño, cifrado de tokens y OAuth en `lib/payments.js`
+
+**Pedido del usuario (2026-10-18):** que cada ONG conecte su cuenta de vendedor de Mercado Pago y que las donaciones a sus proyectos le lleguen a ella. Todo en **modo prueba**, con usuarios de prueba. Retoma el diseño de §181, que había quedado como trabajo futuro.
+
+**Decisiones del usuario:**
+- **Sin comisión de la plataforma:** no se manda `marketplace_fee`.
+- **Una ONG sin cuenta vinculada no recibe donaciones.** El botón "Donar" no aparece y la ONG ve un cartel para configurarla.
+- **`client_secret`:** sin decidir. Solo aparece al activar las credenciales productivas de la aplicación; la IA de Mercado Pago lo confirmó el 2026-10-18. Por eso el OAuth se implementa completo, probado con dobles. Además va a haber un script para cargar a mano el token del vendedor de prueba (tarea 2), así la demo no depende de esa activación.
+
+**Diseño (cinco tareas, un commit cada una):**
+1. **Esta:** cifrado de tokens y funciones OAuth.
+2. Esquema y endpoints para vincular, volver de Mercado Pago y desvincular.
+3. Donaciones con el token de la ONG: renovación, conciliación y webhook.
+4. Frontend.
+5. Prueba en vivo con el usuario.
+
+Las tablas y los endpoints se documentan en la tarea en que se crean.
+
+**Respuestas de la IA de Mercado Pago (2026-10-18), resumidas:**
+- El intercambio usa el `client_id` y el `client_secret` de la aplicación, con `test_token=true`.
+- La renovación va con `grant_type=refresh_token` y sin `test_token`. Devuelve un `refresh_token` nuevo: hay que guardar siempre el último.
+- Los pagos de un vendedor llegan al webhook de la aplicación, con el `user_id` del vendedor en el cuerpo.
+- El comprador de prueba puede pagarle a otro vendedor de prueba del mismo país.
+- Para no cobrar comisión alcanza con no mandar `marketplace_fee`.
+- No hay un endpoint para que la aplicación revoque la autorización: desvincular es borrar los tokens propios.
+
+**Qué se hizo:**
+- **`src/lib/tokenCrypto.js`:**
+  - AES-256-GCM con la clave `MP_TOKEN_KEY` (32 bytes en base64), un IV al azar por cifrado y un tag de 16 bytes.
+  - Formato `v1:<iv>:<tag>:<cifrado>`.
+  - El `ngo_id` va como dato asociado: un token copiado a la fila de otra ONG no se descifra.
+  - Los errores nunca incluyen el token.
+- **`src/lib/payments.js`:**
+  - `call`, `createPreference` y `getPayment` aceptan el `accessToken` de la ONG. Sin él, siguen con `MP_ACCESS_TOKEN`.
+  - Un 401 da `code: 'unauthorized'`. Con el token de la ONG, el log ya no culpa a `MP_ACCESS_TOKEN`.
+  - Funciones nuevas: `isOAuthConfigured`, `authorizationUrl`, `exchangeCode` y `refreshAccessToken`.
+  - **Barrera de modo prueba:** cualquier token con `live_mode` distinto de `false` se rechaza (`live_token`), aunque falte el campo.
+  - Del cuerpo de un error de `/oauth/token` solo se toma el campo `error`, si es un identificador corto. Puede traer repetidos el code o el secreto.
+- **Tests:** `test/unit/tokenCrypto.test.js` (11) y `test/unit/payments-oauth.test.js` (21). Rojo de comportamiento antes del código: con stubs vacíos fallaban los 31 que había en ese momento, y no por "el módulo no existe".
+
+### Verificación
+- **Backend:** `npm test` 840/840; `TZ=America/Argentina/Cordoba npm test` 840/840; `npm run test:pg` 842/842 (antes 808 y 810: +32).
+- **Mutación sobre el código nuevo:** 38 mutantes.
+  - 33 muertos.
+  - 5 equivalentes: el chequeo de `raw` vacío, el `trim` de la clave y los largos del IV, del tag y del cifrado. GCM y `authTagLength` ya los rechazan, y `Buffer.from` ignora los espacios. **Se sacaron del código**, así que no quedan.
+  - Los otros dos que sobrevivieron al principio (la versión `v1` y renovar sin configuración) murieron con dos tests nuevos.
+
+### Errores propios
+- **Un test comparaba contra la clase de error de otra carga del módulo** (`fresh()`): fallaba aunque el código estaba bien. Ahora compara por `name` y `code`.
+- **`git checkout` para sacar el stub dejó `payments.js` en CRLF** (estaba en LF). Se notó porque los mutantes de varias líneas no se aplicaban. Se volvió a LF. El `grep` de Git Bash no mostraba los `\r`; se contaron con Node.
+
+### ⚠️ NO verificado
+- Nada habló con Mercado Pago: todo es con dobles de `fetch`.
+- **La forma real de la respuesta y de los errores de `/oauth/token`** sale del SDK `mercadopago@3.6.1` y de la IA de Mercado Pago. En particular: que la renovación no lleve `test_token`, que un `refresh_token` usado deje de servir y que el error sea `invalid_grant`.
+- Que el token de prueba venga con `live_mode: false` (la barrera depende de eso).
+- Que exista el `client_secret` sin activar las credenciales productivas: según la IA, no existe.
