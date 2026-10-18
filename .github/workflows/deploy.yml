@@ -37,9 +37,9 @@ jobs:
       RENDER_DEPLOY_HOOK_WEB: ${{ secrets.RENDER_DEPLOY_HOOK_WEB }}
       E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
       E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
-      # El proyecto de prueba al que dona el E2E ("Test" de la ONG SANTI, §220). No es secreto: es una variable del
-      # repositorio (Settings → Secrets and variables → Actions → Variables).
-      E2E_PROJECT_ID: ${{ vars.E2E_PROJECT_ID }}
+      # El proyecto de prueba al que dona el E2E ("Test" de la ONG SANTI, §220). No es secreto, pero se acepta como
+      # variable del repositorio o como secret (Settings → Secrets and variables → Actions): §223.
+      E2E_PROJECT_ID: ${{ vars.E2E_PROJECT_ID || secrets.E2E_PROJECT_ID }}
     steps:
       - name: Faltan secretos o variables → no se despliega
         run: |

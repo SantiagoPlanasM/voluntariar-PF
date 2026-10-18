@@ -6177,3 +6177,18 @@ Las tablas y los endpoints se documentan en la tarea en que se crean.
 - **La API desplegada todavía es la de antes de §215:** no hubo push.
 - **Falta comprobar** que la donación al proyecto "Test" cree la preferencia con el token del vendedor y que, pagada con el comprador de prueba, el saldo de prueba aparezca en la cuenta 3772556008.
 - Falta crear la variable de GitHub `E2E_PROJECT_ID` antes del push.
+
+## 223. Deploy: `E2E_PROJECT_ID` se acepta como variable o como secret
+
+**El problema:** el deploy de `36a5982` se cortó en "Faltan los secretos o variables: E2E_PROJECT_ID". El usuario la había creado como **secret**, y `deploy.yml` la leía solo de `vars`, las variables del repositorio. En GitHub son dos pestañas distintas, y así no la veía aunque la volviera a cargar.
+
+**Qué se hizo:** `E2E_PROJECT_ID: ${{ vars.E2E_PROJECT_ID || secrets.E2E_PROJECT_ID }}`. No es un dato secreto, pero cargarla de cualquiera de las dos formas tiene que andar.
+
+### Verificación
+- Pendiente: el run que dispara este push.
+
+### Errores propios
+- **En §220 indiqué "Variables"** sin avisar que, si se cargaba en "Secrets", el workflow no la iba a ver. Era fácil confundirse, y el código podía aceptar las dos.
+
+### ⚠️ NO verificado
+- El run de deploy con este cambio.
