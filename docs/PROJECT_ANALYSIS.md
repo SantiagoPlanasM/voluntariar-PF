@@ -6503,7 +6503,7 @@ Con esto queda verificado el último punto que §222 y §224 dejaban sin verific
 - API de SonarCloud: `issues/search` (`issueStatuses=ACCEPTED` y abiertas), `measures/component`, `qualitygates/project_status` y `project_analyses`.
 
 ### Errores propios
-- Ninguno.
+- **Commiteé y pusheé `TRIAGE_SONAR.md` roto** (`8c6033d`). Escribí la sección con `node -e "..."` y los backticks del Markdown quedaron entre comillas dobles: bash los ejecutó como comandos y se perdieron todos los fragmentos de código (los nombres de las reglas, `d7efe16`, `forLog()`). No revisé el diff antes de commitear. Se corrigió con Edit en el commit siguiente. `PROJECT_ANALYSIS.md` estaba bien porque iba por heredoc con comillas simples. Para no repetirlo: nada de Markdown con backticks dentro de `node -e` con comillas dobles, y siempre mirar `git diff --cached` antes del commit.
 
 ### ⚠️ NO verificado
 - **El informe del TP no se actualizó:** su corte sigue en `8e7d9e4` / CI #27 (§230). Los números de SonarCloud que muestra no cambian (0 issues abiertas), pero sí los tests (907/909/904) y las 14 aceptadas, que ahora son 4.

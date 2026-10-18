@@ -98,19 +98,19 @@ Las **57 issues abiertas** del análisis de `6e4a51c` eran todas `S7773` (38 `ty
 
 ## Aceptadas que se arreglaron en el código (2026-10-18, §231–§235)
 
-De las 14 aceptadas en §204, **10 se arreglaron**. SonarCloud las pasó a FIXED en el análisis de  (CI #29):
+De las 14 aceptadas en §204, **10 se arreglaron**. SonarCloud las pasó a FIXED en el análisis de `d7efe16` (CI #29):
 
 | Regla | Cant. | Arreglo | Dónde |
 |---|---|---|---|
-|  regex con backtracking | 6 | Reescritos lineales, con equivalencia exhaustiva contra el regex viejo | §231 |
-|  límite de subida | 2 | Tope de 8 MiB → 8.000.000 bytes, el máximo de la regla (también en el frontend) | §232 |
-|  efecto dentro de  | 1 | El clic sale del  | §233 |
-|  fondo del modal | 1 |  | §234 |
+| `S8786` regex con backtracking | 6 | Reescritos lineales, con equivalencia exhaustiva contra el regex viejo | §231 |
+| `S5693` límite de subida | 2 | Tope de 8 MiB → 8.000.000 bytes, el máximo de la regla (también en el frontend) | §232 |
+| `S8985` efecto dentro de `waitFor` | 1 | El clic sale del `waitFor` | §233 |
+| `S6848` fondo del modal | 1 | `role="presentation"` | §234 |
 
 **Siguen aceptadas 4**, con el comentario de arriba:
--  de : ya pasa por ;
--  (localStorage) y  (WebSocket): análisis de flujo, sin texto del usuario;
--  del carrusel: sacar el  cambia cómo se usa con teclado.
+- `S5145` de `donaciones.js`: ya pasa por `forLog()`;
+- `S8475` (localStorage) y `S8480` (WebSocket): análisis de flujo, sin texto del usuario;
+- `S6845` del carrusel: sacar el `tabIndex` cambia cómo se usa con teclado.
 
 **Medidas de ese análisis** (API pública):
 - 0 issues abiertas; bugs, vulnerabilidades, code smells y hotspots en 0; deuda 0 min; A/A/A; gate OK;
