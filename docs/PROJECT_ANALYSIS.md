@@ -6269,3 +6269,27 @@ Las tablas y los endpoints se documentan en la tarea en que se crean.
 ### ⚠️ NO verificado
 - **La cobertura que informa el CI #23:** su resumen no se lee sin sesión. El informe usa la corrida local y lo aclara. El CI pasó los umbrales.
 - **Que el saldo de prueba llegue a la cuenta de la ONG** lo dice el usuario: no vi el panel del vendedor.
+
+## 227. Evidencia: la donación del marketplace llegó a la cuenta del vendedor de la ONG
+
+**Qué pasó:** el usuario compartió una captura de la cuenta de Mercado Pago del vendedor de prueba de la ONG SANTI. Muestra:
+- "Venta — Donación: Test — Aprobado — **+$100**", operación 183826224899;
+- **$95,90** "a liquidar": los $100 menos la comisión de Mercado Pago (~$4,10). La plataforma no cobra comisión: no se manda `marketplace_fee`.
+
+Con esto queda verificado el último punto que §222 y §224 dejaban sin verificar: **la plata llega a la cuenta de la ONG** y no a la de la aplicación.
+
+**Qué se hizo:**
+- La captura se guardó en `docs/calidad/evidencia/marketplace-venta-vendedor-prueba.png`.
+- Se citó en `INTEGRACION_MERCADOPAGO.md` y en el anexo 7.2 del informe.
+- PDF regenerado.
+
+**Sobre `gh` en Docker (pregunta del usuario):** se podría correr con la imagen oficial, pero igual necesita iniciar sesión con la cuenta del usuario. Para el informe alcanzó la API pública de GitHub. Lo único que no se ve sin sesión es el resumen de cobertura de cada corrida.
+
+### Verificación
+- La captura la leí yo: monto, concepto ("Donación: Test", el título que arma `POST /api/donaciones`), estado y número de operación.
+
+### Errores propios
+- Ninguno.
+
+### ⚠️ NO verificado
+- Que la captura sea de la cuenta 3772556008: no muestra el número de cuenta. Se toma la palabra del usuario, que entró con ese vendedor. Es coherente con `--solo-ver` (§222). No miré la cuenta de la aplicación.
