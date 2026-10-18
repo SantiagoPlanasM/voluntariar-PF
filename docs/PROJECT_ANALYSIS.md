@@ -5650,3 +5650,19 @@ De los 13 `S5145`, **SonarCloud cerró 12, o sea que reconoció `forLog()`** com
 
 ### ⚠️ NO verificado
 - Las funciones de Codacy y de Qlty en la práctica (sin prueba de concepto).
+
+## 207. Lo que faltaba según el enunciado: objetivos por perspectiva, documento de la integración y un comando por prueba
+
+**Contexto:** el usuario pasó el enunciado del TP (PDF de la cátedra). Al leerlo contra lo hecho aparecieron tres faltantes, y el usuario decidió completarlos antes del informe:
+1. **Eje 1 — objetivos "desde el usuario, el equipo y la organización, con las prácticas que los sostienen":** `PLAN_PRUEBAS.md §2.1` (v0.9), con 13 objetivos medibles por perspectiva, la práctica que sostiene cada uno y el valor medido. Dos quedan marcados como **no cumplidos o con reparos**: las ramas del frontend (74,1 %) y la tasa de escapados (sobre una selección).
+2. **Entregable "documentación de la integración externa":** `docs/calidad/INTEGRACION_MERCADOPAGO.md`, con el contrato (sacado de `payments.js`), `applyPayment` (CAS, una sola acreditación), los tres niveles de prueba de la tabla de metas, los límites del modo prueba, la contingencia y los defectos de la integración.
+3. **Entregable "todas ejecutables con un comando":** `docs/calidad/COMO_CORRER_PRUEBAS.md`, con un comando por tipo (unitarias, integración, Postgres, cobertura, scripts, smoke, E2E, stress, esfuerzo, producción) y los tres workflows.
+
+### Verificación
+- El contrato se tomó del código (`payments.js`, `donaciones.js`). La cabecera `X-Idempotency-Key` y el test "cinco a la vez → una sola acreditación" (`donaciones.test.js:261`) se verificaron con `grep`. Los conteos de tests de cada archivo de donaciones (31, 27 y 24) salen de `grep -c "test("`.
+
+### Errores propios
+- En la tabla del eje 1 había escrito "desde el Deploy #4, todos verdes", pero lo verifiqué solo hasta el #8. Quedó acotado a lo verificado.
+
+### ⚠️ NO verificado
+- Que los comandos de PowerShell y de Docker de `COMO_CORRER_PRUEBAS.md` anden tal cual en otra máquina. Se corrieron en esta sesión con Git Bash y Docker Desktop.

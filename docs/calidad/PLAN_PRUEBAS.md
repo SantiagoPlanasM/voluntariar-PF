@@ -16,6 +16,7 @@
 | 0.6 | 2026-10-17 | O9 y nivel no funcional: k6 con umbrales fijados antes de correr y workflow `Carga` (T10, §197) |
 | 0.7 | 2026-10-17 | Diseño de casos, AAA y rojo/verde en `DISENO_CASOS.md` (T6 y T7, §199) |
 | 0.8 | 2026-10-17 | Registro de defectos en GitHub Issues (#2–#19) y trazabilidad completa en `REGISTRO_DEFECTOS.md` (T12, §204) |
+| 0.9 | 2026-10-17 | §2.1 objetivos por perspectiva (usuario, equipo y organización) con la práctica que los sostiene (eje 1, §207) |
 
 El documento se versiona en git: cada cambio entra en un commit propio y suma una fila a esta tabla.
 
@@ -41,6 +42,27 @@ dispositivos táctiles (no hay forma de automatizarlos en este proyecto: quedan 
 | O8 | Cada despliegue queda probado | Smoke después del deploy | 100 % de los deploys | `deploy.yml` (T9) | Smoke a mano (`GUION_DEFENSA.md §2`) |
 | O9 | La API aguanta la carga esperada de la demo | p95 de latencia y % de errores en `GET` | Fijados antes de correr (§197): **stress** hasta 50 usuarios p95 < 500 ms; **sostenido** 20 usuarios 10 min p95 < 300 ms; **producción** 10 usuarios 2 min p95 < 2 s; errores < 1 % en los tres | Workflow `Carga` (k6) | Solo corridas locales de validación (§197); el número oficial sale del pipeline |
 | O10 | Cada defecto corregido tiene su prueba de regresión | Defectos cerrados con test enlazado / total cerrados | 100 % | GitHub Issues + matriz §10 | Ver §10 |
+
+### 2.1 Los objetivos por perspectiva, con la práctica que los sostiene (eje 1)
+
+El enunciado pide objetivos medibles **desde el usuario, el equipo y la organización**, cada uno con las prácticas de
+proceso que lo sostienen. Valores al 2026-10-17 (CI #15, SonarCloud, Carga #1, registro de defectos; `METRICAS.md`).
+
+| Perspectiva | Objetivo medible | Métrica y meta | Práctica que lo sostiene | Medido |
+|---|---|---|---|---|
+| **Usuario** | La app responde rápido aun con carga | p95 < 2 s en producción con 10 usuarios; p95 < 500 ms hasta 50 usuarios en el runner | Pruebas de carga con umbrales fijados **antes** de correr (k6, workflow "Carga") | 418,90 ms ✅ / 3,06 ms ✅ |
+| Usuario | Lo que se despliega funciona | 100 % de los deploys con smoke + E2E en verde antes de darlos por buenos | Deploy por el pipeline con smoke y E2E de Mercado Pago (`deploy.yml`) | Deploys #4 a #8: todos verdes ✅ (los posteriores, en el informe) |
+| Usuario | Sus datos están protegidos | 0 vulnerabilidades críticas abiertas | Gate del TP (también bloquea vulnerabilidades) + triage de SonarCloud | 0 ✅ (2 reales corregidas: ReDoS y logs) |
+| Usuario | Se puede usar con el teclado | 0 issues de accesibilidad abiertas en SonarCloud | Tests de nombres y roles accesibles + verificación en Chrome | 0 ✅ (2 aceptadas con justificación) |
+| **Equipo** | Ninguna regresión llega a `main` | 0 tests fallidos o cancelados en SQLite y Postgres, UTC y Córdoba | Tests primero (rojo → verde), CI con matriz de motores y zonas horarias | 808/810/699 ✅ |
+| Equipo | El código nuevo viene con pruebas | Cobertura del código nuevo ≥ 80 % | Quality gate bloqueante + mutation testing sobre el código nuevo | 89,9 % ✅ |
+| Equipo | El código existente está cubierto | ≥ 80 % (nivel 3) | Umbral bloqueante: backend (líneas, ramas y funciones), frontend (líneas) | Backend ✅; frontend: líneas ✅, ramas 74,1 % ❌ |
+| Equipo | Cada defecto corregido tiene su regresión | 100 % de los defectos cerrados con test enlazado | Plantilla de defecto con el campo "prueba de regresión" (GitHub Issues) | 18/18 (D08 era del propio test) ✅ |
+| Equipo | Un rojo se arregla rápido | Tiempo hasta volver a verde < 1 h | Corrección en un commit posterior, sin reescribir el run (decisión del usuario) | 5,1 min y 30 min ✅ |
+| **Organización** | Sin costo de infraestructura para la demo | $0 | Planes gratuitos: Render, GitHub Actions (repo público), SonarCloud, Mercado Pago en modo prueba | $0 ✅ |
+| Organización | Dependencias sin vulnerabilidades conocidas | `npm audit` en 0 en los dos paquetes | Job `audit` del CI en cada push | 0 ✅ |
+| Organización | Pocos defectos llegan a producción | Defectos escapados / registrados | Revisión de código, SonarCloud y E2E contra el servicio real | 4/18 = 22,2 % sobre el registro (selección) ⚠️ |
+| Organización | La demo no depende de la suerte | Plan de contingencia por dependencia + plan B local | §3 de este plan, `GUION_DEFENSA.md §6` | Documentado ✅; la base de Render vence el 14/11/2026 ⚠️ |
 
 ## 3. Plan de contingencia ante la caída de una dependencia crítica
 
