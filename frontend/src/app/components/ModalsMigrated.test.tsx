@@ -114,11 +114,17 @@ describe('ProjectMap: mapa ampliado', () => {
 
   test('el detalle de un proyecto elegido se cierra con "Cerrar detalle" (mapa chico y ampliado)', async () => {
     const { container } = render(<MemoryRouter><ProjectMap projects={[project as never]} /></MemoryRouter>);
-    // El mapa recrea los marcadores después del primer render: el pin se busca de nuevo en cada intento.
-    const selectByPin = () => waitFor(() => {
-      fireEvent.click(container.querySelector('.leaflet-marker-icon')!);
-      expect(screen.getByRole('button', { name: 'Cerrar detalle' })).toBeInTheDocument();
-    });
+    // El mapa recrea los marcadores después del primer render: se espera a que haya pin y se toca el que esté en
+    // ese momento. El clic va afuera del waitFor (SonarCloud S8985, §233): adentro se repetía en cada intento.
+    const selectByPin = async () => {
+      const pin = await waitFor(() => {
+        const el = container.querySelector<HTMLElement>('.leaflet-marker-icon');
+        expect(el).not.toBeNull();
+        return el!;
+      });
+      fireEvent.click(pin);
+      await screen.findByRole('button', { name: 'Cerrar detalle' });
+    };
     await selectByPin();
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar detalle' }));
     expect(screen.queryByRole('button', { name: 'Cerrar detalle' })).not.toBeInTheDocument();
@@ -126,6 +132,7 @@ describe('ProjectMap: mapa ampliado', () => {
     await selectByPin();
     fireEvent.click(screen.getByTitle('Abrir mapa ampliado (Pop-up)'));
     const d = await screen.findByRole('dialog', { name: 'Mapa de Voluntariados' });
-    expect(within(d).getByRole('button', { name: 'Cerrar detalle' })).toBeInTheDocument();
+    fireEvent.click(within(d).getByRole('button', { name: 'Cerrar detalle' }));
+    expect(within(d).queryByRole('button', { name: 'Cerrar detalle' })).not.toBeInTheDocument();
   });
 });

@@ -6445,3 +6445,22 @@ Con esto queda verificado el último punto que §222 y §224 dejaban sin verific
 ### ⚠️ NO verificado
 - Una subida real desde el celular con una foto cerca del tope (prod usa Cloudinary; los tests usan un doble).
 - Que SonarCloud cierre las 2 issues: se ve después del push.
+
+## 233. SonarCloud S8985: el clic del test del mapa sale del `waitFor`
+
+**Qué se hizo:** en `ModalsMigrated.test.tsx`, el test "el detalle de un proyecto elegido se cierra con 'Cerrar detalle'" hacía `fireEvent.click` **dentro** del `waitFor`, así que el clic se repetía en cada intento. En §204 se había aceptado porque Leaflet recrea los marcadores después del primer render. Ahora:
+1. el `waitFor` solo espera a que haya un pin y lo devuelve;
+2. el clic va afuera;
+3. después se espera el botón con `findByRole`.
+
+**Hueco que tenía el test (viejo y nuevo):** en el mapa ampliado solo verificaba que el botón "Cerrar detalle" **existiera**. Dejar sin efecto ese botón no rompía nada: lo comprobé con un mutante contra las dos versiones del test, y sobrevivía en ambas. Ahora además lo toca y verifica que se cierre.
+
+### Verificación
+- El test pasó 5 de 5 seguidas aislado y 3 de 3 con el archivo entero. Ninguna corrida falló.
+- Mutantes a mano en `ProjectMap.tsx` (los dos botones "Cerrar detalle" sin efecto): **2 muertos**, contando el del ampliado, que antes sobrevivía.
+
+### Errores propios
+- Ninguno.
+
+### ⚠️ NO verificado
+- Que no sea inestable en el CI: 8 corridas locales no lo garantizan.
