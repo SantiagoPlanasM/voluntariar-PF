@@ -31,8 +31,10 @@ export function getCategoryColor(cat?: string) {
 
 // Respaldo de coordenadas por nombre de ubicación si el proyecto no las tiene
 export function getProjectCoords(p: Project, index = 0): { lat: number; lng: number } {
-  if (p.latitude != null && p.longitude != null && !isNaN(p.latitude) && !isNaN(p.longitude)) {
-    return { lat: Number(p.latitude), lng: Number(p.longitude) };
+  if (p.latitude != null && p.longitude != null) {
+    // Convertir antes de mirar NaN: Number.isNaN('abc') da false (el isNaN global convertía solo).
+    const lat = Number(p.latitude), lng = Number(p.longitude);
+    if (!Number.isNaN(lat) && !Number.isNaN(lng)) return { lat, lng };
   }
 
   const loc = (p.location || '').toLowerCase();

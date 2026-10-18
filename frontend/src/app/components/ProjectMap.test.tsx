@@ -7,7 +7,7 @@ import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import L from 'leaflet';
-import { ProjectMap } from './ProjectMap';
+import { ProjectMap, getProjectCoords } from './ProjectMap';
 import type { Project } from '../../lib/api';
 
 const project = (id: string, category: string, lat: number, lng: number): Project => ({
@@ -53,6 +53,31 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+// Caracterización de getProjectCoords antes de pasar de `isNaN` global a `Number.isNaN` (Sonar S7773):
+// el global convierte antes ('abc' → NaN), Number.isNaN no. Tiene que seguir igual con strings.
+describe('getProjectCoords', () => {
+  const withCoords = (latitude: unknown, longitude: unknown) =>
+    ({ id: 'x', latitude, longitude, location: 'Sarmiento' } as unknown as Project);
+  const SARMIENTO = { lat: -31.4287, lng: -64.1756 };
+
+  test('coordenadas numéricas: se usan tal cual', () => {
+    expect(getProjectCoords(withCoords(-31.5, -64.2))).toEqual({ lat: -31.5, lng: -64.2 });
+  });
+
+  test('coordenadas como string numérico: se convierten a número', () => {
+    expect(getProjectCoords(withCoords('-31.5', '-64.2'))).toEqual({ lat: -31.5, lng: -64.2 });
+  });
+
+  test.each([
+    ['latitud no numérica', 'abc', -64.2],
+    ['longitud no numérica', -31.5, 'abc'],
+    ['latitud NaN', Number.NaN, -64.2],
+    ['longitud null', -31.5, null],
+  ])('%s: cae al respaldo por ubicación', (_caso, lat, lng) => {
+    expect(getProjectCoords(withCoords(lat, lng))).toEqual(SARMIENTO);
+  });
 });
 
 describe('<ProjectMap /> mapa chico — marcadores', () => {

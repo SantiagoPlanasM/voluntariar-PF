@@ -35,9 +35,9 @@ const clampInt = (value, fallback, min, max) => {
  *  Cualquier otra cosa → NaN: 3.7, "3.7", "5 personas", [5], true, "1e21", " 5". `parseInt` aceptaba todo eso
  *  recortándolo (3.7 → 3, "1e21" → 1). Lo usan las reseñas (§74) y los cupos/horas de proyectos (B3). */
 const toStrictInt = (value) => {
-  if (typeof value === 'number') return Number.isInteger(value) ? value : NaN;
+  if (typeof value === 'number') return Number.isInteger(value) ? value : Number.NaN;
   if (typeof value === 'string' && /^-?\d+$/.test(value)) return Number(value);
-  return NaN;
+  return Number.NaN;
 };
 
 /** El primer error de una lista de chequeos, o null. */

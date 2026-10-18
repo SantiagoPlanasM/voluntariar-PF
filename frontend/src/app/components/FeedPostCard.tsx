@@ -16,14 +16,14 @@ interface FeedPostCardProps {
 }
 
 function safePct(a: any, b: any) {
-  const na = parseFloat(a), nb = parseFloat(b);
-  if (!nb || isNaN(na) || isNaN(nb)) return 0;
+  const na = Number.parseFloat(a), nb = Number.parseFloat(b);
+  if (!nb || Number.isNaN(na) || Number.isNaN(nb)) return 0;
   return Math.min(100, Math.round((na / nb) * 100));
 }
 
 function safeMoney(val: any) {
-  const n = parseFloat(val);
-  return isNaN(n) ? '$0' : '$' + n.toLocaleString('es-AR');
+  const n = Number.parseFloat(val);
+  return Number.isNaN(n) ? '$0' : '$' + n.toLocaleString('es-AR');
 }
 
 export function FeedPostCard({ project, onRefresh }: FeedPostCardProps) {

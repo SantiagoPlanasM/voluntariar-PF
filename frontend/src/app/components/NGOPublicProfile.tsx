@@ -8,8 +8,8 @@ import { useAuth } from '../../lib/AuthContext';
 import { userMessage, FOLLOW_ERROR } from '../../lib/format';
 
 function safePct(a: any, b: any) {
-  const na = parseFloat(a), nb = parseFloat(b);
-  if (!nb || isNaN(na) || isNaN(nb)) return 0;
+  const na = Number.parseFloat(a), nb = Number.parseFloat(b);
+  if (!nb || Number.isNaN(na) || Number.isNaN(nb)) return 0;
   return Math.min(100, Math.round((na / nb) * 100));
 }
 

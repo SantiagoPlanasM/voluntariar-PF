@@ -308,7 +308,7 @@ router.patch('/:id/horas', requireAuth, requireRole('ngo'), async (req, res) => 
     // isNaN: "1e400" (o 1e400 en el JSON) pasaba como Infinity y rompía los totales, y "12abc" se guardaba
     // como 12 en silencio (REVISION B14).
     const h = typeof horas === 'number' ? horas
-      : typeof horas === 'string' && horas.trim() !== '' ? Number(horas) : NaN;
+      : typeof horas === 'string' && horas.trim() !== '' ? Number(horas) : Number.NaN;
     if (!Number.isFinite(h) || h < 0 || h > MAX_HORAS)
       return res.status(400).json({ error: `Las horas tienen que ser un número entre 0 y ${MAX_HORAS}` });
 

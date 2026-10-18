@@ -14,8 +14,8 @@ import { MomentsGrid } from './MomentsGrid';
 import { DonateModal } from './DonateModal';
 
 type Tab = 'details' | 'ratings' | 'comments';
-const safePct = (a: any, b: any) => { const na=parseFloat(a),nb=parseFloat(b); if(!nb||isNaN(na)||isNaN(nb)) return 0; return Math.min(100,Math.round((na/nb)*100)); };
-const safeMoney = (val: any) => { const n=parseFloat(val); return isNaN(n)?'$0':'$'+n.toLocaleString('es-AR'); };
+const safePct = (a: any, b: any) => { const na=Number.parseFloat(a),nb=Number.parseFloat(b); if(!nb||Number.isNaN(na)||Number.isNaN(nb)) return 0; return Math.min(100,Math.round((na/nb)*100)); };
+const safeMoney = (val: any) => { const n=Number.parseFloat(val); return Number.isNaN(n)?'$0':'$'+n.toLocaleString('es-AR'); };
 
 export function ProjectDetails() {
   const { id } = useParams();

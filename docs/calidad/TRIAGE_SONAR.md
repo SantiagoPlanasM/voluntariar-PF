@@ -16,7 +16,7 @@
 | Vulnerabilidad | `tssecurity:S8480` WebSocket | 1 | **Aceptado**, con una mejora anotada | abajo |
 | Smell | `S8786` regex con backtracking | 6 | **2 mitigados** (vulnerabilidad real de DoS en el email: tope de 254 antes del regex), **4 aceptados**; los 6 se marcan "Accept" | §201 |
 | Smell | `S6853` / `S6848` / `S6845` accesibilidad | 34 | **32 arreglados** (29 etiquetas, 4 tarjetas que no se podían abrir con el teclado), **2 aceptados** (`Modal`, `PhotoCarousel`) | §203 |
-| Smell | `S7773` `Number.parseInt` en vez de `parseInt` | 63 | **Sin tocar**: es cosmético y no cambia el comportamiento. Va en la tabla de métricas | — |
+| Smell | `S7773` `Number.parseInt` en vez de `parseInt` | 63 | Primero **sin tocar** (cosmético). Las 57 que quedaban se **arreglaron** el 2026-10-18; una sola (`getProjectCoords`) no era un cambio mecánico | §229 |
 
 ## Para marcar en SonarCloud ("Accept", con este comentario)
 
@@ -84,3 +84,14 @@ SonarCloud marcó **3 vulnerabilidades nuevas**, las tres `S5145` (inyección en
 - code smells 57; deuda 114 min; duplicación 1,9 %;
 - 17.573 líneas; cobertura 89,6 %;
 - código nuevo: cobertura 94,4 %, duplicación 0,0 %, 0 bugs, 0 críticas.
+
+## S7773 arreglado (2026-10-18, §229)
+
+Las **57 issues abiertas** del análisis de `6e4a51c` eran todas `S7773` (38 `typescript`, 19 `javascript`, MINOR): `parseInt`, `parseFloat`, `isNaN`, `isFinite` y `NaN` globales en 6 archivos del backend y 9 del frontend. El usuario pidió sacarlas.
+
+- `parseInt`, `parseFloat`, `isFinite` y `NaN` → `Number.*`: son las mismas funciones y el mismo valor (`Number.parseInt === parseInt`).
+- `isNaN` → `Number.isNaN` **no** es equivalente: el global convierte antes (`isNaN('abc')` da `true`) y `Number.isNaN('abc')` da `false`. Se revisó cada caso:
+  - en 8 archivos el argumento es el resultado de `parseFloat`/`parseInt`, que siempre es un número: el cambio es equivalente;
+  - en `ProjectMap.tsx` (`getProjectCoords`) el argumento era `p.latitude`, que puede llegar como string: ahora se convierte con `Number()` antes de mirar `NaN`. Tests de caracterización escritos y pasados con el código viejo; el reemplazo mecánico los rompe.
+
+Cuántas cierra se ve en el próximo análisis del CI (después del push).

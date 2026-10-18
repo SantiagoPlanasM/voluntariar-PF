@@ -130,7 +130,7 @@ const modalityError = (b) => ([b.modality, b.modalidad].some((m) => m != null &&
 function parseCoord(value, label, lim) {
   if (value === null || value === '') return { value: null };
   // Number('  ') es 0: un texto en blanco no es una coordenada.
-  const n = typeof value === 'number' || (typeof value === 'string' && value.trim() !== '') ? Number(value) : NaN;
+  const n = typeof value === 'number' || (typeof value === 'string' && value.trim() !== '') ? Number(value) : Number.NaN;
   // NaN e ±Infinity no pasan el rango (NaN >= x es false), así que no hace falta Number.isFinite.
   return n >= -lim && n <= lim
     ? { value: n } : { error: `${label} tiene que ser un número entre -${lim} y ${lim}` };
@@ -563,7 +563,7 @@ router.get('/recommended', requireAuth, requireRole('volunteer'), async (req, re
 
     const ratingByProject = {};
     for (const r of ratingRows) {
-      ratingByProject[r.project_id] = { avg: parseFloat(r.avg_rating), count: parseInt(r.count) };
+      ratingByProject[r.project_id] = { avg: Number.parseFloat(r.avg_rating), count: Number.parseInt(r.count) };
     }
 
 

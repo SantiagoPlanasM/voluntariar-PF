@@ -72,7 +72,7 @@ export function NGOKPIs() {
       const body = {
         nombre: form.nombre.trim(),
         descripcion: form.descripcion.trim() || undefined,
-        valor: form.valor !== '' ? parseFloat(form.valor) : undefined,
+        valor: form.valor !== '' ? Number.parseFloat(form.valor) : undefined,
         tipo_valor: form.tipo_valor,
         unidad: form.unidad.trim() || undefined,
         fecha: form.fecha || undefined,

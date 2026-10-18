@@ -85,12 +85,12 @@ export function CreateVoluntariado() {
       if (form.type === 'fugaz' && !form.duration.trim())
         e.duration = 'Indicá la duración del evento';
       if (form.type === 'sostenido') {
-        const h = parseInt(form.hours_per_week);
-        if (!form.hours_per_week || isNaN(h) || h < 1)
+        const h = Number.parseInt(form.hours_per_week);
+        if (!form.hours_per_week || Number.isNaN(h) || h < 1)
           e.hours_per_week = 'Ingresá horas por semana (mín. 1)';
       }
-      const v = parseInt(form.volunteers_needed);
-      if (!form.volunteers_needed || isNaN(v) || v < 1)
+      const v = Number.parseInt(form.volunteers_needed);
+      if (!form.volunteers_needed || Number.isNaN(v) || v < 1)
         e.volunteers_needed = '¿Cuántos voluntarios necesitás?';
     }
     return e;
@@ -135,10 +135,10 @@ export function CreateVoluntariado() {
         modality: form.modality,
         type: form.type,
         duration: form.type === 'fugaz' ? form.duration.trim() : undefined,
-        hours_per_week: form.type === 'sostenido' ? parseInt(form.hours_per_week) : undefined,
-        volunteers_needed: parseInt(form.volunteers_needed),
-        funding_goal: parseFloat(form.funding_goal) || 0,
-        cost_per_person: parseFloat(form.cost_per_person) || 0,
+        hours_per_week: form.type === 'sostenido' ? Number.parseInt(form.hours_per_week) : undefined,
+        volunteers_needed: Number.parseInt(form.volunteers_needed),
+        funding_goal: Number.parseFloat(form.funding_goal) || 0,
+        cost_per_person: Number.parseFloat(form.cost_per_person) || 0,
         roles_needed: roles,
         requirements,
       });

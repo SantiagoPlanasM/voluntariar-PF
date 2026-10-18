@@ -6319,3 +6319,27 @@ Con esto queda verificado el último punto que §222 y §224 dejaban sin verific
 
 ### ⚠️ NO verificado
 - Nada nuevo.
+
+## 229. SonarCloud S7773: las 57 issues abiertas, arregladas (`Number.parseInt`, `Number.isNaN`…)
+
+**Qué se hizo:** el usuario pidió arreglar las issues de SonarCloud. La API pública daba **57 abiertas** sobre `6e4a51c`, todas `S7773` (MINOR): funciones globales en vez de las de `Number`. Estaban en 6 archivos del backend (`db/index.js`, `lib/inputs.js`, `routes/projects.js`, `enrollments.js`, `follows.js`, `ngos.js`) y 9 componentes del frontend.
+- `parseInt`, `parseFloat`, `isFinite` y `NaN` → `Number.*` con un script de Node que respeta CRLF y no toca comentarios. Son las mismas funciones: sin cambio de comportamiento.
+- `isNaN` → `Number.isNaN` se miró caso por caso, porque el global convierte el argumento antes. En 8 componentes el argumento sale de `parseFloat`/`parseInt` y siempre es un número, así que da lo mismo.
+- **El único caso no mecánico: `getProjectCoords` (`ProjectMap.tsx`).** Recibía `p.latitude` directo, que puede llegar como string. Con el reemplazo mecánico, `'abc'` dejaba de caer al respaldo por ubicación y el mapa recibía `NaN`. Ahora convierte con `Number()` y después mira `Number.isNaN`, que es lo mismo que hacía el global.
+- **Tests primero:** 6 tests de caracterización de `getProjectCoords` en `ProjectMap.test.tsx` (número, string numérico, string no numérico en latitud y en longitud, `NaN`, `null`). Pasaron con el código viejo antes del cambio.
+- `TRIAGE_SONAR.md` actualizado; `CLAUDE.md` con el conteo nuevo del frontend.
+
+### Verificación
+- Backend: `npm test` **897/897** en SQLite y con `TZ=America/Argentina/Cordoba`; `npm run test:pg` **899/899** (Postgres 16 en Docker). 0 fail, 0 cancelled.
+- Frontend: `npm test` **896/896** (890 + 6); `npm run typecheck` sin errores.
+- **Mutación** sobre la lógica nueva de `getProjectCoords`, con corrida de control verde: **7 mutantes, 0 sobrevivientes** (sin convertir latitud, sin convertir longitud, `&&` → `||`, sin chequeo de cada coordenada, devolver siempre y el reemplazo mecánico).
+- Finales de línea: los archivos CRLF siguen CRLF y los LF siguen LF (contados con Node).
+- `grep` sin usos globales que queden en `backend/src` y `frontend/src` fuera de comentarios y tests.
+
+### Errores propios
+- Ninguno en este cambio.
+
+### ⚠️ NO verificado
+- **Que SonarCloud cierre las 57:** se ve en el próximo análisis del CI, después del push. El informe del TP sigue diciendo "157 → 57" (el análisis de `6e4a51c`); se actualiza cuando esté el análisis nuevo.
+- Los tests (`*.test.*`) no los analiza Sonar y no se tocaron: pueden tener usos globales.
+- Lo visual del mapa con coordenadas raras: no lo puedo ver.

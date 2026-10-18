@@ -135,11 +135,11 @@ router.get('/me', requireAuth, requireRole('ngo'), async (req, res) => {
     );
 
     const stats = {
-      total_projects:      parseInt(statsRow?.total_projects)    || 0,
-      active_projects:     parseInt(statsRow?.active_projects)   || 0,
-      completed_projects:  parseInt(statsRow?.completed_projects) || 0,
-      total_volunteers:    parseInt(statsRow?.total_volunteers)  || 0,
-      total_funding:       parseFloat(statsRow?.total_funding)   || 0,
+      total_projects:      Number.parseInt(statsRow?.total_projects)    || 0,
+      active_projects:     Number.parseInt(statsRow?.active_projects)   || 0,
+      completed_projects:  Number.parseInt(statsRow?.completed_projects) || 0,
+      total_volunteers:    Number.parseInt(statsRow?.total_volunteers)  || 0,
+      total_funding:       Number.parseFloat(statsRow?.total_funding)   || 0,
       pending_enrollments: pendingEnrollments.length,
     };
 
@@ -305,11 +305,11 @@ router.get('/:id/dashboard', requireAuth, requireRole('ngo'), async (req, res) =
     );
 
     const stats = {
-      total_projects:      parseInt(statsRow?.total_projects)    || 0,
-      active_projects:     parseInt(statsRow?.active_projects)   || 0,
-      completed_projects:  parseInt(statsRow?.completed_projects) || 0,
-      total_volunteers:    parseInt(statsRow?.total_volunteers)  || 0,
-      total_funding:       parseFloat(statsRow?.total_funding)   || 0,
+      total_projects:      Number.parseInt(statsRow?.total_projects)    || 0,
+      active_projects:     Number.parseInt(statsRow?.active_projects)   || 0,
+      completed_projects:  Number.parseInt(statsRow?.completed_projects) || 0,
+      total_volunteers:    Number.parseInt(statsRow?.total_volunteers)  || 0,
+      total_funding:       Number.parseFloat(statsRow?.total_funding)   || 0,
       pending_enrollments: pendingEnrollments.length,
     };
 

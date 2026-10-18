@@ -7,7 +7,7 @@ import { InlineError } from './LoadError';
 import { MercadoPagoBanner } from './MercadoPagoAccount';
 import { useAuth } from '../../lib/AuthContext';
 
-const safeNum = (v: any, f=0) => { const n=parseFloat(v); return isNaN(n)?f:n; };
+const safeNum = (v: any, f=0) => { const n=Number.parseFloat(v); return Number.isNaN(n)?f:n; };
 const safeMoney = (v: any) => { const n=safeNum(v); return '$'+(n>=1000?(n/1000).toFixed(1)+'k':n.toLocaleString('es-AR')); };
 
 export function NGODashboard() {

@@ -222,8 +222,8 @@ router.get('/project/:projectId/status', optionalAuth, async (req, res) => {
 // GET /api/follows/feed — Proyectos de ONGs seguidas + proyectos individuales seguidos
 router.get('/feed', requireAuth, requireRole('volunteer'), async (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
-    const offset = parseInt(req.query.offset) || 0;
+    const limit = Math.min(Number.parseInt(req.query.limit) || 20, 50);
+    const offset = Number.parseInt(req.query.offset) || 0;
 
     // Obtener ONGs seguidas e IDs de proyectos seguidos
     const [followedNgos, followedProjects] = await Promise.all([

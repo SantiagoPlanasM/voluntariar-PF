@@ -17,13 +17,13 @@ const CATEGORIES = [
 ];
 
 function safeMoney(val: any): string {
-  const n = parseFloat(val);
-  if (isNaN(n) || !isFinite(n)) return '$0';
+  const n = Number.parseFloat(val);
+  if (Number.isNaN(n) || !Number.isFinite(n)) return '$0';
   return '$' + n.toLocaleString('es-AR');
 }
 function safePct(a: any, b: any): number {
-  const na = parseFloat(a), nb = parseFloat(b);
-  if (!nb || isNaN(na) || isNaN(nb)) return 0;
+  const na = Number.parseFloat(a), nb = Number.parseFloat(b);
+  if (!nb || Number.isNaN(na) || Number.isNaN(nb)) return 0;
   return Math.min(100, Math.round((na / nb) * 100));
 }
 

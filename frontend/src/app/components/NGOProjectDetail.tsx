@@ -49,8 +49,8 @@ export function NGOProjectDetail() {
   };
 
   const handleSaveHours = async (id: string) => {
-    const val = parseFloat(hoursDraft[id]);
-    if (isNaN(val) || val < 0) { alert('Ingresá un número de horas válido'); return; }
+    const val = Number.parseFloat(hoursDraft[id]);
+    if (Number.isNaN(val) || val < 0) { alert('Ingresá un número de horas válido'); return; }
     setSavingHours(id);
     try {
       await api.enrollments.logHours(id, val);
