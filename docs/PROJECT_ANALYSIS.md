@@ -5695,3 +5695,22 @@ Se escribió en HTML con estilos de impresión A4 y se convirtió con Chrome hea
 ### ⚠️ NO verificado
 - Que la cátedra pida un formato distinto (carátula, extensión). El enunciado no fija ninguno.
 - **Los datos personales de la carátula los completa el usuario.** Después de editar el HTML, se regenera con el comando de `COMO_CORRER_PRUEBAS.md` (sección "Regenerar el informe en PDF") o con Chrome → Imprimir → Guardar como PDF.
+
+## 209. Cobertura del frontend, fase 1: test de contrato de todo `lib/api.ts` (decisión del usuario: subir la cobertura)
+
+**Por qué:** es la única meta del nivel 3 que quedaba parcial (`INFORME_TP_CALIDAD`, §2). `lib/api.ts` tenía **61 funciones sin cubrir**: los tests de pantallas reemplazan `api` por dobles, así que **ningún test miraba lo que sale por la red**.
+
+**Qué se hizo:** `frontend/src/lib/api.contract.test.ts`, una tabla con **85 casos** (cada método de `api`, con variantes de parámetros) más las 3 subidas multipart. Cada caso verifica `BASE` + la ruta, el método HTTP, el cuerpo JSON (con los nombres de campo que lee el backend: `horas`, `estado`, `mensaje`, `nombre`…) y el token. Las subidas mandan el `FormData` y **no fijan `Content-Type`**. Hay un test que **falla si se agrega un método a `api` sin sumarlo a la tabla**. Es la regla 10 de `AI_RULES.md` (que el frontend mande lo que el backend lee) convertida en test.
+
+**Verificación de la regla 10 contra el backend** (script de una sola vez, en el scratchpad): se extrajeron las 89 rutas que define Express (`app.use` + `router.METHOD`) y las **81 rutas distintas que usa el frontend existen todas**.
+
+### Verificación
+- **89/89** en verde. Son de caracterización (el código ya era correcto). El rojo con sentido lo dio la mutación sobre `api.ts`, con la corrida de control en verde y el archivo CRLF restaurado byte a byte: **12 mutantes, 0 sobrevivientes**:
+  - `horas`→`hours`, la ruta de horas, `PATCH`→`PUT`, `estado`→`status`, `mensaje`→`message`;
+  - la subida que fija `Content-Type` (3 fallas) y `req` sin `Authorization` (84 fallas);
+  - `posts.list` sin descartar vacíos, los valores por defecto del feed y de las recomendaciones, sin `encodeURIComponent`, y el CV por `POST`.
+- **Cobertura del frontend** (local): sentencias **79,75 % → 81,48 %**, líneas 83,26 % → 85,39 %, funciones 68,09 % → 74,27 %, ramas 74,05 % → 74,33 %. **Sentencias ya pasa el 80 %**; funciones y ramas todavía no (fases siguientes). `typecheck` 0.
+
+### ⚠️ NO verificado
+- La cobertura en el CI (se ve después del push).
+- El chequeo de rutas contra el backend es por expresión regular sobre el código. Si una ruta se definiera de otra forma (con comillas dobles o armada en tiempo de ejecución), el script no la vería. Hoy todas usan comillas simples.
