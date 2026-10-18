@@ -6293,3 +6293,29 @@ Con esto queda verificado el último punto que §222 y §224 dejaban sin verific
 
 ### ⚠️ NO verificado
 - Que la captura sea de la cuenta 3772556008: no muestra el número de cuenta. Se toma la palabra del usuario, que entró con ese vendedor. Es coherente con `--solo-ver` (§222). No miré la cuenta de la aplicación.
+
+## 228. Informe: la cobertura del CI #23 sale del log del run (con `gh`), no de la corrida local
+
+**Qué pasó:** el usuario avisó que `gh` estaba instalado. Está en `C:\Program Files\GitHub CLI\gh.exe`, fuera del PATH de la terminal del asistente, que arrancó antes de la instalación. Tiene sesión iniciada con la cuenta del usuario. Con `gh run view 39144726116 --log` se leyó la cobertura que informó el CI #23 en sus jobs:
+
+| Job | Líneas | Ramas | Funciones | Sentencias |
+|---|---|---|---|---|
+| Backend · SQLite · UTC | 93,21 % | 85,31 % | 90,19 % | — |
+| Backend · SQLite · Córdoba | 93,17 % | 85,33 % | 90,19 % | — |
+| Frontend · UTC | 90,34 % | 81,48 % | 82,45 % | 86,69 % |
+| Frontend · Córdoba | 90,34 % | 81,44 % | 82,45 % | 86,69 % |
+
+**Qué se hizo:**
+- El informe usa los valores del job en UTC, en "En números", la tabla de metas y 4.2.
+- Se sacó la aclaración de que la cobertura venía de la corrida local.
+- PDF regenerado.
+- Las diferencias con la corrida local (§226) son de centésimas: Node 24 local contra Node 22 en el CI.
+
+### Verificación
+- Se extrajeron las líneas "all files" del log del run, una por job.
+
+### Errores propios
+- Ninguno. Resuelve el "no verificado" de §226.
+
+### ⚠️ NO verificado
+- Nada nuevo.
