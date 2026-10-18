@@ -14,6 +14,7 @@ import { NGODashboard } from './components/NGODashboard';
 import { NGOProjectDetail } from './components/NGOProjectDetail';
 import { CreateVoluntariado } from './components/CreateVoluntariado';
 import { NGOOwnProfile } from './components/NGOOwnProfile';
+import { MercadoPagoReturn } from './components/MercadoPagoReturn';
 import { NGOPatrocinios } from './components/NGOPatrocinios';
 import { CompanyOwnProfile } from './components/CompanyOwnProfile';
 import { CompanyDashboard } from './components/CompanyDashboard';
@@ -62,6 +63,8 @@ export const router = createBrowserRouter([
       { path: 'dashboard/project/:projectId',     Component: NGOProjectDetail },
       { path: 'create',                           Component: CreateVoluntariado },
       { path: 'profile',                          Component: NGOOwnProfile },
+      // §218: vuelta de Mercado Pago al vincular la cuenta (MP_OAUTH_REDIRECT_URI = <APP_URL>/ngo/mercadopago/vuelta).
+      { path: 'mercadopago/vuelta',               Component: MercadoPagoReturn },
       { path: 'patrocinios',                      Component: NGOPatrocinios },
       { path: 'momentos',                         Component: NGOMoments },
       { path: 'empleados/:id',                    Component: NGOEmpleados },

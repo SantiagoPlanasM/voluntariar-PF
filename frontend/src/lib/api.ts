@@ -129,6 +129,15 @@ export const api = {
       create: (ngoId: string, b: { nombre: string; apellido: string; email: string; rol: string }) =>
         req<{ empleado: Empleado }>(`/ngos/${ngoId}/empleados`, { method: 'POST', body: JSON.stringify(b) }),
     },
+    // Cuenta de Mercado Pago de la ONG (Marketplace, §216/§218). `connect` devuelve la URL de Mercado Pago; `callback`
+    // lo llama la pantalla /ngo/mercadopago/vuelta con lo que trae la URL.
+    mercadopago: {
+      get: () => req<MpAccountState>('/ngos/me/mercadopago'),
+      connect: () => req<{ authorization_url: string }>('/ngos/me/mercadopago/connect', { method: 'POST' }),
+      callback: (code: string, state: string) =>
+        req<{ account: MpAccount }>('/ngos/me/mercadopago/callback', { method: 'POST', body: JSON.stringify({ code, state }) }),
+      disconnect: () => req<{ disconnected: boolean }>('/ngos/me/mercadopago', { method: 'DELETE' }),
+    },
     patrocinios: {
       list: () => req<{ patrocinios: Patrocinio[] }>('/ngos/me/patrocinios'),
       decide: (empresaId: string, projectId: string, estado: 'aceptado' | 'rechazado') =>
@@ -299,11 +308,18 @@ export interface Conversation {
   last_message: string; last_at: string | null; last_from_me: boolean; unread: number;
 }
 
+/** GET /ngos/me/mercadopago (§216). Nunca trae tokens. `origin: 'manual'` = cargada con el script, sin vencimiento. */
+export interface MpAccount {
+  mp_user_id: string; status: 'active' | 'needs_reconnect'; origin: 'oauth' | 'manual'; expires_at: string | null;
+}
+export interface MpAccountState { account: MpAccount | null; oauth_available: boolean }
 export interface ProjectDetail extends Project {
   comments: AppComment[]; ratings: Rating[]; kpis: KPI[];
   avg_rating: number; my_enrollment?: Enrollment | null;
   /** true solo si quien pide es la ONG dueña (lo calcula GET /projects/:id). */
   can_manage?: boolean;
+  /** §217: true solo si la ONG tiene su cuenta de Mercado Pago vinculada y activa (si no, no recibe donaciones). */
+  accepts_donations?: boolean;
 }
 export interface Enrollment {
   id: string; user_id: string; project_id: string;

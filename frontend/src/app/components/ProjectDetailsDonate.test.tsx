@@ -30,6 +30,7 @@ const project = (extra: Record<string, unknown> = {}) => ({
   project: {
     id: 'proj-1', ngo_id: 'ngo-1', title: 'Reforestación', status: 'active', type: 'fugaz', comments: [], kpis: [], ratings: [],
     avg_rating: 0, my_enrollment: null, funding_goal: 100000, current_funding: 20000, volunteers_needed: 10, current_volunteers: 2,
+    accepts_donations: true,   // §218: la ONG vinculó su cuenta de Mercado Pago
     ...extra,
   },
 });
@@ -70,6 +71,26 @@ describe('ProjectDetails: botón "Donar"', () => {
     mount();
     await screen.findByText('Progreso del proyecto');
     expect(screen.queryByRole('button', { name: 'Donar a este proyecto' })).toBeNull();
+  });
+
+  // Marketplace (§217–§218): sin cuenta de Mercado Pago vinculada, la ONG no recibe donaciones (decisión del usuario).
+  test('la ONG no vinculó Mercado Pago (accepts_donations false o ausente): no aparece y lo dice', async () => {
+    as('volunteer');
+    for (const extra of [{ accepts_donations: false }, { accepts_donations: undefined }]) {
+      vi.mocked(api.projects.get).mockResolvedValue(project(extra) as never);
+      const { unmount } = mount();
+      expect(await screen.findByText('Esta ONG todavía no recibe donaciones')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Donar a este proyecto' })).toBeNull();
+      unmount();
+    }
+  });
+
+  test('la ONG dueña tampoco ve el aviso de donaciones (no es para ella)', async () => {
+    as('ngo');
+    vi.mocked(api.projects.get).mockResolvedValue(project({ accepts_donations: false }) as never);
+    mount();
+    await screen.findByText('Progreso del proyecto');
+    expect(screen.queryByText('Esta ONG todavía no recibe donaciones')).toBeNull();
   });
 
   test('proyecto que no está activo: no aparece', async () => {

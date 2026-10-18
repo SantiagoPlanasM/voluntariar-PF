@@ -4,6 +4,7 @@ import { Plus, Search, Users, Sprout, ChevronRight, CheckCircle, Clock, XCircle,
 import { api, ApiError, Project, PendingEnrollment, NGO, NGOStats } from '../../lib/api';
 import { userMessage } from '../../lib/format';
 import { InlineError } from './LoadError';
+import { MercadoPagoBanner } from './MercadoPagoAccount';
 import { useAuth } from '../../lib/AuthContext';
 
 const safeNum = (v: any, f=0) => { const n=parseFloat(v); return isNaN(n)?f:n; };
@@ -109,6 +110,8 @@ export function NGODashboard() {
       </header>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 space-y-5">
+        {/* §218: sin cuenta de Mercado Pago la ONG no recibe donaciones; el cartel solo aparece si falta vincularla. */}
+        <MercadoPagoBanner />
         {/* Stats grid: 2 col mobile → 4 col desktop */}
         {stats && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

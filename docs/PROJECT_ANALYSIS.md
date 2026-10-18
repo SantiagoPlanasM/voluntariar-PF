@@ -6041,3 +6041,41 @@ Las tablas y los endpoints se documentan en la tarea en que se crean.
 - Que el aviso del webhook traiga el `user_id` del vendedor (IA de Mercado Pago). Si no lo trae, el aviso consulta con la cuenta de la aplicación, da `mismatch` y la acreditación queda para la conciliación.
 - **El E2E post-deploy (`.github/scripts/post-deploy.js`) dona al primer proyecto de la lista.** Si se despliega antes de que esa ONG vincule su cuenta, va a recibir 409 y el deploy va a dar rojo. **No hay que hacer push** hasta vincular la ONG SANTI y apuntar el E2E a "Test" (`E2E_PROJECT_ID`), que es la tarea siguiente que pidió el usuario.
 - La interfaz: el botón "Donar" todavía no lee `accepts_donations` (tarea 4).
+
+## 218. Marketplace de Mercado Pago (4/5): frontend — vincular la cuenta, el cartel del panel y el botón Donar condicionado
+
+**Qué se hizo:**
+- **`lib/api.ts`:** `api.ngos.mercadopago.{get, connect, callback, disconnect}`, los tipos `MpAccount` y `MpAccountState`, y `ProjectDetail.accepts_donations`. Los cuatro métodos entran en el test de contrato: el cuerpo `{ code, state }` es exactamente lo que lee `routes/mercadopago.js` (regla 10).
+- **`MercadoPagoAccountSection`** en el perfil de la ONG (`#mercadopago`):
+  - estado de la cuenta, "Vincular", "Volver a vincular" y "Desvincular" (con confirmación en la página);
+  - aclara si la cuenta se cargó a mano;
+  - avisa si "dejó de funcionar".
+- **`MercadoPagoBanner`** en el panel: "Configurá tu cuenta de Mercado Pago para recibir donaciones…", o "Volvé a vincular…". Es el cartel que pidió el usuario.
+- **`/ngo/mercadopago/vuelta` (`MercadoPagoReturn`):** manda `code` y `state` una sola vez, también en StrictMode.
+- **`ProjectDetails`:** "Donar" solo con `accepts_donations`. Si no, "Esta ONG todavía no recibe donaciones".
+- **Tests:**
+  - `MercadoPagoAccount.test.tsx` (15);
+  - `MercadoPagoReturn.test.tsx` (5);
+  - `ProjectDetailsDonate.test.tsx`: +2, y el proyecto base ahora acepta donaciones;
+  - contrato: +4.
+
+### Verificación
+- **Rojo de comportamiento:** con componentes stub y métodos de `api` que rechazaban, 22 tests fallaban.
+- **Frontend:**
+  - `npm test`: 890/890 (antes 864);
+  - `npm run typecheck`: 0 errores;
+  - cobertura (`npm run test:coverage`): sentencias 86,69 %, ramas 81,44 %, funciones 82,54 %, líneas 90,34 %, las cuatro sobre el umbral del 80 %.
+- **Mutación:** 31 mutantes. 27 murieron de entrada y los otros 4 con tests nuevos: 0 sobrevivientes.
+  - el scroll no espera a que carguen los datos;
+  - el scroll se repite al recargar;
+  - "Volver a vincular" sin OAuth disponible;
+  - el mensaje de "no autorizó": el test aceptaba los dos mensajes.
+
+### Errores propios
+- **La primera versión no hacía scroll al ancla.** `react-router` no lo hace solo, y la sección aparece después de cargar. Se notó al revisar el link del cartel, antes de commitear.
+- **El test de la vuelta sin `code` aceptaba cualquiera de los dos mensajes.** Lo mostró un mutante.
+
+### ⚠️ NO verificado
+- **Nada visual ni en un navegador:** el cartel, la sección, el scroll, la pantalla de vuelta, ni cómo se ve en el celular.
+- Que Mercado Pago, cuando la ONG no autoriza, vuelva con `?error=…`. Si vuelve sin `code`, igual se muestra "El link de vuelta no es válido".
+- Al recargar la página de vuelta después de vincular, el `state` ya está usado y la pantalla dice que no se pudo. La cuenta queda vinculada igual; el perfil lo muestra bien.

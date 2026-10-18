@@ -342,7 +342,11 @@ export function ProjectDetails() {
                 </div>
               )}
               {/* Donar (§172): el backend deja a voluntarios y empresas en proyectos activos; un visitante inicia sesión. */}
-              {project.status === 'active' && user?.role !== 'ngo' && (
+              {/* §218: sin cuenta de Mercado Pago vinculada la ONG no recibe donaciones (accepts_donations, §217). */}
+              {project.status === 'active' && user?.role !== 'ngo' && !project.accepts_donations && (
+                <p className="text-xs text-gray-400 text-center">Esta ONG todavía no recibe donaciones</p>
+              )}
+              {project.status === 'active' && user?.role !== 'ngo' && project.accepts_donations && (
                 <button type="button"
                   onClick={() => (user ? setShowDonate(true) : openAuthModal('Iniciá sesión para donar'))}
                   className="w-full py-2.5 rounded-xl text-sm font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors flex items-center justify-center gap-1.5">

@@ -60,6 +60,11 @@ const CASES: Case[] = [
   ['empresas.patrocinios.list', () => api.empresas.patrocinios.list(), 'GET', '/empresas/me/patrocinios'],
   ['empresas.patrocinios.propose (campo "mensaje")', () => api.empresas.patrocinios.propose('p1', 'Hola'), 'POST', '/empresas/me/patrocinios', { project_id: 'p1', mensaje: 'Hola' }],
   ['empresas.patrocinios.withdraw', () => api.empresas.patrocinios.withdraw('p1'), 'DELETE', '/empresas/me/patrocinios/p1'],
+  // cuenta de Mercado Pago de la ONG (Marketplace, §218): body { code, state } como lo lee routes/mercadopago.js
+  ['ngos.mercadopago.get', () => api.ngos.mercadopago.get(), 'GET', '/ngos/me/mercadopago'],
+  ['ngos.mercadopago.connect', () => api.ngos.mercadopago.connect(), 'POST', '/ngos/me/mercadopago/connect'],
+  ['ngos.mercadopago.callback', () => api.ngos.mercadopago.callback('TG-c', 'st-1'), 'POST', '/ngos/me/mercadopago/callback', { code: 'TG-c', state: 'st-1' }],
+  ['ngos.mercadopago.disconnect', () => api.ngos.mercadopago.disconnect(), 'DELETE', '/ngos/me/mercadopago'],
   // donaciones
   ['donaciones.create', () => api.donaciones.create({ project_id: 'p1', amount: 500 }), 'POST', '/donaciones', { project_id: 'p1', amount: 500 }],
   ['donaciones.get sin pago', () => api.donaciones.get('d 1'), 'GET', '/donaciones/d%201'],
