@@ -128,6 +128,15 @@ Los errores son `PaymentError` con `status` y `code` (`not_configured`, `network
 - `publicAccount(ngoId)` → lo que ve la ONG, sin tokens, o `null`;
 - `saveAccount(ngoId, tokens, origin)` → `{ ok }` o `{ conflict }`. Hace un `UPDATE` y, si no hay fila, un `INSERT`, en una transacción. Sube `version` y deja la cuenta `activa`. El `UNIQUE` de `mp_user_id` da `conflict`;
 - `deleteAccount(ngoId)` → boolean.
+- **`getValidToken(ngoId)` → `{ accessToken, mpUserId, version }`** (§217). Lanza `SellerAccountError` con code `not_linked`, `needs_reconnect` o `unavailable`.
+  - Sin vencimiento (carga manual) o con más de 7 días por delante, usa el token tal cual. Si no, lo **renueva** (`payments.refreshAccessToken`) y guarda los tokens nuevos cifrados, porque el refresh token cambia en cada renovación.
+  - **Renovaciones a la vez:**
+    - en el mismo proceso, una sola por ONG (un `Map` con la promesa en curso);
+    - entre procesos, compare-and-swap sobre `version`: el que pierde relee y usa los tokens del otro.
+  - **Si Mercado Pago rechaza la renovación** (`invalid_grant`, `live_token`) o el token no se descifra, la cuenta pasa a `requiere_reconexion`. Excepción: si la versión ya cambió, otro proceso renovó primero y no se marca.
+  - **Si el error es transitorio**, sigue con el token actual mientras no venza.
+- `markNeedsReconnect(ngoId, version)`: compare-and-swap sobre `version`. Después, una notificación `mp_reconnect_needed` a la ONG.
+- `findNgoByMpUser(mpUserId)` y `acceptsDonations(ngoId)`: este último es `true` con la cuenta activa.
 
 **Cifrado de los tokens — `lib/tokenCrypto.js` (§215).** `encryptToken(token, ngoId)` / `decryptToken(blob, ngoId)` con AES-256-GCM y la clave `MP_TOKEN_KEY` (32 bytes en base64; `isTokenKeyConfigured()`). Formato `v1:<iv>:<tag>:<cifrado>` en base64url, con el `ngo_id` como dato asociado. Errores `TokenCryptoError` con `code` `not_configured`, `bad_input` o `invalid`, sin el token en el mensaje.
 

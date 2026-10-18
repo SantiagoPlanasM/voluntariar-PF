@@ -5987,3 +5987,57 @@ Las tablas y los endpoints se documentan en la tarea en que se crean.
 - **Que el tag `test_user` exista en los usuarios de prueba.** Si no existe, el script se niega a guardar la cuenta, que es lo seguro.
 - Que la URL de redireccionamiento de la aplicación acepte `/ngo/mercadopago/vuelta`. En §181 se cargó la raíz del sitio. **El usuario tiene que cambiarla en el panel** cuando se use el OAuth.
 - La pantalla de vuelta no existe todavía (tarea 4).
+
+## 217. Marketplace de Mercado Pago (3/5): las donaciones se cobran con la cuenta de la ONG
+
+**Qué se hizo:**
+- **`donaciones.cobrador_mp_user_id`** (aditiva): con qué cuenta se creó la preferencia. NULL quiere decir la cuenta de la aplicación, en las donaciones de antes.
+- **`POST /api/donaciones`:**
+  - pide el token de la ONG (`sellerAccounts.getValidToken`);
+  - **409** "Esta ONG todavía no recibe donaciones" si no tiene cuenta (decisión del usuario);
+  - **503** si la cuenta requiere reconexión o falta `MP_TOKEN_KEY`;
+  - la preferencia se crea con el token de la ONG, sin `marketplace_fee`;
+  - un 401 de Mercado Pago marca la cuenta como "requiere reconexión" y la donación queda `fallida`;
+  - ya **no** pide `MP_ACCESS_TOKEN`.
+- **Renovación del token** (`getValidToken`): cuando faltan menos de 7 días.
+  - **Una por ONG en el proceso**, y **compare-and-swap sobre `version`** entre procesos. Hace falta porque el refresh token cambia en cada renovación.
+  - Si la renovación falla con `invalid_grant` porque otro proceso ya la hizo, se usa el token nuevo y no se marca la cuenta.
+  - Ante un rechazo real, la cuenta pasa a "requiere reconexión" y se avisa a la ONG con una notificación `mp_reconnect_needed`, una sola vez.
+- **`applyPayment(id, { accessToken, mpUserId })`:** el pago solo vale para una donación cobrada con **esa** cuenta. Si no, devuelve `mismatch` sin escribir nada.
+- **Webhook:** el `user_id` del cuerpo, que no está firmado, solo elige con qué token consultar el pago. Si la cuenta de la ONG cayó, responde 500 y Mercado Pago reintenta.
+- **Conciliación:** usa la cuenta que cobró. Si la ONG la desvinculó, no consulta.
+- **`GET /api/projects/:id`** devuelve `accepts_donations`.
+- **Tests:**
+  - `test/integration/donaciones-marketplace.test.js` (29);
+  - `donaciones.test.js`: `ngo-1` queda vinculada en el `before()`. El test "sin `MP_ACCESS_TOKEN` → 503" pasa a "sin `MP_TOKEN_KEY` → 503", con el mensaje nuevo, porque cambió la regla. Hay uno nuevo para el token de la ONG en la preferencia;
+  - `routes/donaciones.js` exporta su limitador (`donationLimiter`), así los tests pueden pasar de 10 donaciones.
+
+### Verificación
+- **Rojo:** 22 de 27 fallaban antes del código. Los 5 que pasaban describen comportamiento que no cambia, como la donación vieja con el token de la aplicación.
+- **Backend:**
+  - `npm test`: 894/894;
+  - `TZ=America/Argentina/Cordoba npm test`: 894/894;
+  - `npm run test:pg`: 896/896;
+  - antes eran 864 y 866: +30.
+- **Mutación:** 40 mutantes.
+  - 32 muertos de entrada.
+  - 2 murieron con tests nuevos: `live_token` y un refresh token que no se descifra; y que sin `MP_TOKEN_KEY` la cuenta no quede marcada.
+  - **4 equivalentes por redundancia, sacados del código:**
+    - el `estado='activa'` al marcar (todo cambio sube `version`);
+    - la rama "no se pudo descifrar por falta de clave", inalcanzable porque la clave se chequea antes;
+    - el `estado` en el atajo de `getValidToken` (`tokenFrom` ya lo rechaza);
+    - el "sin refresh token", que solo se da en las cuentas manuales, y esas no tienen vencimiento.
+  - **2 equivalentes que quedan:**
+    - mover en 1 segundo el borde "todavía vale": no se puede probar sin un reloj falso;
+    - el `ngoId ? … : null` de la conciliación: sin él, `getValidToken(null)` lanza `not_linked` y el resultado es el mismo; solo cambia el log.
+
+### Errores propios
+- **El test de la donación fallida buscaba "la última por `created_at`"**, la trampa de la regla 23: en SQLite empataba con otras del mismo segundo. Ahora el `beforeEach` vacía `donaciones` y el test lee la única fila.
+- **El archivo nuevo pasaba el tope de 10 donaciones por hora**: dos tests daban 429. Por eso se exporta el limitador.
+- **Al insertar el export del limitador corté el comentario de la línea de `amountError`.** Se vio en el `tail` y se corrigió antes de commitear.
+
+### ⚠️ NO verificado
+- **Que una preferencia creada con el token OAuth de un vendedor de prueba acredite en su cuenta.** Lo dice la IA de Mercado Pago; se prueba en la tarea 5.
+- Que el aviso del webhook traiga el `user_id` del vendedor (IA de Mercado Pago). Si no lo trae, el aviso consulta con la cuenta de la aplicación, da `mismatch` y la acreditación queda para la conciliación.
+- **El E2E post-deploy (`.github/scripts/post-deploy.js`) dona al primer proyecto de la lista.** Si se despliega antes de que esa ONG vincule su cuenta, va a recibir 409 y el deploy va a dar rojo. **No hay que hacer push** hasta vincular la ONG SANTI y apuntar el E2E a "Test" (`E2E_PROJECT_ID`), que es la tarea siguiente que pidió el usuario.
+- La interfaz: el botón "Donar" todavía no lee `accepts_donations` (tarea 4).

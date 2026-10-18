@@ -23,6 +23,7 @@ const express = require('express');
 const { randomUUID } = require('node:crypto');
 const db = require('../db');
 const payments = require('../lib/payments');
+const sellerAccounts = require('../lib/sellerAccounts');
 const { createLimiter } = require('../lib/rateLimit');
 const { checkText } = require('../lib/inputs');
 const { requireAuth, requireRole } = require('../middleware/auth');
@@ -34,6 +35,7 @@ const MIN_AMOUNT = 100;
 const MAX_AMOUNT = 500000;
 const DONATIONS_PER_USER = createLimiter({ max: 10, windowMs: 60 * 60 * 1000 });   // sin límite, se llenaría de pendientes
 const appUrl = () => process.env.APP_URL || 'http://localhost:5173';
+const NGO_UNAVAILABLE = 'Esta ONG no puede recibir donaciones en este momento';
 // Sin notification_url en la preferencia (§175): en producción, los avisos que disparaba no pasaban la firma y llegaban
 // junto con IPN que no se pueden validar (§174). El aviso que vale es el del webhook configurado en el panel de Mercado
 // Pago (Tus integraciones → Webhooks), y la conciliación de GET /:id cubre lo demás.
@@ -53,8 +55,6 @@ router.post('/', requireAuth, requireRole('volunteer', 'company'), async (req, r
       res.set('Retry-After', String(wait));
       return res.status(429).json({ error: 'Hiciste muchas donaciones seguidas. Esperá un rato e intentá de nuevo.' });
     }
-    if (!payments.isConfigured()) return res.status(503).json({ error: 'Las donaciones no están disponibles por el momento' });
-
     const { project_id: projectId, amount } = req.body || {};
     if (checkText(projectId, { label: 'El proyecto', max: 100, required: true })) {
       return res.status(400).json({ error: 'Falta el proyecto' });
@@ -67,12 +67,23 @@ router.post('/', requireAuth, requireRole('volunteer', 'company'), async (req, r
       return res.status(404).json({ error: 'Proyecto no encontrado o no recibe donaciones' });
     }
 
+    // Marketplace (§217): se cobra con la cuenta de la ONG. Sin cuenta vinculada no recibe donaciones (decisión del
+    // usuario); con la cuenta caída (requiere reconexión, o falta MP_TOKEN_KEY), tampoco por ahora.
+    let seller;
+    try {
+      seller = await sellerAccounts.getValidToken(project.ngo_id);
+    } catch (err) {
+      if (err.code === 'not_linked') return res.status(409).json({ error: 'Esta ONG todavía no recibe donaciones' });
+      if (err.code === 'needs_reconnect' || err.code === 'unavailable') return res.status(503).json({ error: NGO_UNAVAILABLE });
+      throw err;
+    }
+
     DONATIONS_PER_USER.hit(req.user.id);
     const id = randomUUID();   // regla 23: el id se genera acá y es el external_reference del pago
     await db.run(
-      `INSERT INTO donaciones (id, user_id, project_id, ngo_id, monto, estado, moneda)
-       VALUES ($1,$2,$3,$4,$5,'pendiente',$6)`,
-      [id, req.user.id, project.id, project.ngo_id, amount, payments.CURRENCY]
+      `INSERT INTO donaciones (id, user_id, project_id, ngo_id, monto, estado, moneda, cobrador_mp_user_id)
+       VALUES ($1,$2,$3,$4,$5,'pendiente',$6,$7)`,
+      [id, req.user.id, project.id, project.ngo_id, amount, payments.CURRENCY, seller.mpUserId]
     );
 
     let preference;
@@ -82,11 +93,17 @@ router.post('/', requireAuth, requireRole('volunteer', 'company'), async (req, r
         title: `Donación: ${project.titulo}`.slice(0, 250),
         amount,
         successUrl: `${appUrl()}/donaciones/vuelta`,
+        accessToken: seller.accessToken,
       });
     } catch (err) {
       console.error('POST /donaciones: no se pudo crear la preferencia:', forLog(err.message));
       await db.run(`UPDATE donaciones SET estado='fallida', external_status='preference_error' WHERE id=$1 AND estado='pendiente'`, [id])
         .catch((e) => console.error('POST /donaciones: no se pudo marcar fallida:', e.message));
+      if (err?.code === 'unauthorized') {   // Mercado Pago ya no acepta el token de la ONG
+        await sellerAccounts.markNeedsReconnect(project.ngo_id, seller.version)
+          .catch((e) => console.error('POST /donaciones: no se pudo marcar la cuenta:', e.message));
+        return res.status(503).json({ error: NGO_UNAVAILABLE });
+      }
       return res.status(502).json({ error: 'No pudimos iniciar el pago. Probá de nuevo en un momento.' });
     }
 
@@ -103,14 +120,21 @@ router.post('/', requireAuth, requireRole('volunteer', 'company'), async (req, r
 //   credited | already | amount_mismatch | not_approved | mismatch | unknown_donation | ignored.
 // Si Mercado Pago falla al consultar, o la base a mitad de la transacción, LANZA: el que llama decide (el webhook
 // responde 5xx para que Mercado Pago reintente).
-async function applyPayment(paymentId, { expectDonationId } = {}) {
-  const p = await payments.getPayment(paymentId);
+// Marketplace (§217): `accessToken`/`mpUserId` son los de la cuenta con la que se consulta (sin ellos, la de la
+// aplicación). El pago solo vale para una donación cobrada con ESA cuenta (`cobrador_mp_user_id`; NULL = la de la
+// aplicación): si no, 'mismatch' sin tocar nada.
+async function applyPayment(paymentId, { expectDonationId, accessToken, mpUserId = null } = {}) {
+  const p = await payments.getPayment(paymentId, { accessToken });
   const ref = p.externalReference;
   if (!ref) return { result: 'ignored' };
   if (expectDonationId && ref !== expectDonationId) return { result: 'mismatch' };
 
-  const d = await db.get('SELECT id, project_id, monto, moneda FROM donaciones WHERE id=$1', [ref]);
+  const d = await db.get('SELECT id, project_id, monto, moneda, cobrador_mp_user_id FROM donaciones WHERE id=$1', [ref]);
   if (!d) return { result: 'unknown_donation' };
+  if ((d.cobrador_mp_user_id ?? null) !== (mpUserId ?? null)) {
+    console.error(`applyPayment: el pago ${forLog(p.id)} se leyó con otra cuenta que la que cobró la donación ${d.id}`);
+    return { result: 'mismatch', donationId: d.id };
+  }
 
   if (p.status !== 'approved') {
     // No cambia el estado: el comprador puede volver a intentar con la misma preferencia. Solo se anota qué dijo MP
@@ -196,7 +220,12 @@ router.post('/webhook', async (req, res) => {
   if (!dataId) return res.status(400).json({ error: 'Falta el id del pago' });
 
   try {
-    const { result } = await applyPayment(dataId);
+    // Marketplace (§217): `user_id` (el vendedor) viene en el cuerpo, que NO está firmado: solo elige con qué token
+    // consultar. applyPayment exige además que la donación se haya cobrado con esa misma cuenta.
+    const sellerId = /^\d{1,20}$/.test(String(req.body?.user_id ?? '')) ? String(req.body.user_id) : null;
+    const ngoId = sellerId ? await sellerAccounts.findNgoByMpUser(sellerId) : null;
+    const seller = ngoId ? await sellerAccounts.getValidToken(ngoId) : null;   // si la cuenta cayó, lanza → 500 y reintento
+    const { result } = await applyPayment(dataId, seller ? { accessToken: seller.accessToken, mpUserId: seller.mpUserId } : {});
     console.log(`[donaciones] aviso del pago ${forLog(dataId, 40)}: ${result}`);
   } catch (err) {
     if (err?.code === 'not_found') {   // reintentar no lo va a encontrar
@@ -217,7 +246,7 @@ const STATUS_EN = { pendiente: 'pending', completada: 'completed', fallida: 'fai
 router.get('/:id', requireAuth, async (req, res) => {
   try {
     const load = () => db.get(
-      `SELECT d.id, d.estado, d.monto, d.moneda, d.project_id, p.titulo AS project_title
+      `SELECT d.id, d.estado, d.monto, d.moneda, d.project_id, d.cobrador_mp_user_id, p.titulo AS project_title
        FROM donaciones d LEFT JOIN projects p ON p.id = d.project_id
        WHERE d.id = $1 AND d.user_id = $2`,
       [req.params.id, req.user.id]
@@ -226,9 +255,21 @@ router.get('/:id', requireAuth, async (req, res) => {
     if (!d) return res.status(404).json({ error: 'Donación no encontrada' });
 
     const paymentId = req.query.payment_id;
-    if (d.estado === 'pendiente' && typeof paymentId === 'string' && /^\d{1,30}$/.test(paymentId) && payments.isConfigured()) {
+    if (d.estado === 'pendiente' && typeof paymentId === 'string' && /^\d{1,30}$/.test(paymentId)) {
       try {
-        const { result } = await applyPayment(paymentId, { expectDonationId: d.id });
+        // Con la cuenta que cobró la donación (§217): la de la ONG, o la de la aplicación si es de antes. Si la ONG
+        // desvinculó la cuenta, ya no se puede consultar: queda el estado actual.
+        let account = null;
+        if (d.cobrador_mp_user_id) {
+          const ngoId = await sellerAccounts.findNgoByMpUser(d.cobrador_mp_user_id);
+          const seller = ngoId ? await sellerAccounts.getValidToken(ngoId) : null;
+          if (seller) account = { accessToken: seller.accessToken, mpUserId: seller.mpUserId };
+        } else if (payments.isConfigured()) {
+          account = {};
+        }
+        const { result } = account
+          ? await applyPayment(paymentId, { expectDonationId: d.id, ...account })
+          : { result: 'sin cuenta para consultar' };
         console.log(`[donaciones] conciliación del pago ${paymentId} (donación ${d.id}): ${result}`);
         d = await load();
       } catch (err) {
@@ -254,3 +295,4 @@ router.get('/:id', requireAuth, async (req, res) => {
 module.exports = router;
 module.exports.applyPayment = applyPayment;   // mismo patrón de exports que projects.js
 module.exports.amountError = amountError;     // para los tests unitarios de clases y límites (§199)
+module.exports.donationLimiter = DONATIONS_PER_USER;   // los tests de §217 donan más de 10 veces con la misma usuaria

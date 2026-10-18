@@ -475,6 +475,10 @@ async function migrate() {
   await addColumnIfNotExists('donaciones', 'external_payment_id', 'TEXT');    // id del pago que la acreditó
   await addColumnIfNotExists('donaciones', 'external_status', 'TEXT');        // último estado informado por Mercado Pago
   await addColumnIfNotExists('donaciones', 'moneda', "TEXT DEFAULT 'ARS'");
+  // Agregada 2026-10-18 (Marketplace, PROJECT_ANALYSIS.md §217): la cuenta de Mercado Pago (mp_user_id de la ONG) con
+  // la que se creó la preferencia. NULL = cobrada con la cuenta de la aplicación (donaciones de antes de §217). La
+  // conciliación y el webhook solo aceptan un pago leído con ESA misma cuenta.
+  await addColumnIfNotExists('donaciones', 'cobrador_mp_user_id', 'TEXT');
 
   // ── Índices ───────────────────────────────────────────────────────────────
   console.log('\n🔍 Creando índices...');

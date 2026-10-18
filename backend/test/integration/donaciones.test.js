@@ -23,12 +23,18 @@ describe('Donaciones (Mercado Pago)', () => {
   let maria, juan, company, ngo1;
   let prefs, payment, failPreference, configured, lastPreference;
 
+  let savedKey;
   before(async () => {
+    // Marketplace (§217): una ONG sin cuenta de Mercado Pago no recibe donaciones. ngo-1 queda vinculada (carga
+    // manual: sin vencimiento, no renueva); los casos de cuentas y renovación están en donaciones-marketplace.test.js.
+    savedKey = process.env.MP_TOKEN_KEY;
+    process.env.MP_TOKEN_KEY = require('node:crypto').randomBytes(32).toString('base64');
     server = await setupTestServer({ seed: true });
     baseUrl = server.baseUrl;
     db = require('../../src/db');
     payments = require('../../src/lib/payments');
     donaciones = require('../../src/routes/donaciones');
+    await require('../../src/lib/sellerAccounts').saveAccount('ngo-1', { accessToken: 'APP_USR-ong1', mpUserId: '3772556008' }, 'manual');
     let n = 0;
     mock.method(payments, 'isConfigured', () => configured);
     mock.method(payments, 'createPreference', async (input) => {
@@ -43,7 +49,11 @@ describe('Donaciones (Mercado Pago)', () => {
       return { id: String(id), ...payment };
     });
   });
-  after(async () => { mock.restoreAll(); if (server) await server.close(); });
+  after(async () => {
+    mock.restoreAll();
+    if (savedKey === undefined) delete process.env.MP_TOKEN_KEY; else process.env.MP_TOKEN_KEY = savedKey;
+    if (server) await server.close();
+  });
 
   beforeEach(async () => {
     prefs = []; failPreference = false; configured = true; payment = null; lastPreference = null;
@@ -189,13 +199,25 @@ describe('Donaciones (Mercado Pago)', () => {
       assert.equal(await count(), before);
     });
 
-    test('Mercado Pago sin configurar → 503, sin crear nada', async () => {
-      configured = false;
-      const before = await count();
+    // Hasta §216 era "sin MP_ACCESS_TOKEN → 503". Desde §217 la preferencia se crea con el token de la ONG: lo que
+    // hace falta es poder descifrarlo (MP_TOKEN_KEY). MP_ACCESS_TOKEN solo queda para conciliar donaciones viejas.
+    test('sin MP_TOKEN_KEY (no se puede leer el token de la ONG) → 503, sin crear nada', async () => {
+      const key = process.env.MP_TOKEN_KEY;
+      delete process.env.MP_TOKEN_KEY;
+      try {
+        const before = await count();
+        const r = await donate(maria, { project_id: 'proj-1', amount: 1500 });
+        assert.equal(r.status, 503);
+        assert.equal(r.body.error, 'Esta ONG no puede recibir donaciones en este momento');
+        assert.equal(await count(), before);
+      } finally { process.env.MP_TOKEN_KEY = key; }
+    });
+
+    test('la preferencia va con el token de la ONG y la donación guarda la cuenta que cobró', async () => {
       const r = await donate(maria, { project_id: 'proj-1', amount: 1500 });
-      assert.equal(r.status, 503);
-      assert.equal(r.body.error, 'Las donaciones no están disponibles por el momento');
-      assert.equal(await count(), before);
+      assert.equal(r.status, 201);
+      assert.equal(lastPreference.accessToken, 'APP_USR-ong1');
+      assert.equal((await row(r.body.donation_id)).cobrador_mp_user_id, '3772556008');
     });
 
     test('Mercado Pago falla al crear la preferencia → 502 y la donación queda "fallida"', async () => {

@@ -6,6 +6,7 @@ const { randomUUID } = require('node:crypto');
 const { toMillis } = require('../lib/time');
 const { checkText, firstError, clampInt, toStrictInt } = require('../lib/inputs');
 const { hasBadWord } = require('../lib/badWords');
+const sellerAccounts = require('../lib/sellerAccounts');
 
 const router = express.Router();
 
@@ -799,6 +800,8 @@ router.get('/:id', optionalAuth, async (req, res) => {
         avg_rating: Math.round(avgRating * 10) / 10,
         my_enrollment: myEnrollment,
         can_manage: canManage,
+        // Marketplace (§217): solo una ONG con su cuenta de Mercado Pago vinculada y activa recibe donaciones.
+        accepts_donations: await sellerAccounts.acceptsDonations(project.ngo_id),
       }
     });
   } catch (err) {
