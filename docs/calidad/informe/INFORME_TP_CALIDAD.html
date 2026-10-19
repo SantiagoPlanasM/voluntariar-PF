@@ -29,6 +29,9 @@
   .indice li { margin: 1pt 0; }
   .salto { break-before: page; }
   .pie { color: var(--gris); font-size: 8.4pt; }
+  pre { font-family: Consolas, "Cascadia Mono", monospace; font-size: 7.9pt; line-height: 1.32; background: var(--fondo); border-left: 2.5pt solid var(--azul); padding: 4pt 6pt; margin: 3pt 0 7pt; white-space: pre-wrap; break-inside: avoid; }
+  pre .com { color: var(--gris); }
+  .valid { break-inside: avoid; }
 </style>
 </head>
 <body>
@@ -55,6 +58,7 @@
   <li>Resumen y nivel declarado</li>
   <li>Metas de calidad: cumplidas y no cumplidas</li>
   <li>Los ejes del trabajo (8 temas + documentación)</li>
+  <li>Validaciones de entrada: el código y sus pruebas</li>
   <li>Evolución de las métricas</li>
   <li>Análisis crítico</li>
   <li>Conclusiones</li>
@@ -100,7 +104,7 @@
 <p><b>Matriz ISO/IEC 25010</b> (8 características) con evidencia y brecha de cada una (<code>PLAN_PRUEBAS.md §5</code>). <b>Top 3:</b> <b>seguridad</b> (CV privado, borrado de cuenta, Ley 25.326), <b>fiabilidad</b> (donaciones y cupos sin doble acreditación) y <b>compatibilidad</b> (la diferencia SQLite/Postgres fue la fuente de defectos más frecuente: B1, B2, B8, A6). <b>Mapa de niveles:</b> unitario, integración de API contra base real, componentes, sistema (smoke), integración externa (E2E), no funcional (carga) y aceptación (guion de la demo). <b>Despliegue verificado en cada instancia:</b> local y CI (suites en cada push) y producción (smoke + E2E en cada deploy; <code>/health</code> informa el commit desplegado).</p>
 
 <h3>3.4 Métricas y análisis estático</h3>
-<p>SonarCloud en el pipeline (<code>METRICAS.md</code>; análisis de <code>d7efe16</code>): 17.594 líneas de código; duplicación 1,9 %; complejidad ciclomática 4.245 y cognitiva 2.856 (la más alta: <code>routes/projects.js</code>, 333); deuda 0 min; calificaciones A/A/A. <b>Métrica de proceso:</b> tasa de éxito del pipeline (CI 92,6 %, Deploy 80 %) y tiempo hasta volver a verde (5,1 y 30 min en los fallidos del CI; 18 min en el Deploy #14). <b>Métrica de proyecto:</b> densidad de pruebas, con 145,5 tests/KLOC en el backend y 75,9 en el frontend (CI #19; antes, 60,6). <b>Mejora medida:</b> la evolución de SonarCloud de la sección 4.</p>
+<p>SonarCloud en el pipeline (<code>METRICAS.md</code>; análisis de <code>d7efe16</code>): 17.594 líneas de código; duplicación 1,9 %; complejidad ciclomática 4.245 y cognitiva 2.856 (la más alta: <code>routes/projects.js</code>, 333); deuda 0 min; calificaciones A/A/A. <b>Métrica de proceso:</b> tasa de éxito del pipeline (CI 92,6 %, Deploy 80 %) y tiempo hasta volver a verde (5,1 y 30 min en los fallidos del CI; 18 min en el Deploy #14). <b>Métrica de proyecto:</b> densidad de pruebas, con 145,5 tests/KLOC en el backend y 75,9 en el frontend (CI #19; antes, 60,6). <b>Mejora medida:</b> la evolución de SonarCloud de la sección 5.</p>
 
 <h3>3.5 Pruebas dinámicas</h3>
 <p><code>DISENO_CASOS.md</code>:</p>
@@ -128,8 +132,126 @@
 <h3>3.9 Documentación (transversal)</h3>
 <p>Cada cambio dejó su sección en <code>PROJECT_ANALYSIS.md</code> (§183–§225), con qué se hizo, verificación, <b>errores propios</b> y <b>no verificado</b>. Los documentos del TP están en <code>docs/calidad/</code> (anexo).</p>
 
-<h2 class="salto">4. Evolución de las métricas</h2>
-<h3>4.1 SonarCloud (historial de análisis del pipeline)</h3>
+<h2 class="salto">4. Validaciones de entrada: el código y sus pruebas</h2>
+<p>Todo dato que llega del cliente se valida <b>en el servidor</b>, que es el único lugar confiable. El frontend repite algunas reglas con el mismo mensaje para avisar antes de enviar, pero no reemplaza al backend. Criterios comunes: primero se verifica el <b>tipo</b> (un número o un array donde se espera texto daba 500; ahora da 400, REVISION B13), después los <b>límites</b>, y el error vuelve como <code>400</code> con un mensaje en español, sin tocar la base ni los servicios externos. Los fragmentos son el código actual (<code>d7efe16</code>), sin cambios; se sacaron solo comentarios.</p>
+<p class="pie">Verificación: los 18 archivos de test citados en esta sección, corridos juntos el 19/10/2026 (SQLite): <b>278 tests, 278 en verde</b>. También corren en cada push en los 4 jobs de backend del CI.</p>
+
+<div class="valid">
+<h3>4.1 Monto de una donación</h3>
+<p><code>backend/src/routes/donaciones.js:43</code> · Regla: pesos <b>enteros</b> de $100 a $500.000 inclusive (el monto se guarda como REAL; con centavos fallaría el control "lo pagado coincide con lo donado").</p>
+<pre>const MIN_AMOUNT = 100;
+const MAX_AMOUNT = 500000;
+function amountError(amount) {
+  if (typeof amount !== 'number' || !Number.isInteger(amount)) return 'El monto tiene que ser un número entero de pesos';
+  if (amount &lt; MIN_AMOUNT) return 'El monto mínimo es de $100';
+  if (amount &gt; MAX_AMOUNT) return 'El monto máximo es de $500.000';
+  return null;
+}</pre>
+<p><b>Pruebas:</b> <code>test/unit/donation-amount.test.js</code> (5 clases de equivalencia y los bordes 99/100/101 y 499.999/500.000/500.001) y <code>test/integration/donaciones.test.js</code> (de punta a punta: 400 sin crear la donación ni llamar a Mercado Pago). El frontend repite la regla en <code>frontend/src/lib/donations.ts</code> (<code>checkDonationAmount</code>, mismos mensajes). Mutantes: sobrevive solo "sacar el <code>typeof</code>", que es equivalente (sección 3.5 y <code>DISENO_CASOS.md §1</code>).</p>
+</div>
+
+<div class="valid">
+<h3>4.2 Contraseña</h3>
+<p><code>backend/src/routes/auth.js:55</code> · Regla: mínimo 8 caracteres, como máximo <b>72 bytes UTF-8</b> (bcrypt ignora lo que pasa de 72 bytes: dos contraseñas iguales en esos bytes valdrían como la misma), al menos una mayúscula y un número.</p>
+<pre>const PASSWORD_MAX_BYTES = 72;
+function validatePassword(v) {
+  if (typeof v !== 'string' || v.length &lt; 8) return 'Mínimo 8 caracteres';
+  if (Buffer.byteLength(v, 'utf8') &gt; PASSWORD_MAX_BYTES)
+    return 'Máximo 72 caracteres (los acentos, la ñ y los emojis cuentan como más de uno)';
+  if (!/[A-Z]/.test(v))       return 'Necesita al menos una mayúscula';
+  if (!/[0-9]/.test(v))       return 'Necesita al menos un número';
+  return null;
+}</pre>
+<p><b>Pruebas:</b> <code>test/unit/validators.test.js</code> ("valores límite": 7/8 caracteres, 72/73 bytes en ASCII y con ñ, entradas que no son texto) y <code>test/integration/register-password-max.test.js</code>. El frontend tiene la misma regla (<code>AuthModal.tsx:32</code>, con <code>TextEncoder</code> para contar bytes). La mutación encontró que el mínimo de 8 no tenía prueba de borde (D14).</p>
+</div>
+
+<div class="valid">
+<h3>4.3 Email, con tope antes del regex (ReDoS)</h3>
+<p><code>backend/src/routes/auth.js:37–49</code> · Regla: formato <code>algo@dominio.xx</code> y como máximo 254 caracteres (RFC 5321). El tope va <b>antes</b> del regex: SonarCloud marcó el regex viejo y se reprodujo una denegación de servicio real (un email de 80.000 caracteres bloqueaba toda la API 3,4 s por pedido). El regex nuevo, además, es lineal (§231).</p>
+<pre>const EMAIL_RE = /^[^\s@]+@[^\s@][^\s@.]*\.[^\s@]{2,}$/;
+const EMAIL_MAX = 254;
+function validateEmail(v) {
+  if (typeof v !== 'string') return 'Email inválido';
+  const email = v.trim();
+  if (email.length &gt; EMAIL_MAX || !EMAIL_RE.test(email)) return 'Email inválido';
+  return null;
+}</pre>
+<p><b>Prueba:</b> <code>test/integration/email-redos.test.js</code> manda el email malicioso a <code>/login</code> y <code>/register</code> y, 20 ms después, un <code>/health</code>: los dos tienen que responder en menos de 500 ms (400 "Email inválido" y 200). Además, <code>test/unit/regexLineales.test.js</code> compara el regex nuevo con el viejo en todas las cadenas cortas (aceptan lo mismo) y mide el peor caso.</p>
+</div>
+
+<div class="valid">
+<h3>4.4 Palabras no permitidas (defecto B7)</h3>
+<p><code>backend/src/lib/badWords.js:13</code> · Regla: se rechazan comentarios y publicaciones con palabras de la lista, comparando <b>palabras completas</b>, sin distinguir mayúsculas ni acentos. Antes se buscaban subcadenas: "computadora" se rechazaba y "imbécil", con tilde, pasaba.</p>
+<pre>const words = (t) =&gt; String(t).normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().match(/\p{L}+/gu) || [];
+const hasBadWord = (t) =&gt; words(t).some((w) =&gt; BLACKLIST.includes(w));</pre>
+<p><b>Pruebas:</b> <code>test/integration/comments-badwords.test.js</code> (el contraste rojo/verde de la sección 3.2: 2/2 en rojo sobre el commit anterior al arreglo, 2/2 en verde sobre el arreglo) y <code>test/unit/badWords.test.js</code>, que además exige que la copia del frontend (<code>frontend/src/lib/badWords.ts</code>) tenga la misma lista.</p>
+</div>
+
+<div class="valid">
+<h3>4.5 Archivos subidos: el tipo real, no el declarado</h3>
+<p><code>backend/src/lib/storage.js:76</code> y <code>:166</code> · Regla: el <code>Content-Type</code> lo escribe quien sube el archivo, así que no sirve para decidir. Se leen los primeros bytes (la "firma" del formato): fotos JPEG, PNG o WebP; CV en PDF. Tope de 8.000.000 bytes por archivo (multer). Orden de la regla 24 de <code>AI_RULES.md</code>: sesión y rol → límite de frecuencia → validar todo → subir a Cloudinary → guardar → borrar lo subido si algo falla.</p>
+<pre>function detectImageType(buf) {
+  if (!Buffer.isBuffer(buf)) return null;
+  if (buf.length &gt;= 3 &amp;&amp; buf[0] === 0xff &amp;&amp; buf[1] === 0xd8 &amp;&amp; buf[2] === 0xff) return 'jpeg';
+  if (buf.length &gt;= 8 &amp;&amp; buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'png';
+  if (buf.length &gt;= 12 &amp;&amp; buf.toString('latin1', 0, 4) === 'RIFF' &amp;&amp; buf.toString('latin1', 8, 12) === 'WEBP') return 'webp';
+  return null;
+}
+function detectPdf(buf) {
+  return Buffer.isBuffer(buf) &amp;&amp; buf.length &gt;= 5 &amp;&amp; buf.toString('latin1', 0, 5) === '%PDF-';
+}
+
+<span class="com">// uso, en routes/auth.js:329 (foto de perfil); igual en posts.js:216 y voluntarios.js:61</span>
+if (!storage.detectImageType(req.file.buffer)) {
+  return res.status(400).json({ error: 'El archivo no es una imagen válida (JPEG, PNG o WebP)' });
+}</pre>
+<p><b>Pruebas:</b> <code>test/unit/storage.test.js</code> y <code>storage-pdf.test.js</code> (cada firma, archivos más cortos que la firma, algo que no es un Buffer) y <code>test/integration/profile-photo.test.js</code> (un archivo que dice ser JPEG pero no tiene su cabecera → 400, sin subir nada y sin cambiar la foto; 8.000.001 bytes → 413 y 8.000.000 justos se aceptan). Ningún test sube nada: Cloudinary se reemplaza por un doble.</p>
+</div>
+
+<div class="valid">
+<h3>4.6 Acceso al CV: permiso antes que existencia</h3>
+<p><code>backend/src/routes/voluntarios.js:204</code> · Regla: el CV lo ve la dueña, o una ONG con una inscripción <b>pendiente o aprobada</b> de esa voluntaria en un proyecto propio. A cualquier otro se le responde <b>404 con el mismo mensaje</b> que "no tiene CV", para que no se pueda averiguar quién cargó uno (Ley 25.326).</p>
+<pre>let allowed = req.user.role === 'volunteer' &amp;&amp; req.user.id === target;
+if (!allowed &amp;&amp; req.user.role === 'ngo') {
+  allowed = Boolean(await db.get(
+    `SELECT e.id FROM enrollments e
+     JOIN projects p ON p.id = e.project_id
+     JOIN ngos n ON n.id = p.ngo_id
+     WHERE e.user_id = $1 AND n.user_id = $2 AND e.status IN ('pending', 'approved')
+     LIMIT 1`,
+    [target, req.user.id]
+  ));
+}
+if (!allowed) return res.status(404).json({ error: CV_NOT_AVAILABLE });</pre>
+<p><b>Pruebas:</b> <code>test/integration/cv.test.js</code>, una por cada una de las 10 reglas de la tabla de decisión (<code>DISENO_CASOS.md §3</code>). La consulta usa parámetros <code>$1, $2</code>, como todo el SQL del proyecto: nada del usuario se concatena en la consulta.</p>
+</div>
+
+<div class="valid">
+<h3>4.7 Textos libres y números del body</h3>
+<p><code>backend/src/lib/inputs.js:13</code> y <code>:37</code> · Un solo helper para los textos de perfiles, empleados y proyectos (tipo, vacío, mínimo y máximo) y un entero estricto para cupos, horas y reseñas. Antes cada ruta hacía <code>name.trim()</code> por su cuenta: un número reventaba con 500, <code>""</code> se salteaba y no había largo máximo (REVISION B12 y B13); y <code>parseInt</code> aceptaba <code>3.7</code> como 3 y <code>"1e21"</code> como 1 (B3).</p>
+<pre>function checkText(value, { label, max, min = 0, required = false, nullable = !required }) {
+  if (value === undefined) return required ? `${label} es obligatorio` : null;
+  if (value === null) return nullable ? null : `${label} es obligatorio`;
+  if (typeof value !== 'string') return `${label} tiene que ser un texto`;
+  const len = value.trim().length;
+  if (required || !nullable || min &gt; 0) {
+    if (len === 0) return `${label} no puede estar vacío`;
+    if (len &lt; min) return `${label} tiene que tener al menos ${min} caracteres`;
+  }
+  if (value.length &gt; max) return `${label} puede tener hasta ${max} caracteres`;
+  return null;
+}
+
+const toStrictInt = (value) =&gt; {
+  if (typeof value === 'number') return Number.isInteger(value) ? value : Number.NaN;
+  if (typeof value === 'string' &amp;&amp; /^-?\d+$/.test(value)) return Number(value);
+  return Number.NaN;
+};</pre>
+<p><b>Pruebas:</b> <code>test/unit/inputs.test.js</code> y <code>test/integration/projects-strict-inputs.test.js</code>, <code>profiles-input-validation</code>, <code>projects-input-validation</code>, <code>kpis-input-validation</code> y <code>register-input-validation</code> (un apellido que no es texto daba 500 dentro de la transacción; ahora es 400 antes de tocar la base).</p>
+</div>
+
+<h2 class="salto">5. Evolución de las métricas</h2>
+<h3>5.1 SonarCloud (historial de análisis del pipeline)</h3>
 <table>
 <thead><tr><th>Análisis</th><th>Bugs</th><th>Vulnerab.</th><th>Code smells</th><th>Deuda</th><th>Fiabilidad / seguridad</th><th>Qué pasó</th></tr></thead>
 <tbody>
@@ -143,7 +265,7 @@
 <tr><td><code>8e7d9e4</code> (CI #27)</td><td>0</td><td>0</td><td>0</td><td>0 min</td><td>A / A</td><td>Las 57 <code>S7773</code> (<code>Number.isNaN</code> y otras): una sola no era un reemplazo mecánico y se probó antes de cambiarla</td></tr>
 <tr><td><code>d7efe16</code> (CI #29)</td><td><b>0</b></td><td><b>0</b></td><td><b>0</b></td><td><b>0 min</b></td><td><b>A / A</b></td><td>10 de las 14 aceptadas, arregladas en el código: 6 regex con backtracking, el tope de subida (8 MiB → 8.000.000 bytes), un test y el fondo del modal. Quedan 4 aceptadas</td></tr>
 </tbody></table>
-<h3>4.2 Pruebas y cobertura</h3>
+<h3>5.2 Pruebas y cobertura</h3>
 <table>
 <thead><tr><th>Momento</th><th>Backend SQLite / Postgres</th><th>Frontend</th><th>Cobertura backend (líneas)</th><th>Cobertura frontend (líneas)</th></tr></thead>
 <tbody>
@@ -156,7 +278,7 @@
 <tr><td><b>CI #29</b> (aceptadas de SonarCloud, §231–§234)</td><td><b>907 / 909</b></td><td><b>904</b></td><td><b>93,22 %</b></td><td><b>90,42 %</b></td></tr>
 </tbody></table>
 <p class="pie">El CI #2 informó 96,51 % para el backend porque Node 22 medía otros archivos. Se detectó al comparar el pipeline con la corrida local y se corrigió en el CI #3 (defecto D09). Los conteos del backend incluyen un archivo auxiliar que el runner cuenta como test: los tests reales son uno menos (906).</p>
-<h3>4.3 Pipeline</h3>
+<h3>5.3 Pipeline</h3>
 <table>
 <thead><tr><th>Workflow</th><th>Runs</th><th>En verde</th><th>Fallidos y causa</th></tr></thead>
 <tbody>
@@ -164,7 +286,7 @@
 <tr><td>Deploy</td><td>23</td><td>16 de 20 (80 %)</td><td>#17, #18 y #23: salteados, porque los dispararon los CI cancelados (el workflow solo despliega un CI en verde; no cuentan). #1–#3: configuración de la cuenta de E2E (401, rol de ONG, email). Los detectó el E2E. #14: faltaba la variable del proyecto de prueba (cargada como secret, el workflow la leía como variable); la guarda cortó antes de desplegar</td></tr>
 <tr><td>Carga</td><td>1</td><td>1</td><td>—</td></tr>
 </tbody></table>
-<h3>4.4 Rendimiento (Carga #1, k6)</h3>
+<h3>5.4 Rendimiento (Carga #1, k6)</h3>
 <table>
 <thead><tr><th>Prueba</th><th>p95</th><th>Errores</th><th>Umbral</th></tr></thead>
 <tbody>
@@ -174,7 +296,7 @@
 <tr><td>Producción (Render gratis), 10 usuarios × 2 min</td><td>418,90 ms</td><td>0 %</td><td>&lt; 2 s <span class="ok">✓</span></td></tr>
 </tbody></table>
 
-<h2>5. Análisis crítico</h2>
+<h2>6. Análisis crítico</h2>
 <ul>
 <li><b>Las herramientas encontraron lo que las pruebas no.</b> Con 782 tests en verde, SonarCloud encontró una <b>denegación de servicio real</b>: un email de 80.000 caracteres bloqueaba toda la API 3,4 s por pedido (reproducido y corregido con un tope antes del regex). También encontró una <b>inyección en los logs</b> desde el webhook de Mercado Pago. Y una de sus sugerencias (<code>localeCompare</code> para ordenar) habría roto la firma de Cloudinary: el análisis estático hay que leerlo con criterio, no obedecerlo.</li>
 <li><b>Los defectos escapados vienen de lo que los dobles no ven.</b> Los 4 defectos encontrados en producción salieron de flujos con un servicio real o de lo que ve otro rol (el panel de la ONG después de una donación real). De ahí el E2E contra Mercado Pago en cada deploy. La tasa (22,2 %) es sobre una <b>selección</b> de defectos: con todos los hallazgos de las revisiones sería menor.</li>
@@ -186,13 +308,13 @@
 <li><b>Dos gates.</b> El gate propio del TP (con los umbrales del enunciado) y el "Sonar way" de SonarCloud son distintos. El plan gratuito no permite configurar el segundo, y eso obligó a escribir el primero. En la comparación de mercado, Codacy ofrece gates configurables gratis para open source: quedó a 8 puntos en la matriz y es una alternativa a probar.</li>
 </ul>
 
-<h2>6. Conclusiones</h2>
+<h2>7. Conclusiones</h2>
 <p>El sistema <b>se prueba automáticamente en cada despliegue</b> (smoke y E2E contra Mercado Pago después de cada deploy), <b>sus integraciones externas están probadas o controladas</b> (contrato y dobles en cada push, prueba real a mano y E2E automatizado; contingencia documentada para cada dependencia), y <b>las decisiones de calidad se apoyan en datos</b> (el gate bloqueó de verdad, la mejora se midió en análisis sucesivos y cada número del informe se puede rastrear hasta su ejecución).</p>
 <p>Se cumplen todas las metas del nivel 3. La última fue la <b>cobertura del código existente del frontend</b>: estaba parcial (solo líneas sobre el 80 %) y quedó cumplida en las cuatro métricas en el CI #19. El E2E se cumple con un límite explícito: llega hasta crear la preferencia en Mercado Pago, ya con el token de la ONG dueña del proyecto, pero sin el pago. El pago completo, con la plata acreditada en la cuenta de prueba de la ONG, se verificó a mano.</p>
 <p><b>Trabajo futuro:</b> subir la cobertura de ramas del frontend en los componentes más complejos; una prueba de carga que busque el punto de quiebre; una prueba de concepto de Codacy; conciliar las donaciones pendientes. En el marketplace falta probar en vivo la vinculación por OAuth (el botón "Vincular Mercado Pago") y la renovación del token: el código está probado con dobles, pero necesita el <code>client_secret</code> de la aplicación, que solo aparece al activar las credenciales productivas. Para la demo, la ONG de prueba se vinculó cargando a mano el token de su vendedor de prueba.</p>
 
-<h2 class="salto">7. Anexo</h2>
-<h3>7.1 Entregables y dónde están</h3>
+<h2 class="salto">8. Anexo</h2>
+<h3>8.1 Entregables y dónde están</h3>
 <table>
 <thead><tr><th style="width:40%">Entregable del enunciado</th><th>Dónde</th></tr></thead>
 <tbody>
@@ -206,7 +328,7 @@
 <tr><td>Métricas interpretadas</td><td><code>docs/calidad/METRICAS.md</code>, <code>TRIAGE_SONAR.md</code></td></tr>
 <tr><td>Diseño de casos y rojo/verde</td><td><code>docs/calidad/DISENO_CASOS.md</code>, <code>docs/calidad/evidencia/</code></td></tr>
 </tbody></table>
-<h3>7.2 Cómo verificar cada número</h3>
+<h3>8.2 Cómo verificar cada número</h3>
 <ul>
 <li>Tests y cobertura: CI #29, <code>github.com/SantiagoPlanasM/voluntariar-PF/actions/runs/39149551418</code> (resumen de cada job); antes, CI #27, <code>…/actions/runs/39147022423</code>, CI #23, <code>…/actions/runs/39144726116</code>, y CI #15, <code>…/actions/runs/39069697534</code>.</li>
 <li>Stress y esfuerzo: Carga #1, <code>…/actions/runs/39065266810</code>.</li>
@@ -215,7 +337,7 @@
 <li>SonarCloud: historial de análisis y medidas actuales (API pública).</li>
 <li>Defectos: <code>github.com/SantiagoPlanasM/voluntariar-PF/issues?q=label:defecto</code>.</li>
 </ul>
-<h3>7.3 Uso de IA</h3>
+<h3>8.3 Uso de IA</h3>
 <p>Se usó un asistente de IA (Claude, en Claude Code) para escribir pruebas, scripts, workflows y documentación, siempre con revisión y con las reglas del proyecto (<code>CLAUDE.md</code>, <code>AI_RULES.md</code>): tests primero, verificación en SQLite, Postgres y con la zona horaria de Córdoba, mutation testing sobre el código nuevo y una sección de "errores propios" y "no verificado" en cada cambio. Todos los números salen de ejecuciones del proyecto, no de estimaciones del asistente. Las decisiones (nivel, herramientas, pesos de la matriz, qué arreglar y qué aceptar) las tomó el equipo.</p>
 
 </body>

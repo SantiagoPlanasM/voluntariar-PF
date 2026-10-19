@@ -6535,3 +6535,29 @@ Con esto queda verificado el último punto que §222 y §224 dejaban sin verific
 - **El aspecto del PDF:** no puedo renderizar las páginas (falta `pdftoppm`). Solo sé que siguen siendo 9. Las tablas de la sección 4 tienen otra fila más cada una.
 - **El CI #31** (`c574c5c`, solo documentación) estaba corriendo al cerrar el corte, por eso no entra en la tasa.
 - La densidad de pruebas (CI #19) sigue sin recalcularse.
+
+## 237. Informe del TP: sección nueva "4. Validaciones de entrada: el código y sus pruebas"
+
+**Qué se hizo:** el usuario pidió poner en el informe las validaciones con su código. Se agregó la sección 4 a `docs/calidad/informe/INFORME_TP_CALIDAD.html`, con siete validaciones. Para cada una: archivo y línea, la regla, el fragmento de código actual (`d7efe16`, sin cambios; solo se sacaron comentarios) y los tests que la prueban:
+1. monto de la donación (`donaciones.js:43`, con el espejo del frontend en `lib/donations.ts`);
+2. contraseña, 8 caracteres y 72 bytes (`auth.js:55`; `AuthModal.tsx:32`);
+3. email con tope de 254 antes del regex, por el ReDoS de §201 (`auth.js:37–49`);
+4. palabras no permitidas por palabra completa, B7 (`badWords.js:13`);
+5. cabecera real de imágenes y PDF (`storage.js:76` y `:166`) y su uso en las rutas de subida;
+6. acceso al CV, permiso antes que existencia (`voluntarios.js:204`);
+7. `checkText` y `toStrictInt` (`inputs.js:13` y `:37`).
+
+Las secciones siguientes pasan de 4–7 a 5–8 (índice, títulos y la referencia "la sección 4" de 3.4). Se agregó el estilo `pre` para los fragmentos. PDF regenerado con Chrome headless: **12 páginas** (antes 9).
+
+### Verificación
+- Los 18 archivos de test citados, corridos juntos (SQLite, 19/10/2026): **278 tests, 278 en verde**. Ese número es el que figura en el informe.
+- Cada fragmento se copió del código actual y las líneas citadas se confirmaron con `grep -n`.
+- Cada afirmación sobre un test se comparó con el nombre del test en su archivo.
+
+### Errores propios
+- En el primer borrador cité `register-input-validation.test.js` como prueba del email, pero prueba el **apellido**. También describí mal el test de la foto ("un texto con `Content-Type: image/png`"): el test real es "dice ser JPEG pero la cabecera no es de imagen". Los dos se corrigieron antes del commit, al revisar los nombres de los tests.
+- La primera corrida tenía 14 archivos (208 tests) y no incluía `regexLineales`, `profiles-`, `projects-` ni `kpis-input-validation`, que el texto sí citaba. Se volvió a correr con los 18.
+
+### ⚠️ NO verificado
+- **El aspecto del PDF:** no puedo renderizar las páginas (falta `pdftoppm`). Solo sé que tiene 12. Conviene revisar que los bloques de código no queden cortados entre páginas y que no haya páginas casi vacías (cada validación tiene `break-inside: avoid`).
+- Los tests citados no se corrieron en Postgres ni con `TZ=America/Argentina/Cordoba` en esta sesión: no se tocó código, y corren en los 4 jobs del CI.
