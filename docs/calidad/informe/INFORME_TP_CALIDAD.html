@@ -58,6 +58,7 @@
   <li>Resumen y nivel declarado</li>
   <li>Metas de calidad: cumplidas y no cumplidas</li>
   <li>Los ejes del trabajo (8 temas + documentación)</li>
+  <li>Los temas de la materia, uno por uno</li>
   <li>Validaciones de entrada: el código y sus pruebas</li>
   <li>Evolución de las métricas</li>
   <li>Análisis crítico</li>
@@ -104,7 +105,7 @@
 <p><b>Matriz ISO/IEC 25010</b> (8 características) con evidencia y brecha de cada una (<code>PLAN_PRUEBAS.md §5</code>). <b>Top 3:</b> <b>seguridad</b> (CV privado, borrado de cuenta, Ley 25.326), <b>fiabilidad</b> (donaciones y cupos sin doble acreditación) y <b>compatibilidad</b> (la diferencia SQLite/Postgres fue la fuente de defectos más frecuente: B1, B2, B8, A6). <b>Mapa de niveles:</b> unitario, integración de API contra base real, componentes, sistema (smoke), integración externa (E2E), no funcional (carga) y aceptación (guion de la demo). <b>Despliegue verificado en cada instancia:</b> local y CI (suites en cada push) y producción (smoke + E2E en cada deploy; <code>/health</code> informa el commit desplegado).</p>
 
 <h3>3.4 Métricas y análisis estático</h3>
-<p>SonarCloud en el pipeline (<code>METRICAS.md</code>; análisis de <code>d7efe16</code>): 17.594 líneas de código; duplicación 1,9 %; complejidad ciclomática 4.245 y cognitiva 2.856 (la más alta: <code>routes/projects.js</code>, 333); deuda 0 min; calificaciones A/A/A. <b>Métrica de proceso:</b> tasa de éxito del pipeline (CI 92,6 %, Deploy 80 %) y tiempo hasta volver a verde (5,1 y 30 min en los fallidos del CI; 18 min en el Deploy #14). <b>Métrica de proyecto:</b> densidad de pruebas, con 145,5 tests/KLOC en el backend y 75,9 en el frontend (CI #19; antes, 60,6). <b>Mejora medida:</b> la evolución de SonarCloud de la sección 5.</p>
+<p>SonarCloud en el pipeline (<code>METRICAS.md</code>; análisis de <code>d7efe16</code>): 17.594 líneas de código; duplicación 1,9 %; complejidad ciclomática 4.245 y cognitiva 2.856 (la más alta: <code>routes/projects.js</code>, 333); deuda 0 min; calificaciones A/A/A. <b>Métrica de proceso:</b> tasa de éxito del pipeline (CI 92,6 %, Deploy 80 %) y tiempo hasta volver a verde (5,1 y 30 min en los fallidos del CI; 18 min en el Deploy #14). <b>Métrica de proyecto:</b> densidad de pruebas, con 145,5 tests/KLOC en el backend y 75,9 en el frontend (CI #19; antes, 60,6). <b>Mejora medida:</b> la evolución de SonarCloud de la sección 6.</p>
 
 <h3>3.5 Pruebas dinámicas</h3>
 <p><code>DISENO_CASOS.md</code>:</p>
@@ -132,12 +133,176 @@
 <h3>3.9 Documentación (transversal)</h3>
 <p>Cada cambio dejó su sección en <code>PROJECT_ANALYSIS.md</code> (§183–§225), con qué se hizo, verificación, <b>errores propios</b> y <b>no verificado</b>. Los documentos del TP están en <code>docs/calidad/</code> (anexo).</p>
 
-<h2 class="salto">4. Validaciones de entrada: el código y sus pruebas</h2>
+<h2 class="salto">4. Los temas de la materia, uno por uno</h2>
+<p>Cada tema del programa, con el nombre que tiene en la materia, dónde se aplicó y la evidencia. Cuando un tema no se aplicó o se aplicó a medias, se dice.</p>
+
+<h3>4.1 Fundamentos de calidad y testing</h3>
+<p><b>Calidad de software.</b> La medimos en cuatro dimensiones:</p>
+<ul>
+<li><b>Conformidad:</b> 12 requisitos funcionales trazados a sus tests (<code>PLAN_PRUEBAS.md §10</code>).</li>
+<li><b>Eficiencia de desempeño:</b> p95 con umbrales fijados antes de correr k6 (sección 6.4).</li>
+<li><b>Mantenibilidad:</b> SonarCloud A, deuda 0 min y duplicación 1,9 %.</li>
+<li><b>Satisfacción del usuario:</b> no se midió con usuarios externos (ver "calidad en uso", 4.2).</li>
+</ul>
+<table>
+<thead><tr><th style="width:16%">Concepto</th><th style="width:28%">Definición</th><th>En VoluntariAR (defecto B7, y el ReDoS)</th></tr></thead>
+<tbody>
+<tr><td><b>Error</b></td><td>Acción humana equivocada</td><td>Decidir que el filtro busque <i>subcadenas</i> sin normalizar acentos. En el email: escribir un regex con clases que se superponen</td></tr>
+<tr><td><b>Defecto</b></td><td>La falla incorporada al código</td><td>El <code>includes</code> sobre el texto en el filtro de palabras. El <code>EMAIL_RE</code> viejo, con backtracking cuadrático</td></tr>
+<tr><td><b>Fallo</b></td><td>La manifestación visible al ejecutar</td><td>"Traigan la computadora" rechazado con 400 (contiene "puta") e "imbécil" aceptado. Un email de 80.000 caracteres bloqueaba toda la API 3,4 s</td></tr>
+</tbody></table>
+<table>
+<thead><tr><th style="width:16%"></th><th style="width:30%">Pregunta</th><th>Cómo se hizo</th></tr></thead>
+<tbody>
+<tr><td><b>Verificación</b></td><td>¿Cumple la especificación? ("¿lo construimos bien?")</td><td>Tests contra cada requisito (906 de backend y 904 de frontend), typecheck, quality gate, smoke después de cada deploy. Ejemplo: el monto tiene que ser entero entre 100 y 500.000, y el test lo comprueba en los bordes</td></tr>
+<tr><td><b>Validación</b></td><td>¿Resuelve la necesidad real? ("¿construimos lo correcto?")</td><td>El recorrido de aceptación por rol (<code>GUION_DEFENSA.md §3</code>). El pago completo hecho a mano, con la plata acreditada en la cuenta de prueba de la ONG. Decisiones de producto tomadas al ver el sistema andando: el filtro por palabra completa y el marketplace, para que cada ONG cobre en su cuenta. <b>Límite:</b> no hay registro de pruebas con ONG ni voluntarios reales</td></tr>
+</tbody></table>
+<p class="pie">Ojo con la palabra: las "validaciones de entrada" de la sección 5 (rechazar un monto inválido) son parte de la <b>verificación</b>. "Validación" en el sentido de la materia es la segunda fila.</p>
+<p><b>Los 7 principios</b> (<code>PLAN_PRUEBAS.md §9</code>), cada uno con un caso del proyecto:</p>
+<ul>
+<li><b>Las pruebas muestran presencia de defectos, no su ausencia:</b> con la suite en verde, 4 defectos aparecieron en producción.</li>
+<li><b>Imposibilidad de pruebas exhaustivas:</b> rol × estado de inscripción × dueño × CV son demasiadas combinaciones. Se eligieron 10 reglas con una tabla de decisión.</li>
+<li><b>Pruebas tempranas:</b> una sonda contra Postgres durante la revisión encontró A6 (dos propuestas simultáneas → 500) antes que cualquier usuario. Arreglarlo costó un commit con su test; en producción habría costado un patrocinio perdido y la investigación.</li>
+<li><b>Agrupamiento de defectos:</b> la mayoría de los graves está en la diferencia SQLite/Postgres.</li>
+<li><b>Paradoja del pesticida:</b> repetir los mismos tests en SQLite no encontraba los defectos de Postgres. Hizo falta correr la suite en el otro motor, mutar el código y sumar SonarCloud, cuyo primer análisis marcó 39 bugs con la suite en verde.</li>
+<li><b>Dependencia del contexto:</b> para la plata se prueba concurrencia y montos límite; para las pantallas, roles accesibles.</li>
+<li><b>Falacia de la ausencia de errores:</b> por eso existe la validación por rol, además de la verificación.</li>
+</ul>
+
+<h3>4.2 Estándares y tipos de prueba</h3>
+<table>
+<thead><tr><th style="width:22%">Nivel</th><th>Dónde</th></tr></thead>
+<tbody>
+<tr><td>Unitarias</td><td>19 archivos en <code>backend/test/unit/</code> (validadores, firma de Mercado Pago, cifrado, tiempo) y las funciones puras del frontend</td></tr>
+<tr><td>Integración</td><td>63 archivos de API contra una base real temporal (SQLite y Postgres); en el frontend, 82 archivos de test (componentes con la API simulada y funciones de <code>lib/</code>)</td></tr>
+<tr><td>Sistema</td><td>El sistema desplegado completo, con el smoke: API, portada y una ruta del SPA</td></tr>
+<tr><td>Implantación / Producción</td><td>Después de <b>cada</b> deploy: <code>/health</code> tiene que informar el commit nuevo, y después corren el smoke y el E2E contra Mercado Pago real (<code>deploy.yml</code>). La guarda cortó un deploy mal configurado (Deploy #14)</td></tr>
+<tr><td>Aceptación</td><td>Recorrido por rol del guion de la demo, a mano</td></tr>
+</tbody></table>
+<table>
+<thead><tr><th style="width:22%">Tipo</th><th>Dónde</th></tr></thead>
+<tbody>
+<tr><td><b>Funcional — regresión</b></td><td>Una prueba de regresión por cada uno de los 18 defectos, y toda la suite en cada push, en 4 combinaciones (2 motores × 2 zonas horarias)</td></tr>
+<tr><td><b>Funcional — humo</b></td><td><code>post-deploy.js smoke</code>, de solo lectura, en cada deploy</td></tr>
+<tr><td><b>Funcional — exploratorias</b></td><td><span class="medio">A medias.</span> Hubo uso manual en producción (de ahí salieron los 4 defectos escapados), pero no sesiones exploratorias planificadas, con objetivo y tiempo fijo</td></tr>
+<tr><td><b>No funcional — carga y rendimiento</b></td><td>k6: stress hasta 100 usuarios, esfuerzo sostenido de 20 usuarios × 10 min, y producción (sección 6.4)</td></tr>
+<tr><td><b>No funcional — compatibilidad</b></td><td>La misma suite en SQLite y Postgres 16, en UTC y en Córdoba, en Linux (CI) y en Windows (local). Navegadores: solo Chrome de escritorio, a mano</td></tr>
+<tr><td>No funcional — seguridad</td><td>Autorización por dueño, CV privado, ReDoS e inyección en logs (SonarCloud), <code>npm audit</code> en 0</td></tr>
+</tbody></table>
+<p><b>ISO/IEC 25010</b> (matriz completa con evidencia y brecha en <code>PLAN_PRUEBAS.md §5</code>). Las 8 características:</p>
+<ul>
+<li><b>Adecuación funcional:</b> tests por requisito.</li>
+<li><b>Eficiencia de desempeño:</b> k6.</li>
+<li><b>Compatibilidad:</b> los dos motores.</li>
+<li><b>Usabilidad:</b> tests de accesibilidad con roles y nombres; 32 issues de accesibilidad corregidas.</li>
+<li><b>Fiabilidad:</b> concurrencia y doble acreditación.</li>
+<li><b>Seguridad:</b> <code>ownership.test.js</code> y el CV.</li>
+<li><b>Mantenibilidad:</b> SonarCloud y el gate.</li>
+<li><b>Portabilidad:</b> SQLite o Postgres con la misma configuración, Linux y Windows.</li>
+</ul>
+<p>Top 3 elegido: seguridad, fiabilidad y compatibilidad.</p>
+<p><b>Calidad interna, externa y en uso:</b></p>
+<ul>
+<li><b>Interna</b> (el código, sin ejecutarlo): SonarCloud (LOC, complejidad, duplicación, deuda) y el acoplamiento.</li>
+<li><b>Externa</b> (el comportamiento al ejecutar): tests, smoke, E2E, p95 de k6.</li>
+<li><b>En uso</b> (la experiencia de usuarios reales): <span class="no">no medida</span>. Faltaría, por ejemplo, una encuesta SUS o tareas cronometradas con voluntarios y ONG. Es la brecha principal del modelo.</li>
+</ul>
+
+<h3>4.3 Procesos de QA/QC y gestión</h3>
+<p><b>QA</b> (proactivo, sobre el proceso):</p>
+<ul>
+<li>las 24 reglas de <code>AI_RULES.md</code>;</li>
+<li>tests primero;</li>
+<li>revisiones de código;</li>
+<li>un commit por tarea;</li>
+<li>el quality gate;</li>
+<li>la sección "no verificado" de cada cambio.</li>
+</ul>
+<p><b>QC</b> (reactivo, sobre el producto):</p>
+<ul>
+<li>las suites;</li>
+<li>el smoke y el E2E;</li>
+<li>la carga;</li>
+<li>la verificación manual en producción.</li>
+</ul>
+<p><b>Ciclo de vida del defecto</b> (<code>PLAN_PRUEBAS.md §10</code>):</p>
+<ol>
+<li><b>Reportado:</b> el hallazgo en una revisión, un run rojo, SonarCloud o producción.</li>
+<li><b>Triage:</b> labels de severidad, origen y área, o la aceptación justificada de <code>TRIAGE_SONAR.md</code>.</li>
+<li><b>Asignado:</b> <span class="medio">no se usó el campo de GitHub</span>; somos dos y nos repartimos de palabra.</li>
+<li><b>Verificado:</b> la prueba de regresión pasa de rojo a verde en el CI.</li>
+<li><b>Cerrado:</b> el Issue se cierra con el commit.</li>
+</ol>
+<p><b>Honestidad:</b> los 18 Issues se cargaron <i>después</i> de los arreglos; cada uno se abrió y se cerró en segundos. El ciclo real quedó en <code>REVISION.md</code> y en los commits.</p>
+<p><b>Planificación y estimación de esfuerzo.</b> El plan (<code>PLAN_CALIDAD_TP.md §3</code>) estimó cada tarea por <b>juicio de expertos</b>, con tamaños S, M y L, en 9 días de calendario (17/10 a 25/10). <b>No había datos históricos</b> de tareas parecidas, porque era el primer pipeline del proyecto. Lo real: las tareas T0–T13 se cerraron entre el primer y el último commit del 17/10 (12:04 a 22:45, git log), y el marketplace se agregó el 18/10. La estimación sobrestimó mucho, sobre todo porque no contempló la asistencia de IA. Ese registro con hora de cada commit es el <b>dato histórico</b> para estimar la próxima vez; la hora de un commit no es esfuerzo medido, pero acota la duración real.</p>
+<p><b>Matriz de riesgos (probabilidad × impacto).</b> Hay 10 riesgos en <code>PLAN_PRUEBAS.md §6</code>, y la matriz definió dónde poner más pruebas:</p>
+<ul>
+<li>"una consulta falla solo en Postgres" (P×I = 6) → toda la suite corre dos veces, una en cada motor;</li>
+<li>"doble acreditación" (impacto 3) → tests de avisos repetidos y simultáneos;</li>
+<li>"la carga tira el servicio" (6) → solo pedidos <code>GET</code> y carga acotada;</li>
+<li>"Render dormido en la demo" (9) no se puede probar → plan de contingencia.</li>
+</ul>
+
+<h3>4.4 Diseño y ejecución de pruebas</h3>
+<p><b>Estructura del caso de prueba</b>: precondiciones, datos de prueba, pasos, resultado esperado y postcondiciones. Plantilla y un caso completo en <code>PLAN_PRUEBAS.md §10</code> (<code>CP-INS-11</code>: la ONG pide pasar una inscripción aprobada a "pending" → 400, y la inscripción y el cupo no cambian). <b>AAA</b>: los tests nuevos marcan Arrange, Act y Assert con comentarios.</p>
+<table>
+<thead><tr><th style="width:24%">Técnica</th><th>Dónde (<code>DISENO_CASOS.md</code>)</th></tr></thead>
+<tbody>
+<tr><td colspan="2"><b>Caja negra</b> (se diseña desde la especificación, sin mirar el código)</td></tr>
+<tr><td>Clases de equivalencia</td><td>Monto de la donación: 5 clases (§1)</td></tr>
+<tr><td>Análisis de valores límite</td><td>Monto 99/100/101 y 499.999/500.000/500.001. Contraseña de 7/8 caracteres y de 72/73 bytes, también con ñ (§1–§2)</td></tr>
+<tr><td>Tablas de decisión</td><td>Acceso al CV: 5 condiciones, 10 reglas, un test por regla (§3)</td></tr>
+<tr><td>Transición de estados</td><td>Inscripción: 4 estados × 6 eventos, transiciones válidas e <b>inválidas</b>, y la guarda [hay cupo]. Son 23 tests nuevos, posteriores al corte del CI #29, corridos en local en SQLite (UTC y Córdoba) y en Postgres. La mutación mató 9 de 12 mutantes; de los 3 que sobreviven, 2 son equivalentes y al otro lo mata otro test (§5)</td></tr>
+<tr><td>Casos de uso</td><td>"Donar a un proyecto": flujo principal y 10 alternativos, cada uno con su test (§7)</td></tr>
+<tr><td colspan="2"><b>Caja blanca</b> (se diseña desde la estructura interna)</td></tr>
+<tr><td>Cobertura de sentencia, decisión y condición</td><td><code>amountError</code> al 100 % en las tres. Con un solo caso se ejecutan 6/6 líneas pero 1 de 4 ramas (§1)</td></tr>
+<tr><td>Caminos básicos</td><td><code>amountError</code>: V(G) = 5, con 5 caminos independientes y un representante cada uno (§6)</td></tr>
+<tr><td>Mutation testing</td><td>Sobre todo el código nuevo, con una corrida de control antes. Encontró huecos reales en los tests (el mínimo de 8 caracteres sin prueba de borde)</td></tr>
+<tr><td>Cobertura del código</td><td>Backend 93,22 % de líneas y 85,40 % de ramas; frontend 90,42 % y 81,57 % (CI #29)</td></tr>
+<tr><td colspan="2"><b>Caja gris</b>: los tests de integración pegan por HTTP como un cliente, pero conocen la base y verifican cómo queda (el cupo, el recaudado)</td></tr>
+</tbody></table>
+
+<h3>4.5 Métricas y análisis estático</h3>
+<p><b>Producto:</b></p>
+<ul>
+<li>17.594 LOC;</li>
+<li>complejidad ciclomática total 4.245 (la cantidad de caminos independientes);</li>
+<li><b>acoplamiento</b> medido por módulo, con Ce y Ca: el módulo más acoplado del backend es <code>db/index.js</code>, del que dependen 15 módulos; en el frontend es <code>lib/api.ts</code>, con 49 (<code>METRICAS.md §1.4</code>);</li>
+<li>duplicación 1,9 %;</li>
+<li>cobertura.</li>
+</ul>
+<p><b>Proceso:</b> tasa de éxito del pipeline, tiempo hasta volver a verde y defectos escapados. <b>Proyecto:</b> densidad de pruebas (tests/KLOC).</p>
+<p><b>Análisis estático continuo</b> con SonarCloud, la versión en la nube de SonarQube, en cada push. El análisis detecta riesgos sin ejecutar el software, como el ReDoS, que ningún test había visto. Un <b>quality gate</b> con los umbrales del enunciado bloqueó de verdad el CI #7.</p>
+
+<h3>4.6 Automatización y ecosistema de herramientas</h3>
+<p><b>Pirámide.</b> La base son las unitarias y la integración de API del backend (906 tests), que corren en segundos y sin red. En el medio, los 904 tests de componentes y funciones del frontend. La punta es el E2E contra Mercado Pago y el smoke: un recorrido por deploy, lento y con un servicio real. <b>Lectura honesta:</b> la punta sí es angosta, pero la base no es más ancha que el medio, así que la forma se parece más a un rectángulo con punta que a una pirámide. La base de integración de API es donde aparecieron casi todos los defectos. <b>No hay E2E de interfaz</b> (Selenium o Cypress): la interfaz se prueba con Testing Library sobre jsdom y con el recorrido manual. Es una decisión de costo y queda como brecha. <b>CI/CD:</b> <code>ci.yml</code> en cada push → <code>deploy.yml</code> solo si el CI está en verde.</p>
+<p><b>Pruebas de API simulando un cliente HTTP</b>, como en Postman, pero automatizadas en el CI: cada test manda el pedido y valida el código de estado y el JSON.</p>
+<pre><span class="com">// enrollments-state-transitions.test.js — misma idea que una petición de Postman con sus "tests"</span>
+const r = await call(`/api/enrollments/${id}`, { token: ngo1, method: 'PATCH', body: { status: 'pending' } });
+assert.equal(r.status, 400);
+assert.equal(r.body.error, 'Status debe ser: approved o rejected');</pre>
+<table>
+<thead><tr><th style="width:24%">Categoría</th><th style="width:28%">Ejemplos de la materia</th><th>Lo que usamos y por qué</th></tr></thead>
+<tbody>
+<tr><td>Gestión</td><td>JIRA, Xray</td><td>GitHub Issues con plantilla y labels (está junto al código y es gratis); casos y trazabilidad en <code>PLAN_PRUEBAS.md</code> y <code>REGISTRO_DEFECTOS.md</code></td></tr>
+<tr><td>Ejecución</td><td>Selenium, Cypress, JUnit</td><td><code>node:test</code> en el backend (el equivalente de JUnit en Node) y Vitest + Testing Library en el frontend. Sin navegador real</td></tr>
+<tr><td>Rendimiento</td><td>JMeter, Gatling</td><td>k6: los scripts son JavaScript, igual que el proyecto, tiene umbrales que hacen fallar el job y una acción oficial para el CI</td></tr>
+<tr><td>Análisis estático</td><td>SonarQube</td><td>SonarCloud, la herramienta nueva</td></tr>
+</tbody></table>
+<p><b>Selección por prueba de concepto y costo total de propiedad (TCO).</b> La prueba de concepto de SonarCloud se hizo en una rama aparte, con el PR #1, antes de tocar <code>main</code> (<code>HERRAMIENTA_NUEVA.md</code>). El TCO tiene tres partes:</p>
+<ul>
+<li><b>Licencia e infraestructura: $0.</b> SonarCloud y GitHub Actions no cuestan nada en un repositorio público.</li>
+<li><b>Costo de adopción:</b> la prueba de concepto y la integración al CI, con un rojo real antes del primer verde (CI #4 → #5). Además, triar 157 issues.</li>
+<li><b>Costo de mantenimiento:</b> el script propio del gate, de unas 30 líneas y con sus tests, porque el plan gratis no permite gates configurables; y revisar cada análisis nuevo.</li>
+</ul>
+<p>Las horas no se midieron. En la matriz de decisión, el costo pesó lo mismo para las 4 alternativas porque todas eran gratis. Lo que las separó fue el costo de integración, que es parte del TCO.</p>
+
+<h2 class="salto">5. Validaciones de entrada: el código y sus pruebas</h2>
 <p>Todo dato que llega del cliente se valida <b>en el servidor</b>, que es el único lugar confiable. El frontend repite algunas reglas con el mismo mensaje para avisar antes de enviar, pero no reemplaza al backend. Criterios comunes: primero se verifica el <b>tipo</b> (un número o un array donde se espera texto daba 500; ahora da 400, REVISION B13), después los <b>límites</b>, y el error vuelve como <code>400</code> con un mensaje en español, sin tocar la base ni los servicios externos. Los fragmentos son el código actual (<code>d7efe16</code>), sin cambios; se sacaron solo comentarios.</p>
 <p class="pie">Verificación: los 18 archivos de test citados en esta sección, corridos juntos el 19/10/2026 (SQLite): <b>278 tests, 278 en verde</b>. También corren en cada push en los 4 jobs de backend del CI.</p>
 
 <div class="valid">
-<h3>4.1 Monto de una donación</h3>
+<h3>5.1 Monto de una donación</h3>
 <p><code>backend/src/routes/donaciones.js:43</code> · Regla: pesos <b>enteros</b> de $100 a $500.000 inclusive (el monto se guarda como REAL; con centavos fallaría el control "lo pagado coincide con lo donado").</p>
 <pre>const MIN_AMOUNT = 100;
 const MAX_AMOUNT = 500000;
@@ -151,7 +316,7 @@ function amountError(amount) {
 </div>
 
 <div class="valid">
-<h3>4.2 Contraseña</h3>
+<h3>5.2 Contraseña</h3>
 <p><code>backend/src/routes/auth.js:55</code> · Regla: mínimo 8 caracteres, como máximo <b>72 bytes UTF-8</b> (bcrypt ignora lo que pasa de 72 bytes: dos contraseñas iguales en esos bytes valdrían como la misma), al menos una mayúscula y un número.</p>
 <pre>const PASSWORD_MAX_BYTES = 72;
 function validatePassword(v) {
@@ -166,7 +331,7 @@ function validatePassword(v) {
 </div>
 
 <div class="valid">
-<h3>4.3 Email, con tope antes del regex (ReDoS)</h3>
+<h3>5.3 Email, con tope antes del regex (ReDoS)</h3>
 <p><code>backend/src/routes/auth.js:37–49</code> · Regla: formato <code>algo@dominio.xx</code> y como máximo 254 caracteres (RFC 5321). El tope va <b>antes</b> del regex: SonarCloud marcó el regex viejo y se reprodujo una denegación de servicio real (un email de 80.000 caracteres bloqueaba toda la API 3,4 s por pedido). El regex nuevo, además, es lineal (§231).</p>
 <pre>const EMAIL_RE = /^[^\s@]+@[^\s@][^\s@.]*\.[^\s@]{2,}$/;
 const EMAIL_MAX = 254;
@@ -180,7 +345,7 @@ function validateEmail(v) {
 </div>
 
 <div class="valid">
-<h3>4.4 Palabras no permitidas (defecto B7)</h3>
+<h3>5.4 Palabras no permitidas (defecto B7)</h3>
 <p><code>backend/src/lib/badWords.js:13</code> · Regla: se rechazan comentarios y publicaciones con palabras de la lista, comparando <b>palabras completas</b>, sin distinguir mayúsculas ni acentos. Antes se buscaban subcadenas: "computadora" se rechazaba y "imbécil", con tilde, pasaba.</p>
 <pre>const words = (t) =&gt; String(t).normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().match(/\p{L}+/gu) || [];
 const hasBadWord = (t) =&gt; words(t).some((w) =&gt; BLACKLIST.includes(w));</pre>
@@ -188,7 +353,7 @@ const hasBadWord = (t) =&gt; words(t).some((w) =&gt; BLACKLIST.includes(w));</pr
 </div>
 
 <div class="valid">
-<h3>4.5 Archivos subidos: el tipo real, no el declarado</h3>
+<h3>5.5 Archivos subidos: el tipo real, no el declarado</h3>
 <p><code>backend/src/lib/storage.js:76</code> y <code>:166</code> · Regla: el <code>Content-Type</code> lo escribe quien sube el archivo, así que no sirve para decidir. Se leen los primeros bytes (la "firma" del formato): fotos JPEG, PNG o WebP; CV en PDF. Tope de 8.000.000 bytes por archivo (multer). Orden de la regla 24 de <code>AI_RULES.md</code>: sesión y rol → límite de frecuencia → validar todo → subir a Cloudinary → guardar → borrar lo subido si algo falla.</p>
 <pre>function detectImageType(buf) {
   if (!Buffer.isBuffer(buf)) return null;
@@ -209,7 +374,7 @@ if (!storage.detectImageType(req.file.buffer)) {
 </div>
 
 <div class="valid">
-<h3>4.6 Acceso al CV: permiso antes que existencia</h3>
+<h3>5.6 Acceso al CV: permiso antes que existencia</h3>
 <p><code>backend/src/routes/voluntarios.js:204</code> · Regla: el CV lo ve la dueña, o una ONG con una inscripción <b>pendiente o aprobada</b> de esa voluntaria en un proyecto propio. A cualquier otro se le responde <b>404 con el mismo mensaje</b> que "no tiene CV", para que no se pueda averiguar quién cargó uno (Ley 25.326).</p>
 <pre>let allowed = req.user.role === 'volunteer' &amp;&amp; req.user.id === target;
 if (!allowed &amp;&amp; req.user.role === 'ngo') {
@@ -227,7 +392,7 @@ if (!allowed) return res.status(404).json({ error: CV_NOT_AVAILABLE });</pre>
 </div>
 
 <div class="valid">
-<h3>4.7 Textos libres y números del body</h3>
+<h3>5.7 Textos libres y números del body</h3>
 <p><code>backend/src/lib/inputs.js:13</code> y <code>:37</code> · Un solo helper para los textos de perfiles, empleados y proyectos (tipo, vacío, mínimo y máximo) y un entero estricto para cupos, horas y reseñas. Antes cada ruta hacía <code>name.trim()</code> por su cuenta: un número reventaba con 500, <code>""</code> se salteaba y no había largo máximo (REVISION B12 y B13); y <code>parseInt</code> aceptaba <code>3.7</code> como 3 y <code>"1e21"</code> como 1 (B3).</p>
 <pre>function checkText(value, { label, max, min = 0, required = false, nullable = !required }) {
   if (value === undefined) return required ? `${label} es obligatorio` : null;
@@ -250,8 +415,8 @@ const toStrictInt = (value) =&gt; {
 <p><b>Pruebas:</b> <code>test/unit/inputs.test.js</code> y <code>test/integration/projects-strict-inputs.test.js</code>, <code>profiles-input-validation</code>, <code>projects-input-validation</code>, <code>kpis-input-validation</code> y <code>register-input-validation</code> (un apellido que no es texto daba 500 dentro de la transacción; ahora es 400 antes de tocar la base).</p>
 </div>
 
-<h2 class="salto">5. Evolución de las métricas</h2>
-<h3>5.1 SonarCloud (historial de análisis del pipeline)</h3>
+<h2 class="salto">6. Evolución de las métricas</h2>
+<h3>6.1 SonarCloud (historial de análisis del pipeline)</h3>
 <table>
 <thead><tr><th>Análisis</th><th>Bugs</th><th>Vulnerab.</th><th>Code smells</th><th>Deuda</th><th>Fiabilidad / seguridad</th><th>Qué pasó</th></tr></thead>
 <tbody>
@@ -265,7 +430,7 @@ const toStrictInt = (value) =&gt; {
 <tr><td><code>8e7d9e4</code> (CI #27)</td><td>0</td><td>0</td><td>0</td><td>0 min</td><td>A / A</td><td>Las 57 <code>S7773</code> (<code>Number.isNaN</code> y otras): una sola no era un reemplazo mecánico y se probó antes de cambiarla</td></tr>
 <tr><td><code>d7efe16</code> (CI #29)</td><td><b>0</b></td><td><b>0</b></td><td><b>0</b></td><td><b>0 min</b></td><td><b>A / A</b></td><td>10 de las 14 aceptadas, arregladas en el código: 6 regex con backtracking, el tope de subida (8 MiB → 8.000.000 bytes), un test y el fondo del modal. Quedan 4 aceptadas</td></tr>
 </tbody></table>
-<h3>5.2 Pruebas y cobertura</h3>
+<h3>6.2 Pruebas y cobertura</h3>
 <table>
 <thead><tr><th>Momento</th><th>Backend SQLite / Postgres</th><th>Frontend</th><th>Cobertura backend (líneas)</th><th>Cobertura frontend (líneas)</th></tr></thead>
 <tbody>
@@ -278,7 +443,7 @@ const toStrictInt = (value) =&gt; {
 <tr><td><b>CI #29</b> (aceptadas de SonarCloud, §231–§234)</td><td><b>907 / 909</b></td><td><b>904</b></td><td><b>93,22 %</b></td><td><b>90,42 %</b></td></tr>
 </tbody></table>
 <p class="pie">El CI #2 informó 96,51 % para el backend porque Node 22 medía otros archivos. Se detectó al comparar el pipeline con la corrida local y se corrigió en el CI #3 (defecto D09). Los conteos del backend incluyen un archivo auxiliar que el runner cuenta como test: los tests reales son uno menos (906).</p>
-<h3>5.3 Pipeline</h3>
+<h3>6.3 Pipeline</h3>
 <table>
 <thead><tr><th>Workflow</th><th>Runs</th><th>En verde</th><th>Fallidos y causa</th></tr></thead>
 <tbody>
@@ -286,7 +451,7 @@ const toStrictInt = (value) =&gt; {
 <tr><td>Deploy</td><td>23</td><td>16 de 20 (80 %)</td><td>#17, #18 y #23: salteados, porque los dispararon los CI cancelados (el workflow solo despliega un CI en verde; no cuentan). #1–#3: configuración de la cuenta de E2E (401, rol de ONG, email). Los detectó el E2E. #14: faltaba la variable del proyecto de prueba (cargada como secret, el workflow la leía como variable); la guarda cortó antes de desplegar</td></tr>
 <tr><td>Carga</td><td>1</td><td>1</td><td>—</td></tr>
 </tbody></table>
-<h3>5.4 Rendimiento (Carga #1, k6)</h3>
+<h3>6.4 Rendimiento (Carga #1, k6)</h3>
 <table>
 <thead><tr><th>Prueba</th><th>p95</th><th>Errores</th><th>Umbral</th></tr></thead>
 <tbody>
@@ -296,7 +461,7 @@ const toStrictInt = (value) =&gt; {
 <tr><td>Producción (Render gratis), 10 usuarios × 2 min</td><td>418,90 ms</td><td>0 %</td><td>&lt; 2 s <span class="ok">✓</span></td></tr>
 </tbody></table>
 
-<h2>6. Análisis crítico</h2>
+<h2>7. Análisis crítico</h2>
 <ul>
 <li><b>Las herramientas encontraron lo que las pruebas no.</b> Con 782 tests en verde, SonarCloud encontró una <b>denegación de servicio real</b>: un email de 80.000 caracteres bloqueaba toda la API 3,4 s por pedido (reproducido y corregido con un tope antes del regex). También encontró una <b>inyección en los logs</b> desde el webhook de Mercado Pago. Y una de sus sugerencias (<code>localeCompare</code> para ordenar) habría roto la firma de Cloudinary: el análisis estático hay que leerlo con criterio, no obedecerlo.</li>
 <li><b>Los defectos escapados vienen de lo que los dobles no ven.</b> Los 4 defectos encontrados en producción salieron de flujos con un servicio real o de lo que ve otro rol (el panel de la ONG después de una donación real). De ahí el E2E contra Mercado Pago en cada deploy. La tasa (22,2 %) es sobre una <b>selección</b> de defectos: con todos los hallazgos de las revisiones sería menor.</li>
@@ -305,16 +470,18 @@ const toStrictInt = (value) =&gt; {
 <li><b>Producción es unas 100 veces más lenta que el runner</b> (mediana 103 ms contra 1,4 ms). Es esperable en el plan gratuito, pero no se midió qué parte es CPU, base de datos o red.</li>
 <li><b>El proceso tuvo errores propios, y quedaron documentados:</b> un comando del CI que no corría tests (el primer run fallido), una cobertura inflada en el pipeline, un test de tiempo inestable, un registro de defectos que al principio dejaba afuera 3 escapados, y el orden del proceso de la herramienta nueva (se eligió con el borrador de la matriz). Cada uno está en <code>PROJECT_ANALYSIS.md</code> con su corrección.</li>
 <li><b>El marketplace volvió a mostrar lo mismo.</b> Con todas las suites en verde, el análisis de SonarCloud sobre el código nuevo encontró 3 inyecciones en logs (<code>S5145</code>), que contradicen una regla que el propio proyecto se había puesto. El gate no las bloqueó porque eran de severidad menor, y se corrigieron en el commit siguiente. En el pipeline, la guarda de "faltan secretos o variables" cortó el Deploy #14 <b>antes</b> de desplegar: la variable del proyecto de prueba se había cargado como secret y el workflow la leía como variable. Se corrigió en 18 minutos. Además, el E2E donaba al primer proyecto de la lista, que era uno real. Ahora dona siempre a un proyecto de prueba y antes comprueba que su ONG tenga Mercado Pago vinculado.</li>
+<li><b>Un test de tiempo es inestable en local.</b> <code>email-redos.test.js</code> exige que el email malicioso se rechace en menos de 500 ms. Con la suite completa corriendo en paralelo en una PC con Windows, falló en <b>2 de 5 corridas</b> (538 y 700 ms) <b>sin ningún cambio de código</b>. En el CI (Linux) no falló nunca. El regex ya es lineal (§231), así que es el umbral, no un ReDoS. Queda registrado como riesgo RP10 (test inestable), sin tocar todavía.</li>
+<li><b>Diseñar la transición de estados encontró un punto ciego en las pruebas.</b> Liberar un cupo tiene piso en 0. Si el proyecto empezaba sin cupos ocupados, "cancelar una pendiente resta un cupo" daba el mismo resultado que el código correcto. Por eso el test nuevo arranca siempre con otra persona aprobada, y con eso el mutante muere.</li>
 <li><b>Dos gates.</b> El gate propio del TP (con los umbrales del enunciado) y el "Sonar way" de SonarCloud son distintos. El plan gratuito no permite configurar el segundo, y eso obligó a escribir el primero. En la comparación de mercado, Codacy ofrece gates configurables gratis para open source: quedó a 8 puntos en la matriz y es una alternativa a probar.</li>
 </ul>
 
-<h2>7. Conclusiones</h2>
+<h2>8. Conclusiones</h2>
 <p>El sistema <b>se prueba automáticamente en cada despliegue</b> (smoke y E2E contra Mercado Pago después de cada deploy), <b>sus integraciones externas están probadas o controladas</b> (contrato y dobles en cada push, prueba real a mano y E2E automatizado; contingencia documentada para cada dependencia), y <b>las decisiones de calidad se apoyan en datos</b> (el gate bloqueó de verdad, la mejora se midió en análisis sucesivos y cada número del informe se puede rastrear hasta su ejecución).</p>
 <p>Se cumplen todas las metas del nivel 3. La última fue la <b>cobertura del código existente del frontend</b>: estaba parcial (solo líneas sobre el 80 %) y quedó cumplida en las cuatro métricas en el CI #19. El E2E se cumple con un límite explícito: llega hasta crear la preferencia en Mercado Pago, ya con el token de la ONG dueña del proyecto, pero sin el pago. El pago completo, con la plata acreditada en la cuenta de prueba de la ONG, se verificó a mano.</p>
-<p><b>Trabajo futuro:</b> subir la cobertura de ramas del frontend en los componentes más complejos; una prueba de carga que busque el punto de quiebre; una prueba de concepto de Codacy; conciliar las donaciones pendientes. En el marketplace falta probar en vivo la vinculación por OAuth (el botón "Vincular Mercado Pago") y la renovación del token: el código está probado con dobles, pero necesita el <code>client_secret</code> de la aplicación, que solo aparece al activar las credenciales productivas. Para la demo, la ONG de prueba se vinculó cargando a mano el token de su vendedor de prueba.</p>
+<p><b>Trabajo futuro:</b> medir la <b>calidad en uso</b> con usuarios reales (tareas y una encuesta SUS con ONG y voluntarios); sesiones de prueba <b>exploratoria</b> planificadas; un E2E de interfaz para el recorrido de la donación; estabilizar el test de tiempo del ReDoS; subir la cobertura de ramas del frontend en los componentes más complejos; una prueba de carga que busque el punto de quiebre; una prueba de concepto de Codacy; conciliar las donaciones pendientes. En el marketplace falta probar en vivo la vinculación por OAuth (el botón "Vincular Mercado Pago") y la renovación del token: el código está probado con dobles, pero necesita el <code>client_secret</code> de la aplicación, que solo aparece al activar las credenciales productivas. Para la demo, la ONG de prueba se vinculó cargando a mano el token de su vendedor de prueba.</p>
 
-<h2 class="salto">8. Anexo</h2>
-<h3>8.1 Entregables y dónde están</h3>
+<h2 class="salto">9. Anexo</h2>
+<h3>9.1 Entregables y dónde están</h3>
 <table>
 <thead><tr><th style="width:40%">Entregable del enunciado</th><th>Dónde</th></tr></thead>
 <tbody>
@@ -328,7 +495,7 @@ const toStrictInt = (value) =&gt; {
 <tr><td>Métricas interpretadas</td><td><code>docs/calidad/METRICAS.md</code>, <code>TRIAGE_SONAR.md</code></td></tr>
 <tr><td>Diseño de casos y rojo/verde</td><td><code>docs/calidad/DISENO_CASOS.md</code>, <code>docs/calidad/evidencia/</code></td></tr>
 </tbody></table>
-<h3>8.2 Cómo verificar cada número</h3>
+<h3>9.2 Cómo verificar cada número</h3>
 <ul>
 <li>Tests y cobertura: CI #29, <code>github.com/SantiagoPlanasM/voluntariar-PF/actions/runs/39149551418</code> (resumen de cada job); antes, CI #27, <code>…/actions/runs/39147022423</code>, CI #23, <code>…/actions/runs/39144726116</code>, y CI #15, <code>…/actions/runs/39069697534</code>.</li>
 <li>Stress y esfuerzo: Carga #1, <code>…/actions/runs/39065266810</code>.</li>
@@ -337,7 +504,7 @@ const toStrictInt = (value) =&gt; {
 <li>SonarCloud: historial de análisis y medidas actuales (API pública).</li>
 <li>Defectos: <code>github.com/SantiagoPlanasM/voluntariar-PF/issues?q=label:defecto</code>.</li>
 </ul>
-<h3>8.3 Uso de IA</h3>
+<h3>9.3 Uso de IA</h3>
 <p>Se usó un asistente de IA (Claude, en Claude Code) para escribir pruebas, scripts, workflows y documentación, siempre con revisión y con las reglas del proyecto (<code>CLAUDE.md</code>, <code>AI_RULES.md</code>): tests primero, verificación en SQLite, Postgres y con la zona horaria de Córdoba, mutation testing sobre el código nuevo y una sección de "errores propios" y "no verificado" en cada cambio. Todos los números salen de ejecuciones del proyecto, no de estimaciones del asistente. Las decisiones (nivel, herramientas, pesos de la matriz, qué arreglar y qué aceptar) las tomó el equipo.</p>
 
 </body>

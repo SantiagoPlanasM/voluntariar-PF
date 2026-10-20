@@ -42,6 +42,27 @@
 | Esfuerzo sostenido, 20 usuarios × 10 min | **3,17 ms** | 6,46 ms | 0 % | p95 < 300 ms | Sin degradación visible en el agregado (k6 no da la evolución minuto a minuto) |
 | Producción (Render gratis), 10 usuarios × 2 min | **418,90 ms** | 799,16 ms | 0 % | p95 < 2 s | Unas **100 veces más lento** que el runner (mediana 103 ms contra 1,4 ms): plan gratuito, Postgres por red y la distancia GitHub ↔ Render. No se midió qué parte es cada cosa |
 
+### 1.4 Acoplamiento entre módulos (medido el 2026-10-19 sobre `d7efe16`)
+
+SonarCloud no informa acoplamiento para JavaScript. Se midió con un script que recorre los `require`/`import`
+**relativos** de cada módulo de producción (sin tests ni paquetes de npm): **Ce** (eferente, a cuántos módulos
+propios depende), **Ca** (aferente, cuántos dependen de él) e inestabilidad **I = Ce / (Ca + Ce)** (0 = estable,
+1 = inestable). El script no quedó en el repo (§237).
+
+| | Módulos | Dependencias | Ce promedio | Mayor Ce | Mayor Ca |
+|---|---|---|---|---|---|
+| Backend (`backend/src`) | 33 | 101 | 3,06 | `index.js` (19: monta todas las rutas) | `db/index.js` (15), `middleware/auth.js` (13), `lib/inputs.js` (8) |
+| Frontend (`frontend/src`) | 69 | 245 | 3,55 | `app/routes.tsx` (30: todas las pantallas) | `lib/api.ts` (49), `lib/AuthContext.tsx` (38), `lib/format.ts` (28) |
+
+**Lectura:**
+- Los módulos con mayor Ce son los puntos de armado (`index.js`, `routes.tsx`), lo esperable.
+- Los de mayor Ca son estables (I ≈ 0): un cambio en `db/index.js` o en `lib/api.ts` repercute en 15 y 49 módulos.
+  Por eso son los más protegidos: la base corre toda la suite en **dos motores** y `api.ts` tiene un test de
+  contrato de todo el cliente HTTP (§209).
+- Entre rutas del backend hay solo 4 dependencias: `follows.js` y `ngos.js` importan `fmt` de `projects.js` (a
+  propósito, para no copiarlo), `follows.js` importa `fmtNgo` de `ngos.js` y `ngos.js` importa `validateEmail` de
+  `auth.js`. Esta última es acoplamiento entre rutas que podría vivir en `lib/` (deuda chica, no se tocó).
+
 ## 2. Métricas de proceso
 
 ### 2.1 Tasa de éxito del pipeline (de `gh run list`, 24 runs)

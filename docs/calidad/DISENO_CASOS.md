@@ -152,6 +152,98 @@ Es un rojo **fuerte**: falla por el comportamiento, no porque falte un módulo. 
 el mismo commit, así que contra el código viejo fallaría por "módulo inexistente". La prueba de regresión corre
 hoy en cada push, en los 4 jobs de backend del CI.
 
+## 5. Inscripción — transición de estados (caja negra)
+
+**Rutas:** `POST /api/enrollments` (inscribirse), `PATCH /api/enrollments/:id` (aprobar o rechazar, la ONG dueña),
+`DELETE /api/enrollments/:id` (cancelar, la voluntaria) en `backend/src/routes/enrollments.js`.
+**Test:** `backend/test/integration/enrollments-state-transitions.test.js` (23 tests, AAA, una celda por test;
+§237 de `PROJECT_ANALYSIS.md`).
+
+**Estados:** SIN inscripción, PENDIENTE, APROBADA, RECHAZADA. Cancelar **borra** la fila: se vuelve a SIN
+inscripción. `cancelled` figura en el `CHECK` de la tabla, pero ninguna ruta lo usa.
+
+```
+                 inscribirse (201)
+  SIN ─────────────────────────────▶ PENDIENTE
+   ▲                                  │      │
+   │ cancelar                aprobar  │      │ rechazar
+   │ (desde cualquiera;  [hay cupo]   ▼      ▼
+   │  libera el cupo si    APROBADA ◀──────▶ RECHAZADA
+   │  estaba aprobada)       aprobar [hay cupo] / rechazar (libera el cupo)
+```
+
+Tabla de transiciones (código HTTP → estado siguiente; "+1"/"−1" = cupo ocupado del proyecto):
+
+| Estado \ Evento | inscribirse | aprobar | rechazar | cancelar | pedir `pending` o `cancelled` |
+|---|---|---|---|---|---|
+| **SIN** | 201 → PENDIENTE | 404 | 404 | 404 | — |
+| **PENDIENTE** | 409 "Ya estás inscripto" | 200 → APROBADA, +1 · **sin cupo: 409, sigue PENDIENTE** | 200 → RECHAZADA | 200 → SIN | **400**, sin cambios |
+| **APROBADA** | 409 | 200, sin cambios (idempotente) | 200 → RECHAZADA, −1 | 200 → SIN, −1 | **400**, sin cambios |
+| **RECHAZADA** | 409 | 200 → APROBADA, +1 · **sin cupo: 409, sigue RECHAZADA** | 200, sin cambios (idempotente) | 200 → SIN | **400**, sin cambios |
+
+- Las celdas con 400 son las **transiciones inválidas**: se prueban igual que las válidas.
+- En cada proyecto del test, otra persona ya ocupa un cupo aprobado, porque liberar el cupo tiene piso en 0
+  (`RELEASE_SLOT_SQL`). Sin ella, "cancelar una pendiente resta un cupo" pasaba inadvertido (lo mostró el diseño de
+  mutantes antes de correrlos).
+- Además: cancelar la inscripción de otra persona → 404 sin cambios.
+
+**Mutantes** sobre `routes/enrollments.js` (con la corrida de control en verde antes): **12, mueren 9**:
+- mueren: aceptar `pending` o `cancelled` como evento; rechazar libera el cupo desde cualquier estado / nunca lo
+  libera; aprobar sin la guarda de cupo; no deshacer la aprobación sin cupo; cancelar libera desde cualquier estado /
+  nunca libera; cancelar la inscripción de otra persona;
+- **sobrevive** "sacar el atajo idempotente": no cambia ni el estado ni el cupo, solo duplica la notificación. Lo mata
+  `enrollments-concurrency.test.js` (3 tests), que sí mira las notificaciones;
+- **sobreviven, equivalentes:** "aprobar suma cupo aunque ya estuviera aprobada" (el atajo idempotente ya cortó antes,
+  así que la condición es redundante) e "inscribirse dos veces sin el chequeo previo" (el `UNIQUE(user_id,
+  project_id)` de la tabla da el mismo 409 con el mismo mensaje: es defensa en profundidad).
+
+## 6. Monto de una donación — caminos básicos (caja blanca)
+
+Sobre `amountError` (§1), contando cada condición simple como un nodo de decisión:
+**V(G) = 4 condiciones (C1, C2, D2, D3) + 1 = 5** caminos independientes. Cada uno tiene un representante en
+`donation-amount.test.js`:
+
+| Camino | Condiciones | Sale por | Representante |
+|---|---|---|---|
+| P1 | C1 verdadera | "número entero de pesos" | `'1500'` |
+| P2 | C1 falsa, C2 verdadera | "número entero de pesos" | `100.5` |
+| P3 | C1, C2 falsas, D2 verdadera | "mínimo es de $100" | `99` |
+| P4 | C1, C2, D2 falsas, D3 verdadera | "máximo es de $500.000" | `500001` |
+| P5 | todas falsas | `null` | `2500` |
+
+Si se cuenta la decisión compuesta D1 como **una** sola, V(G) = 4, y P1 y P2 se funden. Por eso la tabla de §1 pide
+además cobertura de **condición**.
+
+## 7. Donar a un proyecto — caso de uso
+
+**Actor:** voluntaria o empresa con sesión. **Precondición:** el proyecto está activo y su ONG tiene la cuenta de
+Mercado Pago vinculada. **Postcondición de éxito:** la donación queda `completada` una sola vez y el recaudado del
+proyecto sube en el monto.
+
+**Flujo principal:**
+1. elige el monto;
+2. el sistema crea la donación pendiente y la preferencia con el token de la ONG, y devuelve el link;
+3. paga en Mercado Pago;
+4. el aviso (webhook) o la vuelta concilian: el pago coincide → `completada`, +recaudado, aviso a la ONG.
+
+| Flujo | Qué pasa | Test (en `backend/test/integration/`) |
+|---|---|---|
+| Principal, pasos 1–2 | 201, donación PENDIENTE, link de pago | `donaciones` → "voluntario: crea la donación PENDIENTE…" |
+| Principal, paso 4 | Pago aprobado que coincide → completada y suma | `donaciones` → "pago aprobado que coincide → completada…"; `donaciones-webhook` → "aviso firmado de un pago aprobado…" |
+| A1 monto inválido | 400, no crea nada ni llama a MP | `donaciones` → "montos inválidos → 400…" y "los bordes 100 y 500.000…" |
+| A2 la ONG no tiene MP vinculado | 409 | `donaciones-marketplace` → "ONG sin cuenta vinculada → 409…" |
+| A3 rol sin permiso / sin sesión | 403 / 401 | `donaciones` → "ONG → 403; sin sesión → 401…" |
+| A4 proyecto inexistente o inactivo | 404 | `donaciones` → "proyecto: falta → 400; no existe o no está activo → 404…" |
+| A5 Mercado Pago falla al crear la preferencia | 502, donación `fallida` | `donaciones` → "Mercado Pago falla al crear la preferencia → 502…" |
+| A6 más de 10 intentos por hora | 429 | `donaciones` → "más de 10 intentos por hora → 429…" |
+| A7 pago rechazado | sigue pendiente, se puede reintentar | `donaciones` → "rechazado o pendiente → no cambia el estado…" |
+| A8 aviso repetido o simultáneo | se acredita una vez | `donaciones` → "el mismo pago dos veces…", "cinco a la vez…"; `donaciones-webhook` → "el mismo aviso repetido…" |
+| A9 monto o moneda distintos | no se acredita | `donaciones` → "monto o moneda distintos → NO se acredita…" |
+| A10 aviso con firma inválida | 401 sin consultar nada | `donaciones-webhook` → "firma inválida, de otro pago…" |
+
+El paso 3 (pagar) no se automatiza: el checkout de prueba de Mercado Pago da 403 fuera de un navegador. Se verificó a
+mano (`INTEGRACION_MERCADOPAGO.md`).
+
 ## ⚠️ No verificado
 
 - Las tablas de clases y de decisión se armaron leyendo el código y los tests. Que no falte ninguna condición

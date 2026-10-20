@@ -6561,3 +6561,48 @@ Las secciones siguientes pasan de 4–7 a 5–8 (índice, títulos y la referenc
 ### ⚠️ NO verificado
 - **El aspecto del PDF:** no puedo renderizar las páginas (falta `pdftoppm`). Solo sé que tiene 12. Conviene revisar que los bloques de código no queden cortados entre páginas y que no haya páginas casi vacías (cada validación tiene `break-inside: avoid`).
 - Los tests citados no se corrieron en Postgres ni con `TZ=America/Argentina/Cordoba` en esta sesión: no se tocó código, y corren en los 4 jobs del CI.
+
+## 238. Informe del TP: los temas de la materia uno por uno; transición de estados de la inscripción (test nuevo), caminos básicos, caso de uso, acoplamiento
+
+**Qué se hizo:** el usuario pasó el programa de la materia: "si me preguntan test de caja negra, no aparece textual". Se buscaron los términos del programa en el informe y en `docs/calidad/`. Faltaban, entre otros: caja negra y blanca, transición de estados, casos de uso, error/defecto/fallo, verificación vs validación, implantación, humo, exploratorias, calidad interna/externa/en uso, ciclo de vida del defecto, estimación, postcondiciones, acoplamiento, Postman, JIRA/Selenium/JMeter y TCO.
+- **Informe:** sección nueva **"4. Los temas de la materia, uno por uno"**, con los seis bloques del programa con sus nombres literales, cada tema con su evidencia y las brechas dichas. Las secciones siguientes pasan a 5–9. Análisis crítico: el test de tiempo inestable y el punto ciego del piso del cupo. Trabajo futuro: calidad en uso, exploratorias, E2E de interfaz. PDF: **17 páginas**.
+- **Test nuevo** `backend/test/integration/enrollments-state-transitions.test.js` (23 tests). Recorre la tabla de transición de estados de la inscripción: 4 estados × 6 eventos, transiciones inválidas (`pending` y `cancelled` → 400 sin cambios), la guarda [hay cupo], volver a inscribirse después de cancelar, 404 desde SIN inscripción y cancelar la de otra persona.
+- **`DISENO_CASOS.md`:**
+  - §5: transición de estados, con diagrama, tabla y mutantes;
+  - §6: caminos básicos de `amountError`, V(G) = 5;
+  - §7: el caso de uso "Donar a un proyecto", con el flujo principal y 10 alternativos, cada uno con su test.
+- **`PLAN_PRUEBAS.md` v1.0:** la plantilla de caso suma datos de prueba y postcondiciones, con un caso completo de ejemplo (`CP-INS-11`), y el ciclo de vida del defecto contra lo que pasó de verdad.
+- **`METRICAS.md` §1.4:** acoplamiento (Ce, Ca, I) medido con un script del scratchpad (no quedó en el repo):
+  - backend: 33 módulos y 101 dependencias; el de mayor Ca es `db/index.js`, con 15;
+  - frontend: 69 módulos y 245 dependencias; el de mayor Ca es `lib/api.ts`, con 49.
+- `CLAUDE.md`: conteos 930/932 y aviso del test de tiempo.
+
+### Verificación
+- **Test nuevo:**
+  - pasó entero de entrada (23/23), porque el código ya existía: es una prueba de caracterización y su rojo lo dan los mutantes;
+  - **mutación** sobre `routes/enrollments.js`, con la corrida de control en verde antes: **12 mutantes, 9 muertos**;
+  - sobreviven 3: "sin el atajo idempotente" (lo mata `enrollments-concurrency.test.js`, 3 fallas: duplica la notificación, que la tabla no mira); "aprobar suma cupo aunque ya estuviera aprobada" (**equivalente**: el atajo idempotente ya cortó); "inscribirse dos veces sin el chequeo previo" (**equivalente**: `UNIQUE(user_id, project_id)` da el mismo 409 con el mismo mensaje).
+- **Suites del backend:**
+  - SQLite: **930/930** (907 + 23) en 2 de 3 corridas; la tercera, 929 con 1 falla en `email-redos.test.js` (abajo);
+  - `TZ=America/Argentina/Cordoba`: **930/930**;
+  - Postgres 16 (Docker): **932/932**, código de salida 0.
+- **`email-redos.test.js` inestable, sin relación con este cambio:** se sacó el archivo nuevo y se corrió la suite 5 veces → **907 con 2 fallas en 5 corridas**, las dos en ese test ("el pedido con el email gigante tardó 700 ms" y "538 ms"; umbral 500).
+- Antes de escribir cada afirmación se revisaron los nombres de los tests citados en el caso de uso, los valores de los caminos básicos en `donation-amount.test.js`, las dependencias entre rutas (`grep`) y las fechas de los commits (`git log`).
+- Términos del programa en el HTML: todos aparecen al menos una vez (`grep -i`).
+
+### Errores propios
+- **El primer diseño del test de transiciones tenía un punto ciego.** Los proyectos empezaban con el cupo en 0 y `RELEASE_SLOT_SQL` tiene piso en 0. Por eso "cancelar una pendiente resta un cupo" iba a sobrevivir. Lo vi al armar la lista de mutantes, antes de correrlos, y el test pasó a arrancar con otra persona aprobada.
+- **En el borrador de la sección 4 puse números sin respaldo**, que se corrigieron antes del commit:
+  - "la mayoría de los ~1.800 tests en la base de la pirámide": en realidad son 906 de backend contra 904 de frontend, así que la base no es más ancha que el medio, y el informe ahora lo dice;
+  - "82 archivos de componentes": incluyen tests de `lib/`;
+  - "4 runs hasta el primer verde" en la prueba de concepto: es CI #4 → #5;
+  - "SonarCloud encontró en un día 39 bugs": es "el primer análisis marcó 39".
+- En `METRICAS.md` escribí primero que ninguna ruta dependía de otra salvo `fmt`. El `grep` mostró 4 dependencias: también `fmtNgo` y `validateEmail`.
+- **El primer script de acoplamiento salió con 0 dependencias.** Bash se comió las barras invertidas del regex del heredoc (el mismo problema de §235). Se reescribió con Write.
+
+### ⚠️ NO verificado
+- **El aspecto del PDF** (17 páginas): no puedo renderizarlo. Conviene revisar las tablas largas de la sección 4 y los bloques de código.
+- **El CI con el test nuevo:** no se pusheó. Los 23 tests se corrieron solo en local (Windows). El informe lo aclara en la fila de transición de estados.
+- **La estimación "real":** la hora de un commit no es esfuerzo medido. Que T0–T13 se cerraran el 17/10 sale del `git log`, no de un registro de horas.
+- **El acoplamiento** cuenta solo imports relativos estáticos y los `import()` con texto literal. No es una herramienta estándar y no se comparó con ninguna.
+- `email-redos.test.js` no se tocó (regla 16): queda para decidir si se sube el umbral o se corre aislado.

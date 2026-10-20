@@ -17,6 +17,7 @@
 | 0.7 | 2026-10-17 | Diseño de casos, AAA y rojo/verde en `DISENO_CASOS.md` (T6 y T7, §199) |
 | 0.8 | 2026-10-17 | Registro de defectos en GitHub Issues (#2–#19) y trazabilidad completa en `REGISTRO_DEFECTOS.md` (T12, §204) |
 | 0.9 | 2026-10-17 | §2.1 objetivos por perspectiva (usuario, equipo y organización) con la práctica que los sostiene (eje 1, §207) |
+| 1.0 | 2026-10-19 | §10: la plantilla de caso suma **datos de prueba** y **postcondiciones**, con un caso completo de ejemplo; ciclo de vida del defecto (reportado → triage → asignado → verificado → cerrado) contra lo que pasó de verdad (§237) |
 
 El documento se versiona en git: cada cambio entra en un commit propio y suma una fila a esta tabla.
 
@@ -183,12 +184,29 @@ reintenta hasta entender la causa.
 |---|---|
 | Id | `CP-<área>-<n>` (p. ej. `CP-DON-03`) |
 | Requisito | `RF-<n>` (§10, tabla de trazabilidad) |
-| Técnica | Clase de equivalencia / valor límite / tabla de decisión / flujo |
-| Precondición | Datos y sesión necesarios |
-| Pasos | Pedido o acción, con los datos de entrada |
-| Resultado esperado | Código HTTP, cuerpo y estado de la base |
+| Técnica | Clase de equivalencia / valor límite / tabla de decisión / transición de estados / caso de uso / caminos básicos |
+| Precondiciones | Estado del sistema y sesión necesarios antes de empezar |
+| Datos de prueba | Los valores exactos de entrada |
+| Pasos | Pedido o acción, en orden |
+| Resultado esperado | Código HTTP y cuerpo de la respuesta |
+| Postcondiciones | Cómo queda el sistema después (base, contadores, servicios externos llamados o no) |
 | Automatización | Archivo y nombre del test |
 | Defecto asociado | `#<n>` de GitHub Issues, si lo hubo |
+
+**Ejemplo completo** (es uno de los tests de `enrollments-state-transitions.test.js`):
+
+| Campo | Contenido |
+|---|---|
+| Id | `CP-INS-11` |
+| Requisito | RF-4 Inscribirse sin pasar el cupo |
+| Técnica | Transición de estados (transición inválida) |
+| Precondiciones | Proyecto activo de la ONG "Sustentando" con 3 cupos; Juan aprobado (1 cupo ocupado); María inscripta y **aprobada** (2 ocupados); sesión de la ONG |
+| Datos de prueba | `PATCH /api/enrollments/<id de María>` con `{ "status": "pending" }` |
+| Pasos | 1. La ONG manda el pedido. 2. Se lee el estado de la inscripción y el cupo del proyecto |
+| Resultado esperado | **400** `{ "error": "Status debe ser: approved o rejected" }` |
+| Postcondiciones | María sigue **aprobada**; el cupo ocupado sigue en **2** (los dos, verificados por el test). No se notifica a nadie: el 400 sale antes de leer la base (por lectura del código, el test no lo mira) |
+| Automatización | `enrollments-state-transitions.test.js` → "APROBADA --pedirPending--> APROBADA (400, cupo de María 1)" |
+| Defecto asociado | — |
 
 ### Plantilla de defecto (GitHub Issues)
 
@@ -205,6 +223,20 @@ Título: `[DEF] <qué falla, en una línea>` · Labels: `defecto`, severidad (`s
 | Resultado obtenido | Con el error exacto |
 | Evidencia | Salida del test en rojo, run del pipeline, log |
 | Corrección | Commit del fix y test de regresión (en verde) |
+
+### Ciclo de vida del defecto
+
+| Estado | Qué significa acá | Dónde queda |
+|---|---|---|
+| **Reportado** | Se describe con pasos, esperado y obtenido | Hallazgo en `REVISION.md`, run rojo del CI, issue de SonarCloud o aviso del usuario en producción; después, el Issue con la plantilla |
+| **Triage** | Se clasifica y se decide si se arregla | Labels `sev:alta/media/baja`, `encontrado:…`, `area:…`; o se **acepta** con justificación (`TRIAGE_SONAR.md`) |
+| **Asignado** | Alguien se hace cargo | **No se usó el campo "asignado"** de GitHub: el equipo es de dos personas y se repartió de palabra |
+| **Verificado** | La prueba de regresión pasa de rojo a verde | El test citado en el Issue, en verde en el CI |
+| **Cerrado** | Se cierra con el commit del arreglo | Issue cerrado, con el commit y el test |
+
+**Honestidad:** los 18 Issues (#2–#19) se cargaron el 17/10, **después** de arreglar los defectos: cada uno se abrió y
+se cerró a los pocos segundos. El ciclo real (reportado → triage → verificado → cerrado) pasó en `REVISION.md` y en
+los commits; los Issues lo registran a posteriori. Para un defecto nuevo, el Issue se abre al reportarlo.
 
 ### Trazabilidad requisito → caso → defecto (inicial)
 
