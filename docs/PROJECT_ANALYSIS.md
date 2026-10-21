@@ -6606,3 +6606,35 @@ Las secciones siguientes pasan de 4–7 a 5–8 (índice, títulos y la referenc
 - **La estimación "real":** la hora de un commit no es esfuerzo medido. Que T0–T13 se cerraran el 17/10 sale del `git log`, no de un registro de horas.
 - **El acoplamiento** cuenta solo imports relativos estáticos y los `import()` con texto literal. No es una herramienta estándar y no se comparó con ninguna.
 - `email-redos.test.js` no se tocó (regla 16): queda para decidir si se sube el umbral o se corre aislado.
+
+## 239. Rediseño del frontend: análisis, DESIGN 1.1 y plan (sin código)
+
+### Qué se hizo
+- **`docs/DESIGN.md` v1.1:** el borrador del sistema de diseño (`DESIGN2.md`, recibido en el chat) entra al repo corregido y completado.
+  - Cinco contradicciones corregidas: el punto de no leído era azul (el azul es solo dinero), el mapa era Google Maps (se queda Leaflet), el pago era Bricks y la donación mensual se daba por hecha (se queda Checkout Pro y el control mensual no se muestra), el estado "Entrevista" no existe en `enrollments`, y faltaban los estados "no seleccionado", "la ONG no recibe donaciones" y "quien mira es una organización".
+  - Secciones que estaban como pendientes: logo, navegación por rol, portada del visitante, registro e ingreso, notificaciones, configuración, validación de ONGs, reportes de impacto, asistente, hojas/diálogos/avisos y crear voluntariado.
+  - Notas donde el diseño pide datos que el backend no tiene.
+- **`docs/PLAN_REDISENO_FRONTEND.md`:** análisis del frontend actual (en números, lo que se queda, problemas visuales y de estructura, brechas con el backend), decisiones, arquitectura nueva con cuatro ejemplos de código, fases F0–F10, cambios de backend B1–B10 para decidir aparte, pruebas, riesgos y preguntas abiertas.
+- **Lienzo de diseño** (claude.ai, privado; link en el plan): 23 mesas de trabajo. Las versiones "antes" son capturas reales de la app en local; las "después", HTML con los tokens del DESIGN. Cubren sistema, Inicio (celular y escritorio), voluntariado, inscripción, donación, Explorar, perfil, Mis voluntariados, Mensajes y el panel de la ONG, más cuatro pantallas nuevas (registro, notificaciones, configuración y validación de la ONG). Inicio y voluntariado tienen un interruptor de modo oscuro.
+
+### Verificación
+- Las cuentas del análisis salen de `grep`/`wc` sobre `frontend/src`: 57 componentes sin tests (11.503 líneas), 61 colores `#hex`, 76 textos de 10–11 px, 8 `alert()` y 5 `window.confirm()`, 38 variables en `:root` de `theme.css`, `fonts.css` y `globals.css` vacíos, `lang="en"`.
+- Las brechas con el backend se revisaron en el código, no en los documentos:
+  - `fecha_inicio`/`fecha_fin` existen en `projects` y `fmt()` no las devuelve;
+  - `enrollments` no guarda el rol y `project_roles.cantidad` sí existe;
+  - `empresa_voluntariados` no tiene lugares reservados;
+  - no hay tabla de intereses: `/projects/recommended` los deduce del historial;
+  - `accepts_donations` solo viene en `ProjectDetail`.
+- Las capturas "antes" se sacaron con Chrome headless por CDP (script en el scratchpad, no en el repo) contra `npm run dev`, como `maria@example.com` y como la ONG Banco de Alimentos.
+- No se cambió código: no se corrieron las suites (siguen 930/932 y 904 de §238).
+
+### Errores propios
+- **La primera tanda de capturas mostró "Error al obtener proyecto"** en el detalle. La base SQLite local no tenía `posts` ni `ngo_cuentas_mp`. Se corrió `npm run db:migrate` (aditivo; antes se comprobó `USE_POSTGRES=false`) y se volvieron a sacar. Solo cambió la base local de desarrollo.
+- **Tres afirmaciones del DESIGN eran falsas y se corrigieron antes del commit:** el onboarding "guardaba intereses", la inscripción "elegía un rol" y la doble meta mostraba "lugares reservados por empresas". Ninguna de las tres existe en el backend; ahora cada una lleva su nota.
+- En el borrador del plan puse "7 `window.confirm`": eran 5, porque `grep` contó también 3 comentarios que dicen "sin window.confirm". Corregido antes del commit.
+
+### ⚠️ NO verificado
+- **Los mockups "después" no son la app.** Algunos datos son de muestra: fechas, destinos del dinero, "Seguido por", lugares reservados, comentarios, roles y cupos por rol, horarios recurrentes.
+- **El contraste del modo oscuro** no se midió combinación por combinación; los valores son los del DESIGN.
+- **Cómo se ve el lienzo en el navegador:** no se abrió ni se capturó después de publicarlo.
+- **El tamaño de las fases** (S/M/L) es una estimación, no una medida.
