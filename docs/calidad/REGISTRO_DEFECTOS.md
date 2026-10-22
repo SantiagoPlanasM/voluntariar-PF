@@ -3,15 +3,16 @@
 > TP de Calidad, ejes 6 y 8 (T12). Fuente: los defectos ya documentados en `REVISION.md` y `PROJECT_ANALYSIS.md`
 > (nada inventado). Cada uno tiene su Issue en GitHub con la plantilla de `PLAN_PRUEBAS.md §10`
 > (`.github/ISSUE_TEMPLATE/defecto.md`), el commit del arreglo y su prueba de regresión.
-> Generado desde un único archivo de datos para que el registro y los Issues digan lo mismo.
+> Generado desde un único archivo de datos para que el registro y los Issues digan lo mismo (D01–D18). D19–D21 se
+> agregaron a mano el 22/10 (§244), con el mismo formato y el texto de sus Issues (#20–#22).
 
 ## Resumen
 
-- **18 defectos.** Severidad: alta 2 · media 8 · baja 8.
-- **Dónde se encontraron:** revisión de código 6 · pipeline/CI 4 · SonarCloud 3 · mutation testing 1 · **producción 4**.
-- **Tasa de defectos escapados a producción** (métrica de proceso, T11): 4 de 18 = **22.2 %** **de este registro**. Ojo: el registro es una **selección** (abajo); con todos los hallazgos de `REVISION.md`, que se encontraron antes de producción, el denominador sería mucho mayor y la tasa, menor. Para el informe vale como "sobre los defectos registrados", no como tasa del proceso completo.
+- **21 defectos.** Severidad: alta 2 · media 10 · baja 9.
+- **Dónde se encontraron:** revisión de código 6 · pipeline/CI 5 · SonarCloud 3 · mutation testing 1 · suite de regresión 2 · **producción 4**.
+- **Tasa de defectos escapados a producción** (métrica de proceso, T11): 4 de 21 = **19,0 %** **de este registro** (era 4 de 18 = 22,2 % antes del rediseño del frontend, §240). Ojo: el registro es una **selección** (abajo); con todos los hallazgos de `REVISION.md`, que se encontraron antes de producción, el denominador sería mucho mayor y la tasa, menor. Para el informe vale como "sobre los defectos registrados", no como tasa del proceso completo.
 - Todos corregidos, y todos con prueba de regresión que corre en el CI (salvo D08, que era un defecto del propio test, y D09/D10, que se verifican en el run siguiente).
-- **No se registran como defectos** (son mejoras o decisiones): el hallazgo 4 de §173 (los avisos que salían bien no dejaban línea en los logs: observabilidad) y las issues de SonarCloud que resultaron falsos positivos (`TRIAGE_SONAR.md`). Los defectos de REVISION.md que no figuran acá también están corregidos (ver su tabla); se eligieron los de mayor severidad o con prueba de regresión propia.
+- **No se registran como defectos** (son mejoras o decisiones): el hallazgo 4 de §173 (los avisos que salían bien no dejaban línea en los logs: observabilidad) y las issues de SonarCloud que resultaron falsos positivos (`TRIAGE_SONAR.md`). Tampoco la promesa sin `void` de `MyParticipation` que SonarCloud marcó como bug en `7b05f02` (§243): `Promise.allSettled` no rechaza nunca, así que no había un fallo posible; es mantenibilidad. Ni el aviso de `vite` 6.4.3 que hizo fallar `npm audit` en el CI #34 (§242): es una vulnerabilidad de una dependencia, publicada después de instalarla, no un defecto del código. Los defectos de REVISION.md que no figuran acá también están corregidos (ver su tabla); se eligieron los de mayor severidad o con prueba de regresión propia.
 
 ## Registro
 
@@ -35,6 +36,9 @@
 | D16 | [#17](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/17) | Mercado Pago: se suponía que las credenciales de prueba empiezan con TEST- (las nuevas son APP_USR-) | baja | producción (usuario) | RF-6 | CP-DON-09 (unit/payments.test.js: con APP_USR- no afirma el modo) | `8bd863a` |
 | D17 | [#18](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/18) | La ONG no tenía dónde ver sus notificaciones (la de una donación se creaba pero no se veía) | media | producción (usuario) | RF-14 | CP-NOT-02 (frontend NGONotifications.test.tsx) | `8bd863a` |
 | D18 | [#19](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/19) | Lo recaudado en donaciones no se ve si el proyecto no tiene meta de financiamiento | baja | producción (usuario) | RF-6 | CP-DON-10 (frontend ProjectDetailsDonate.test.tsx) | `8bd863a` |
+| D19 | [#20](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/20) | Rediseño: la ONG y la empresa no tenían cómo llegar a las notificaciones en el celular | media | suite de regresión | RF-14 | CP-NOT-02 (frontend NGONotifications.test.tsx) y layout/AppShell.test.tsx | `37b13e8` |
+| D20 | [#21](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/21) | Rediseño: un clic en el fondo cerraba el compositor y se perdían las fotos | media | suite de regresión | — | frontend PostComposer.test.tsx ("clic en el fondo NO cierra") | `37b13e8` |
+| D21 | [#22](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/22) | La reseña propia se precargaba un render tarde (test intermitente en el CI #34) | baja | pipeline / CI | — | frontend ProjectDetailsRating.test.tsx | `d7d5a48` |
 
 ## Trazabilidad por requisito
 
@@ -45,7 +49,7 @@
 | RF-11 Comentarios con filtro de palabras | D04 ([#5](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/5)) |
 | RF-12 Patrocinios | D06 ([#7](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/7)) |
 | RF-13 KPIs del proyecto | D05 ([#6](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/6)) |
-| RF-14 Notificaciones | D17 ([#18](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/18)) |
+| RF-14 Notificaciones | D17 ([#18](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/18)), D19 ([#20](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/20)) |
 | RF-3 Listar y buscar proyectos | D02 ([#3](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/3)), D13 ([#14](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/14)) |
 | RF-6 Donar con Mercado Pago | D12 ([#13](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/13)), D15 ([#16](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/16)), D16 ([#17](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/17)), D18 ([#19](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/19)) |
 | RF-7 CV privado | D07 ([#8](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/8)) |
@@ -53,6 +57,7 @@
 | — (proceso: confiabilidad de la suite) | D08 ([#9](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/9)) |
 | — (proceso: los números del informe tienen que coincidir con el pipeline) | D09 ([#10](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/10)) |
 | — (proceso: quality gate) | D10 ([#11](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/11)) |
+| — (publicaciones y reseñas: sin RF propio en el plan) | D20 ([#21](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/21)), D21 ([#22](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/22)) |
 
 ## Detalle
 
@@ -235,3 +240,33 @@
 - **Esperado:** se ve "Recaudado en donaciones: $X"
 - **Obtenido:** ProjectDetails mostraba el financiamiento solo con meta: la donación no se veía
 - **Arreglo:** `8bd863a` · **Regresión:** frontend ProjectDetailsDonate.test.tsx (+3)
+
+### D19 — Rediseño: la ONG y la empresa no tenían cómo llegar a las notificaciones en el celular
+
+- **Issue:** [#20](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/20) · **Severidad:** media · **Encontrado en:** suite de regresión (local, antes del commit) · **Área:** frontend
+- **Requisito:** RF-14 Notificaciones · **Caso:** CP-NOT-02 (frontend NGONotifications.test.tsx) y layout/AppShell.test.tsx
+- **Origen:** PROJECT_ANALYSIS.md §240 · **Entorno:** Local (Vitest + jsdom), sobre el rediseño sin commitear
+- **Pasos:** (1) Entrar como ONG o como empresa en un ancho de celular (2) Buscar cómo llegar a las notificaciones
+- **Esperado:** hay un acceso a las notificaciones también en el celular (el mismo requisito que corrigió D17)
+- **Obtenido:** en el borrador del rediseño no había ningún acceso a las notificaciones en el celular para esos dos roles
+- **Arreglo:** antes del commit; entra en `37b13e8` · **Regresión:** NGONotifications.test.tsx (campanita del encabezado) y AppShell.test.tsx ("empresa: Notificaciones también en la barra inferior")
+
+### D20 — Rediseño: un clic en el fondo cerraba el compositor y se perdían las fotos
+
+- **Issue:** [#21](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/21) · **Severidad:** media · **Encontrado en:** suite de regresión (local, antes del commit) · **Área:** frontend
+- **Requisito:** — (publicaciones con fotos; sin RF propio en el plan) · **Caso:** frontend PostComposer.test.tsx
+- **Origen:** PROJECT_ANALYSIS.md §240 · **Entorno:** Local (Vitest + jsdom), sobre el rediseño sin commitear
+- **Pasos:** (1) Abrir el compositor y elegir fotos (2) Hacer clic en el fondo, fuera del diálogo
+- **Esperado:** el compositor sigue abierto y conserva las fotos
+- **Obtenido:** se cerraba y se perdían las fotos
+- **Arreglo:** antes del commit; entra en `37b13e8` · **Regresión:** PostComposer.test.tsx ("clic en el fondo NO cierra (se perderían las fotos)")
+
+### D21 — La reseña propia se precargaba un render tarde (test intermitente en el CI #34)
+
+- **Issue:** [#22](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/22) · **Severidad:** baja · **Encontrado en:** pipeline / CI (CI #34) · **Área:** frontend
+- **Requisito:** — (reseñas del proyecto; sin RF propio en el plan) · **Caso:** frontend ProjectDetailsRating.test.tsx
+- **Origen:** PROJECT_ANALYSIS.md §241 · **Entorno:** CI (job "Frontend · tests · UTC" del CI #34); en local pasaba siempre
+- **Pasos:** (1) Entrar como voluntario que ya calificó un proyecto (2) Abrir el detalle del proyecto
+- **Esperado:** cuando aparece la sección "Reseñas", el formulario ya muestra la nota y el comentario propios
+- **Obtenido:** la precarga corría en un `useEffect`: había un render con la sección visible y el formulario en 5 estrellas y vacío (en el navegador, un parpadeo de un frame). El test lo encontraba a veces
+- **Arreglo:** `d7d5a48` (`useLayoutEffect`) · **Regresión:** ProjectDetailsRating.test.tsx, sin cambios

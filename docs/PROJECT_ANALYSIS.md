@@ -6763,3 +6763,47 @@ Las secciones siguientes pasan de 4–7 a 5–8 (índice, títulos y la referenc
 ### ⚠️ NO verificado
 - **Que SonarCloud dé el issue por cerrado y el gate vuelva a A:** se ve en el próximo análisis de la CI.
 - **No es "tests primero":** el cambio no altera el comportamiento, así que no hay rojo posible.
+
+## 244. Informe del TP: corte en `7b05f02` (CI #36 / Deploy #29) y sección nueva del rediseño del frontend
+
+### Qué se hizo
+- **El pedido:** después del pull de §239–§243, el usuario pidió volver al informe con el rediseño del frontend y eligió el CI #36 como corte. El CI #37 (`b7e17c2`) quedó cancelado: todos los tests y SonarCloud en verde, pero el paso `npm audit` del backend se colgó 10 minutos y lo cortó el límite de tiempo.
+- **Informe (`INFORME_TP_CALIDAD.html` y PDF):**
+  - corte movido de `d7efe16` (CI #29) a `7b05f02` (CI #36), con 930/932/939 tests, la cobertura del CI #36, SonarCloud de `b7e17c2` (16.582 líneas, 1,3 %, 4.331/2.813, código nuevo 90,8 %), la tasa del pipeline (CI 28/31 = 90,3 %, Deploy 19/23 = 82,6 %), el tiempo hasta volver a verde del CI #34 (15,8 min), la densidad (154,6 y 88,8 tests/KLOC), 21 defectos, 69 commits y los enlaces del anexo;
+  - **sección nueva "7. El rediseño del frontend: la suite como red de regresión"**: mantenimiento de las pruebas (244 → 131 → 0 rojos), las 5 regresiones que encontró la suite antes del commit, el test intermitente que era un defecto (D21), lo que vieron SonarCloud y `npm audit` y no los tests, la tabla de antes y después, y lo que se hizo mal (no fue tests primero, tests de caracterización) y lo que no se verificó (lo visual);
+  - las secciones 7–9 pasan a 8–10; el análisis crítico, las conclusiones y el trabajo futuro suman el rediseño y la diferencia entre los dos gates (en `7b05f02` SonarCloud quedó en rojo por un bug mayor y el gate del TP pasó);
+  - un estilo para el `code` dentro de los encabezados de tabla (salía blanco sobre fondo claro);
+  - PDF regenerado con Chrome headless: **20 páginas** (antes 17).
+- **Defectos D19–D21**, con Issues #20–#22 creados y cerrados con su commit, en `REGISTRO_DEFECTOS.md`:
+  - D19, las notificaciones de la ONG y la empresa en el celular, y D20, un clic en el fondo cerraba el compositor; los dos con el label nuevo `encontrado:regresion`;
+  - D21, el test intermitente de la reseña (§241).
+  - Quedan 21 defectos, con 19,0 % de escapados (4 de 21).
+  - No se registraron la promesa sin `void` (§243: `allSettled` no rechaza, no había fallo posible) ni el aviso de `vite` (§242: es de una dependencia). El registro dice por qué.
+- **`METRICAS.md`:**
+  - acoplamiento del frontend después del rediseño (77 módulos, 306 dependencias, Ce 3,97);
+  - fila del CI #34 en el tiempo hasta volver a verde y densidad del CI #36;
+  - sección 5 nueva, con la comparación del CI #29 contra el CI #36.
+- **`PLAN_PRUEBAS.md`:** tasa de escapados 4/21 y la nota de los Issues cargados a posteriori.
+
+### Verificación
+- **Fuentes de cada número:**
+  - tests y cobertura: `gh run view 39700097615 --log`, del job en UTC; Córdoba dio lo mismo en el frontend;
+  - corridas: `gh run list` por workflow;
+  - SonarCloud: API pública (`measures/search_history` para `7b05f02` y `b7e17c2`, `component_tree` para la cognitiva por archivo);
+  - el Deploy #29 corrió el smoke y el E2E en verde, y los Deploys #25 y #26 también.
+- **Acoplamiento:** el script de §238 no estaba en el repo y se reescribió. Corrido sobre `git archive d7efe16`, dio exactamente lo de `METRICAS.md` (33/101 y 69/245, mismos mayores Ce y Ca), y recién después se midió el estado actual.
+- **El backend no cambió** entre `d7efe16` y `7b05f02` (`git diff --stat` vacío en `backend/src`), así que la sección 5 del informe sigue valiendo.
+- **Reemplazos del informe:** se hicieron con un script que exige una sola aparición de cada texto. Las menciones que quedan de `d7efe16`, CI #29 y 904 son filas del historial.
+- **La sección 7 se miró renderizada** (captura de Chrome headless de esa sección sola). Así apareció el `code` ilegible en el encabezado de la tabla 7.5.
+- No se corrieron tests: no cambió código.
+
+### Errores propios
+- **Usé `sed -i` una vez sobre el HTML del informe** (para cambiar "16" por "15,8" minutos). El archivo es LF, así que no cambió los saltos de línea, pero CLAUDE.md pide no usarlo.
+- **En el primer resumen al usuario hablé de "6 regresiones".** §240 lista 5 (una junta "Cancelar" y "Limpiar búsqueda"). El informe dice cinco.
+
+### ⚠️ NO verificado
+- **Qué test exacto encontró D19:** la corrida roja de §240 no quedó guardada. El Issue cita los tests que hoy cubren el caso (`NGONotifications`, la campanita, y `AppShell`).
+- **El PDF completo:** no hay `pdftoppm`. Solo se miró la sección 7 en HTML; conviene revisar los saltos de página de las 20 páginas.
+- **Por qué se colgó `npm audit` en el CI #37:** parece una demora del registro de npm, pero no lo investigué. Re-correr el CI #37 daría un run en verde sobre `b7e17c2`.
+- **Producción:** sigue en `7b05f02` (Deploy #29). `b7e17c2` no se desplegó.
+- **Este commit no se pusheó.**

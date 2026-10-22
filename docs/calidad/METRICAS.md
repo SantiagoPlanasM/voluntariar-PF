@@ -47,12 +47,14 @@
 SonarCloud no informa acoplamiento para JavaScript. Se midió con un script que recorre los `require`/`import`
 **relativos** de cada módulo de producción (sin tests ni paquetes de npm): **Ce** (eferente, a cuántos módulos
 propios depende), **Ca** (aferente, cuántos dependen de él) e inestabilidad **I = Ce / (Ca + Ce)** (0 = estable,
-1 = inestable). El script no quedó en el repo (§237).
+1 = inestable). El script no quedó en el repo (§237). El 22/10 se reescribió (§244) y, corrido sobre `d7efe16`, dio
+exactamente los mismos números de la tabla (33/101 y 69/245) antes de medir el rediseño.
 
 | | Módulos | Dependencias | Ce promedio | Mayor Ce | Mayor Ca |
 |---|---|---|---|---|---|
 | Backend (`backend/src`) | 33 | 101 | 3,06 | `index.js` (19: monta todas las rutas) | `db/index.js` (15), `middleware/auth.js` (13), `lib/inputs.js` (8) |
 | Frontend (`frontend/src`) | 69 | 245 | 3,55 | `app/routes.tsx` (30: todas las pantallas) | `lib/api.ts` (49), `lib/AuthContext.tsx` (38), `lib/format.ts` (28) |
+| Frontend, después del rediseño (`7b05f02`, §240) | 77 | 306 | 3,97 | `app/routes.tsx` (32), `ProjectDetails.tsx` (15) | `lib/api.ts` (49), `lib/AuthContext.tsx` (32), `lib/format.ts` (29), `app/ui/Button.tsx` (20) |
 
 **Lectura:**
 - Los módulos con mayor Ce son los puntos de armado (`index.js`, `routes.tsx`), lo esperable.
@@ -81,13 +83,14 @@ propios depende), **Ca** (aferente, cuántos dependen de él) e inestabilidad **
 |---|---|---|---|
 | CI #4 | `node --test <carpeta>` no corría los tests del gate | CI #5 | **5,1 min** |
 | CI #7 | El gate: 2 bugs críticos de SonarCloud | CI #8 | **30,0 min** (triage + 4 correcciones con tests) |
+| CI #34 | Un test intermitente (D21) y un aviso nuevo de `vite` en `npm audit` (§240–§242) | CI #36 | **15,8 min** (dos commits: `d7d5a48` y `7b05f02`) |
 | Deploy #1, #2, #3 | Login 401, la cuenta era una ONG, email mal cargado | Deploy #4 | 38,6 / 18,4 / 7,0 min |
 
 **Lectura:** las fallas del código se corrigieron en minutos y siempre en un commit posterior, sin reescribir el run fallido (decisión del usuario). Las de configuración tardaron más porque dependían de pasos manuales (crear la cuenta, cargar los secretos).
 
 ### 2.3 Defectos escapados a producción (`REGISTRO_DEFECTOS.md`)
 
-**4 de 18 = 22,2 % sobre el registro.** El registro es una **selección**: con todos los hallazgos de `REVISION.md`, encontrados antes de producción, la tasa sería mucho menor. Los 4 escapados (D07, D16, D17, D18) son de **flujos que dependen de un servicio externo o de lo que ve otro rol** (el panel de la ONG después de una donación real): justo lo que las pruebas con dobles no ven. Es el argumento para el E2E contra Mercado Pago en cada deploy (§193–§196).
+**4 de 21 = 19,0 % sobre el registro** (4 de 18 = 22,2 % antes del rediseño del frontend: D19–D21 no llegaron a producción). El registro es una **selección**: con todos los hallazgos de `REVISION.md`, encontrados antes de producción, la tasa sería mucho menor. Los 4 escapados (D07, D16, D17, D18) son de **flujos que dependen de un servicio externo o de lo que ve otro rol** (el panel de la ONG después de una donación real): justo lo que las pruebas con dobles no ven. Es el argumento para el E2E contra Mercado Pago en cada deploy (§193–§196).
 
 ## 3. Métrica de proyecto: densidad de pruebas
 
@@ -98,6 +101,8 @@ propios depende), **Ca** (aferente, cuántos dependen de él) e inestabilidad **
 | Backend | 807 (sin `helpers.js`) | 5,546 | **145,5 tests/KLOC** |
 | Frontend | 699 | 11,537 | **60,6 tests/KLOC** |
 | Frontend, CI #19 (§209–§211) | 864 | 11,386 | **75,9 tests/KLOC** |
+| Backend, CI #36 (§244) | 929 (sin `helpers.js`) | 6,008 | **154,6 tests/KLOC** |
+| Frontend, CI #36 (rediseño, §240) | 939 | 10,574 | **88,8 tests/KLOC** |
 
 **Lectura:** el backend tiene **2,4 veces más pruebas por línea** que el frontend. Es coherente con la cobertura (backend 92,9 % de líneas contra 83,3 %) y con dónde estuvo el esfuerzo de calidad: la plata, los cupos y la autorización viven en el backend. Si el proyecto sigue, el frontend es donde conviene sumar pruebas, sobre todo de ramas (74 %). **Actualización (CI #19):** con §209–§211 el frontend pasó a 75,9 tests/KLOC y a 81,18 % de ramas; el backend sigue teniendo casi el doble de densidad.
 
@@ -114,6 +119,30 @@ propios depende), **Ca** (aferente, cuántos dependen de él) e inestabilidad **
 **Issues abiertas: 157 → 63** (todas cosméticas). Sin tocar comportamiento, salvo en los 2 defectos de seguridad reales (ReDoS e inyección en logs) y las tarjetas que no se podían usar con el teclado, que **sí** cambiaron el comportamiento, a propósito y con tests.
 
 **Salvedad:** el primer análisis de la historia (15:46, 33.577 líneas) es del **análisis automático** de SonarCloud, que corrió antes de apagarlo y contaba los tests como código: **no se usa como línea de base**.
+
+## 5. Actualización al corte del CI #36 (22/10/2026, rediseño del frontend)
+
+Fuentes: log del CI #36 (`7b05f02`, https://github.com/SantiagoPlanasM/voluntariar-PF/actions/runs/39700097615, valores del job en UTC; Córdoba dio lo mismo), `gh run list` y la API pública de SonarCloud (§244).
+
+| Métrica | CI #29 (`d7efe16`) | CI #36 (`7b05f02`) |
+|---|---|---|
+| Tests backend SQLite / Postgres | 907 / 909 | **930 / 932** (+23 de la transición de estados, §238) |
+| Tests frontend | 904 | **939** (79 archivos) |
+| Cobertura backend (líneas / ramas / funciones) | 93,22 / 85,40 / 90,21 | **93,22 / 85,45 / 90,21** |
+| Cobertura frontend (líneas / sentencias / ramas / funciones) | 90,42 / 86,79 / 81,57 / 82,66 | **90,78 / 87,20 / 83,48 / 83,28** |
+| ncloc (SonarCloud) | 17.594 | **16.582** (backend 6.008, frontend 10.574) |
+| Duplicación | 1,9 % | **1,3 %** |
+| Complejidad ciclomática / cognitiva | 4.245 / 2.856 | **4.331 / 2.813** (la más alta sigue siendo `routes/projects.js`, 333; en el frontend, `ProjectDetails.tsx`, 112) |
+| Bugs / vulnerabilidades / code smells | 0 / 0 / 0 | **1** / 0 / 0 en `7b05f02` (fiabilidad **C**, gate de SonarCloud en rojo); 0 / 0 / 0 y A en `b7e17c2` (§243) |
+| Cobertura del código nuevo (SonarCloud) | 93,0 % | 90,8 % (análisis de `b7e17c2`) |
+| Tasa del pipeline | CI 25/27 (92,6 %), Deploy 16/20 (80 %) | **CI 28/31 (90,3 %)**, **Deploy 19/23 (82,6 %)** |
+
+**Lectura:**
+- El rediseño **bajó** el código del frontend (de 11.386 a 10.574 ncloc) y la duplicación, y subió la cobertura en las cuatro métricas: se borraron 7 componentes: las 5 barras de navegación que se repetían por rol, el widget del chatbot y las pestañas del inicio.
+- El acoplamiento del frontend **subió** (Ce promedio 3,55 → 3,97): el kit `app/ui/` es un módulo nuevo del que dependen muchos (`Button`, Ca = 20). Es acoplamiento hacia módulos estables, que es el bueno; `ProjectDetails.tsx` es a la vez el más complejo y el que más depende de otros (Ce = 15).
+- CI: 36 runs, 5 cancelados por un push posterior (#24, #25, #30, #31, #35), 3 fallidos (#4, #7, #34). Deploy: 29 runs; 6 salteados porque los disparó un CI que no terminó en verde (#17, #18, #23, #24 y #28 por CI cancelados; #27 por el CI #34 en rojo: **el rediseño con un test en rojo no se desplegó**).
+- La densidad de pruebas del frontend subió a 88,8 tests/KLOC: más tests sobre menos código. Ojo: 6.008 es el ncloc de la carpeta `backend/` entera (con scripts y migraciones), el mismo criterio que el 5,546 del CI #15.
+- Después del corte: el CI #37 (`b7e17c2`) dio verde en todos los tests y en SonarCloud, pero el paso `npm audit` del backend se colgó 10 minutos y lo cortó el límite de tiempo (run cancelado; no cuenta en la tasa).
 
 ## ⚠️ No verificado
 

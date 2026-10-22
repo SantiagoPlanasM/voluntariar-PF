@@ -62,7 +62,7 @@ proceso que lo sostienen. Valores al 2026-10-17 (CI #15, SonarCloud, Carga #1, r
 | Equipo | Un rojo se arregla rápido | Tiempo hasta volver a verde < 1 h | Corrección en un commit posterior, sin reescribir el run (decisión del usuario) | 5,1 min y 30 min ✅ |
 | **Organización** | Sin costo de infraestructura para la demo | $0 | Planes gratuitos: Render, GitHub Actions (repo público), SonarCloud, Mercado Pago en modo prueba | $0 ✅ |
 | Organización | Dependencias sin vulnerabilidades conocidas | `npm audit` en 0 en los dos paquetes | Job `audit` del CI en cada push | 0 ✅ |
-| Organización | Pocos defectos llegan a producción | Defectos escapados / registrados | Revisión de código, SonarCloud y E2E contra el servicio real | 4/18 = 22,2 % sobre el registro (selección) ⚠️ |
+| Organización | Pocos defectos llegan a producción | Defectos escapados / registrados | Revisión de código, SonarCloud y E2E contra el servicio real | 4/21 = 19,0 % sobre el registro (selección) ⚠️ |
 | Organización | La demo no depende de la suerte | Plan de contingencia por dependencia + plan B local | §3 de este plan, `GUION_DEFENSA.md §6` | Documentado ✅; la base de Render vence el 14/11/2026 ⚠️ |
 
 ## 3. Plan de contingencia ante la caída de una dependencia crítica
@@ -234,7 +234,7 @@ Título: `[DEF] <qué falla, en una línea>` · Labels: `defecto`, severidad (`s
 | **Verificado** | La prueba de regresión pasa de rojo a verde | El test citado en el Issue, en verde en el CI |
 | **Cerrado** | Se cierra con el commit del arreglo | Issue cerrado, con el commit y el test |
 
-**Honestidad:** los 18 Issues (#2–#19) se cargaron el 17/10, **después** de arreglar los defectos: cada uno se abrió y
+**Honestidad:** los 18 Issues (#2–#19) se cargaron el 17/10, y los 3 del rediseño (#20–#22) el 22/10, **después** de arreglar los defectos: cada uno se abrió y
 se cerró a los pocos segundos. El ciclo real (reportado → triage → verificado → cerrado) pasó en `REVISION.md` y en
 los commits; los Issues lo registran a posteriori. Para un defecto nuevo, el Issue se abre al reportarlo.
 
