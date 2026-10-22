@@ -203,7 +203,7 @@ export function CompanyOwnProfile() {
             {saveErr && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-xl">{saveErr}</p>}
 
             <button onClick={handleSave} disabled={saving}
-              className="w-full py-3 bg-violet-600 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60 hover:bg-violet-700 transition-colors">
+              className="w-full py-3 bg-ink text-on-ink rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60 hover:opacity-90 transition-[opacity]">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Guardar cambios
             </button>
@@ -245,7 +245,7 @@ export function CompanyOwnProfile() {
                         aria-label="Mensaje para la ONG" value={proposeMsg} onChange={e => setProposeMsg(e.target.value)}
                       />
                       <button onClick={handlePropose} disabled={proposing}
-                        className="w-full py-2 bg-violet-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-60 hover:bg-violet-700 transition-colors">
+                        className="w-full py-2 bg-ink text-on-ink rounded-xl text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-60 hover:opacity-90 transition-[opacity]">
                         {proposing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                         Enviar propuesta
                       </button>

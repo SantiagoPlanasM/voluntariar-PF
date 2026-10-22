@@ -241,7 +241,7 @@ export function ReviewsModal({
                   type="submit"
                   // Mientras cargan no se sabe si ya calificó: mandar ahí pisaría su reseña con 5 ★ (S4).
                   disabled={submitting || loading}
-                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                  className="px-4 py-2 bg-people hover:bg-people-pressed disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
                 >
                   {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>{editing ? 'Actualizar reseña' : 'Publicar reseña'}</span>

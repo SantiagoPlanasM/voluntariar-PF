@@ -91,7 +91,7 @@ export function MercadoPagoAccountSection({ go = (url: string) => window.locatio
           <div className="bg-red-50 rounded-xl p-3 space-y-2">
             <p className="text-xs text-red-700">Si la desvinculás, dejás de recibir donaciones hasta que vincules una cuenta otra vez.</p>
             <div className="flex gap-2">
-              <button type="button" onClick={disconnect} disabled={busy} className={`${btn} bg-red-600 text-white hover:bg-red-700`}>Sí, desvincular</button>
+              <button type="button" onClick={disconnect} disabled={busy} className={`${btn} bg-critical text-on-ink hover:opacity-90`}>Sí, desvincular</button>
               <button type="button" onClick={() => setConfirming(false)} disabled={busy} className={`${btn} bg-white text-gray-600 border border-gray-200`}>Cancelar</button>
             </div>
           </div>

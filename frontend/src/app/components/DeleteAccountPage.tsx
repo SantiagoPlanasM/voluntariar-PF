@@ -57,7 +57,7 @@ export function DeleteAccountPage() {
       {error && <p role="alert" className="text-red-600">{error}</p>}
       <div className="flex flex-wrap justify-center gap-2 pt-1">
         <button type="button" onClick={confirm} disabled={deleting}
-          className="px-4 py-2 rounded-xl text-sm font-bold bg-red-600 text-white hover:bg-red-700 disabled:opacity-60">
+          className="px-4 py-2 rounded-xl text-sm font-bold bg-critical text-on-ink hover:opacity-90 disabled:opacity-60">
           {deleting ? 'Borrando…' : 'Sí, borrar mi cuenta'}
         </button>
         {home}

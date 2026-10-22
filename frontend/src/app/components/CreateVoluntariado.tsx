@@ -202,7 +202,7 @@ export function CreateVoluntariado() {
                   active ? 'bg-blue-50 text-blue-700' : done ? 'text-emerald-600' : 'text-gray-400'
                 }`}>
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    done ? 'bg-emerald-500 text-white' : active ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-400'
+                    done ? 'bg-people text-white' : active ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-400'
                   }`}>
                     {done ? <Check className="w-3 h-3" /> : <Icon className="w-3 h-3" />}
                   </div>
