@@ -606,13 +606,13 @@ async function migrate() {
       respuesta: 'Entrá al proyecto que te interesa y tocá "Inscribirme". La ONG revisa tu inscripción y te avisamos por notificación cuando la aprueba o rechaza.',
       keywords: 'inscribir,inscribo,inscribirme,anotarme,participar,unirme,sumarme', orden: 1 },
     { categoria: 'voluntario', pregunta: '¿Cómo cancelo mi inscripción?',
-      respuesta: 'Desde "Mi Participación" podés ver tus inscripciones activas y cancelarlas si todavía no empezó el voluntariado.',
+      respuesta: 'Entrá a "Mis voluntariados", pestaña "Postulaciones": en la postulación tocá "···" y elegí "Cancelar postulación". Se puede mientras la ONG todavía no la respondió.',
       keywords: 'cancelar,cancelo,baja,anular,desinscribir', orden: 2 },
     { categoria: 'voluntario', pregunta: '¿Cómo edito mi perfil?',
-      respuesta: 'Andá a tu perfil y tocá el ícono de lápiz para editar tu foto, descripción, ubicación y habilidades.',
+      respuesta: 'Andá a tu perfil y tocá "Editar perfil" para cambiar tu foto, tu nombre, "Sobre mí", tu ubicación y tus habilidades.',
       keywords: 'perfil,editar,modificar,foto,datos', orden: 3 },
     { categoria: 'ngo', pregunta: '¿Cómo creo un nuevo voluntariado?',
-      respuesta: 'Desde el panel de tu ONG, tocá "Nuevo Voluntariado" y completá el formulario con título, descripción, cupos y categoría.',
+      respuesta: 'Desde el panel de tu ONG, tocá "Crear voluntariado" (en el celular, "Crear") y completá los tres pasos: Básico, Detalles y Extras.',
       keywords: 'crear,creo,publicar,armar,cargar,proyecto', orden: 1 },
     { categoria: 'ngo', pregunta: '¿Cómo apruebo o rechazo inscripciones?',
       respuesta: 'En el detalle de cada proyecto vas a ver la lista de inscriptos pendientes, con botones para aprobar o rechazar cada uno.',
@@ -628,13 +628,18 @@ async function migrate() {
       keywords: 'contactar,contacto,mensaje,chat,escribir,comunicarme', orden: 2 },
   ];
 
+  // Si la FAQ ya existe se actualiza solo la respuesta: una base ya migrada (producción) se quedaba con el texto
+  // viejo aunque cambiara acá (D24, §246). No hay forma de editar FAQs desde la app, así que el código es la fuente;
+  // `activo` y lo demás de la fila no se tocan.
   for (const f of faqs) {
-    const exists = await db.get('SELECT id FROM faqs WHERE pregunta=$1', [f.pregunta]);
+    const exists = await db.get('SELECT id, respuesta FROM faqs WHERE pregunta=$1', [f.pregunta]);
     if (!exists) {
       await db.run(
         `INSERT INTO faqs (categoria, pregunta, respuesta, keywords, orden) VALUES ($1,$2,$3,$4,$5)`,
         [f.categoria, f.pregunta, f.respuesta, f.keywords, f.orden]
       );
+    } else if (exists.respuesta !== f.respuesta) {
+      await db.run('UPDATE faqs SET respuesta=$1 WHERE id=$2', [f.respuesta, exists.id]);
     }
   }
   console.log(`  ✅ ${faqs.length} FAQs`);

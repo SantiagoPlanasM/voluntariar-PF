@@ -413,6 +413,8 @@
 ## Chatbot FAQ (`routes/faqs.js`)
 
 > Agregado 2026-09 (roadmap punto 9). Explícitamente **sin IA**: matching por keywords, sin embeddings ni LLM. Stateless — no hay tabla de historial de conversación.
+>
+> Las FAQs las carga `scripts/migrate.js`. Si la pregunta ya existe, **actualiza la respuesta** (no `activo` ni el resto de la fila): antes solo insertaba las nuevas y una base ya migrada se quedaba con el texto viejo (D24, §246). No hay forma de editar FAQs desde la app, así que el código es la fuente. Las respuestas nombran pantallas y botones del frontend: si se renombra uno, hay que cambiarlas (`test/integration/faqs-ui-names.test.js`).
 
 ### `GET /api/faqs?categoria=voluntario` — Público
 - Catálogo completo (para listar como acordeón), opcionalmente filtrado por `categoria` (`voluntario`/`ngo`/`general`).
