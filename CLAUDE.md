@@ -20,7 +20,7 @@ Respondé en español rioplatense (voseo).
   `docker run --rm -d -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=voluntariar_test postgres:16`.
 - Frontend: `npm test`. Hoy: **939** tests (§240, rediseño); cobertura local: sentencias 87,25 %, ramas 83,45 %, funciones 83,28 %, líneas 90,85 %. Cobertura: `npm run test:coverage` (§185; reportes en `frontend/reports/`, ignorado por git). Tipos: `npm run typecheck` (TypeScript 7, instalado el 2026-10-14). Hoy: **0 errores** (§68–§69). Nunca `npx tsc`: el paquete `tsc` de npm no es TypeScript.
 - CI: `.github/workflows/ci.yml` (GitHub Actions, §184) corre todo lo anterior en Node 22, en SQLite y Postgres 16, en UTC y en Córdoba, con umbral de cobertura del 80 % en el backend. Plan del TP de Calidad: `docs/PLAN_CALIDAD_TP.md`.
-- `npm audit` en **0** en los dos paquetes (la base de avisos cambia sola: si aparece uno, avisá). **2026-10-21:** el frontend tiene 1 aviso alto nuevo en `vite` ≤ 6.4.3 (`npm audit fix` lo pasa a 6.4.5); avisado y sin aplicar (§240).
+- `npm audit` en **0** en los dos paquetes (la base de avisos cambia sola: si aparece uno, avisá). (2026-10-21: vite 6.4.3 → 6.4.5 por un aviso nuevo, §242.)
 
 ## Cómo trabajamos
 - Tests primero: rojo → verde. "El módulo no existe" es un rojo débil.

@@ -6721,3 +6721,26 @@ Las secciones siguientes pasan de 4–7 a 5–8 (índice, títulos y la referenc
 ### ⚠️ NO verificado
 - **La falla original no la pude reproducir acá.** No sé en qué entorno corrió: la CI o la máquina del usuario.
 - **El resultado de la CI con este arreglo:** `gh` no está instalado en esta máquina.
+
+## 242. vite 6.4.3 → 6.4.5 (`npm audit` del frontend otra vez en 0)
+
+### Qué se hizo
+- **Por qué:** el job `audit` de la CI fallaba por el aviso alto en `vite` ≤ 6.4.3 que se anotó en §240 (GHSA-9jrq-w75r-8gcw, GHSA-rq7h-c2jc-7f22 y tres de `launch-editor`). El usuario pegó la salida de la CI y se aplicó el arreglo.
+- **El cambio:** `npm audit fix` en `frontend/`. Solo cambió `package-lock.json`: `vite` pasó de 6.4.3 a 6.4.5, que entra en el rango que ya pedía `package.json`, así que ese archivo no se tocó.
+- `CLAUDE.md`: se sacó la nota del aviso pendiente.
+
+### Verificación
+- **`npm audit`:** frontend 0; backend 0 (sin cambios).
+- **`npm ls vite`:** 6.4.5, también la que usa `@tailwindcss/vite`.
+- **Frontend:**
+  - `npm test`: 939 en verde (79 archivos);
+  - `npm run typecheck`: sin errores;
+  - `npm run build`: compila con vite 6.4.5.
+
+### Errores propios
+- Ninguno nuevo. El aviso ya estaba anotado en §240 y quedó pendiente a propósito, para que lo decidiera el usuario.
+
+### ⚠️ NO verificado
+- **El resultado de la CI:** no lo vi, porque `gh` no está instalado en esta máquina.
+- **El servidor de desarrollo (`npm run dev`) con 6.4.5:** no se volvió a levantar. El build sí se probó.
+- **La advertencia de `npm` sobre scripts de instalación** (`allow-scripts`, esbuild): se mostró al instalar y no se aprobó nada nuevo.
