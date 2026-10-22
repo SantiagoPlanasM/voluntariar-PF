@@ -56,12 +56,12 @@ describe('avatar en las reseñas', () => {
     expect(beto.querySelector('[data-initial]')).toHaveTextContent('B');
   });
 
-  test('ProjectDetails (pestaña Reseñas): foto si la hay, inicial si no', async () => {
+  test('ProjectDetails (sección Reseñas): foto si la hay, inicial si no', async () => {
     render(
       <MemoryRouter initialEntries={['/project/proj-1']}>
         <Routes><Route path="/project/:id" element={<ProjectDetails />} /></Routes>
       </MemoryRouter>);
-    fireEvent.click(await screen.findByRole('button', { name: /^Reseñas \(/ }));
+    await screen.findByRole('heading', { name: /^Reseñas/ });
     await screen.findAllByText('Ana');
     const ana = rowOf('Ana');
     expect(ana.querySelector('img')).toHaveAttribute('src', 'https://img/ana.jpg');

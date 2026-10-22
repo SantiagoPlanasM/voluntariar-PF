@@ -91,7 +91,7 @@ vi.mock('../../lib/api', async () => {
 });
 
 import { AuthModal } from './AuthModal';
-import { ChatbotWidget } from './ChatbotWidget';
+import { AssistantScreen } from './AssistantScreen';
 import { ChatThread } from './ChatThread';
 import { ReviewsModal } from './ReviewsModal';
 import { NGOKPIs } from './NGOKPIs';
@@ -144,15 +144,16 @@ describe('todo botón y campo tiene nombre accesible', () => {
     expect(eye).toHaveAttribute('aria-pressed', 'false');
     fireEvent.click(eye);
     expect(screen.getByRole('button', { name: 'Mostrar contraseña' })).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(screen.getAllByRole('button', { name: 'Crear cuenta' })[0]);
+    fireEvent.click(screen.getByRole('tab', { name: 'Crear cuenta' }));
     expect(screen.getByRole('textbox', { name: 'Nombre completo' })).toBeInTheDocument();
     expect(unnamed()).toEqual([]);
   });
 
-  test('ChatbotWidget abierto', async () => {
-    render(<MemoryRouter><ChatbotWidget /></MemoryRouter>);
-    fireEvent.click(screen.getByTitle('Ayuda rápida'));
+  test('Asistente (antes el chatbot flotante): volver, campo y enviar', async () => {
+    render(<MemoryRouter><AssistantScreen /></MemoryRouter>);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tu pregunta' }), { target: { value: 'hola' } });
     expect(screen.getByRole('button', { name: 'Enviar pregunta' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Volver' })).toBeInTheDocument();
     expect(unnamed()).toEqual([]);
   });
 
@@ -196,7 +197,8 @@ describe('todo botón y campo tiene nombre accesible', () => {
     render(<MemoryRouter><NGOOwnProfile /></MemoryRouter>);
     fireEvent.click(await screen.findByRole('button', { name: 'Editar perfil' }));
     expect(screen.getByRole('button', { name: 'Cancelar edición' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
+    // "Cerrar sesión" se mudó a Configuración (rediseño): el perfil tiene el acceso.
+    expect(screen.getByRole('link', { name: 'Configuración' })).toHaveAttribute('href', '/settings');
     expect(unnamed()).toEqual([]);
   });
 
@@ -256,14 +258,12 @@ describe('todo botón y campo tiene nombre accesible', () => {
     await screen.findAllByText('Reforestación');
     expect(screen.getByRole('button', { name: 'Volver' })).toBeInTheDocument();
     expect(unnamed()).toEqual([]);
-    fireEvent.click(screen.getByRole('button', { name: /^Reseñas/ }));
+    // Rediseño: reseñas y comentarios son secciones de la página, sin pestañas.
     const two = screen.getByRole('button', { name: '2 estrellas' });
     fireEvent.click(two);
     expect(two).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: '5 estrellas' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('textbox', { name: 'Tu reseña' })).toBeInTheDocument();
-    expect(unnamed()).toEqual([]);
-    fireEvent.click(screen.getByRole('button', { name: /^Comentarios/ }));
     expect(screen.getByRole('textbox', { name: 'Comentario' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Publicar comentario' })).toBeInTheDocument();
     expect(unnamed()).toEqual([]);
@@ -271,7 +271,7 @@ describe('todo botón y campo tiene nombre accesible', () => {
 
   test('ExploreScreen con búsqueda: limpiar búsqueda', async () => {
     render(<MemoryRouter><ExploreScreen /></MemoryRouter>);
-    const search = await screen.findByRole('textbox', { name: 'Buscar voluntariados' });
+    const search = await screen.findByRole('searchbox', { name: 'Buscar voluntariados' });
     fireEvent.change(search, { target: { value: 'río' } });
     expect(screen.getByRole('button', { name: 'Limpiar búsqueda' })).toBeInTheDocument();
     expect(unnamed()).toEqual([]);
@@ -329,7 +329,7 @@ describe('todo botón y campo tiene nombre accesible', () => {
     as('volunteer');
     render(<MemoryRouter><FeedPostCard project={project as never} onRefresh={() => {}} /></MemoryRouter>);
     expect(unnamed()).toEqual([]);
-    fireEvent.click(screen.getByRole('button', { name: 'Expandir detalles' }));
+    fireEvent.click(screen.getByRole('button', { name: /Más información/ }));
     expect(screen.getByRole('textbox', { name: 'Comentario' })).toBeInTheDocument();
     expect(unnamed()).toEqual([]);
   });

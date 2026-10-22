@@ -72,7 +72,7 @@ export function NGOProjectDetail() {
 
   const filtered = filter === 'all' ? enrollments : enrollments.filter(e => e.status === filter);
 
-  if (loading) return <div role="status" aria-label="Cargando voluntariado" className="flex items-center justify-center h-screen"><Loader2 className="w-8 h-8 animate-spin text-[#0056B3]" /></div>;
+  if (loading) return <div role="status" aria-label="Cargando voluntariado" className="flex items-center justify-center h-screen"><Loader2 className="w-8 h-8 animate-spin text-brand" /></div>;
   if (loadError || !project) return (
     <LoadError message={loadError?.message ?? 'No encontramos este voluntariado'}
       onRetry={loadError?.retry ? load : undefined} home="/ngo/dashboard" />
@@ -105,16 +105,16 @@ export function NGOProjectDetail() {
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-white rounded-xl p-3 shadow-sm">
             <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><Users className="w-3.5 h-3.5" />Voluntarios</p>
-            <p className="text-lg font-bold text-[#2D5A27]">{project.current_volunteers}/{project.volunteers_needed}</p>
+            <p className="text-lg font-bold text-people">{project.current_volunteers}/{project.volunteers_needed}</p>
             <div className="w-full h-1.5 bg-gray-100 rounded-full mt-1.5 overflow-hidden">
-              <div className="h-full bg-[#2D5A27] rounded-full" style={{ width: `${volPct}%` }} />
+              <div className="h-full bg-people rounded-full" style={{ width: `${volPct}%` }} />
             </div>
           </div>
           <div className="bg-white rounded-xl p-3 shadow-sm">
             <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><DollarSign className="w-3.5 h-3.5" />Financiamiento</p>
-            <p className="text-lg font-bold text-[#0056B3]">${project.current_funding.toLocaleString()}</p>
+            <p className="text-lg font-bold text-brand">${project.current_funding.toLocaleString()}</p>
             <div className="w-full h-1.5 bg-gray-100 rounded-full mt-1.5 overflow-hidden">
-              <div className="h-full bg-[#0056B3] rounded-full" style={{ width: `${fundPct}%` }} />
+              <div className="h-full bg-brand rounded-full" style={{ width: `${fundPct}%` }} />
             </div>
           </div>
         </div>
@@ -127,7 +127,7 @@ export function NGOProjectDetail() {
               {['all', 'pending', 'approved', 'rejected'].map(f => (
                 <button key={f} onClick={() => setFilter(f as any)}
                   className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                    filter === f ? 'bg-[#0056B3] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    filter === f ? 'bg-brand text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}>
                   {f === 'all' ? 'Todos' : f === 'pending' ? 'Pendientes' : f === 'approved' ? 'Aprobados' : 'Rechazados'}
                   {' '}({f === 'all' ? enrollments.length : enrollments.filter(e => e.status === f).length})
@@ -143,7 +143,7 @@ export function NGOProjectDetail() {
               {filtered.map(e => (
                 <div key={e.id} className="p-4">
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#0056B3]/20 flex items-center justify-center text-sm font-bold text-[#0056B3] flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-brand/20 flex items-center justify-center text-sm font-bold text-brand flex-shrink-0">
                       {e.volunteer_name[0]}
                     </div>
                     <div className="flex-1 min-w-0">

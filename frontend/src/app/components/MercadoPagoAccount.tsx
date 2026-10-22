@@ -129,9 +129,9 @@ export function MercadoPagoBanner() {
     ? 'Volvé a vincular tu cuenta de Mercado Pago: mientras tanto no recibís donaciones.'
     : 'Configurá tu cuenta de Mercado Pago para recibir donaciones en tus proyectos.';
   return (
-    <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
-      <p className="text-sm text-amber-800 flex gap-2"><Wallet className="w-4 h-4 flex-shrink-0 mt-0.5" aria-hidden="true" />{text}</p>
-      <Link to="/ngo/profile#mercadopago" className="text-xs font-bold text-amber-900 underline flex-shrink-0">Configurar</Link>
+    <div className="bg-surface border border-hairline rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+      <p className="text-[15px] flex gap-2"><Wallet className="w-5 h-5 flex-shrink-0 mt-0.5" strokeWidth={1.75} aria-hidden="true" />{text}</p>
+      <Link to="/ngo/profile#mercadopago" className="h-10 px-3.5 rounded-[10px] bg-surface-soft hover:bg-surface-pressed text-[13px] font-bold inline-flex items-center flex-shrink-0">Configurar</Link>
     </div>
   );
 }

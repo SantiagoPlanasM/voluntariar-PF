@@ -221,6 +221,7 @@ export function FilterModal({
               ].map(opt => {
                 const isSelected = draft.type === opt.id;
                 const Icon = opt.icon;
+                const tone = opt.id === 'fugaz' ? 'brand' : opt.id === 'sostenido' ? 'people' : 'ink';
                 return (
                   <button
                     key={opt.id}
@@ -228,19 +229,19 @@ export function FilterModal({
                     onClick={() => setDraft(prev => ({ ...prev, type: opt.id as any }))}
                     className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
                       isSelected
-                        ? 'border-[#1E3A2F] bg-emerald-50/40 ring-1 ring-[#1E3A2F]'
-                        : 'border-gray-200 hover:border-gray-300 bg-white'
+                        ? (tone === 'brand' ? 'border-brand bg-brand-soft ring-1 ring-brand' : tone === 'people' ? 'border-people bg-people-soft ring-1 ring-people' : 'border-ink bg-surface-soft ring-1 ring-ink')
+                        : 'border-hairline hover:border-border-strong bg-surface'
                     }`}
                   >
                     <div className="flex items-center justify-between w-full mb-1">
-                      <Icon className={`w-4 h-4 ${isSelected ? 'text-[#1E3A2F]' : 'text-gray-500'}`} />
-                      {isSelected && <Check className="w-3.5 h-3.5 text-[#1E3A2F]" />}
+                      <Icon className={`w-4 h-4 ${opt.id === 'fugaz' ? 'text-brand-text' : opt.id === 'sostenido' ? 'text-people-text' : isSelected ? 'text-ink' : 'text-ink-muted'}`} />
+                      {isSelected && <Check className={`w-3.5 h-3.5 ${opt.id === 'fugaz' ? 'text-brand-text' : opt.id === 'sostenido' ? 'text-people-text' : 'text-ink'}`} />}
                     </div>
                     <div>
-                      <div className={`font-bold text-xs ${isSelected ? 'text-[#1E3A2F]' : 'text-gray-900'}`}>
+                      <div className={`font-bold text-xs ${isSelected ? (opt.id === 'fugaz' ? 'text-brand-text' : opt.id === 'sostenido' ? 'text-people-text' : 'text-ink') : 'text-ink'}`}>
                         {opt.label}
                       </div>
-                      <div className="text-[11px] text-gray-400 leading-tight mt-0.5">
+                      <div className="text-xs text-gray-400 leading-tight mt-0.5">
                         {opt.desc}
                       </div>
                     </div>
@@ -273,7 +274,7 @@ export function FilterModal({
                     onClick={() => setDraft(prev => ({ ...prev, modality: opt.id as any }))}
                     className={`p-2.5 rounded-xl border text-center flex items-center justify-center gap-1.5 transition-all cursor-pointer font-semibold text-xs ${
                       isSelected
-                        ? 'border-[#1E3A2F] bg-emerald-50/40 text-[#1E3A2F] ring-1 ring-[#1E3A2F]'
+                        ? 'border-ink bg-emerald-50/40 text-ink ring-1 ring-ink'
                         : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
                     }`}
                   >
@@ -305,12 +306,12 @@ export function FilterModal({
                     onClick={() => setDraft(prev => ({ ...prev, cost: opt.id as any }))}
                     className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                       isSelected
-                        ? 'border-[#1E3A2F] bg-emerald-50/40 text-[#1E3A2F] ring-1 ring-[#1E3A2F]'
+                        ? 'border-ink bg-emerald-50/40 text-ink ring-1 ring-ink'
                         : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
                     }`}
                   >
                     <div className="font-bold text-xs">{opt.label}</div>
-                    <div className="text-[11px] text-gray-400 mt-0.5">{opt.desc}</div>
+                    <div className="text-xs text-gray-400 mt-0.5">{opt.desc}</div>
                   </button>
                 );
               })}
@@ -331,7 +332,7 @@ export function FilterModal({
           <button
             type="button"
             onClick={handleApply}
-            className="bg-[#1E3A2F] hover:bg-[#152921] text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm transition-all shadow-sm active:scale-95 cursor-pointer flex items-center gap-2"
+            className="bg-ink hover:opacity-90 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm transition-all shadow-sm active:scale-95 cursor-pointer flex items-center gap-2"
           >
             <span>Mostrar {previewCount} voluntariados</span>
           </button>

@@ -126,23 +126,23 @@ describe('perfil público de una ONG', () => {
 describe('tarjeta del feed (seguir proyecto)', () => {
   const mount = (p = project) => render(<MemoryRouter><FeedPostCard project={p} /></MemoryRouter>);
 
-  test('seguir falla: mensaje y el botón sigue en "Seguir este voluntariado"; reintentar lo limpia', async () => {
+  test('seguir falla: mensaje y el botón sigue en "Seguir voluntariado"; reintentar lo limpia', async () => {
     f.followProject.mockRejectedValueOnce(boom()).mockResolvedValueOnce({ following: true, followers: 6, message: '' });
     mount();
-    fireEvent.click(screen.getByRole('button', { name: 'Seguir este voluntariado' }));
+    fireEvent.click(screen.getByTitle('Seguir voluntariado'));
     expect(await screen.findByRole('alert')).toHaveTextContent('Error interno del servidor');
-    expect(screen.getByRole('button', { name: 'Seguir este voluntariado' })).toBeEnabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Seguir este voluntariado' }));
-    expect(await screen.findByRole('button', { name: 'Dejar de seguir voluntariado' })).toBeInTheDocument();
+    expect(screen.getByTitle('Seguir voluntariado')).toBeEnabled();
+    fireEvent.click(screen.getByTitle('Seguir voluntariado'));
+    expect(await screen.findByTitle('Dejar de seguir voluntariado')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
   test('dejar de seguir falla sin conexión: mensaje propio y sigue siguiéndolo', async () => {
     f.unfollowProject.mockRejectedValue(offline());
     mount({ ...project, follow_source: 'project_follow' } as FeedProject);
-    fireEvent.click(screen.getByRole('button', { name: 'Dejar de seguir voluntariado' }));
+    fireEvent.click(screen.getByTitle('Dejar de seguir voluntariado'));
     expect(await screen.findByRole('alert')).toHaveTextContent(FALLBACK);
-    expect(screen.getByRole('button', { name: 'Dejar de seguir voluntariado' })).toBeInTheDocument();
+    expect(screen.getByTitle('Dejar de seguir voluntariado')).toBeInTheDocument();
   });
 });
 
@@ -152,18 +152,20 @@ describe('Inicio: seguir una ONG sugerida', () => {
     vi.mocked(api.ngos.list).mockReset().mockResolvedValue({ ngos: [verde] } as never);
   });
   const mount = () => render(<MemoryRouter><MainFeed /></MemoryRouter>);
-  const sidebar = () => screen.getByText('Sugerencias para vos').closest('div.bg-white') as HTMLElement;
+  // Rediseño (§240): la barra lateral es la sección "ONGs para seguir"; el feed vacío, "Empezá por una causa".
+  const sidebar = () => screen.getByRole('region', { name: 'ONGs para seguir' });
+  const empty = () => screen.getByRole('region', { name: /Empezá por una causa/ });
 
   test('desde la barra lateral: mensaje cerca del botón y la ONG sigue sugerida; reintentar lo limpia', async () => {
     f.feed.mockResolvedValue({ projects: [project] } as never);
     f.followNgo.mockRejectedValueOnce(boom()).mockResolvedValueOnce({ following: true, followers: 4, message: '' });
     mount();
     await within(sidebar()).findByText('Fundación Verde');
-    fireEvent.click(within(sidebar()).getByRole('button', { name: '+ Seguir' }));
+    fireEvent.click(within(sidebar()).getByRole('button', { name: 'Seguir' }));
     expect(await within(sidebar()).findByRole('alert')).toHaveTextContent('Error interno del servidor');
     expect(within(sidebar()).getByText('Fundación Verde')).toBeInTheDocument();
-    expect(within(sidebar()).getByRole('button', { name: '+ Seguir' })).toBeEnabled();
-    fireEvent.click(within(sidebar()).getByRole('button', { name: '+ Seguir' }));
+    expect(within(sidebar()).getByRole('button', { name: 'Seguir' })).toBeEnabled();
+    fireEvent.click(within(sidebar()).getByRole('button', { name: 'Seguir' }));
     await vi.waitFor(() => expect(within(sidebar()).queryByText('Fundación Verde')).toBeNull());
     expect(screen.queryByRole('alert')).toBeNull();
   });
@@ -177,9 +179,9 @@ describe('Inicio: seguir una ONG sugerida', () => {
       return { following: true, followers: 2, message: '' };
     });
     mount();
-    await screen.findByText('Tu feed personalizado está listo');
+    await screen.findByRole('region', { name: /Empezá por una causa/ });
     // Barra lateral: falla Verde.
-    fireEvent.click(within(sidebar()).getAllByRole('button', { name: '+ Seguir' })[0]);
+    fireEvent.click(within(sidebar()).getAllByRole('button', { name: 'Seguir' })[0]);
     const alerts = await screen.findAllByRole('alert');
     expect(alerts).toHaveLength(2); // debajo de Verde, en la barra y en el feed vacío (no debajo de Azul)
     for (const a of alerts) {
@@ -187,7 +189,7 @@ describe('Inicio: seguir una ONG sugerida', () => {
       expect(a.parentElement).not.toHaveTextContent('Red Azul');
     }
     // Seguir Azul (anda): el mensaje de Verde se va.
-    fireEvent.click(within(sidebar()).getAllByRole('button', { name: '+ Seguir' })[1]);
+    fireEvent.click(within(sidebar()).getAllByRole('button', { name: 'Seguir' })[1]);
     await vi.waitFor(() => expect(within(sidebar()).queryByText('Red Azul')).toBeNull());
     expect(screen.queryByRole('alert')).toBeNull();
   });
@@ -196,8 +198,8 @@ describe('Inicio: seguir una ONG sugerida', () => {
     f.feed.mockResolvedValue({ projects: [] } as never);
     f.followNgo.mockRejectedValue(offline());
     mount();
-    await screen.findByText('Tu feed personalizado está listo');
-    const main = screen.getByText('ONGs recomendadas para vos').parentElement!;
+    await screen.findByRole('region', { name: /Empezá por una causa/ });
+    const main = empty();
     fireEvent.click(within(main).getByRole('button', { name: 'Seguir' }));
     expect(await within(main).findByRole('alert')).toHaveTextContent(FALLBACK);
     expect(within(main).getByRole('button', { name: 'Seguir' })).toBeEnabled();
@@ -209,7 +211,7 @@ describe('Inicio: seguir una ONG sugerida', () => {
     f.followNgo.mockReturnValue(new Promise(() => {}));
     mount();
     await within(sidebar()).findByText('Fundación Verde');
-    const btn = within(sidebar()).getByRole('button', { name: '+ Seguir' });
+    const btn = within(sidebar()).getByRole('button', { name: 'Seguir' });
     fireEvent.click(btn);
     fireEvent.click(btn);
     expect(f.followNgo).toHaveBeenCalledTimes(1);
@@ -223,15 +225,15 @@ describe('Inicio: seguir una ONG sugerida', () => {
     // Verde queda en vuelo; Azul falla.
     f.followNgo.mockImplementation((id: string) => (id === 'n1' ? new Promise(() => {}) : Promise.reject(boom())));
     mount();
-    await screen.findByText('Tu feed personalizado está listo');
-    const main = screen.getByText('ONGs recomendadas para vos').parentElement!;
-    fireEvent.click(within(sidebar()).getAllByRole('button', { name: '+ Seguir' })[0]); // Verde, en la barra
+    await screen.findByRole('region', { name: /Empezá por una causa/ });
+    const main = empty();
+    fireEvent.click(within(sidebar()).getAllByRole('button', { name: 'Seguir' })[0]); // Verde, en la barra
     const [verdeMain, azulMain] = within(main).getAllByRole('button', { name: 'Seguir' });
     expect(verdeMain).toBeDisabled();
     fireEvent.click(verdeMain);
     expect(f.followNgo).toHaveBeenCalledTimes(1);
     expect(azulMain).toBeEnabled();
-    expect(within(sidebar()).getAllByRole('button', { name: '+ Seguir' })[1]).toBeEnabled();
+    expect(within(sidebar()).getAllByRole('button', { name: 'Seguir' })[1]).toBeEnabled();
     fireEvent.click(azulMain);
     expect(f.followNgo).toHaveBeenCalledTimes(2);
     expect(f.followNgo).toHaveBeenLastCalledWith('n2');
@@ -239,6 +241,6 @@ describe('Inicio: seguir una ONG sugerida', () => {
     expect(await within(main).findByRole('alert')).toHaveTextContent('Error interno del servidor');
     expect(azulMain).toBeEnabled();
     expect(verdeMain).toBeDisabled();
-    expect(within(sidebar()).getAllByRole('button', { name: '+ Seguir' })[0]).toBeDisabled();
+    expect(within(sidebar()).getAllByRole('button', { name: 'Seguir' })[0]).toBeDisabled();
   });
 });

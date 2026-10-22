@@ -60,7 +60,7 @@ export function NGOPatrocinios() {
         <div className="space-y-6">
           {pendientes.length > 0 && (
             <section>
-              <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Pendientes ({pendientes.length})</h2>
+              <h2 className="text-xs font-bold text-gray-400 mb-2">Pendientes ({pendientes.length})</h2>
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50">
                 {pendientes.map(p => {
                   const key = `${p.empresa_id}-${p.project_id}`;
@@ -98,7 +98,7 @@ export function NGOPatrocinios() {
 
           {decididas.length > 0 && (
             <section>
-              <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Historial</h2>
+              <h2 className="text-xs font-bold text-gray-400 mb-2">Historial</h2>
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50">
                 {decididas.map(p => (
                   <div key={`${p.empresa_id}-${p.project_id}`} className="p-4 flex items-center gap-3">
@@ -109,7 +109,7 @@ export function NGOPatrocinios() {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-800 truncate">{p.empresa_name} — {p.project_title}</p>
                     </div>
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0 ${SPONSORSHIP_BADGE[p.estado]}`}>
+                    <span className={`text-xs font-bold px-2 py-1 rounded-full flex-shrink-0 ${SPONSORSHIP_BADGE[p.estado]}`}>
                       {SPONSORSHIP_LABEL[p.estado]}
                     </span>
                   </div>

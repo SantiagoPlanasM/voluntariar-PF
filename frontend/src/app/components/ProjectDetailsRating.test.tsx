@@ -52,7 +52,7 @@ const mount = (path = '/project/proj-1') => render(
   </MemoryRouter>,
 );
 
-const openRatingsTab = async () => fireEvent.click(await screen.findByRole('button', { name: /^Reseñas \(/ }));
+const openRatingsTab = async () => await screen.findByRole('heading', { name: /^Reseñas/ });
 const stars = (n: number) => screen.getByRole('button', { name: n === 1 ? '1 estrella' : `${n} estrellas` });
 const textarea = () => screen.getByRole('textbox', { name: 'Tu reseña' }) as HTMLTextAreaElement;
 const AVISO = 'Ya calificaste este voluntariado. Podés editar tu reseña.';
@@ -125,7 +125,6 @@ describe('ProjectDetails: la reseña propia se precarga', () => {
     fireEvent.change(textarea(), { target: { value: 'Borrador a medio escribir' } });
 
     // Comenta en la otra pestaña: handleComment recarga el proyecto (load).
-    fireEvent.click(screen.getByRole('button', { name: /^Comentarios \(/ }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Comentario' }), { target: { value: 'Muy lindo todo' } });
     fireEvent.click(screen.getByRole('button', { name: 'Publicar comentario' }));
     await waitFor(() => expect(api.projects.get).toHaveBeenCalledTimes(2));
@@ -263,7 +262,6 @@ describe('ProjectDetails: la reseña propia se precarga', () => {
     await openRatingsTab();
     expect(textarea().value).toBe('Faltó organización');
 
-    fireEvent.click(screen.getByRole('button', { name: /^Comentarios \(/ }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Comentario' }), { target: { value: 'Muy lindo todo' } });
     fireEvent.click(screen.getByRole('button', { name: 'Publicar comentario' }));
     await waitFor(() => expect(api.projects.get).toHaveBeenCalledTimes(2));

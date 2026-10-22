@@ -3,6 +3,8 @@
 // Botón "Donar" en el detalle del proyecto (PLAN_FALTANTE.md, Etapa 9, §172). El backend deja donar a voluntarios y
 // empresas en proyectos activos (§170): el botón aparece en esos casos y para un visitante (que primero inicia sesión).
 // No aparece para una ONG ni en un proyecto que no está activo.
+// Rediseño (§240): los botones se dibujan dos veces (barra fija del celular y caja de escritorio; jsdom no aplica
+// los `md:hidden`), así que se busca con getAll y se usa el primero. El botón se llama "Donar".
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router';
@@ -36,6 +38,8 @@ const project = (extra: Record<string, unknown> = {}) => ({
 });
 const mount = () => render(
   <MemoryRouter initialEntries={['/project/proj-1']}><Routes><Route path="/project/:id" element={<ProjectDetails />} /></Routes></MemoryRouter>);
+const donar = async () => (await screen.findAllByRole('button', { name: 'Donar' }))[0];
+const cargado = () => screen.findByRole('heading', { name: 'Cómo vamos' });
 const as = (role: string | null) => { auth.user = role ? { id: `u-${role}`, name: 'X', email: 'x@x.com', role } : null; };
 
 beforeEach(() => {
@@ -47,21 +51,21 @@ describe('ProjectDetails: botón "Donar"', () => {
   test('voluntario: abre el modal de donación de ESE proyecto', async () => {
     as('volunteer');
     mount();
-    fireEvent.click(await screen.findByRole('button', { name: 'Donar a este proyecto' }));
+    fireEvent.click(await donar());
     expect(screen.getByRole('dialog', { name: 'Donar a Reforestación' })).toBeInTheDocument();
   });
 
   test('empresa: también', async () => {
     as('company');
     mount();
-    fireEvent.click(await screen.findByRole('button', { name: 'Donar a este proyecto' }));
+    fireEvent.click(await donar());
     expect(screen.getByRole('dialog', { name: 'Donar a Reforestación' })).toBeInTheDocument();
   });
 
   test('visitante: pide iniciar sesión (no abre el modal)', async () => {
     as(null);
     mount();
-    fireEvent.click(await screen.findByRole('button', { name: 'Donar a este proyecto' }));
+    fireEvent.click(await donar());
     expect(auth.openAuthModal).toHaveBeenCalledWith('Iniciá sesión para donar');
     expect(screen.queryByRole('dialog', { name: /Donar a/ })).toBeNull();
   });
@@ -69,8 +73,8 @@ describe('ProjectDetails: botón "Donar"', () => {
   test('ONG: no aparece', async () => {
     as('ngo');
     mount();
-    await screen.findByText('Progreso del proyecto');
-    expect(screen.queryByRole('button', { name: 'Donar a este proyecto' })).toBeNull();
+    await cargado();
+    expect(screen.queryByRole('button', { name: 'Donar' })).toBeNull();
   });
 
   // Marketplace (§217–§218): sin cuenta de Mercado Pago vinculada, la ONG no recibe donaciones (decisión del usuario).
@@ -79,8 +83,8 @@ describe('ProjectDetails: botón "Donar"', () => {
     for (const extra of [{ accepts_donations: false }, { accepts_donations: undefined }]) {
       vi.mocked(api.projects.get).mockResolvedValue(project(extra) as never);
       const { unmount } = mount();
-      expect(await screen.findByText('Esta ONG todavía no recibe donaciones')).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Donar a este proyecto' })).toBeNull();
+      expect((await screen.findAllByText('Esta ONG todavía no recibe donaciones')).length).toBeGreaterThan(0);
+      expect(screen.queryByRole('button', { name: 'Donar' })).toBeNull();
       unmount();
     }
   });
@@ -89,7 +93,7 @@ describe('ProjectDetails: botón "Donar"', () => {
     as('ngo');
     vi.mocked(api.projects.get).mockResolvedValue(project({ accepts_donations: false }) as never);
     mount();
-    await screen.findByText('Progreso del proyecto');
+    await cargado();
     expect(screen.queryByText('Esta ONG todavía no recibe donaciones')).toBeNull();
   });
 
@@ -97,8 +101,8 @@ describe('ProjectDetails: botón "Donar"', () => {
     as('volunteer');
     vi.mocked(api.projects.get).mockResolvedValue(project({ status: 'completed' }) as never);
     mount();
-    await screen.findByText('Progreso del proyecto');
-    expect(screen.queryByRole('button', { name: 'Donar a este proyecto' })).toBeNull();
+    await cargado();
+    expect(screen.queryByRole('button', { name: 'Donar' })).toBeNull();
   });
 
   // §173: sin meta, la barra de financiamiento no se muestra, y antes tampoco se veía lo recaudado (solo lo veía la ONG
@@ -107,8 +111,8 @@ describe('ProjectDetails: botón "Donar"', () => {
     as('volunteer');
     vi.mocked(api.projects.get).mockResolvedValue(project({ funding_goal: 0, current_funding: 1500 }) as never);
     mount();
-    expect(await screen.findByText('Recaudado en donaciones')).toBeInTheDocument();
-    expect(screen.getByText('$1.500')).toBeInTheDocument();
+    expect((await screen.findAllByText('Recaudado en donaciones')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$ 1.500').length).toBeGreaterThan(0);
     expect(screen.queryByText('Financiamiento')).toBeNull();
   });
 
@@ -116,14 +120,14 @@ describe('ProjectDetails: botón "Donar"', () => {
     as('volunteer');
     vi.mocked(api.projects.get).mockResolvedValue(project({ funding_goal: 0, current_funding: 0 }) as never);
     mount();
-    await screen.findByText('Progreso del proyecto');
+    await cargado();
     expect(screen.queryByText('Recaudado en donaciones')).toBeNull();
   });
 
   test('con meta: la barra de siempre (y no el renglón suelto)', async () => {
     as('volunteer');
     mount();
-    expect(await screen.findByText('Financiamiento')).toBeInTheDocument();
+    expect((await screen.findAllByText('Financiamiento')).length).toBeGreaterThan(0);
     expect(screen.queryByText('Recaudado en donaciones')).toBeNull();
   });
 
@@ -131,6 +135,6 @@ describe('ProjectDetails: botón "Donar"', () => {
     as('volunteer');
     vi.mocked(api.projects.get).mockResolvedValue(project({ funding_goal: 0, current_funding: 0 }) as never);
     mount();
-    expect(await screen.findByRole('button', { name: 'Donar a este proyecto' })).toBeInTheDocument();
+    expect(await donar()).toBeInTheDocument();
   });
 });

@@ -125,7 +125,7 @@ describe('NotificationsScreen', () => {
     vi.mocked(api.notifications.markAllRead).mockReset().mockRejectedValue(new TypeError('Failed to fetch'));
     mount(<NotificationsScreen />);
     await waitFor(() => expect(screen.getByText('Te aprobaron')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: /leídas/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Marcar todo leído/i }));
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/No pudimos marcar/));
   });
 });

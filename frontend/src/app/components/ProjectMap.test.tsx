@@ -3,6 +3,8 @@
 // Caracterización de los marcadores de <ProjectMap> (mapa chico y ampliado) con Leaflet real en jsdom
 // (REVISION S7): los dos mapas dibujaban pines y punto del usuario con código copiado. Estos tests
 // se escribieron y pasaron con el código viejo antes de extraer la parte común.
+// Rediseño (§240, DESIGN.md → Mapa): todos los pines son del color de la tinta (#0F1419), sin un color por
+// categoría; para saber de qué proyecto es un pin, se lo toca y se mira a quién avisa.
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
@@ -15,8 +17,9 @@ const project = (id: string, category: string, lat: number, lng: number): Projec
   location: 'Córdoba', ngo_name: `ONG ${id}`,
 } as unknown as Project);
 
-const P1 = project('p1', 'Educación', -31.40, -64.18);   // azul  #3B82F6
-const P2 = project('p2', 'Salud',     -31.41, -64.19);   // coral #F43F5E
+const P1 = project('p1', 'Educación', -31.40, -64.18);
+const P2 = project('p2', 'Salud',     -31.41, -64.19);
+const INK = 'rgb(15, 20, 25)';
 const P3 = project('p3', 'Educación', -31.42, -64.20);
 
 const renderMap = (projects: Project[], onSelectProject = vi.fn()) => {
@@ -81,12 +84,12 @@ describe('getProjectCoords', () => {
 });
 
 describe('<ProjectMap /> mapa chico — marcadores', () => {
-  test('un pin por proyecto, con el color de su categoría y ninguno seleccionado', () => {
+  test('un pin por proyecto, todos color tinta y ninguno seleccionado', () => {
     const { container } = renderMap([P1, P2]);
     const p = pins(inlineRoot(container));
     expect(p).toHaveLength(2);
-    expect(pinColor(p[0])).toBe('rgb(59, 130, 246)');
-    expect(pinColor(p[1])).toBe('rgb(244, 63, 94)');
+    expect(pinColor(p[0])).toBe(INK);
+    expect(pinColor(p[1])).toBe(INK);
     expect(p.some(isSelected)).toBe(false);
     expect(userPins(container)).toHaveLength(0);
   });
@@ -109,7 +112,7 @@ describe('<ProjectMap /> mapa chico — marcadores', () => {
     fireEvent.click(screen.getByTitle('Centrar en mi ubicación'));
     expect(userPins(container)).toHaveLength(1);
     const userIcon = container.querySelector('.user-loc-pin') as HTMLElement;
-    expect(userIcon.innerHTML).toContain('bg-emerald-500');
+    expect(userIcon.innerHTML).toContain('bg-[#0F1419]');
     expect(userIcon.style.width).toBe('16px');
     expect(userIcon.style.marginLeft).toBe('-8px');
     fireEvent.click(pins(container)[0]);
@@ -120,10 +123,12 @@ describe('<ProjectMap /> mapa chico — marcadores', () => {
   test('si cambian los proyectos se quitan los pines viejos', () => {
     const { container, rerender } = renderMap([P1, P2, P3]);
     expect(pins(container)).toHaveLength(3);
-    rerender(<MemoryRouter><ProjectMap projects={[P2]} /></MemoryRouter>);
+    const onSelect = vi.fn();
+    rerender(<MemoryRouter><ProjectMap projects={[P2]} onSelectProject={onSelect} /></MemoryRouter>);
     const p = pins(container);
     expect(p).toHaveLength(1);
-    expect(pinColor(p[0])).toBe('rgb(244, 63, 94)');
+    fireEvent.click(p[0]);
+    expect(onSelect).toHaveBeenCalledWith(P2);
   });
 });
 
@@ -150,13 +155,14 @@ describe('<ProjectMap /> mapa ampliado — marcadores', () => {
   });
 
   test('el filtro de categoría redibuja solo los pines que coinciden', () => {
-    renderMap([P1, P2, P3]);
+    const { onSelectProject } = renderMap([P1, P2, P3]);
     openModal();
     expect(pins(modalRoot())).toHaveLength(3);
     fireEvent.click(screen.getByTitle('Filtrar por Salud (1 proyectos)'));
     const p = pins(modalRoot());
     expect(p).toHaveLength(1);
-    expect(pinColor(p[0])).toBe('rgb(244, 63, 94)');
+    fireEvent.click(p[0]);
+    expect(onSelectProject).toHaveBeenCalledWith(P2);
   });
 
   test('el punto del usuario del mapa ampliado es propio (no hereda el del chico) y es uno solo', () => {

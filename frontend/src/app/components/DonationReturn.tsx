@@ -98,5 +98,5 @@ export function DonationReturn() {
       </>);
   }
 
-  return <div className="min-h-screen bg-gray-50 md:ml-60 px-4 py-16 max-w-md mx-auto">{content}</div>;
+  return <div className="min-h-screen bg-gray-50 px-4 py-16 max-w-md mx-auto">{content}</div>;
 }

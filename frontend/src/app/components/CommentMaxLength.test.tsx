@@ -35,13 +35,13 @@ import { ProjectDetails } from './ProjectDetails';
 import { FeedPostCard } from './FeedPostCard';
 
 describe('Comentarios de proyecto: el tope de 1000 del backend también en los campos', () => {
-  test('detalle del proyecto (pestaña Comentarios): maxLength 1000', async () => {
+  test('detalle del proyecto (sección Comentarios): maxLength 1000', async () => {
     render(
       <MemoryRouter initialEntries={['/project/proj-1']}>
         <Routes><Route path="/project/:id" element={<ProjectDetails />} /></Routes>
       </MemoryRouter>,
     );
-    fireEvent.click(await screen.findByRole('button', { name: /^Comentarios \(/ }));
+    await screen.findByRole('heading', { name: /^Comentarios/ });
     expect(screen.getByRole('textbox', { name: 'Comentario' })).toHaveAttribute('maxLength', '1000');
   });
 
@@ -53,7 +53,7 @@ describe('Comentarios de proyecto: el tope de 1000 del backend también en los c
       roles_needed: [], requirements: [], created_at: '2026-10-10 12:00:00',
     };
     render(<MemoryRouter><FeedPostCard project={project as never} onRefresh={() => {}} /></MemoryRouter>);
-    fireEvent.click(screen.getByRole('button', { name: 'Expandir detalles' }));
+    fireEvent.click(screen.getByRole('button', { name: /Más información/ }));
     expect(screen.getByRole('textbox', { name: 'Comentario' })).toHaveAttribute('maxLength', '1000');
   });
 });

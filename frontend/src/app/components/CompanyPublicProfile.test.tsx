@@ -41,10 +41,11 @@ describe('<CompanyPublicProfile />', () => {
     vi.mocked(api.empresas.get).mockResolvedValue({ empresa });
     renderAt('/company/emp-1');
 
-    await waitFor(() => expect(screen.getByText('TechCorp')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'TechCorp' })).toBeInTheDocument());
     expect(screen.getByText(/Córdoba, Argentina/)).toBeInTheDocument();
-    expect(screen.getByText('Tecnología')).toBeInTheDocument();
-    expect(screen.getByText('RSE fuerte')).toBeInTheDocument();
+    // Rediseño (§240): la industria y la ubicación van en una línea bajo el nombre; la misión, en el texto del perfil.
+    expect(screen.getByText(/Tecnología/)).toBeInTheDocument();
+    expect(screen.getByText(/Misión de RSE: RSE fuerte/)).toBeInTheDocument();
   });
 
   test('pide el perfil por el :id de la URL', async () => {
@@ -58,6 +59,6 @@ describe('<CompanyPublicProfile />', () => {
       empresa: { ...empresa, description: undefined, mission: undefined, location: undefined },
     });
     expect(() => renderAt('/company/emp-1')).not.toThrow();
-    await waitFor(() => expect(screen.getByText('TechCorp')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'TechCorp' })).toBeInTheDocument());
   });
 });

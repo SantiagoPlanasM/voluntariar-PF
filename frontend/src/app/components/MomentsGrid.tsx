@@ -119,7 +119,7 @@ export function MomentsGrid({ filters, pageSize = 9 }: Props) {
           >
             {p.photos[0] && <img src={p.photos[0].thumb_url} alt="" loading="lazy" className="w-full h-full object-cover" />}
             {p.photos.length > 1 && (
-              <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-black/60 text-white text-[10px] font-semibold">
+              <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-black/60 text-white text-xs font-semibold">
                 {`${p.photos.length} fotos`}
               </span>
             )}

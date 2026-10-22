@@ -71,53 +71,53 @@ export function CvSection({ userId }: { userId: string }) {
     } finally { setBusy(null); }
   };
 
-  const btn = 'px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50';
+  const btn = 'h-10 px-3.5 rounded-[10px] text-[13px] font-bold transition-colors disabled:opacity-50';
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-      <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1">
-        <FileText className="w-3.5 h-3.5" aria-hidden="true" />Mi CV
-      </p>
+    <section aria-labelledby="cv-title" className="rounded-xl bg-surface border border-hairline p-4 flex flex-col">
+      <h2 id="cv-title" className="text-[15px] font-bold mb-1 flex items-center gap-1.5">
+        <FileText className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />Mi CV
+      </h2>
       {loadFailed ? (
-        <p className="text-xs text-gray-500">No se pudo cargar.</p>
+        <p className="text-[13px] text-ink-muted">No se pudo cargar.</p>
       ) : hasCv === null ? (
         <Loader2 className="w-4 h-4 animate-spin text-gray-300" aria-label="Cargando" />
       ) : (
         <>
-          <p className="text-sm text-gray-700">{hasCv ? 'Tu CV está cargado.' : 'Todavía no cargaste tu CV.'}</p>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-[15px]">{hasCv ? 'Tu CV está cargado.' : 'Todavía no cargaste tu CV.'}</p>
+          <p className="text-[13px] text-ink-muted mt-0.5">
             PDF de hasta 5 MB. Solo lo ven las ONG de los voluntariados a los que te postulaste.
           </p>
           <div className="flex flex-wrap gap-2 mt-3">
             {hasCv && (
-              <button type="button" onClick={view} disabled={busy !== null} className={`${btn} bg-emerald-50 text-emerald-700 hover:bg-emerald-100`}>
+              <button type="button" onClick={view} disabled={busy !== null} className={`${btn} bg-surface-soft text-ink hover:bg-surface-pressed`}>
                 Ver CV
               </button>
             )}
             <button type="button" onClick={() => input.current?.click()} disabled={busy !== null}
-              className={`${btn} bg-gray-100 text-gray-700 hover:bg-gray-200`}>
+              className={`${btn} bg-surface-soft text-ink hover:bg-surface-pressed`}>
               {busy === 'upload' ? 'Subiendo…' : hasCv ? 'Reemplazar' : 'Subir CV'}
             </button>
             {hasCv && !confirming && (
               <button type="button" onClick={() => { start(); setConfirming(true); }} disabled={busy !== null}
-                className={`${btn} text-red-600 hover:bg-red-50`}>
+                className={`${btn} text-critical hover:bg-surface-soft`}>
                 Borrar CV
               </button>
             )}
           </div>
           {confirming && (
-            <div role="group" aria-label="¿Borrar tu CV?" className="mt-3 p-3 bg-red-50 rounded-xl flex flex-wrap items-center gap-2">
-              <p className="text-xs text-red-700 flex-1">¿Borrar tu CV? Las ONG dejan de poder verlo.</p>
-              <button type="button" onClick={remove} className={`${btn} bg-red-600 text-white hover:bg-red-700`}>Sí, borrar</button>
-              <button type="button" onClick={() => setConfirming(false)} className={`${btn} bg-white text-gray-700`}>Cancelar</button>
+            <div role="group" aria-label="¿Borrar tu CV?" className="mt-3 p-3 bg-surface-soft rounded-xl flex flex-wrap items-center gap-2">
+              <p className="text-[13px] text-ink-soft flex-1">¿Borrar tu CV? Las ONG dejan de poder verlo.</p>
+              <button type="button" onClick={remove} className={`${btn} bg-critical text-white hover:opacity-90`}>Sí, borrar</button>
+              <button type="button" onClick={() => setConfirming(false)} className={`${btn} bg-surface text-ink`}>Cancelar</button>
             </div>
           )}
           <input ref={input} type="file" accept="application/pdf" aria-label="Elegir un PDF con tu CV"
             className="hidden" onChange={onFile} />
-          {error && <p role="alert" className="text-xs text-red-600 mt-2">{error}</p>}
-          {done && !error && <p role="status" className="text-xs text-emerald-600 mt-2">{done}</p>}
+          {error && <p role="alert" className="text-[13px] font-medium text-critical mt-2">{error}</p>}
+          {done && !error && <p role="status" className="text-[13px] font-semibold text-people-text mt-2">{done}</p>}
         </>
       )}
-    </div>
+    </section>
   );
 }

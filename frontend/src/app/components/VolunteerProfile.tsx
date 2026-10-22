@@ -1,26 +1,32 @@
+// Perfil propio del voluntario (DESIGN.md → Perfiles): arriba la identidad (avatar, tres estadísticas, bio y
+// botones) y abajo el contenido en pestañas. El CV, el tema, "Cerrar sesión" y "Borrar mi cuenta" viven en
+// Configuración (/settings), no en el medio del perfil.
 import { useAuth } from '../../lib/AuthContext';
-import { LogOut, CheckCircle, Clock, Heart, Edit2, Save, X, Loader2, Sparkles, MapPin, User, Sprout, Building2, Users, UserCheck } from 'lucide-react';
+import { Loader2, Menu, Save } from 'lucide-react';
 import { useNavigate, Link } from 'react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api, EnrollmentWithProject, SkillCatalogItem, VolunteerSkill, NGO, VolunteerPublic } from '../../lib/api';
 import { FollowListModal, FollowListMode } from './FollowListModal';
 import { InlineError } from './LoadError';
 import { ProfilePhotoPicker } from './ProfilePhotoPicker';
-import { CvSection } from './CvSection';
-import { DeleteAccountSection } from './DeleteAccountSection';
+import { MomentsGrid } from './MomentsGrid';
 import { userMessage } from '../../lib/format';
 import { useLatestRequest } from '../../lib/useLatestRequest';
+import { Avatar } from '../ui/Avatar';
+import { Button } from '../ui/Button';
+import { useToast } from '../ui/UiProvider';
 
 /** Cada carga del perfil, para saber cuál falló. */
 type Part = 'enrollments' | 'catalog' | 'skills' | 'ngos' | 'following' | 'followers';
+type TabKey = 'posts' | 'volunteering' | 'ngos';
 
 const NAME_RE = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]{2,50}$/;
 const NIVEL_LABELS: Record<string, string> = { basico: 'Básico', intermedio: 'Intermedio', avanzado: 'Avanzado' };
 
-
 export function VolunteerProfile() {
-  const { user, logout, login } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [enrollments, setEnrollments] = useState<EnrollmentWithProject[]>([]);
   const [myNgos, setMyNgos]           = useState<NGO[]>([]);
   const [loading, setLoading]         = useState(true);
@@ -28,14 +34,15 @@ export function VolunteerProfile() {
   const [saving, setSaving]           = useState(false);
   const [saveErr, setSaveErr]         = useState('');
   const [form, setForm] = useState({ name: '', bio: '', location: '' });
+  const [tab, setTab] = useState<TabKey>('volunteering');
 
   const [skillCatalog, setSkillCatalog] = useState<SkillCatalogItem[]>([]);
   const [mySkills, setMySkills]         = useState<VolunteerSkill[]>([]);
   const [draftSkills, setDraftSkills]   = useState<{ habilidad_id: string; nivel: string }[]>([]);
 
-  const [myFollowingVols, setMyFollowingVols] = useState<VolunteerPublic[]>([]);
   const [myFollowerCount, setMyFollowerCount] = useState(0);
   const [myFollowingCount, setMyFollowingCount] = useState(0);
+  const [myFollowingVols, setMyFollowingVols] = useState<VolunteerPublic[]>([]);
 
   const [listMode, setListMode] = useState<FollowListMode | null>(null);
 
@@ -119,333 +126,220 @@ export function VolunteerProfile() {
     finally { setSaving(false); }
   };
 
+  const handleShare = async () => {
+    if (!user) return;
+    const url = `${window.location.origin}/volunteer/${user.id}`;
+    try {
+      if (navigator.share) { await navigator.share({ title: user.name, url }); return; }
+      await navigator.clipboard.writeText(url);
+      toast('Link de tu perfil copiado');
+    } catch { /* la persona canceló */ }
+  };
+
+  const upcoming = useMemo(() => enrollments.filter(e => e.status === 'approved' && e.project_status === 'active'), [enrollments]);
+  const done = useMemo(() => enrollments.filter(e => e.status === 'approved' && e.project_status !== 'active'), [enrollments]);
+
   if (!user) return (
-    <div className="flex flex-col items-center justify-center h-screen gap-3">
-      <p className="text-gray-500">No estás logueado</p>
-      <Link to="/" className="text-emerald-600 font-semibold text-sm">Ir al inicio</Link>
+    <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-canvas">
+      <p className="text-[15px] text-ink-soft">No estás logueado</p>
+      <Link to="/" className="text-[15px] font-semibold">Ir al inicio</Link>
     </div>
   );
 
   /** Contador que se muestra: "—" si su carga falló (un 0 se leería como dato). */
   const count = (part: Part, n: number) => (failed.has(part) ? '—' : n);
-  const notLoaded = <p className="text-xs text-gray-500 text-center py-6 bg-white rounded-2xl border border-gray-100">No se pudo cargar.</p>;
+  const notLoaded = <p className="text-[13px] text-ink-muted py-6 text-center">No se pudo cargar.</p>;
   const approved = count('enrollments', enrollments.filter(e => e.status === 'approved').length);
-  const pending  = count('enrollments', enrollments.filter(e => e.status === 'pending').length);
-  const inp = 'w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500';
+  const inp = 'w-full h-12 px-3.5 rounded-[10px] bg-surface-soft text-[15px] border-[1.5px] border-transparent focus:bg-surface focus:border-ink outline-none';
+
+  const stat = (n: number | string, label: string, onClick?: () => void) => {
+    const inner = (<><span className="text-[15px] font-bold">{n}</span><span className="text-xs font-semibold text-ink-soft">{label}</span></>);
+    return onClick
+      ? <button type="button" onClick={onClick} className="flex-1 flex flex-col items-center gap-0.5 min-h-11 justify-center">{inner}</button>
+      : <div className="flex-1 flex flex-col items-center gap-0.5 min-h-11 justify-center">{inner}</div>;
+  };
+
+  const projectRow = (e: EnrollmentWithProject) => (
+    <li key={e.id}>
+      <Link to={`/project/${e.project_id}`} className="flex items-center gap-3 min-h-[72px]">
+        {e.image
+          ? <img src={e.image} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0 bg-surface-soft" />
+          : <span className="w-14 h-14 rounded-xl bg-surface-soft flex-shrink-0" aria-hidden="true" />}
+        <span className="min-w-0 flex-1 flex flex-col gap-0.5">
+          <span className="text-[15px] font-semibold leading-snug line-clamp-2">{e.title}</span>
+          <span className="text-[13px] text-ink-muted truncate">{e.ngo_name}</span>
+        </span>
+      </Link>
+    </li>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50 md:ml-60">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-emerald-600 to-teal-700 px-4 pt-14 pb-10 relative z-0">
-        <div className="absolute top-4 right-4 flex gap-2">
-          <button onClick={() => { setEditing(!editing); setSaveErr(''); }}
-            aria-label={editing ? 'Cancelar edición' : 'Editar perfil'}
-            className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
-            {editing ? <X className="w-5 h-5 text-white" /> : <Edit2 className="w-5 h-5 text-white" />}
-          </button>
-          <button onClick={() => { logout(); navigate('/'); }} aria-label="Cerrar sesión"
-            className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
-            <LogOut className="w-5 h-5 text-white" />
-          </button>
-        </div>
+    <div className="min-h-screen bg-canvas md:bg-canvas-soft pb-6">
+      <div className="max-w-[640px] mx-auto md:pt-8">
+        <div className="bg-canvas md:rounded-2xl md:border md:border-hairline">
+          <header className="h-[52px] pl-4 pr-1 flex items-center justify-between">
+            <h1 className="text-lg font-bold tracking-[-0.2px] truncate">{user.name}</h1>
+            <Link to="/settings" aria-label="Configuración" className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-surface-soft">
+              <Menu size={24} strokeWidth={1.75} aria-hidden="true" />
+            </Link>
+          </header>
 
-        <div className="text-center">
-          <div className="w-20 h-20 bg-white rounded-full mx-auto mb-3 overflow-hidden shadow-xl">
-            {user.avatar
-              ? <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
-              : <div className="w-full h-full bg-emerald-100 flex items-center justify-center text-2xl font-bold text-emerald-700">{user.name[0]}</div>
-            }
+          <div className="px-4 pt-2 flex items-center gap-4">
+            <Avatar src={user.avatar} name={user.name} size={88} alt={user.name} />
+            <div className="flex-1 flex" role="group" aria-label="Estadísticas">
+              {stat(approved, 'Voluntariados')}
+              {stat(count('followers', myFollowerCount), 'Seguidores', () => setListMode('followers'))}
+              {stat(count('following', myFollowingCount), 'Siguiendo', () => setListMode('following'))}
+            </div>
           </div>
-          <ProfilePhotoPicker />
-          <h1 className="text-2xl font-bold text-white mb-0.5">{user.name}</h1>
-          <p className="text-white/70 text-sm">{user.email}</p>
-          {user.location && (
-            <p className="text-white/60 text-xs mt-1 flex items-center justify-center gap-1">
-              <MapPin className="w-3 h-3" />
-              <span>{user.location}</span>
-            </p>
-          )}
-          <span className="mt-2 inline-flex items-center gap-1 px-3 py-1 bg-white/20 text-white text-xs rounded-full font-medium">
-            <User className="w-3 h-3" />
-            <span>Voluntario</span>
-          </span>
-        </div>
-      </div>
 
-      {/* Stats */}
-      <div className="px-4 -mt-6 mb-5 relative z-10">
-        <div className="bg-white rounded-2xl shadow-xl p-4 border border-gray-100">
-          <div className="grid grid-cols-5 gap-2">
-            {[
-              { icon: CheckCircle, label: 'Aprobadas',  val: approved,           color: 'text-green-600',  bg: 'bg-green-50'  },
-              { icon: Clock,       label: 'Pendientes', val: pending,             color: 'text-amber-500',  bg: 'bg-amber-50'  },
-              { icon: Heart,       label: 'Total',      val: count('enrollments', enrollments.length), color: 'text-emerald-600',bg: 'bg-emerald-50'},
-            ].map(({ icon: Icon, label, val, color, bg }) => (
-              <div key={label} className="text-center">
-                <div className={`w-10 h-10 ${bg} rounded-xl flex items-center justify-center mx-auto mb-2`}>
-                  <Icon className={`w-5 h-5 ${color}`} />
-                </div>
-                <p className="text-xl font-bold text-gray-900">{val}</p>
-                <p className="text-xs text-gray-500">{label}</p>
+          <div className="px-4 pt-3 flex flex-col gap-1.5">
+            <p className="text-[15px] font-semibold">{user.name}</p>
+            {!editing && user.bio && <p className="text-[15px] leading-[1.45] whitespace-pre-line">{user.bio}</p>}
+            <p className="text-[13px] text-ink-muted">{[user.location, user.email].filter(Boolean).join(' · ')}</p>
+            {!editing && (mySkills.length > 0 || failed.has('skills')) && (
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {failed.has('skills') && <span className="text-[13px] text-ink-muted">No se pudieron cargar las habilidades.</span>}
+                {mySkills.map(s => (
+                  <span key={s.id} className="h-8 px-3 rounded-full bg-surface-soft text-xs font-semibold inline-flex items-center">
+                    {s.nombre} · {NIVEL_LABELS[s.nivel]}
+                  </span>
+                ))}
               </div>
+            )}
+          </div>
+
+          <div className="px-4 pt-4 flex gap-2">
+            <Button variant="secondary" className="flex-1" onClick={() => { setEditing(e => !e); setSaveErr(''); }} aria-label={editing ? 'Cancelar edición' : 'Editar perfil'}>
+              {editing ? 'Cancelar' : 'Editar perfil'}
+            </Button>
+            <Button variant="secondary" className="flex-1" onClick={handleShare}>Compartir perfil</Button>
+          </div>
+
+          {loadErr && <div className="px-4 pt-4"><InlineError message={loadErr} onRetry={loadAll} /></div>}
+
+          {/* Editar perfil */}
+          {editing && (
+            <div className="mx-4 mt-4 rounded-xl bg-surface-soft p-4 flex flex-col gap-4">
+              <h2 className="text-[15px] font-bold">Editar perfil</h2>
+              <ProfilePhotoPicker />
+
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="perfil-nombre" className="text-xs font-semibold text-ink-soft">Nombre completo *</label>
+                <input id="perfil-nombre" className={inp} aria-label="Nombre completo" value={form.name}
+                  onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setSaveErr(''); }} />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="perfil-bio" className="text-xs font-semibold text-ink-soft">Sobre mí</label>
+                <textarea id="perfil-bio" className={inp + ' h-auto py-3 resize-none'} rows={3}
+                  placeholder="Contá quién sos y por qué querés ser voluntario"
+                  aria-label="Sobre mí" value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="perfil-ubicacion" className="text-xs font-semibold text-ink-soft">Ubicación</label>
+                <input id="perfil-ubicacion" className={inp} placeholder="Ej: Córdoba Capital"
+                  aria-label="Ubicación" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <p className="text-xs font-semibold text-ink-soft">Habilidades</p>
+                {skillsUnavailable ? (
+                  <p className="text-[13px] text-ink-muted">No pudimos cargar tus habilidades: reintentá para editarlas.</p>
+                ) : (<>
+                  <div className="flex flex-wrap gap-1.5">
+                    {skillCatalog.map(s => {
+                      const selected = draftSkills.find(d => d.habilidad_id === s.id);
+                      return (
+                        <button key={s.id} type="button" onClick={() => toggleSkill(s.id)} aria-pressed={!!selected}
+                          className={`h-8 px-3 rounded-full text-xs font-semibold transition-colors ${selected ? 'bg-ink text-on-ink' : 'bg-surface hover:bg-surface-pressed'}`}>
+                          {s.nombre}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {draftSkills.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                      {draftSkills.map(d => {
+                        const skill = skillCatalog.find(s => s.id === d.habilidad_id);
+                        if (!skill) return null;
+                        return (
+                          <div key={d.habilidad_id} className="flex items-center justify-between gap-2">
+                            <span className="text-[15px]">{skill.nombre}</span>
+                            <select aria-label={`Nivel de ${skill.nombre}`} value={d.nivel} onChange={e => setSkillNivel(d.habilidad_id, e.target.value)}
+                              className="h-9 px-2 rounded-[10px] bg-surface text-[13px] font-semibold outline-none focus:ring-[1.5px] focus:ring-ink">
+                              {Object.entries(NIVEL_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                            </select>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>)}
+              </div>
+
+              {saveErr && <p role="alert" className="text-[13px] font-medium text-critical">{saveErr}</p>}
+
+              <Button variant="primary" onClick={handleSave} busy={saving} busyLabel="Guardando…" className="!h-12">
+                <Save size={18} strokeWidth={1.75} aria-hidden="true" />Guardar cambios
+              </Button>
+            </div>
+          )}
+
+          {/* Pestañas */}
+          <div role="tablist" aria-label="Contenido del perfil" className="mt-5 flex border-b border-hairline">
+            {([['posts', 'Publicaciones'], ['volunteering', 'Voluntariados'], ['ngos', 'ONGs']] as [TabKey, string][]).map(([k, label]) => (
+              <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
+                className={`flex-1 h-12 text-[13px] border-b-2 -mb-px transition-colors ${tab === k ? 'border-ink font-bold text-ink' : 'border-transparent font-semibold text-ink-muted'}`}>
+                {label}
+              </button>
             ))}
-            <button onClick={() => setListMode('followers')} className="text-center group cursor-pointer">
-              <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center mx-auto mb-2">
-                <Users className="w-5 h-5 text-purple-600" />
-              </div>
-              <p className="text-xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors">{count('followers', myFollowerCount)}</p>
-              <p className="text-xs text-gray-500">Seguidores</p>
-            </button>
-            <button onClick={() => setListMode('following')} className="text-center group cursor-pointer">
-              <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center mx-auto mb-2">
-                <UserCheck className="w-5 h-5 text-blue-600" />
-              </div>
-              <p className="text-xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors">{count('following', myFollowingCount)}</p>
-              <p className="text-xs text-gray-500">Siguiendo</p>
-            </button>
           </div>
-        </div>
-      </div>
 
-      <div className="max-w-2xl mx-auto px-4 space-y-4 pb-8 relative z-10">
-        {loadErr && <InlineError message={loadErr} onRetry={loadAll} />}
+          <div className="p-4 pb-6" role="tabpanel">
+            {tab === 'posts' && <MomentsGrid filters={{ user_id: user.id }} />}
 
-        {/* Editar perfil */}
-        {editing && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-4">
-            <h2 className="font-bold text-sm text-gray-900">Editar perfil</h2>
-
-            <div>
-              <label htmlFor="perfil-nombre" className="text-xs font-semibold text-gray-500 mb-1.5 block">Nombre completo *</label>
-              <input id="perfil-nombre" className={inp} aria-label="Nombre completo" value={form.name}
-                onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setSaveErr(''); }} />
-            </div>
-
-            <div>
-              <label htmlFor="perfil-bio" className="text-xs font-semibold text-gray-500 mb-1.5 block">Sobre mí</label>
-              <textarea id="perfil-bio" className={inp + ' resize-none'} rows={3}
-                placeholder="Contá quién sos y por qué querés ser voluntario..."
-                aria-label="Sobre mí" value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} />
-            </div>
-
-            <div>
-              <label htmlFor="perfil-ubicacion" className="text-xs font-semibold text-gray-500 mb-1.5 block">Ubicación</label>
-              <input id="perfil-ubicacion" className={inp} placeholder="Ej: Córdoba Capital"
-                aria-label="Ubicación" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold text-gray-500 mb-1.5 block">Habilidades</p>
-              {skillsUnavailable ? (
-                <p className="text-xs text-gray-500">No pudimos cargar tus habilidades: reintentá para editarlas.</p>
-              ) : (<>
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {skillCatalog.map(s => {
-                  const selected = draftSkills.find(d => d.habilidad_id === s.id);
-                  return (
-                    <button key={s.id} type="button" onClick={() => toggleSkill(s.id)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                        selected ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                      {s.nombre}
-                    </button>
-                  );
-                })}
-              </div>
-              {draftSkills.length > 0 && (
-                <div className="space-y-1.5 bg-gray-50 rounded-xl p-3">
-                  {draftSkills.map(d => {
-                    const skill = skillCatalog.find(s => s.id === d.habilidad_id);
-                    if (!skill) return null;
-                    return (
-                      <div key={d.habilidad_id} className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-gray-700">{skill.nombre}</span>
-                        <select aria-label={`Nivel de ${skill.nombre}`} value={d.nivel} onChange={e => setSkillNivel(d.habilidad_id, e.target.value)}
-                          className="text-xs bg-white border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                          {Object.entries(NIVEL_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                        </select>
-                      </div>
-                    );
-                  })}
+            {tab === 'volunteering' && (
+              loading ? (
+                <div role="status" aria-label="Cargando participaciones" className="flex flex-col gap-3">{[1, 2].map(i => <div key={i} aria-hidden="true" className="h-14 rounded-xl skeleton" />)}</div>
+              ) : failed.has('enrollments') ? notLoaded : upcoming.length + done.length === 0 ? (
+                <div className="py-10 text-center flex flex-col items-center gap-1">
+                  <p className="text-[15px] font-semibold">Todavía no participaste en ningún voluntariado</p>
+                  <Link to="/explore" className="text-[15px] font-semibold mt-1">Explorar voluntariados →</Link>
                 </div>
-              )}
-              </>)}
-            </div>
+              ) : (
+                <div className="flex flex-col gap-5">
+                  {upcoming.length > 0 && <section aria-labelledby="pf-prox"><h2 id="pf-prox" className="text-[15px] font-bold mb-1">Próximos</h2><ul>{upcoming.map(projectRow)}</ul></section>}
+                  {done.length > 0 && <section aria-labelledby="pf-real"><h2 id="pf-real" className="text-[15px] font-bold mb-1">Realizados</h2><ul>{done.map(projectRow)}</ul></section>}
+                  <Link to="/participation" className="text-[15px] font-semibold">Ver todas mis postulaciones →</Link>
+                </div>
+              )
+            )}
 
-            {saveErr && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-xl">{saveErr}</p>}
-
-            <button onClick={handleSave} disabled={saving}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60 transition-colors">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Guardar cambios
-            </button>
+            {tab === 'ngos' && (
+              failed.has('ngos') ? notLoaded : myNgos.length === 0 ? (
+                <div className="py-10 text-center flex flex-col items-center gap-1">
+                  <p className="text-[15px] font-semibold">Todavía no seguís a ninguna ONG</p>
+                  <Link to="/explore" className="text-[15px] font-semibold mt-1">Explorar organizaciones →</Link>
+                </div>
+              ) : (
+                <ul className="flex flex-col">
+                  {myNgos.map(ngo => (
+                    <li key={ngo.id}>
+                      <Link to={`/ngo/${ngo.id}`} className="flex items-center gap-3 min-h-[64px]">
+                        <Avatar src={ngo.logo} name={ngo.name} kind="org" size={44} />
+                        <span className="min-w-0 flex flex-col">
+                          <span className="text-[15px] font-semibold truncate">{ngo.name}</span>
+                          <span className="text-[13px] text-ink-muted truncate">{ngo.location || 'Argentina'} · {ngo.followers || 0} seguidores</span>
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )
+            )}
           </div>
-        )}
-
-        {/* Bio */}
-        {!editing && user.bio && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Sobre mí</p>
-            <p className="text-sm text-gray-700">{user.bio}</p>
-          </div>
-        )}
-
-        {/* Habilidades */}
-        {!editing && (mySkills.length > 0 || failed.has('skills')) && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5" />Habilidades
-            </p>
-            {failed.has('skills') && <p className="text-xs text-gray-500">No se pudo cargar.</p>}
-            <div className="flex flex-wrap gap-1.5">
-              {mySkills.map(s => (
-                <span key={s.id} className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">
-                  {s.nombre} · {NIVEL_LABELS[s.nivel]}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Mi CV (§166) */}
-        {!editing && <CvSection userId={user.id} />}
-        {!editing && <DeleteAccountSection />}
-
-        {/* Mis ONGs seguidas */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-gray-900 flex items-center gap-1.5 text-sm">
-              <Building2 className="w-4 h-4 text-emerald-600" />
-              <span>Mis ONGs seguidas{failed.has('ngos') ? '' : ` (${myNgos.length})`}</span>
-            </h2>
-            <Link to="/explore" className="text-xs text-emerald-600 font-semibold">Explorar más →</Link>
-          </div>
-
-          {failed.has('ngos') ? notLoaded : myNgos.length === 0 ? (
-            <div className="text-center py-6 bg-white rounded-2xl border border-gray-100 flex flex-col items-center justify-center p-4">
-              <Building2 className="w-8 h-8 text-gray-300 mb-1.5" />
-              <p className="text-xs text-gray-500">Todavía no sigues a ninguna ONG.</p>
-              <Link to="/feed" className="text-xs text-emerald-600 font-bold mt-1.5">
-                Explorar organizaciones →
-              </Link>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {myNgos.map(ngo => (
-                <Link
-                  key={ngo.id}
-                  to={`/ngo/${ngo.id}`}
-                  className="bg-white rounded-2xl p-3.5 border border-gray-100 shadow-sm hover:border-emerald-200 transition-all flex items-center gap-3 group"
-                >
-                  {ngo.logo ? (
-                    <img src={ngo.logo} alt={ngo.name} className="w-11 h-11 rounded-full object-cover ring-2 ring-gray-100 group-hover:ring-emerald-400 transition-all" />
-                  ) : (
-                    <div className="w-11 h-11 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-sm ring-2 ring-gray-100">
-                      {ngo.name[0]}
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-gray-900 group-hover:text-emerald-700 transition-colors truncate">
-                      {ngo.name}
-                    </p>
-                    <p className="text-[11px] text-gray-400 truncate mt-0.5">
-                      {ngo.location || 'Argentina'} · {ngo.followers || 0} seguidores
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Voluntarios que sigo */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-gray-900 flex items-center gap-1.5 text-sm">
-              <Users className="w-4 h-4 text-emerald-600" />
-              <span>Voluntarios que sigo{failed.has('following') ? '' : ` (${myFollowingVols.length})`}</span>
-            </h2>
-          </div>
-
-          {failed.has('following') ? notLoaded : myFollowingVols.length === 0 ? (
-            <div className="text-center py-6 bg-white rounded-2xl border border-gray-100 flex flex-col items-center justify-center p-4">
-              <Users className="w-8 h-8 text-gray-300 mb-1.5" />
-              <p className="text-xs text-gray-500">Todavía no seguís a ningún voluntario.</p>
-              <p className="text-xs text-gray-400 mt-1">Explorá voluntariados y seguí a otros participantes.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {myFollowingVols.map(vol => (
-                <Link
-                  key={vol.user_id}
-                  to={`/volunteer/${vol.user_id}`}
-                  className="bg-white rounded-2xl p-3.5 border border-gray-100 shadow-sm hover:border-emerald-200 transition-all flex items-center gap-3 group"
-                >
-                  {vol.avatar ? (
-                    <img src={vol.avatar} alt={vol.name} className="w-11 h-11 rounded-full object-cover ring-2 ring-gray-100 group-hover:ring-emerald-400 transition-all" />
-                  ) : (
-                    <div className="w-11 h-11 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-sm ring-2 ring-gray-100">
-                      {vol.name[0]}
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-gray-900 group-hover:text-emerald-700 transition-colors truncate">
-                      {vol.name}
-                    </p>
-                    <p className="text-[11px] text-gray-400 truncate mt-0.5">
-                      {vol.ubicacion || vol.location || 'Argentina'} · {vol.followers || 0} seguidores
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Últimas participaciones */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-gray-900 text-sm">Últimas participaciones</h2>
-            <Link to="/participation" className="text-xs text-emerald-600 font-semibold">Ver todas →</Link>
-          </div>
-
-          {loading ? (
-            <div className="space-y-2">
-              {[1,2].map(i => <div key={i} className="h-16 bg-gray-200 rounded-xl animate-pulse" />)}
-            </div>
-          ) : failed.has('enrollments') ? notLoaded : enrollments.length === 0 ? (
-            <div className="text-center py-8 bg-white rounded-2xl border border-gray-100 flex flex-col items-center justify-center">
-              <Sprout className="w-8 h-8 text-emerald-500 mb-2" />
-              <p className="text-sm text-gray-500">Aún no participaste en ningún proyecto</p>
-              <Link to="/feed" className="text-sm text-emerald-600 font-semibold mt-2 inline-block">Explorar proyectos →</Link>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {enrollments.slice(0, 3).map(e => (
-                <Link to={`/project/${e.project_id}`} key={e.id}>
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 flex gap-3 items-center hover:border-emerald-200 transition-colors">
-                    {e.image
-                      ? <img src={e.image} alt={e.title} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
-                      : (
-                        <div className="w-12 h-12 rounded-xl bg-emerald-50 flex-shrink-0 flex items-center justify-center">
-                          <Sprout className="w-5 h-5 text-emerald-600" />
-                        </div>
-                      )
-                    }
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{e.title}</p>
-                      <p className="text-xs text-gray-500">{e.ngo_name}</p>
-                    </div>
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ${
-                      e.status === 'approved' ? 'bg-green-50 text-green-600'
-                      : e.status === 'pending' ? 'bg-amber-50 text-amber-500'
-                      : 'bg-red-50 text-red-500'}`}>
-                      {e.status === 'approved' ? 'Aprobado' : e.status === 'pending' ? 'Pendiente' : 'Rechazado'}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 

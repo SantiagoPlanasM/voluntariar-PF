@@ -38,9 +38,10 @@ describe('portada: números reales', () => {
     mount();
     await waitFor(() => expect(statsRow()).not.toBeNull());
     const row = statsRow()!;
-    expect(row).toHaveTextContent('7proyectos activos');
+    // Rediseño (§240): "voluntariados" en vez de "proyectos" y "ONGs" a secas.
+    expect(row).toHaveTextContent('7voluntariados activos');
     expect(row).toHaveTextContent('2,4kvoluntarios');
-    expect(row).toHaveTextContent('3ONGs aliadas');
+    expect(row).toHaveTextContent('3ONGs');
     expect(row).not.toHaveTextContent('24');
     expect(stats).toHaveBeenCalledTimes(1);
   });
@@ -49,7 +50,7 @@ describe('portada: números reales', () => {
     stats.mockResolvedValue({ active_projects: 1, volunteers: 1, ngos: 1 });
     mount();
     await waitFor(() => expect(statsRow()).not.toBeNull());
-    expect(statsRow()).toHaveTextContent('1proyecto activo1voluntario1ONG aliada');
+    expect(statsRow()).toHaveTextContent('1voluntariado activo1voluntario1ONG');
   });
 
   test('base vacía (todo en 0): no se muestra la fila', async () => {

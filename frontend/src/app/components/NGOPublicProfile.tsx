@@ -1,17 +1,15 @@
 import { useParams, useNavigate, Link } from 'react-router';
 import { useState, useEffect } from 'react';
-import { ArrowLeft, MapPin, Users, Sprout, Loader2, Calendar, MessageCircle, UserPlus, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { api, NGO, Project } from '../../lib/api';
 import { useLatestRequest } from '../../lib/useLatestRequest';
 import { LoadError, describeLoadError } from './LoadError';
 import { useAuth } from '../../lib/AuthContext';
 import { userMessage, FOLLOW_ERROR } from '../../lib/format';
-
-function safePct(a: any, b: any) {
-  const na = Number.parseFloat(a), nb = Number.parseFloat(b);
-  if (!nb || Number.isNaN(na) || Number.isNaN(nb)) return 0;
-  return Math.min(100, Math.round((na / nb) * 100));
-}
+import { ProfileHeader, ProfileTabs } from '../ui/ProfileHeader';
+import { Button } from '../ui/Button';
+import { VolunteeringTile } from '../volunteering/VolunteeringTile';
+import { MomentsFeed } from './MomentsFeed';
 
 export function NGOPublicProfile() {
   const { id } = useParams();
@@ -22,6 +20,7 @@ export function NGOPublicProfile() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<{ message: string; retry: boolean } | null>(null);
   const [filter, setFilter]   = useState<'all' | 'active' | 'completed'>('all');
+  const [tab, setTab]         = useState<'volunteering' | 'posts'>('volunteering');
 
   const [following, setFollowing] = useState(false);
   const [togglingFollow, setTogglingFollow] = useState(false);
@@ -110,8 +109,9 @@ export function NGOPublicProfile() {
   };
 
   if (loading) return (
-    <div role="status" aria-label="Cargando organización" className="flex items-center justify-center h-screen">
-      <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+    <div role="status" aria-label="Cargando organización" className="p-4 flex flex-col gap-4">
+      <div className="flex items-center gap-4"><div className="w-[88px] h-[88px] rounded-[28%] skeleton" /><div className="flex-1 h-10 rounded skeleton" /></div>
+      <div className="h-4 w-1/2 rounded skeleton" /><div className="h-16 rounded-xl skeleton" />
     </div>
   );
   if (loadError || !ngo) return (
@@ -122,184 +122,79 @@ export function NGOPublicProfile() {
   const filtered = filter === 'all' ? projects : projects.filter(p => p.status === filter);
   const active   = projects.filter(p => p.status === 'active').length;
   const totalVol = projects.reduce((s, p) => s + (p.current_volunteers || 0), 0);
+  const aboutText = [ngo.description, ngo.mission ? `Misión: ${ngo.mission}` : ''].filter(Boolean).join('\n\n');
 
   return (
-    <div className="min-h-screen bg-gray-50 md:ml-60">
-      {/* Header */}
-      <div className="relative h-32 sm:h-44 bg-gradient-to-br from-emerald-600 to-teal-700 flex-shrink-0">
-        {ngo.cover_image && (
-          <img src={ngo.cover_image} alt="" className="w-full h-full object-cover opacity-40" />
-        )}
-        <button onClick={() => navigate(-1)} aria-label="Volver"
-          className="absolute top-4 left-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg">
-          <ArrowLeft className="w-5 h-5 text-gray-800" />
-        </button>
-      </div>
-
-      <div className="max-w-3xl mx-auto px-4">
-        {/* Avatar + info. `relative` para que se pinte sobre el banner (que es `relative`; antes lo tapaba
-            arriba) y el texto arranca 44 px abajo (pt-11): siempre debajo del banner, aunque el nombre ocupe
-            dos líneas; solo el logo se superpone (§128). */}
-        <div className="relative flex flex-wrap sm:flex-nowrap items-start gap-x-4 gap-y-3 -mt-10 mb-4">
-          <div className="w-20 h-20 rounded-2xl bg-white border-4 border-white shadow-xl overflow-hidden flex-shrink-0">
-            {ngo.logo
-              ? <img src={ngo.logo} alt={ngo.name} className="w-full h-full object-cover" />
-              : <div className="w-full h-full bg-emerald-100 flex items-center justify-center text-2xl font-black text-emerald-700">{ngo.name[0]}</div>
-            }
-          </div>
-          <div className="pt-11 min-w-0 flex-1">
-            <h1 className="text-xl font-black text-gray-900 leading-tight break-words">{ngo.name}</h1>
-            {ngo.location && (
-              <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
-                <MapPin className="w-3.5 h-3.5" />{ngo.location}
-              </p>
-            )}
-          </div>
-          {/* En el celular los botones van en su propia línea, debajo (en la misma fila tapaban el nombre). */}
-          <div className="flex items-center gap-2 w-full sm:w-auto sm:pt-11">
-            {(!user || user.role === 'volunteer') && !statusError && (
-              <button
-                onClick={handleToggleFollow}
-                disabled={togglingFollow}
-                className={`mb-1 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all flex-shrink-0 shadow-sm ${
-                  following
-                    ? 'bg-emerald-100 hover:bg-red-50 text-emerald-800 hover:text-red-700 border border-emerald-200 hover:border-red-200'
-                    : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                }`}
-              >
-                {following ? (
-                  <>
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Siguiendo</span>
-                  </>
-                ) : (
-                  <>
-                    <UserPlus className="w-3.5 h-3.5" />
-                    <span>Seguir</span>
-                  </>
+    <div className="min-h-screen bg-canvas md:bg-canvas-soft pb-6">
+      <div className="max-w-[640px] mx-auto md:pt-8">
+        <div className="bg-canvas md:rounded-2xl md:border md:border-hairline">
+          <ProfileHeader
+            name={ngo.name}
+            avatar={ngo.logo}
+            kind="org"
+            subtitle={[ngo.category, ngo.location].filter(Boolean).join(' · ')}
+            bio={aboutText}
+            onBack={() => navigate(-1)}
+            stats={[
+              { n: projects.length, label: 'Voluntariados' },
+              { n: totalVol, label: 'Voluntarios' },
+              { n: followersCount, label: 'Seguidores' },
+            ]}
+            actions={(
+              <>
+                {(!user || user.role === 'volunteer') && !statusError && (
+                  <Button variant={following ? 'secondary' : 'primary'} onClick={handleToggleFollow} disabled={togglingFollow} aria-pressed={following} className="flex-1">
+                    {following ? <><Check size={16} strokeWidth={2.25} aria-hidden="true" />Siguiendo</> : 'Seguir'}
+                  </Button>
                 )}
-              </button>
+                {user && user.id !== ngo.user_id && (
+                  <Button variant="secondary" onClick={() => navigate(`/messages/${ngo.user_id}`)} className="flex-1">Mensaje</Button>
+                )}
+              </>
             )}
-
-            {user && user.id !== ngo.user_id && (
-              <button onClick={() => navigate(`/messages/${ngo.user_id}`)}
-                className="mb-1 flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-colors flex-shrink-0">
-                <MessageCircle className="w-3.5 h-3.5" />Mensaje
-              </button>
+            notice={(
+              <>
+                {followError && <p role="alert" className="text-[13px] font-medium text-critical">{followError}</p>}
+                {statusError && (
+                  <div role="alert" className="flex items-center gap-2 text-[13px]">
+                    <p className="font-medium text-critical">{statusError}</p>
+                    <button type="button" onClick={retryFollowStatus} disabled={retryingStatus} className="font-semibold underline disabled:opacity-50 flex-shrink-0">Reintentar</button>
+                  </div>
+                )}
+              </>
             )}
-          </div>
-        </div>
-        {followError && <p role="alert" className="-mt-2 mb-3 text-xs font-medium text-red-600 text-right">{followError}</p>}
-        {statusError && (
-          <div role="alert" className="-mt-2 mb-3 flex items-center justify-end gap-2 text-xs">
-            <p className="font-medium text-red-600">{statusError}</p>
-            <button onClick={retryFollowStatus} disabled={retryingStatus}
-              className="font-semibold text-emerald-700 hover:underline disabled:opacity-50 flex-shrink-0">
-              Reintentar
-            </button>
-          </div>
-        )}
+          />
 
-        {/* Stats */}
-        <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-4">
-          {[
-            { val: followersCount,  label: 'Seguidores', color: 'text-amber-600',   bg: 'bg-amber-50'   },
-            { val: projects.length, label: 'Proyectos',  color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { val: active,          label: 'Activos',    color: 'text-blue-600',    bg: 'bg-blue-50'    },
-            { val: totalVol,        label: 'Voluntarios',color: 'text-violet-600',  bg: 'bg-violet-50'  },
-          ].map(({ val, label, color, bg }) => (
-            <div key={label} className={`${bg} rounded-2xl p-3 text-center`}>
-              <p className={`text-xl sm:text-2xl font-black ${color}`}>{val}</p>
-              <p className="text-[11px] sm:text-xs text-gray-500">{label}</p>
-            </div>
-          ))}
-        </div>
+          <ProfileTabs
+            label="Contenido de la organización"
+            value={tab}
+            onChange={setTab}
+            tabs={[{ key: 'volunteering', label: 'Voluntariados' }, { key: 'posts', label: 'Publicaciones' }]}
+          />
 
-        {/* Descripción y misión */}
-        {(ngo.description || ngo.mission) && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4 space-y-3">
-            {ngo.description && (
-              <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Descripción</p>
-                <p className="text-sm text-gray-700 leading-relaxed">{ngo.description}</p>
-              </div>
-            )}
-            {ngo.mission && (
-              <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Misión</p>
-                <p className="text-sm text-gray-700 leading-relaxed">{ngo.mission}</p>
+          <div className="p-4 pb-6" role="tabpanel">
+            {tab === 'posts' ? (
+              <MomentsFeed filters={{ ngo_id: ngo.id }} showComposer={false} />
+            ) : (
+              <div className="flex flex-col gap-4">
+                <div className="flex gap-2" role="group" aria-label="Filtrar voluntariados">
+                  {([['all', 'Todos'], ['active', 'Activos'], ['completed', 'Finalizados']] as const).map(([f, label]) => (
+                    <button key={f} type="button" onClick={() => setFilter(f)} aria-pressed={filter === f}
+                      className={`h-8 px-3.5 rounded-full text-xs font-semibold transition-colors ${filter === f ? 'bg-ink text-on-ink' : 'bg-surface-soft hover:bg-surface-pressed'}`}>
+                      {label}{f === 'active' ? ` · ${active}` : ''}
+                    </button>
+                  ))}
+                </div>
+                {filtered.length === 0 ? (
+                  <p className="text-[15px] text-ink-soft text-center py-8">Sin voluntariados en esta categoría</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-5">
+                    {filtered.map(p => <VolunteeringTile key={p.id} project={p} />)}
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
-
-        {/* Proyectos */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-6">
-          <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Sprout className="w-4 h-4 text-emerald-600" />
-              <h2 className="font-bold text-sm text-gray-900">Proyectos</h2>
-            </div>
-            <div className="flex gap-1">
-              {(['all','active','completed'] as const).map(f => (
-                <button key={f} onClick={() => setFilter(f)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                    filter === f ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}>
-                  {f === 'all' ? 'Todos' : f === 'active' ? 'Activos' : 'Completados'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {filtered.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-8">Sin proyectos en esta categoría</p>
-          ) : (
-            <div className="divide-y divide-gray-50">
-              {filtered.map(p => {
-                const volPct = safePct(p.current_volunteers, p.volunteers_needed);
-                return (
-                  <Link key={p.id} to={`/project/${p.id}`}>
-                    <div className="p-4 flex gap-3 hover:bg-gray-50 transition-colors">
-                      {p.image
-                        ? <img src={p.image} alt={p.title} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
-                        : (
-                          <div className="w-14 h-14 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
-                            <Sprout className="w-6 h-6 text-emerald-600" />
-                          </div>
-                        )
-                      }
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <h3 className="font-semibold text-sm text-gray-900 truncate">{p.title}</h3>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold flex-shrink-0 ${
-                            p.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'
-                          }`}>
-                            {p.status === 'active' ? 'Activo' : 'Completado'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-                          {p.type === 'fugaz'
-                            ? <><Calendar className="w-3 h-3" />{p.duration || 'Fugaz'}</>
-                            : <><Calendar className="w-3 h-3" />{p.hours_per_week}h/semana</>
-                          }
-                        </p>
-                        <div className="mt-1.5">
-                          <div className="flex justify-between text-[10px] text-gray-400 mb-1">
-                            <span className="flex items-center gap-1"><Users className="w-3 h-3" />Voluntarios</span>
-                            <span className="font-bold text-emerald-600">{p.current_volunteers}/{p.volunteers_needed}</span>
-                          </div>
-                          <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${volPct}%` }} />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
         </div>
       </div>
     </div>

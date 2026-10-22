@@ -39,8 +39,10 @@ const m = {
 };
 const boom = () => new ApiError('Error interno del servidor', 500);
 const mount = () => render(<MemoryRouter><MainFeed /></MemoryRouter>);
-/** La caja "Sugerencias para vos" de la barra lateral. */
-const suggestionsBox = () => screen.getByText('Sugerencias para vos').closest('div.bg-white') as HTMLElement;
+/** La sección "ONGs para seguir" de la barra lateral (antes "Sugerencias para vos"; rediseño, §240). */
+const suggestionsBox = () => screen.getByRole('region', { name: 'ONGs para seguir' });
+/** El estado vacío del Inicio (antes "Tu feed personalizado está listo"). */
+const EMPTY = /Empezá por una causa/;
 
 beforeEach(() => {
   m.feed.mockReset().mockResolvedValue({ projects: [post] } as never);
@@ -55,7 +57,7 @@ describe('Inicio: errores de carga (REVISION S1)', () => {
     mount();
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Error interno del servidor');
-    expect(screen.queryByText('Tu feed personalizado está listo')).toBeNull();
+    expect(screen.queryByText(EMPTY)).toBeNull();
     fireEvent.click(within(alert).getByRole('button', { name: /Reintentar/ }));
     expect(await screen.findByText('Plantada en el parque')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).toBeNull();
@@ -72,7 +74,7 @@ describe('Inicio: errores de carga (REVISION S1)', () => {
   test('feed vacío de verdad: sigue el estado vacío, sin error', async () => {
     m.feed.mockResolvedValue({ projects: [] } as never);
     mount();
-    expect(await screen.findByText('Tu feed personalizado está listo')).toBeInTheDocument();
+    expect(await screen.findByText(EMPTY)).toBeInTheDocument();
     expect(screen.queryByRole('alert')).toBeNull();
   });
 

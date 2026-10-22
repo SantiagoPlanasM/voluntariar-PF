@@ -3,6 +3,8 @@
 // REVISION.md F8: en ProjectDetails, una inscripción RECHAZADA se mostraba "Inscripto · Pendiente" para
 // siempre (el texto solo distinguía 'approved' de "cualquier otra cosa"). Como `enrollments` tiene
 // UNIQUE(user_id, project_id), no se puede volver a postular: el botón tiene que decir que fue rechazada.
+// Rediseño (§240, DESIGN.md → Estados de los botones): "No seleccionado", "Postulado" y "Vas a ir" (este último no es
+// un botón: no hay nada para tocar).
 import { describe, test, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router';
@@ -42,20 +44,24 @@ const mountWith = (status: 'pending' | 'approved' | 'rejected') => {
 };
 
 describe('ProjectDetails: estado de la inscripción propia', () => {
-  test('rechazada → "Inscripción rechazada", no "Pendiente"', async () => {
+  test('rechazada → "No seleccionado", no "Postulado" ni "Inscribirme"', async () => {
     mountWith('rejected');
-    const buttons = await screen.findAllByRole('button', { name: /Inscripción rechazada/ });
+    const buttons = await screen.findAllByRole('button', { name: 'No seleccionado' });
     for (const b of buttons) expect(b).toBeDisabled();
-    expect(screen.queryByText(/Inscripto · Pendiente/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Postulado' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Inscribirme' })).not.toBeInTheDocument();
   });
 
-  test('pendiente → "Inscripto · Pendiente"', async () => {
+  test('pendiente → "Postulado" (deshabilitado)', async () => {
     mountWith('pending');
-    expect((await screen.findAllByRole('button', { name: 'Inscripto · Pendiente' })).length).toBeGreaterThan(0);
+    const buttons = await screen.findAllByRole('button', { name: 'Postulado' });
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const b of buttons) expect(b).toBeDisabled();
   });
 
-  test('aprobada → "Inscripto · Aprobado"', async () => {
+  test('aprobada → "Vas a ir"', async () => {
     mountWith('approved');
-    expect((await screen.findAllByRole('button', { name: 'Inscripto · Aprobado' })).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Vas a ir')).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'Inscribirme' })).not.toBeInTheDocument();
   });
 });

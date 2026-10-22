@@ -1,27 +1,73 @@
-import { useEffect, useState } from 'react';
-import { Bell, CheckCheck, Loader2, ArrowLeft, CheckCircle, XCircle, UserPlus, Heart } from 'lucide-react';
-import { useNavigate } from 'react-router';
+// Notificaciones (DESIGN.md → Notificaciones): agrupadas por tiempo ("Hoy", "Esta semana", "Antes"), con un círculo
+// que dice de qué tipo es cada una. Las no leídas llevan fondo suave y un punto. El destino de cada notificación
+// (el voluntariado, el perfil) necesita que el backend la mande en `data`: hoy la lista solo trae título y texto.
+import { useEffect, useMemo, useState } from 'react';
+import { Bell, Check, UserPlus, X } from 'lucide-react';
+import { Link, useNavigate } from 'react-router';
 import { api, AppNotification } from '../../lib/api';
-import { timeAgo, userMessage } from '../../lib/format';
+import { parseBackendDate, timeAgo, userMessage } from '../../lib/format';
 import { InlineError } from './LoadError';
 import { useAuth } from '../../lib/AuthContext';
+import { ArrowLeft } from 'lucide-react';
+import { Button } from '../ui/Button';
 
-const TYPE_ICON = {
-  enrollment_approved: { icon: CheckCircle, color: 'text-green-600 bg-green-50 border-green-100' },
-  enrollment_rejected: { icon: XCircle,     color: 'text-red-500 bg-red-50 border-red-100' },
-  new_enrollment:      { icon: UserPlus,    color: 'text-blue-500 bg-blue-50 border-blue-100' },
-  new_project:         { icon: Heart,       color: 'text-emerald-500 bg-emerald-50 border-emerald-100' },
-  default:             { icon: Bell,        color: 'text-gray-500 bg-gray-50 border-gray-100' },
+// Tipo → círculo de 20 px sobre el ícono: verde = te aceptaron, el resto, neutro. Sin colores nuevos.
+const KIND: Record<string, { icon: typeof Bell; badge: string }> = {
+  enrollment_approved: { icon: Check,    badge: 'bg-people text-white' },
+  enrollment_rejected: { icon: X,        badge: 'bg-ink-muted text-white' },
+  new_enrollment:      { icon: UserPlus, badge: 'bg-ink text-on-ink' },
+  new_follower:        { icon: UserPlus, badge: 'bg-ink text-on-ink' },
+  new_project:         { icon: Bell,     badge: 'bg-ink text-on-ink' },
 };
 
 // "Hace cuánto": el timeAgo compartido (lib/format.ts). Antes había una copia acá con `new Date(fecha)`, que
 // leía el formato de SQLite (UTC sin zona) como hora local: 3 h de desfase en Córdoba (REVISION F11).
 
-// `inPanel` (§173): dentro del panel de la ONG la barra lateral está en el flujo (NGOLayout), así que no lleva el margen
-// `md:ml-60` que necesita el layout del voluntario (Root), donde la barra es fija.
-export function NotificationsScreen({ inPanel = false }: { inPanel?: boolean } = {}) {
+/** A dónde lleva cada notificación, según su tipo y los ids que guardó el backend en `data`. Sin destino → null. */
+export function notificationHref(n: Pick<AppNotification, 'type' | 'data'>): string | null {
+  let d: Record<string, unknown> = {};
+  if (typeof n.data === 'string' && n.data) { try { d = JSON.parse(n.data) ?? {}; } catch { d = {}; } }
+  else if (n.data && typeof n.data === 'object') d = n.data;
+  const id = (k: string) => (typeof d[k] === 'string' && d[k] ? encodeURIComponent(d[k] as string) : null);
+  const project = id('project_id');
+  switch (n.type) {
+    case 'new_enrollment':       // a la ONG: las postulaciones de ese voluntariado
+    case 'donation_received':    // a la ONG: el voluntariado que recibió la donación
+      return project ? `/ngo/dashboard/project/${project}` : '/ngo/dashboard';
+    case 'sponsor_proposal':     // a la ONG: las propuestas de patrocinio
+      return '/ngo/patrocinios';
+    case 'mp_reconnect_needed':  // a la ONG: vincular Mercado Pago de nuevo
+      return '/ngo/profile#mercadopago';
+    case 'enrollment_approved':
+    case 'enrollment_rejected':  // al voluntario: sus postulaciones
+      return '/participation';
+    case 'new_follower':
+      return id('follower_id') ? `/volunteer/${id('follower_id')}` : null;
+    case 'sponsor_accepted':     // a la empresa: el voluntariado que patrocina
+      return project ? `/project/${project}` : '/company/profile';
+    case 'sponsor_rejected':
+      return '/company/profile';
+    case 'new_project':
+      return project ? `/project/${project}` : null;
+    default:
+      return null;
+  }
+}
+
+type Group = 'today' | 'week' | 'before';
+const GROUP_LABEL: Record<Group, string> = { today: 'Hoy', week: 'Esta semana', before: 'Antes' };
+
+function groupOf(iso: string, now = Date.now()): Group {
+  const t = parseBackendDate(iso);
+  if (Number.isNaN(t)) return 'before';
+  const startOfToday = new Date(now); startOfToday.setHours(0, 0, 0, 0);
+  if (t >= startOfToday.getTime()) return 'today';
+  return now - t < 7 * 24 * 3600 * 1000 ? 'week' : 'before';
+}
+
+// `inPanel`: dentro del panel de la ONG la pantalla es la misma; se conserva el parámetro por compatibilidad con la ruta.
+export function NotificationsScreen(_props: { inPanel?: boolean } = {}) {
   const { user } = useAuth();
-  const offset = inPanel ? '' : ' md:ml-60';
   const navigate = useNavigate();
   const [notifs, setNotifs]   = useState<AppNotification[]>([]);
   // Contador del backend (COUNT sobre todas): la lista viene limitada a 50 y contarla acá daba ≤50 (§152).
@@ -41,6 +87,14 @@ export function NotificationsScreen({ inPanel = false }: { inPanel?: boolean } =
     finally { setLoading(false); }
   };
 
+  // Al tocar una notificación se marca como leída (sin esperar la respuesta) y se navega a su destino.
+  const open = (n: AppNotification) => {
+    if (n.read || n.read === 1) return;
+    setNotifs(prev => prev.map(x => (x.id === n.id ? { ...x, read: true } : x)));
+    setUnread(u => Math.max(0, u - 1));
+    api.notifications.markRead(n.id).catch(() => {});
+  };
+
   const markAll = async () => {
     setMarking(true);
     setActionError('');
@@ -49,79 +103,90 @@ export function NotificationsScreen({ inPanel = false }: { inPanel?: boolean } =
     finally { setMarking(false); }
   };
 
+  const groups = useMemo(() => {
+    const out: Record<Group, AppNotification[]> = { today: [], week: [], before: [] };
+    for (const n of notifs) out[groupOf(n.created_at)].push(n);
+    return out;
+  }, [notifs]);
+
   if (!user) return (
-    <div className={`flex flex-col items-center justify-center h-screen gap-3 bg-gray-50${offset}`}>
-      <p className="text-gray-500">Iniciá sesión para ver tus notificaciones</p>
+    <div className="flex flex-col items-center justify-center h-screen gap-3 px-6 text-center">
+      <p className="text-[15px] text-ink-soft">Iniciá sesión para ver tus notificaciones</p>
     </div>
   );
 
   return (
-    <div className={`min-h-screen bg-gray-50${offset}`}>
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} aria-label="Volver"
-              className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center md:hidden">
-              <ArrowLeft className="w-4 h-4 text-gray-600" />
+    <div className="min-h-screen bg-canvas md:bg-canvas-soft pb-6">
+      <div className="max-w-[640px] mx-auto md:pt-8">
+        <div className="bg-canvas md:rounded-2xl md:border md:border-hairline min-h-[60vh]">
+          <header className="h-14 pl-1 pr-2 flex items-center gap-1">
+            <button type="button" onClick={() => navigate(-1)} aria-label="Volver"
+              className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-surface-soft md:hidden">
+              <ArrowLeft size={22} strokeWidth={1.75} aria-hidden="true" />
             </button>
-            <div>
-              <h1 className="text-base font-bold text-gray-900">Notificaciones</h1>
-              {unread > 0 && <p className="text-xs text-emerald-600 font-medium">{unread} sin leer</p>}
+            <h1 className="flex-1 text-[22px] font-bold tracking-[-0.3px] pl-3 md:pl-4">Notificaciones</h1>
+            {unread > 0 && (
+              <Button variant="text" onClick={markAll} busy={marking} busyLabel="Marcando…" className="!text-[13px]">
+                Marcar todo leído
+              </Button>
+            )}
+          </header>
+          {unread > 0 && <p className="px-4 md:px-4 text-[13px] text-ink-muted -mt-1 mb-1">{unread} sin leer</p>}
+
+          {actionError && <p role="alert" className="mx-4 my-2 text-[13px] font-medium text-critical">{actionError}</p>}
+
+          {loading ? (
+            <div role="status" aria-label="Cargando notificaciones" className="px-4 py-3 flex flex-col gap-4">
+              {[1, 2, 3].map(i => <div key={i} aria-hidden="true" className="flex gap-3"><div className="w-11 h-11 rounded-full skeleton" /><div className="flex-1 flex flex-col gap-2 pt-1"><div className="h-4 w-3/4 rounded skeleton" /><div className="h-3 w-1/3 rounded skeleton" /></div></div>)}
             </div>
-          </div>
-          {unread > 0 && (
-            <button onClick={markAll} disabled={marking}
-              className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-emerald-600 transition-colors disabled:opacity-50">
-              {marking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCheck className="w-3.5 h-3.5" />}
-              Marcar todas leídas
-            </button>
+          ) : loadError ? (
+            <div className="px-4 py-2"><InlineError message={loadError} onRetry={load} /></div>
+          ) : notifs.length === 0 ? (
+            <div className="text-center py-16 px-6 flex flex-col items-center gap-1">
+              <Bell size={28} strokeWidth={1.75} className="text-ink-muted mb-1" aria-hidden="true" />
+              <p className="text-[15px] font-semibold">No tenés notificaciones</p>
+              <p className="text-[13px] text-ink-muted max-w-xs">Cuando una ONG responda o alguien te siga, aparece acá.</p>
+            </div>
+          ) : (
+            (['today', 'week', 'before'] as Group[]).filter(g => groups[g].length > 0).map(g => (
+              <section key={g} aria-labelledby={`ng-${g}`} className="pt-3">
+                <h2 id={`ng-${g}`} className="px-4 pb-1 text-[15px] font-bold">{GROUP_LABEL[g]}</h2>
+                <ul>
+                  {groups[g].map(n => {
+                    const isUnread = !n.read && n.read !== 1;
+                    const kind = KIND[n.type];
+                    const Icon = kind?.icon ?? Bell;
+                    const href = notificationHref(n);
+                    const rowClass = `px-4 py-2.5 flex gap-3 items-start ${isUnread ? 'bg-canvas-soft' : ''}`;
+                    const content = (
+                      <>
+                        <span className="relative flex-shrink-0 w-11 h-11 rounded-full bg-surface-soft flex items-center justify-center" aria-hidden="true">
+                          <Icon size={20} strokeWidth={1.75} />
+                          {kind && <span className={`absolute -right-0.5 -bottom-0.5 w-5 h-5 rounded-full border-2 border-canvas flex items-center justify-center ${kind.badge}`}><Icon size={11} strokeWidth={3} /></span>}
+                        </span>
+                        <div className="flex-1 min-w-0 pt-0.5 text-[15px] leading-snug">
+                          <p className={isUnread ? 'font-semibold' : ''}>{n.title}</p>
+                          {n.body && <p className="text-ink-soft">{n.body}</p>}
+                          <p className="text-[13px] text-ink-muted mt-0.5">{timeAgo(n.created_at)}</p>
+                        </div>
+                        {isUnread && <span role="img" aria-label="Sin leer" className="w-2 h-2 rounded-full bg-ink mt-3 flex-shrink-0" />}
+                      </>
+                    );
+                    return (
+                      <li key={n.id}>
+                        {href ? (
+                          <Link to={href} onClick={() => open(n)} className={`${rowClass} hover:bg-surface-soft transition-colors`}>{content}</Link>
+                        ) : (
+                          <div className={rowClass}>{content}</div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))
           )}
         </div>
-      </header>
-
-      <div className="max-w-2xl mx-auto px-4 py-4 space-y-2">
-        {actionError && <p role="alert" className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{actionError}</p>}
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
-          </div>
-        ) : loadError ? (
-          <InlineError message={loadError} onRetry={load} />
-        ) : notifs.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
-            <Bell className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-            <p className="font-medium text-gray-400">Sin notificaciones</p>
-            <p className="text-sm text-gray-300 mt-1">Te avisaremos cuando haya novedades</p>
-          </div>
-        ) : (
-          notifs.map(n => {
-            const isUnread = !n.read && n.read !== 1;
-            const config = TYPE_ICON[n.type as keyof typeof TYPE_ICON] || TYPE_ICON.default;
-            const Icon = config.icon;
-            return (
-              <div key={n.id}
-                className={`bg-white rounded-2xl border p-4 flex gap-3 transition-all ${
-                  isUnread ? 'border-emerald-200 shadow-sm' : 'border-gray-100'
-                }`}>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border ${config.color}`}>
-                  <Icon className="w-5 h-5" strokeWidth={2.2} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className={`text-sm font-semibold leading-tight ${isUnread ? 'text-gray-900' : 'text-gray-600'}`}>
-                      {n.title}
-                    </p>
-                    <span className="text-[10px] text-gray-400 flex-shrink-0 mt-0.5">
-                      {timeAgo(n.created_at)}
-                    </span>
-                  </div>
-                  {n.body && <p className="text-xs text-gray-500 mt-0.5">{n.body}</p>}
-                  {isUnread && <span className="inline-block w-2 h-2 bg-emerald-500 rounded-full mt-2" />}
-                </div>
-              </div>
-            );
-          })
-        )}
       </div>
     </div>
   );

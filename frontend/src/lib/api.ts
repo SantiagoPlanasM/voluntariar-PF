@@ -196,6 +196,7 @@ export const api = {
   notifications: {
     list: () => req<{ notifications: AppNotification[]; unread: number }>('/notifications'),
     markAllRead: () => req('/notifications/read-all', { method: 'PATCH' }),
+    markRead: (id: string) => req(`/notifications/${id}/read`, { method: 'PATCH' }),
   },
   faqs: {
     list: (categoria?: string) => req<{ faqs: Faq[] }>(`/faqs${categoria ? `?categoria=${categoria}` : ''}`),
@@ -270,7 +271,7 @@ export interface Project {
   avg_rating?: number | null; ratings_count?: number;
 }
 export interface FeedProject extends Project {
-  avg_rating?: number;
+  avg_rating?: number | null;
   ratings_count?: number;
   ratings?: Rating[];
   comments_count?: number;
@@ -428,6 +429,8 @@ export interface Rating {
 export interface AppNotification {
   id: string; type: string; title: string;
   body?: string; read: boolean | number; created_at: string;
+  /** JSON con los ids de lo que la originó (`project_id`, `follower_id`…). Llega como texto en SQLite y Postgres. */
+  data?: string | Record<string, unknown> | null;
 }
 
 export interface VolunteerPublic {

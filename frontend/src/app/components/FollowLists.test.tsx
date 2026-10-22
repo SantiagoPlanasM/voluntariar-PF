@@ -222,21 +222,27 @@ describe('foto del voluntario: users.avatar, nunca la copia vieja de voluntarios
     expect(await screen.findByRole('img', { name: 'Ana' })).toHaveAttribute('src', 'https://img/ana-nueva.jpg');
   });
 
-  test('perfil público sin `avatar`: la inicial, no la copia vieja', async () => {
+  test('perfil público sin `avatar`: las iniciales, no la copia vieja', async () => {
     vi.mocked(api.voluntarios.getProfile).mockResolvedValueOnce({
       volunteer: { id: 'user-55', name: 'Ana', avatar: null, foto_perfil: 'https://img/ana-vieja.jpg', bio: '', location: '', followers: 1, following_count: 1 },
       habilidades: [], stats: { total_enrollments: 0, approved_enrollments: 0, total_horas: 0 }, participaciones: [],
     } as never);
-    pub();
+    const { container } = pub();
     await screen.findByRole('button', { name: /Seguidores/ });
-    expect(screen.queryByRole('img', { name: 'Ana' })).toBeNull();
+    // Rediseño (§240): el avatar sin foto son las iniciales con nombre accesible (un <span role="img">, no una <img>).
+    const avatar = screen.getByRole('img', { name: 'Ana' });
+    expect(avatar.tagName).toBe('SPAN');
+    expect(avatar).toHaveTextContent('AN');
+    expect(container.querySelector('img[src*="ana-vieja"]')).toBeNull();
   });
 
-  test('mi perfil, "Voluntarios que sigo": `avatar` y no `foto_perfil`', async () => {
+  // Rediseño (§240): la lista "Voluntarios que sigo" del perfil propio pasó a la estadística "Siguiendo".
+  test('mi perfil, "Siguiendo": `avatar` y no `foto_perfil`', async () => {
     own();
-    const juan = await screen.findByRole('link', { name: /Juan/ });
+    const d = await open('Siguiendo');
+    const juan = await within(d).findByRole('link', { name: /Juan/ });
     expect(within(juan).getByRole('img', { name: 'Juan' })).toHaveAttribute('src', 'https://img/juan.jpg');
-    const lucia = screen.getByRole('link', { name: /Lucía/ });
-    expect(within(lucia).queryByRole('img')).toBeNull();
+    const lucia = within(d).getByRole('link', { name: /Lucía/ });
+    expect(lucia.querySelector('img')).toBeNull();
   });
 });

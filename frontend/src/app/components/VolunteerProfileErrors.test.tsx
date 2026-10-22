@@ -3,6 +3,9 @@
 // Perfil propio del voluntario (REVISION S1): las seis cargas (participaciones, catálogo de habilidades, mis
 // habilidades, ONGs seguidas, siguiendo, seguidores) se tragaban los errores y la pantalla mostraba
 // "Aún no participaste…", "Todavía no sigues a ninguna ONG." y contadores en 0, como si fueran datos.
+// Rediseño (§240, DESIGN.md → Perfiles): tres estadísticas arriba (Voluntariados, Seguidores, Siguiendo), las
+// habilidades bajo el nombre y el contenido en pestañas (Publicaciones, Voluntariados, ONGs). El criterio no cambia:
+// un solo aviso con "Reintentar"; lo que falló dice "—" o "No se pudo cargar.", nunca el vacío.
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
@@ -14,13 +17,13 @@ vi.mock('../../lib/AuthContext', () => {
   };
   return { useAuth: () => auth };
 });
+vi.mock('./MomentsGrid', () => ({ MomentsGrid: () => null }));
 vi.mock('../../lib/api', async () => {
   const actual = await vi.importActual<typeof import('../../lib/api')>('../../lib/api');
   return {
     ...actual,
     api: {
       ...actual.api,
-      // `me`: lo pide la sección "Mi CV" (§166), que tiene su propio aviso; acá no es lo que se prueba.
       auth: { ...actual.api.auth, updateMe: vi.fn(), me: vi.fn().mockResolvedValue({ user: {}, profile: { has_cv: false } }) },
       enrollments: { ...actual.api.enrollments, my: vi.fn() },
       catalog: { ...actual.api.catalog, habilidades: vi.fn() },
@@ -53,8 +56,10 @@ const allOk = () => {
 };
 const boom = () => new ApiError('Error interno del servidor', 500);
 const mount = () => render(<MemoryRouter><VolunteerProfile /></MemoryRouter>);
-/** Valor del contador de la tarjeta de estadísticas con esa etiqueta. */
-const stat = (label: string) => screen.getByText(label, { selector: 'p' }).previousElementSibling!;
+/** Valor de la estadística de arriba con esa etiqueta. */
+const stat = (label: string) => within(screen.getByRole('group', { name: 'Estadísticas' })).getByText(label).previousElementSibling!;
+const tab = (name: string) => fireEvent.click(screen.getByRole('tab', { name }));
+const panel = () => screen.getByRole('tabpanel');
 
 beforeEach(() => {
   allOk();
@@ -70,22 +75,24 @@ describe('perfil propio: errores de carga (REVISION S1)', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Error interno del servidor');
     expect(screen.getAllByRole('alert')).toHaveLength(1);
-    expect(screen.queryByText('Aún no participaste en ningún proyecto')).toBeNull();
-    expect(screen.queryByText('Todavía no sigues a ninguna ONG.')).toBeNull();
-    expect(screen.queryByText('Todavía no seguís a ningún voluntario.')).toBeNull();
-    for (const label of ['Aprobadas', 'Pendientes', 'Total', 'Seguidores', 'Siguiendo']) expect(stat(label)).toHaveTextContent('—');
-    expect(screen.getByText(/Mis ONGs seguidas/)).not.toHaveTextContent('(0)');
-    expect(screen.getByText(/Voluntarios que sigo/)).not.toHaveTextContent('(0)');
-    // Sin habilidades la sección se oculta; si su carga falló, se ve con el aviso.
-    expect(screen.getByText('Habilidades').parentElement).toHaveTextContent('No se pudo cargar.');
+    for (const label of ['Voluntariados', 'Seguidores', 'Siguiendo']) expect(stat(label)).toHaveTextContent('—');
+    // Las habilidades se ocultan si no hay; si su carga falló, se dice.
+    expect(screen.getByText('No se pudieron cargar las habilidades.')).toBeInTheDocument();
+    // Pestaña Voluntariados (la inicial) y ONGs: "No se pudo cargar.", no el vacío.
+    expect(within(panel()).getByText('No se pudo cargar.')).toBeInTheDocument();
+    expect(screen.queryByText('Todavía no participaste en ningún voluntariado')).toBeNull();
+    tab('ONGs');
+    expect(within(panel()).getByText('No se pudo cargar.')).toBeInTheDocument();
+    expect(screen.queryByText('Todavía no seguís a ninguna ONG')).toBeNull();
 
     fireEvent.click(within(alert).getByRole('button', { name: /Reintentar/ }));
-    expect(await screen.findByText('Fundación Verde')).toBeInTheDocument();
-    expect(await screen.findByText('Reforestación')).toBeInTheDocument();
-    expect(screen.getByText('Juan')).toBeInTheDocument();
+    expect(await within(panel()).findByText('Fundación Verde')).toBeInTheDocument();
+    tab('Voluntariados');
+    expect(await within(panel()).findByText('Reforestación')).toBeInTheDocument();
     expect(screen.getByText('Primeros auxilios · Básico')).toBeInTheDocument();
     expect(stat('Seguidores')).toHaveTextContent('2');
-    expect(stat('Aprobadas')).toHaveTextContent('1');
+    expect(stat('Siguiendo')).toHaveTextContent('1');
+    expect(stat('Voluntariados')).toHaveTextContent('1');
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.queryByText('No se pudo cargar.')).toBeNull();
     for (const fn of Object.values(m)) expect(fn).toHaveBeenCalledTimes(2);
@@ -96,12 +103,13 @@ describe('perfil propio: errores de carga (REVISION S1)', () => {
     m.my.mockResolvedValue({ enrollments: [] });
     mount();
     expect(await screen.findByRole('alert')).toHaveTextContent('Error interno del servidor');
-    expect(screen.queryByText('Todavía no sigues a ninguna ONG.')).toBeNull();
-    expect(screen.getByText('No se pudo cargar.')).toBeInTheDocument();
+    tab('ONGs');
+    expect(screen.queryByText('Todavía no seguís a ninguna ONG')).toBeNull();
+    expect(within(panel()).getByText('No se pudo cargar.')).toBeInTheDocument();
     // Las otras cargaron bien: su vacío sí es un dato.
-    expect(await screen.findByText('Aún no participaste en ningún proyecto')).toBeInTheDocument();
-    expect(stat('Total')).toHaveTextContent('0');
-    expect(await screen.findByText('Juan')).toBeInTheDocument();
+    tab('Voluntariados');
+    expect(await screen.findByText('Todavía no participaste en ningún voluntariado')).toBeInTheDocument();
+    expect(stat('Voluntariados')).toHaveTextContent('0');
     expect(stat('Seguidores')).toHaveTextContent('2');
   });
 
@@ -112,7 +120,7 @@ describe('perfil propio: errores de carga (REVISION S1)', () => {
     expect(alert).toHaveTextContent('No pudimos cargar parte de tu perfil. Revisá tu conexión.');
     expect(alert).not.toHaveTextContent('Failed to fetch');
     expect(stat('Seguidores')).toHaveTextContent('—');
-    expect(stat('Siguiendo')).toHaveTextContent('1');
+    await vi.waitFor(() => expect(stat('Siguiendo')).toHaveTextContent('1'));
   });
 
   test('si no cargaron tus habilidades, guardar el perfil no las borra (antes mandaba la lista vacía)', async () => {
@@ -146,15 +154,15 @@ describe('perfil propio: errores de carga (REVISION S1)', () => {
     await vi.waitFor(() => expect(api.voluntarios.habilidades.update).toHaveBeenCalledWith([{ habilidad_id: 'h1', nivel: 'basico' }]));
   });
 
-  test('mientras "Reintentar" carga las participaciones no dice "Aún no participaste…"', async () => {
+  test('mientras "Reintentar" carga las participaciones no dice "Todavía no participaste…"', async () => {
     let resolve!: (v: { enrollments: EnrollmentWithProject[] }) => void;
     m.my.mockReset().mockRejectedValueOnce(boom()).mockReturnValueOnce(new Promise(r => { resolve = r; }));
     mount();
     fireEvent.click(within(await screen.findByRole('alert')).getByRole('button', { name: /Reintentar/ }));
-    await screen.findByText('Fundación Verde');
-    expect(screen.queryByText('Aún no participaste en ningún proyecto')).toBeNull();
+    expect(await screen.findByRole('status', { name: 'Cargando participaciones' })).toBeInTheDocument();
+    expect(screen.queryByText('Todavía no participaste en ningún voluntariado')).toBeNull();
     resolve({ enrollments: [] });
-    expect(await screen.findByText('Aún no participaste en ningún proyecto')).toBeInTheDocument();
+    expect(await screen.findByText('Todavía no participaste en ningún voluntariado')).toBeInTheDocument();
   });
 
   test('un error viejo que llega después de "Reintentar" no vuelve a mostrar el aviso', async () => {
@@ -163,8 +171,9 @@ describe('perfil propio: errores de carga (REVISION S1)', () => {
     m.ngos.mockReset().mockReturnValueOnce(new Promise((_, r) => { rejectOld = r; })).mockResolvedValue({ ngos: [ngo] });
     mount();
     fireEvent.click(within(await screen.findByRole('alert')).getByRole('button', { name: /Reintentar/ }));
-    expect(await screen.findByText('Fundación Verde')).toBeInTheDocument();
     expect(await screen.findByText('Reforestación')).toBeInTheDocument();
+    tab('ONGs');
+    expect(await screen.findByText('Fundación Verde')).toBeInTheDocument();
     rejectOld(boom());
     await new Promise(r => setTimeout(r, 0));
     expect(screen.queryByRole('alert')).toBeNull();

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, Send, Loader2 } from 'lucide-react';
+import { Avatar } from '../ui/Avatar';
 import { useAuth } from '../../lib/AuthContext';
 import { useChat } from '../../lib/ChatContext';
 import { api, ChatMessage } from '../../lib/api';
@@ -68,34 +69,28 @@ export function ChatThread() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto w-full flex flex-col h-[calc(100vh-4rem)] md:h-screen">
-      <header className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-white sticky top-0 z-10">
-        <button onClick={() => navigate(backTo)} aria-label="Volver" className="p-1.5 -ml-1.5 rounded-full hover:bg-gray-100">
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
+    <div className="max-w-2xl mx-auto w-full flex flex-col h-[calc(100dvh-56px)] md:h-screen bg-canvas">
+      <header className="flex items-center gap-2 px-2 h-14 border-b border-hairline bg-canvas sticky top-0 z-10 flex-shrink-0">
+        <button type="button" onClick={() => navigate(backTo)} aria-label="Volver" className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-surface-soft">
+          <ArrowLeft size={22} strokeWidth={1.75} />
         </button>
-        {other?.avatar
-          ? <img src={other.avatar} alt={other.name} className="w-9 h-9 rounded-full object-cover" />
-          : <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700">
-              {other?.name?.[0] || '?'}
-            </div>
-        }
-        <h1 className="text-sm font-bold text-gray-900">{other?.name || 'Cargando...'}</h1>
+        <Avatar src={other?.avatar} name={other?.name || '?'} kind={other && 'role' in other && (other as any).role !== 'volunteer' ? 'org' : 'person'} size={32} />
+        <h1 className="text-[15px] font-semibold">{other?.name || 'Cargando…'}</h1>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-0.5">
         {loading ? (
-          <div role="status" aria-label="Cargando mensajes" className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
+          <div role="status" aria-label="Cargando mensajes" className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-ink-muted" /></div>
         ) : messages.length === 0 ? (
-          <p className="text-center text-xs text-gray-400 py-10">Todavía no hay mensajes. ¡Escribí el primero!</p>
+          <p className="text-center text-[13px] text-ink-muted py-10">Todavía no hay mensajes. Escribí el primero.</p>
         ) : (
           messages.map(m => {
             const mine = m.sender_id === user?.id;
             return (
               <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[75%] px-3.5 py-2 rounded-2xl text-sm ${
-                  mine ? 'bg-emerald-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-bl-sm'}`}>
+                <div className={`max-w-[75%] px-3.5 py-2 rounded-[20px] text-[15px] leading-snug ${mine ? 'bg-ink text-on-ink rounded-br-[6px]' : 'bg-surface-soft text-ink rounded-bl-[6px]'}`}>
                   <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                  <p className={`text-[10px] mt-1 ${mine ? 'text-emerald-100' : 'text-gray-400'}`}>{formatTime(m.created_at)}</p>
+                  <p className={`text-xs mt-0.5 ${mine ? 'text-on-ink/70' : 'text-ink-muted'}`}>{formatTime(m.created_at)}</p>
                 </div>
               </div>
             );
@@ -104,19 +99,19 @@ export function ChatThread() {
         <div ref={bottomRef} />
       </div>
 
-      {err && <p className="text-xs text-red-500 px-4 pb-1">{err}</p>}
+      {err && <p role="alert" className="text-[13px] text-critical px-4 pb-1">{err}</p>}
 
-      <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100 bg-white">
+      <div className="flex items-center gap-2 px-3 py-2 border-t border-hairline bg-canvas flex-shrink-0">
         <input
           aria-label="Mensaje"
           value={draft}
           onChange={e => setDraft(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); } }}
-          placeholder="Escribí un mensaje..."
-          className="flex-1 bg-gray-100 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          placeholder="Mensaje…"
+          className="flex-1 h-11 bg-surface-soft rounded-full px-4 text-[15px] focus:outline-none focus:bg-surface focus:ring-[1.5px] focus:ring-ink"
         />
-        <button onClick={handleSend} disabled={!draft.trim() || sending} aria-label="Enviar mensaje"
-          className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center disabled:opacity-40 flex-shrink-0 hover:bg-emerald-700 transition-colors">
+        <button type="button" onClick={handleSend} disabled={!draft.trim() || sending} aria-label="Enviar mensaje"
+          className="w-11 h-11 rounded-full bg-ink text-on-ink flex items-center justify-center disabled:opacity-40 flex-shrink-0 transition-opacity">
           {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
         </button>
       </div>

@@ -65,9 +65,9 @@ describe('<AuthModal /> Login Redirection', () => {
 
     renderModal();
 
-    const emailInput = screen.getByPlaceholderText('Email');
-    const passInput = screen.getByPlaceholderText('Contraseña');
-    const submitBtn = screen.getByRole('button', { name: /entrar/i });
+    const emailInput = screen.getByLabelText('Email');
+    const passInput = screen.getByLabelText('Contraseña');
+    const submitBtn = screen.getByRole('button', { name: 'Ingresar' });
 
     fireEvent.change(emailInput, { target: { value: 'admin@techcorp.com' } });
     fireEvent.change(passInput, { target: { value: 'Password1' } });
@@ -86,9 +86,9 @@ describe('<AuthModal /> Login Redirection', () => {
 
     renderModal();
 
-    const emailInput = screen.getByPlaceholderText('Email');
-    const passInput = screen.getByPlaceholderText('Contraseña');
-    const submitBtn = screen.getByRole('button', { name: /entrar/i });
+    const emailInput = screen.getByLabelText('Email');
+    const passInput = screen.getByLabelText('Contraseña');
+    const submitBtn = screen.getByRole('button', { name: 'Ingresar' });
 
     fireEvent.change(emailInput, { target: { value: 'admin@sustentando.org' } });
     fireEvent.change(passInput, { target: { value: 'Password1' } });
@@ -114,7 +114,7 @@ describe('<AuthModal /> accesible (REVISION F12)', () => {
     const d = await screen.findByRole('dialog', { name: 'Iniciar sesión' });
     expect(d.contains(document.activeElement)).toBe(true);
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Crear cuenta' })[0]);
+    fireEvent.click(screen.getByRole('tab', { name: 'Crear cuenta' }));
     expect(screen.getByRole('dialog', { name: 'Crear cuenta' })).toBeInTheDocument();
 
     fireEvent.keyDown(document.body, { key: 'Escape' });
@@ -137,11 +137,11 @@ describe('<AuthModal /> registro: contraseña de hasta 72 bytes', () => {
   async function submitRegister(password: string) {
     render(<MemoryRouter><AuthProvider><OpenOnce /><AuthModal /></AuthProvider></MemoryRouter>);
     await screen.findByRole('dialog', { name: 'Iniciar sesión' });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Crear cuenta' })[0]);
+    fireEvent.click(screen.getByRole('tab', { name: 'Crear cuenta' }));
     fireEvent.change(screen.getByLabelText('Nombre completo'), { target: { value: 'Ana Prueba' } });
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'ana@test.com' } });
     fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: password } });
-    fireEvent.click(screen.getByRole('button', { name: /crear mi cuenta/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cuenta' }));
   }
 
   test('73 caracteres → el mensaje del límite y no se llama al servidor', async () => {
@@ -187,11 +187,11 @@ describe('<AuthModal /> registro: email de hasta 254 caracteres', () => {
   async function submitRegister(email: string) {
     render(<MemoryRouter><AuthProvider><OpenOnce /><AuthModal /></AuthProvider></MemoryRouter>);
     await screen.findByRole('dialog', { name: 'Iniciar sesión' });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Crear cuenta' })[0]);
+    fireEvent.click(screen.getByRole('tab', { name: 'Crear cuenta' }));
     fireEvent.change(screen.getByLabelText('Nombre completo'), { target: { value: 'Ana Prueba' } });
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: email } });
     fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'Password1' } });
-    fireEvent.click(screen.getByRole('button', { name: /crear mi cuenta/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cuenta' }));
   }
 
   test('255 caracteres → "Email inválido" y no se llama al servidor', async () => {
@@ -218,7 +218,7 @@ describe('<AuthModal /> registro: link a privacidad y términos', () => {
     render(<MemoryRouter><AuthProvider><OpenOnce /><AuthModal /></AuthProvider></MemoryRouter>);
     await screen.findByRole('dialog', { name: 'Iniciar sesión' });
     expect(screen.queryByRole('link', { name: 'la política de privacidad y los términos de uso' })).toBeNull();
-    fireEvent.click(screen.getAllByRole('button', { name: 'Crear cuenta' })[0]);
+    fireEvent.click(screen.getByRole('tab', { name: 'Crear cuenta' }));
     const link = screen.getByRole('link', { name: 'la política de privacidad y los términos de uso' });
     expect(link).toHaveAttribute('href', '/privacidad');
     expect(link).toHaveAttribute('target', '_blank');

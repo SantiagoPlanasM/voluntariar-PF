@@ -27,6 +27,8 @@ import { NGOEmpleados } from './components/NGOEmpleados';
 import { NGOKPIs } from './components/NGOKPIs';
 import { MessagesScreen } from './components/MessagesScreen';
 import { ChatThread } from './components/ChatThread';
+import { AssistantScreen } from './components/AssistantScreen';
+import { SettingsScreen } from './components/SettingsScreen';
 import { MomentsPage } from './components/MomentsPage';
 import { NGOMoments } from './components/NGOMoments';
 
@@ -45,13 +47,15 @@ export const router = createBrowserRouter([
       { path: 'notifications',   Component: NotificationsScreen },
       { path: 'momentos',        Component: MomentsPage },
       { path: 'messages',        Component: MessagesScreen },
+      { path: 'messages/asistente', Component: AssistantScreen },
       { path: 'messages/:userId', Component: ChatThread },
       { path: 'ngo/:id',         Component: NGOPublicProfile },
       { path: 'company/:id',     Component: CompanyPublicProfile },
       { path: 'volunteer/:id',   Component: VolunteerPublicProfile },
       { path: 'donaciones/vuelta', Component: DonationReturn },   // vuelta desde Mercado Pago (§172)
       { path: 'cuenta/borrar',   Component: DeleteAccountPage },   // link del email para borrar la cuenta (§178)
-      { path: 'privacidad',      Component: PrivacyPage },         // privacidad y términos (§179)
+      { path: 'privacidad',      Component: PrivacyPage },            // privacidad y términos (§179)
+      { path: 'settings',        Component: SettingsScreen },         // configuración: CV, tema, cerrar sesión, borrar cuenta (§240)
     ],
   },
   {
@@ -70,6 +74,7 @@ export const router = createBrowserRouter([
       { path: 'empleados/:id',                    Component: NGOEmpleados },
       { path: 'kpis/:projectId',                  Component: NGOKPIs },
       { path: 'messages',                         Component: MessagesScreen },
+      { path: 'messages/asistente',               Component: AssistantScreen },
       { path: 'messages/:userId',                 Component: ChatThread },
       // §173: antes la ONG no tenía dónde ver sus notificaciones (solo existía /notifications, del voluntario).
       { path: 'notifications',                    element: <NotificationsScreen inPanel /> },
@@ -83,6 +88,7 @@ export const router = createBrowserRouter([
       { path: 'dashboard',         Component: CompanyDashboard },
       { path: 'profile',           Component: CompanyOwnProfile },
       { path: 'messages',          Component: MessagesScreen },
+      { path: 'messages/asistente', Component: AssistantScreen },
       { path: 'messages/:userId',  Component: ChatThread },
     ],
   },

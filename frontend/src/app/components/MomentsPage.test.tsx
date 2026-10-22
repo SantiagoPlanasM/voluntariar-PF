@@ -8,7 +8,10 @@ import type { User } from '../../lib/api';
 vi.mock('../../lib/AuthContext', () => ({ useAuth: vi.fn() }));
 vi.mock('./MomentsFeed', async () => {
   const React = await import('react');
-  return { MomentsFeed: () => React.createElement('div', { 'data-testid': 'moments-feed' }) };
+  return {
+    MomentsFeed: ({ autoCompose }: { autoCompose?: boolean }) =>
+      React.createElement('div', { 'data-testid': 'moments-feed', 'data-auto-compose': String(!!autoCompose) }),
+  };
 });
 
 import { useAuth } from '../../lib/AuthContext';
@@ -18,9 +21,9 @@ const mk = (role: User['role']): User => ({ id: `id-${role}`, name: role, email:
 function asViewer(user: User | null, initializing = false) {
   vi.mocked(useAuth).mockReturnValue({ user, initializing, openAuthModal } as unknown as ReturnType<typeof useAuth>);
 }
-const renderPage = () =>
+const renderPage = (path = '/momentos') =>
   render(
-    <MemoryRouter initialEntries={['/momentos']}>
+    <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/momentos" element={<MomentsPage />} />
         <Route path="/ngo/momentos" element={<div>pantalla de la ONG</div>} />
@@ -31,34 +34,35 @@ const renderPage = () =>
 beforeEach(() => { openAuthModal.mockReset(); }); // con llaves: ver PublicFeedStats.test.tsx
 
 describe('<MomentsPage />', () => {
-  test('muestra el título, las pestañas (con "Momentos" activa) y el feed', () => {
+  test('título "Publicaciones" (para lectores de pantalla) y el feed; sin las pestañas viejas Proyectos/Momentos', () => {
     asViewer(mk('volunteer'));
     renderPage();
-    expect(screen.getByRole('heading', { name: 'Momentos' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Momentos' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('heading', { name: 'Publicaciones' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Proyectos' })).not.toBeInTheDocument();
     expect(screen.getByTestId('moments-feed')).toBeInTheDocument();
   });
 
-  test('voluntario: la pestaña "Proyectos" lleva a /feed y no se ofrece ingresar', () => {
+  test('voluntario: no se ofrece ingresar', () => {
     asViewer(mk('volunteer'));
     renderPage();
-    expect(screen.getByRole('link', { name: 'Proyectos' })).toHaveAttribute('href', '/feed');
     expect(screen.queryByRole('button', { name: 'Ingresar' })).not.toBeInTheDocument();
   });
 
-  test('empresa: "Proyectos" lleva a /explore (su pantalla de proyectos; /feed es el feed de un voluntario)', () => {
-    asViewer(mk('company'));
-    renderPage();
-    expect(screen.getByRole('link', { name: 'Proyectos' })).toHaveAttribute('href', '/explore');
-  });
-
-  test('visitante: "Proyectos" lleva a "/" y ofrece ingresar para dar me gusta y compartir', () => {
+  test('visitante: ofrece ingresar para dar me gusta y publicar, y el feed se ve igual (es público)', () => {
     asViewer(null);
     renderPage();
-    expect(screen.getByRole('link', { name: 'Proyectos' })).toHaveAttribute('href', '/');
     fireEvent.click(screen.getByRole('button', { name: 'Ingresar' }));
     expect(openAuthModal).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId('moments-feed')).toBeInTheDocument();     // el feed es público
+    expect(screen.getByTestId('moments-feed')).toBeInTheDocument();
+  });
+
+  test('"Crear" de la barra (/momentos?crear=1) le pide al feed que abra el compositor; sin el parámetro, no', () => {
+    asViewer(mk('volunteer'));
+    const { unmount } = renderPage('/momentos?crear=1');
+    expect(screen.getByTestId('moments-feed')).toHaveAttribute('data-auto-compose', 'true');
+    unmount();
+    renderPage();
+    expect(screen.getByTestId('moments-feed')).toHaveAttribute('data-auto-compose', 'false');
   });
 
   test('una ONG es redirigida a su pantalla (/ngo/momentos), que tiene su propio menú', () => {

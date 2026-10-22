@@ -252,7 +252,7 @@ export function ReviewsModal({
 
           {/* Lista de Reseñas */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+            <h4 className="text-xs font-bold text-gray-500">
               Todas las reseñas
             </h4>
 
@@ -291,7 +291,7 @@ export function ReviewsModal({
                         <div>
                           <div className="flex items-center gap-1.5">
                             <span className="font-bold text-gray-900">{r.user_name}</span>
-                            <span className="px-1.5 py-0.5 bg-[#e4f1e0] text-[#255f24] text-[10px] font-bold rounded">
+                            <span className="px-1.5 py-0.5 bg-[#e4f1e0] text-[#255f24] text-xs font-bold rounded">
                               Participó
                             </span>
                           </div>

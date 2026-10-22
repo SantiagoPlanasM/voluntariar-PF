@@ -873,10 +873,7 @@ siempre arriba del campo, en `label`, nunca solo como placeholder.
 - Sobre fotos: `chip-on-photo` (blanco 92%).
 - **Sin colores por categoría.** Un arcoíris de categorías compite con las fotos y con el azul y el
   verde. Si querés diferenciarlas, usá un ícono de 14px dentro del chip.
-- **"Fugaz"** (y otros tipos): chip oscuro sobre la foto con su ícono (⚡). Es información, no una
-  acción, por eso no va en azul. "Sostenido" usa el mismo chip oscuro con un ícono de calendario,
-  y la modalidad ("Remoto", "Híbrido") va como chip `chip` en la página del voluntariado, no sobre
-  la foto.
+- **El tipo de voluntariado lleva color** (decisión del usuario, 2026-10-21): **azul = Fugaz** (⚡) y **verde = Sostenido** (calendario). Es la única excepción a "azul = dinero, verde = personas": se usan los mismos tokens `brand` y `people`, así que cambian solos en el modo oscuro. Sobre una foto va como chip sólido con texto blanco; sobre fondo claro, con el fondo suave (`brand-soft`, `people-soft`). Siempre lleva el ícono y la palabra: el color nunca es la única señal. La modalidad ("Remoto", "Híbrido") va como chip `chip` en la página del voluntariado, no sobre la foto.
 
 ### Íconos
 

@@ -31,39 +31,38 @@ export function DeleteAccountSection() {
     }
   };
 
-  const btn = 'px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50';
+  const btn = 'h-10 px-3.5 rounded-[10px] text-[13px] font-bold transition-colors disabled:opacity-50';
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-4">
-      <p className="text-xs font-bold text-red-400 uppercase tracking-wide mb-2">Zona peligrosa</p>
+    <section aria-label="Borrar la cuenta" className="rounded-xl bg-surface border border-hairline p-4 flex flex-col gap-2">
       {!confirming ? (
         <button type="button" onClick={() => { setError(''); setSentTo(''); setConfirming(true); }}
-          className={`${btn} text-red-600 hover:bg-red-50`}>
+          className={`${btn} self-start -ml-3.5 text-critical hover:bg-surface-soft`}>
           Borrar mi cuenta
         </button>
       ) : (
         <div role="group" aria-label="¿Querés borrar tu cuenta?" className="space-y-2">
-          <p className="text-sm text-gray-700">
+          <p className="text-[15px] leading-[1.45] text-ink-soft">
             Te vamos a mandar un email con un link para confirmar. Al confirmar se borran tu cuenta y todo lo tuyo
             (perfil, inscripciones, mensajes, Momentos{user?.role === 'volunteer' ? ', CV' : ''})
             {user?.role === 'ngo' ? <>, <strong>tus proyectos y, con ellos, las inscripciones de los voluntarios</strong></> : null}.
             No se puede deshacer.
           </p>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={send} disabled={sending} className={`${btn} bg-red-600 text-white hover:bg-red-700`}>
+            <button type="button" onClick={send} disabled={sending} className={`${btn} bg-critical text-white hover:opacity-90`}>
               {sending ? 'Mandando…' : 'Mandarme el email'}
             </button>
-            <button type="button" onClick={() => setConfirming(false)} disabled={sending} className={`${btn} bg-gray-100 text-gray-700`}>
+            <button type="button" onClick={() => setConfirming(false)} disabled={sending} className={`${btn} bg-surface-soft text-ink`}>
               Cancelar
             </button>
           </div>
         </div>
       )}
-      {error && <p role="alert" className="text-xs text-red-600 mt-2">{error}</p>}
+      {error && <p role="alert" className="text-[13px] font-medium text-critical">{error}</p>}
       {sentTo && !error && (
-        <p role="status" className="text-xs text-emerald-700 mt-2">
+        <p role="status" className="text-[13px] font-semibold text-people-text">
           Te mandamos un email a {sentTo} con el link para confirmar. Vence en 1 hora.
         </p>
       )}
-    </div>
+    </section>
   );
 }

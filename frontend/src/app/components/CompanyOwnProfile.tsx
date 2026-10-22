@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { LogOut, Edit2, Loader2, Save, X, Sprout, Send, Trash2 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Loader2, Menu, Save, X, Sprout, Send, Trash2 } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { api, Empresa, Patrocinio, Project } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { userMessage } from '../../lib/format';
 import { SPONSORSHIP_BADGE, SPONSORSHIP_LABEL } from '../../lib/sponsorship';
 import { InlineError } from './LoadError';
 import { ProfilePhotoPicker } from './ProfilePhotoPicker';
-import { DeleteAccountSection } from './DeleteAccountSection';
+import { ProfileHeader } from '../ui/ProfileHeader';
+import { Button } from '../ui/Button';
 
 // Tope del listado de proyectos para proponer. Sin `limit` el backend devuelve 20 y los demás no se podían
 // patrocinar (REVISION F6). GET /projects no tiene paginación (deuda conocida): el camino principal es
@@ -125,47 +126,38 @@ export function CompanyOwnProfile() {
   );
   if (!empresa) return null;
 
-  const inp = 'w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500';
+  const inp = 'w-full h-12 px-3.5 rounded-[10px] bg-surface-soft text-[15px] border-[1.5px] border-transparent focus:bg-surface focus:border-ink outline-none';
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-violet-600 to-indigo-600 px-4 pt-14 pb-8 relative">
-        <div className="absolute top-4 right-4 flex gap-2">
-          <button onClick={() => { setEditing(!editing); setSaveErr(''); }}
-            aria-label={editing ? 'Cancelar edición' : 'Editar perfil'}
-            className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
-            {editing ? <X className="w-5 h-5 text-white" /> : <Edit2 className="w-5 h-5 text-white" />}
-          </button>
-          <button onClick={() => { logout(); navigate('/'); }} aria-label="Cerrar sesión"
-            className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
-            <LogOut className="w-5 h-5 text-white" />
-          </button>
-        </div>
-
-        <div className="text-center">
-          <div className="w-20 h-20 bg-white rounded-full mx-auto mb-3 overflow-hidden shadow-xl flex items-center justify-center">
-            {empresa.logo
-              ? <img src={empresa.logo} alt={empresa.name} className="w-full h-full object-cover" />
-              : <span className="text-2xl font-bold text-violet-600">{empresa.name[0]}</span>
-            }
-          </div>
-          <ProfilePhotoPicker onUploaded={(url) => setEmpresa((e) => (e ? { ...e, logo: url } : e))} />
-          {!editing ? (
-            <>
-              <h1 className="text-xl font-bold text-white mb-0.5">{empresa.name}</h1>
-              {empresa.industry && <p className="text-white/70 text-sm">{empresa.industry}</p>}
-              <div className="flex justify-center gap-4 mt-3 text-white/80 text-sm">
-                <span><strong className="text-white">{empresa.followers}</strong> seguidores</span>
-              </div>
-            </>
-          ) : (
-            <p className="text-white/80 text-sm mt-2">Editando perfil</p>
-          )}
+      <div className="max-w-[640px] mx-auto md:pt-8">
+        <div className="bg-canvas md:rounded-2xl md:border md:border-hairline pb-4">
+          <ProfileHeader
+            name={empresa.name}
+            avatar={empresa.logo}
+            kind="org"
+            subtitle={[empresa.industry, empresa.location].filter(Boolean).join(' · ')}
+            bio={editing ? undefined : [empresa.description, empresa.mission ? `Misión de RSE: ${empresa.mission}` : ''].filter(Boolean).join('\n\n')}
+            stats={[
+              { n: patrocinios.filter(p => p.estado === 'aceptado').length, label: 'Patrocinios' },
+              { n: empresa.followers ?? 0, label: 'Seguidores' },
+            ]}
+            corner={(
+              <Link to="/settings" aria-label="Configuración" className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-surface-soft">
+                <Menu size={24} strokeWidth={1.75} aria-hidden="true" />
+              </Link>
+            )}
+            actions={(
+              <Button variant="secondary" className="flex-1" onClick={() => { setEditing(!editing); setSaveErr(''); }} aria-label={editing ? 'Cancelar edición' : 'Editar perfil'}>
+                {editing ? 'Cancelar' : 'Editar perfil'}
+              </Button>
+            )}
+          />
+          {editing && <div className="px-4 pt-4"><ProfilePhotoPicker onUploaded={(url) => setEmpresa((e) => (e ? { ...e, logo: url } : e))} /></div>}
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="max-w-[640px] mx-auto p-4 space-y-4">
         {editing ? (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-4">
             <h2 className="font-bold text-sm text-gray-900">Editar información</h2>
@@ -218,22 +210,7 @@ export function CompanyOwnProfile() {
           </div>
         ) : (
           <>
-            {(empresa.description || empresa.mission) && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
-                {empresa.description && (
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Descripción</p>
-                    <p className="text-sm text-gray-700">{empresa.description}</p>
-                  </div>
-                )}
-                {empresa.mission && (
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Misión de RSE</p>
-                    <p className="text-sm text-gray-700">{empresa.mission}</p>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* La descripción y la misión de RSE se ven en el encabezado (ProfileHeader, bio). */}
 
             {/* Patrocinios: API real desde 2026-09 (roadmap punto 5), ver
                 routes/empresas.js y routes/ngos.js. */}
@@ -297,7 +274,7 @@ export function CompanyOwnProfile() {
                         <p className="text-sm font-semibold text-gray-900 truncate">{p.project_title}</p>
                         <p className="text-xs text-gray-400 truncate">{p.ngo_name}</p>
                       </div>
-                      <span className={`text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0 ${SPONSORSHIP_BADGE[p.estado]}`}>
+                      <span className={`text-xs font-bold px-2 py-1 rounded-full flex-shrink-0 ${SPONSORSHIP_BADGE[p.estado]}`}>
                         {SPONSORSHIP_LABEL[p.estado]}
                       </span>
                       {p.estado === 'propuesto' && (
@@ -314,7 +291,6 @@ export function CompanyOwnProfile() {
           </>
         )}
         {/* §178 */}
-        <DeleteAccountSection />
       </div>
     </div>
   );

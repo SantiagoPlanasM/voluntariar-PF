@@ -40,15 +40,15 @@ export function ProfilePhotoPicker({ onUploaded }: { onUploaded?: (url: string) 
   };
 
   return (
-    <div className="mt-2 flex flex-col items-center gap-1">
+    <div className="flex flex-col items-start gap-1.5">
       <button type="button" onClick={() => input.current?.click()} disabled={uploading}
-        className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 hover:bg-white/30 disabled:opacity-60 text-white text-xs rounded-full font-medium transition-colors">
-        <Camera className="w-3.5 h-3.5" aria-hidden="true" />
+        className="inline-flex items-center gap-1.5 h-10 px-3.5 bg-surface hover:bg-surface-pressed disabled:opacity-60 text-ink text-[13px] rounded-[10px] font-semibold transition-colors">
+        <Camera className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
         <span>{uploading ? 'Subiendo foto…' : 'Cambiar foto'}</span>
       </button>
       <input ref={input} type="file" accept={ACCEPTED_TYPES.join(',')} aria-label="Elegir una foto de perfil"
         className="hidden" onChange={onChange} />
-      {error && <p role="alert" className="text-xs text-white bg-red-500/80 rounded-lg px-2 py-1 max-w-xs">{error}</p>}
+      {error && <p role="alert" className="text-[13px] font-medium text-critical max-w-xs">{error}</p>}
     </div>
   );
 }

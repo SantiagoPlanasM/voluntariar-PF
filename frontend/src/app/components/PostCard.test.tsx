@@ -26,6 +26,10 @@ function asViewer(user: User | null) {
   vi.mocked(useAuth).mockReturnValue({ user, openAuthModal } as unknown as ReturnType<typeof useAuth>);
 }
 
+/** "Borrar publicación" vive en el menú "···" (Más opciones). */
+const openMenu = () => fireEvent.click(screen.getByRole('button', { name: 'Más opciones' }));
+const deleteButton = () => { if (!screen.queryByRole('menuitem', { name: 'Borrar publicación' })) openMenu(); return screen.getByRole('menuitem', { name: 'Borrar publicación' }); };
+
 function renderCard(post = makePost(), onDeleted = vi.fn()) {
   render(
     <MemoryRouter>
@@ -47,7 +51,7 @@ afterEach(() => { vi.restoreAllMocks(); });
 describe('<PostCard /> — contenido', () => {
   test('muestra autor, proyecto, hace cuánto se publicó y las fotos', () => {
     renderCard();
-    expect(screen.getByText('María García')).toBeInTheDocument();
+    expect(screen.getAllByText('María García')[0]).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Reforestación Urbana' })).toHaveAttribute('href', '/project/proj-1');
     expect(screen.getByText('5 min')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Reforestación Urbana' })).toHaveAttribute('src', 'https://img.test/p1.jpg');
@@ -55,7 +59,7 @@ describe('<PostCard /> — contenido', () => {
 
   test('con varias fotos usa el carrusel', () => {
     renderCard(makePost({ photos: [makePhoto(1), makePhoto(2)] }));
-    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+    expect(screen.getByText('1/2')).toBeInTheDocument();
   });
 
   test('si el autor es voluntario, su nombre enlaza a su perfil público con el id de USUARIO', () => {
@@ -65,11 +69,12 @@ describe('<PostCard /> — contenido', () => {
 
   test('si el autor es una ONG, el nombre NO es un enlace a un perfil de voluntario', () => {
     renderCard(makePost({ author: { id: 'user-ngo', name: 'Fundación Verde', avatar: null, role: 'ngo' } }));
-    expect(screen.getByText('Fundación Verde')).toBeInTheDocument();
+    expect(screen.getAllByText('Fundación Verde')[0]).toBeInTheDocument();
     const hrefs = screen.getAllByRole('link').map((a) => a.getAttribute('href'));
     expect(hrefs.some((h) => h?.startsWith('/volunteer/'))).toBe(false);
     expect(hrefs.some((h) => h?.includes('user-ngo'))).toBe(false);
-    expect(screen.getByText('ONG')).toBeInTheDocument();
+    // Rediseño: no hay insignia "ONG"; una organización se reconoce por el avatar cuadrado (radio 28 %).
+    expect(screen.getByText('FV')).toHaveStyle({ borderRadius: '28%' });
   });
 
   test('un voluntario no muestra la insignia "ONG"', () => {
@@ -84,7 +89,7 @@ describe('<PostCard /> — contenido', () => {
 
   test('sin avatar muestra la inicial', () => {
     renderCard(makePost({ author: { id: 'u', name: 'zulema', avatar: null, role: 'volunteer' } }));
-    expect(screen.getByText('Z')).toBeInTheDocument();
+    expect(screen.getByText('ZU')).toBeInTheDocument();
   });
 
   test('sin texto (caption null) no muestra párrafo de texto', () => {
@@ -126,15 +131,15 @@ describe('<PostCard /> — contenido', () => {
 describe('<PostCard /> — me gusta', () => {
   test('muestra la cantidad de me gusta; con 0 no muestra el contador', () => {
     const { unmount } = render(<MemoryRouter><PostCard post={makePost({ likes_count: 3 })} /></MemoryRouter>);
-    expect(screen.getByText('3 me gusta')).toBeInTheDocument();
+    expect(screen.getByLabelText('3 me gusta')).toBeInTheDocument();
     unmount();
     render(<MemoryRouter><PostCard post={makePost({ likes_count: 0 })} /></MemoryRouter>);
-    expect(screen.queryByText(/me gusta$/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^\d+ me gusta$/)).not.toBeInTheDocument();
   });
 
   test('con 1 me gusta dice "1 me gusta"', () => {
     renderCard(makePost({ likes_count: 1 }));
-    expect(screen.getByText('1 me gusta')).toBeInTheDocument();
+    expect(screen.getByLabelText('1 me gusta')).toBeInTheDocument();
   });
 
   test('refleja liked_by_me: botón "Quitar me gusta" presionado', () => {
@@ -151,12 +156,12 @@ describe('<PostCard /> — me gusta', () => {
 
     // el servidor todavía no respondió
     expect(api.posts.like).toHaveBeenCalledWith('post-1');
-    expect(screen.getByText('4 me gusta')).toBeInTheDocument();
+    expect(screen.getByLabelText('4 me gusta')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Quitar me gusta' })).toHaveAttribute('aria-pressed', 'true');
 
     // otro usuario también dio like mientras tanto: manda el número del servidor
     await act(async () => { d.resolve({ liked: true, likes_count: 6 }); });
-    expect(screen.getByText('6 me gusta')).toBeInTheDocument();
+    expect(screen.getByLabelText('6 me gusta')).toBeInTheDocument();
   });
 
   test('quitar el me gusta llama a unlike y resta', async () => {
@@ -164,7 +169,7 @@ describe('<PostCard /> — me gusta', () => {
     renderCard(makePost({ likes_count: 3, liked_by_me: true }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Quitar me gusta' }));
-    expect(screen.getByText('2 me gusta')).toBeInTheDocument();
+    expect(screen.getByLabelText('2 me gusta')).toBeInTheDocument();
     await waitFor(() => expect(api.posts.unlike).toHaveBeenCalledWith('post-1'));
     expect(api.posts.like).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Me gusta' })).toHaveAttribute('aria-pressed', 'false');
@@ -176,11 +181,11 @@ describe('<PostCard /> — me gusta', () => {
     renderCard(makePost({ likes_count: 3, liked_by_me: false }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Me gusta' }));
-    expect(screen.getByText('4 me gusta')).toBeInTheDocument();
+    expect(screen.getByLabelText('4 me gusta')).toBeInTheDocument();
 
     await act(async () => { d.reject(new Error('Error del servidor')); });
 
-    expect(screen.getByText('3 me gusta')).toBeInTheDocument();
+    expect(screen.getByLabelText('3 me gusta')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Me gusta' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('alert')).toHaveTextContent('No pudimos registrar tu me gusta');
   });
@@ -190,7 +195,7 @@ describe('<PostCard /> — me gusta', () => {
     renderCard(makePost({ likes_count: 3, liked_by_me: true }));
     fireEvent.click(screen.getByRole('button', { name: 'Quitar me gusta' }));
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
-    expect(screen.getByText('3 me gusta')).toBeInTheDocument();
+    expect(screen.getByLabelText('3 me gusta')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Quitar me gusta' })).toHaveAttribute('aria-pressed', 'true');
   });
 
@@ -201,7 +206,7 @@ describe('<PostCard /> — me gusta', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: 'Me gusta' }));
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
-    expect(screen.getByText('4 me gusta')).toBeInTheDocument();
+    expect(screen.getByLabelText('4 me gusta')).toBeInTheDocument();
   });
 
   test('un doble clic mientras el pedido está en vuelo NO manda un segundo pedido', async () => {
@@ -215,7 +220,7 @@ describe('<PostCard /> — me gusta', () => {
     expect(api.posts.like).toHaveBeenCalledTimes(1);
     expect(api.posts.unlike).not.toHaveBeenCalled();
     await act(async () => { d.resolve({ liked: true, likes_count: 4 }); });
-    expect(screen.getByText('4 me gusta')).toBeInTheDocument();
+    expect(screen.getByLabelText('4 me gusta')).toBeInTheDocument();
   });
 
   test('terminado el pedido se puede volver a tocar', async () => {
@@ -223,7 +228,7 @@ describe('<PostCard /> — me gusta', () => {
     vi.mocked(api.posts.unlike).mockResolvedValue({ liked: false, likes_count: 3 });
     renderCard(makePost({ likes_count: 3 }));
     fireEvent.click(screen.getByRole('button', { name: 'Me gusta' }));
-    await waitFor(() => expect(screen.getByText('4 me gusta')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText('4 me gusta')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: 'Quitar me gusta' }));
     await waitFor(() => expect(api.posts.unlike).toHaveBeenCalledTimes(1));
   });
@@ -235,7 +240,7 @@ describe('<PostCard /> — me gusta', () => {
     expect(openAuthModal).toHaveBeenCalledTimes(1);
     expect(openAuthModal.mock.calls[0][0]).toMatch(/me gusta/i);
     expect(api.posts.like).not.toHaveBeenCalled();
-    expect(screen.getByText('3 me gusta')).toBeInTheDocument();
+    expect(screen.getByLabelText('3 me gusta')).toBeInTheDocument();
   });
 
   test('una empresa también puede dar me gusta (cualquier rol)', async () => {
@@ -250,25 +255,25 @@ describe('<PostCard /> — me gusta', () => {
 describe('<PostCard /> — borrar (según can_delete del servidor)', () => {
   test('can_delete=false: no hay botón de borrar', () => {
     renderCard(makePost({ can_delete: false }));
-    expect(screen.queryByRole('button', { name: 'Borrar publicación' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Más opciones' })).not.toBeInTheDocument();
   });
 
   test('can_delete=true: aparece el botón, aunque el autor sea otro (es la ONG dueña moderando)', () => {
     asViewer({ id: 'user-ngo-dueña', name: 'ONG Dueña', email: 'o@x.com', role: 'ngo' });
     renderCard(makePost({ can_delete: true, author: { id: 'user-1', name: 'María García', avatar: null, role: 'volunteer' } }));
-    expect(screen.getByRole('button', { name: 'Borrar publicación' })).toBeInTheDocument();
+    expect(deleteButton()).toBeInTheDocument();
   });
 
   test('can_delete=false NO muestra el botón ni siquiera si el viewer coincide con el autor (manda el servidor)', () => {
     asViewer({ id: 'user-1', name: 'María García', email: 'm@x.com', role: 'volunteer' });
     renderCard(makePost({ can_delete: false }));
-    expect(screen.queryByRole('button', { name: 'Borrar publicación' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Más opciones' })).not.toBeInTheDocument();
   });
 
   test('si el usuario cancela la confirmación no se borra nada', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(false);
     const { onDeleted } = renderCard(makePost({ can_delete: true }));
-    fireEvent.click(screen.getByRole('button', { name: 'Borrar publicación' }));
+    fireEvent.click(deleteButton());
     expect(api.posts.remove).not.toHaveBeenCalled();
     expect(onDeleted).not.toHaveBeenCalled();
   });
@@ -277,7 +282,7 @@ describe('<PostCard /> — borrar (según can_delete del servidor)', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.mocked(api.posts.remove).mockResolvedValue({ message: 'ok' });
     const { onDeleted } = renderCard(makePost({ id: 'post-77', can_delete: true }));
-    fireEvent.click(screen.getByRole('button', { name: 'Borrar publicación' }));
+    fireEvent.click(deleteButton());
     await waitFor(() => expect(onDeleted).toHaveBeenCalledWith('post-77'));
     expect(api.posts.remove).toHaveBeenCalledWith('post-77');
   });
@@ -286,7 +291,7 @@ describe('<PostCard /> — borrar (según can_delete del servidor)', () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     asViewer({ id: 'user-1', name: 'María García', email: 'm@x.com', role: 'volunteer' });
     renderCard(makePost({ can_delete: true }));
-    fireEvent.click(screen.getByRole('button', { name: 'Borrar publicación' }));
+    fireEvent.click(deleteButton());
     expect(confirm.mock.calls[0][0]).toMatch(/tu publicación/);
   });
 
@@ -294,7 +299,7 @@ describe('<PostCard /> — borrar (según can_delete del servidor)', () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     asViewer({ id: 'user-ngo', name: 'ONG Dueña', email: 'o@x.com', role: 'ngo' });
     renderCard(makePost({ can_delete: true }));
-    fireEvent.click(screen.getByRole('button', { name: 'Borrar publicación' }));
+    fireEvent.click(deleteButton());
     expect(confirm.mock.calls[0][0]).toMatch(/de María García/);
     expect(confirm.mock.calls[0][0]).not.toMatch(/tu publicación/);
   });
@@ -303,17 +308,17 @@ describe('<PostCard /> — borrar (según can_delete del servidor)', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.mocked(api.posts.remove).mockRejectedValue(new Error('No tenés permiso para borrar esta publicación'));
     const { onDeleted } = renderCard(makePost({ can_delete: true }));
-    fireEvent.click(screen.getByRole('button', { name: 'Borrar publicación' }));
+    fireEvent.click(deleteButton());
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('No tenés permiso para borrar esta publicación'));
     expect(onDeleted).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Borrar publicación' })).not.toBeDisabled();
+    expect(deleteButton()).not.toBeDisabled();
   });
 
   test('un fallo de red al borrar muestra un mensaje en español (no "Failed to fetch")', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.mocked(api.posts.remove).mockRejectedValue(new TypeError('Failed to fetch'));
     renderCard(makePost({ can_delete: true }));
-    fireEvent.click(screen.getByRole('button', { name: 'Borrar publicación' }));
+    fireEvent.click(deleteButton());
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
     expect(screen.getByRole('alert')).not.toHaveTextContent('Failed to fetch');
   });
@@ -323,9 +328,10 @@ describe('<PostCard /> — borrar (según can_delete del servidor)', () => {
     const d = deferred<{ message: string }>();
     vi.mocked(api.posts.remove).mockReturnValue(d.promise);
     renderCard(makePost({ can_delete: true }));
-    fireEvent.click(screen.getByRole('button', { name: 'Borrar publicación' }));
-    expect(screen.getByRole('button', { name: 'Borrar publicación' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Borrar publicación' }));
+    fireEvent.click(deleteButton());
+    // La confirmación es asíncrona (diálogo propio): se espera a que arranque el borrado.
+    await waitFor(() => expect(deleteButton()).toBeDisabled());
+    fireEvent.click(deleteButton());
     expect(api.posts.remove).toHaveBeenCalledTimes(1);
     await act(async () => { d.resolve({ message: 'ok' }); });
   });

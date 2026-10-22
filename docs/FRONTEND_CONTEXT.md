@@ -2,6 +2,37 @@
 
 > Detalle completo del frontend React/Vite. Leer junto con `PROJECT_CONTEXT.md §6-7` (navegación general y contrato con backend).
 
+## 0. Rediseño (PROJECT_ANALYSIS §240) — leer primero
+
+El frontend se rehízo según `docs/DESIGN.md` v1.1 y `docs/PLAN_REDISENO_FRONTEND.md` (§239). Lo que cambió en la estructura:
+
+- **Un solo layout para los tres roles: `app/layout/AppShell.tsx`.** `Root`, `NGOLayout` y `CompanyLayout` solo lo envuelven (la ONG y la empresa con `RequireRole`). Tiene la barra inferior (celular), la lateral (escritorio) y `AuthModal`. `ChatProvider` y `UiProvider` están en `main.tsx`, por fuera del router. Los ítems de cada rol salen de **una sola lista**, `app/layout/navConfig.ts` (`NAV[rol].tabs` y `.side`). Se borraron `BottomNav`, `NGOBottomNav`, `NGOSidebarNav`, `CompanyBottomNav`, `CompanySidebarNav` y `ChatbotWidget`.
+- **El asistente ya no es un botón flotante:** es una conversación fijada arriba en Mensajes (`AssistantScreen`, rutas `messages/asistente`, `/ngo/messages/asistente` y `/company/messages/asistente`).
+- **Configuración (`/settings`, `SettingsScreen`):** CV (voluntario), cuenta de Mercado Pago (ONG, link al perfil), tema (Automático/Claro/Oscuro, `lib/useTheme.ts`, se guarda en `v_theme` y `index.html` lo aplica antes de pintar), privacidad, "Cerrar sesión" (con confirmación) y "Borrar mi cuenta". Los perfiles propios llegan con el ícono de menú (`aria-label="Configuración"`).
+- **Kit de interfaz `app/ui/`:**
+  - `Button`/`ButtonLink`/`IconButton` (variantes `primary`, `secondary`, `join`, `donate`, `danger`, `text`, `photo`; `busy` + `busyLabel`);
+  - `Avatar`: redondo para personas, cuadrado al 28 % para organizaciones; sin foto o con una de DiceBear muestra dos iniciales (`data-initial`), y con `alt` es un `role="img"`;
+  - `Meter`/`DualGoal`/`formatMoney`/`pct`: `formatMoney` usa un **espacio duro** (`$\u00A0X`), que los nombres accesibles conservan;
+  - `Sheet`: hoja abajo en el celular y diálogo en escritorio, con `closeOnOverlay` y `closeDisabled`;
+  - `UiProvider` con `useConfirm()` (diálogo propio) y `useToast()`. Sin proveedor caen a `window.confirm` y `console.warn`; la confirmación es **asíncrona**, así que los tests esperan con `waitFor`;
+  - `ProfileHeader`/`ProfileTabs`, `TypeBadge` (azul = Fugaz, verde = Sostenido) y `Logo`/`LogoMark`.
+- **`app/volunteering/`:**
+  - `cardActions()`: función pura que decide los botones de una tarjeta o de la barra del voluntariado (Inscribirme / Postulado / Vas a ir / No seleccionado / Cupos completos / Ver cómo salió; Donar / Meta cumplida);
+  - `VolunteeringTile`: la miniatura de Explorar, Mis voluntariados y "Para vos".
+- **Tokens en `styles/theme.css`:**
+  - `ink`, `surface`, `canvas`, `hairline`, `brand` (azul, solo dinero), `people` (verde, personas), `critical`, `like` y `star`, con modo oscuro;
+  - la paleta vieja de Tailwind (`blue`/`sky`/`indigo` y otras) está remapeada a la escala neutra, así que las pantallas que no se rehicieron toman los colores nuevos sin tocarlas;
+  - fuente Plus Jakarta Sans servida desde `public/fonts`.
+- **Pantallas rehechas:**
+  - Inicio, con voluntariados y publicaciones mezclados; ya no tiene pestañas, y `FeedTabs` se borró;
+  - portada, tarjeta (`FeedPostCard`, "Más información" abre el detalle) y publicación (`PostCard`, con el vínculo al voluntariado y el menú "···");
+  - voluntariado (`ProjectDetails`, secciones en vez de pestañas, caja fija en escritorio y barra fija en el celular), Explorar (grilla + botón Mapa/Lista, chips de categoría y una pastilla por filtro);
+  - perfiles, Mis voluntariados (cuatro pestañas), Notificaciones (clickeables: `notificationHref`), Mensajes;
+  - paneles de la ONG y de la empresa, login/registro (pestañas `role="tab"`), donar (atajos de $ 1.000 a $ 10.000 y "Otro monto") y compositor.
+- **Sin rehacer (solo toman la paleta nueva):** `NGOProjectDetail`, `NGOKPIs`, `NGOPatrocinios`, `NGOEmpleados`, `CreateVoluntariado`, `ReviewsModal` y `FilterModal`.
+
+Las secciones de abajo se escribieron antes del rediseño. Donde contradicen esta, vale esta; las líneas que nombran componentes borrados están tachadas o anotadas.
+
 ## 1. Arquitectura React
 
 SPA de React 18 + React Router 7 (`createBrowserRouter`, data router API pero **sin usar `loader`/`action`** — toda la carga de datos ocurre en `useEffect` dentro de cada componente, al estilo "clásico"). No hay code-splitting (`lazy`) ni Suspense boundaries de datos. No hay gestor de estado global aparte de `AuthContext`; cada pantalla mantiene su propio estado con `useState`.
@@ -10,12 +41,14 @@ SPA de React 18 + React Router 7 (`createBrowserRouter`, data router API pero **
 main.tsx
  └─ <StrictMode>
      └─ <AuthProvider>            (AuthContext.tsx)
-         └─ <RouterProvider>       (routes.tsx)
-             ├─ <Root/>            layout para "/", "/feed", "/explore", "/project/:id",
-             │                     "/participation", "/notifications", "/profile", "/ngo/:id"
-             │                     → <BottomNav/> + <AuthModal/>
-             └─ <NGOLayout/>       layout para "/ngo/*" (dashboard, create, empleados, kpis, profile)
-                                   → <NGOSidebarNav/> + <NGOBottomNav/> + <AuthModal/>
+         └─ <ChatProvider>         (ChatContext.tsx)
+             └─ <UiProvider>       (ui/UiProvider.tsx: confirmaciones y avisos)
+                 └─ <RouterProvider> (routes.tsx)
+                 ├─ <Root/>          "/", "/feed", "/explore", "/project/:id", "/settings", …
+                 ├─ <NGOLayout/>     "/ngo/*"      (RequireRole ngo)
+                 └─ <CompanyLayout/> "/company/*"  (RequireRole company)
+                    → los tres renderizan <AppShell/> (layout/AppShell.tsx): barra inferior + lateral
+                      según el rol (layout/navConfig.ts) + <AuthModal/>
 ```
 
 ## 2. Organización de carpetas
@@ -25,7 +58,10 @@ frontend/src/
 ├── main.tsx                  # bootstrap: StrictMode + AuthProvider + RouterProvider
 ├── app/
 │   ├── routes.tsx             # todas las rutas (createBrowserRouter)
-│   └── components/            # 47 componentes .tsx (más sus *.test.tsx) — screens + layouts + widgets
+│   ├── components/            # pantallas y widgets (más sus *.test.tsx)
+│   ├── layout/                # AppShell + navConfig (§240)
+│   ├── ui/                    # kit: Button, Avatar, Meter/DualGoal, Sheet, UiProvider, ProfileHeader, TypeBadge, Logo (§240)
+│   └── volunteering/          # cardActions (botones según el estado) y VolunteeringTile (§240)
 ├── lib/
 │   ├── api.ts                 # cliente HTTP centralizado + TODOS los tipos TS de dominio (incluye api.posts y el helper de subida multipart)
 │   ├── AuthContext.tsx        # sesión global (Context + Provider + hook useAuth)
@@ -34,9 +70,12 @@ frontend/src/
 │   ├── sponsorship.ts         # etiquetas y colores de los estados de un patrocinio (única fuente: CompanyDashboard, CompanyOwnProfile, NGOPatrocinios)
 │   ├── imageCompress.ts       # compresión de fotos en el navegador antes de subirlas (Momentos y foto de perfil)
 │   ├── donations.ts           # donaciones: checkDonationAmount (pesos enteros 100–500.000, mensajes del backend), formatPesos y readReturnParams (URL de vuelta de Mercado Pago) — §172
-│   └── cv.ts                  # CV: checkCvFile (PDF, 5 MB, mismos mensajes que el backend) y openCv (link que vence) — §166
+│   ├── cv.ts                  # CV: checkCvFile (PDF, 5 MB, mismos mensajes que el backend) y openCv (link que vence) — §166
+│   └── useTheme.ts            # tema claro/oscuro/automático (`v_theme`) — §240
 └── styles/
-    ├── globals.css             # Tailwind + tema custom (design tokens) + fuentes
+    ├── theme.css               # tokens del DESIGN (claro y oscuro) + paleta vieja de Tailwind remapeada (§240)
+    ├── fonts.css               # Plus Jakarta Sans desde public/fonts (§240)
+    ├── globals.css             # Tailwind
     └── (assets, fonts)
 ```
 
@@ -57,7 +96,9 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 | `/messages/:userId` | `ChatThread` | `Root` | cualquiera logueado |
 | `/profile` | `VolunteerProfile` | `Root` | volunteer |
 | `/volunteer/:id` | `VolunteerPublicProfile` | `Root` | público |
-| `/privacidad` | `PrivacyPage` | `Root` | público. Privacidad y términos (§179); link en el registro y en el pie de `FeedSidebar` |
+| `/privacidad` | `PrivacyPage` | `Root` | público. Privacidad y términos (§179); link en el registro, en el pie de `FeedSidebar` y en Configuración |
+| `/settings` | `SettingsScreen` | `Root` | con sesión (si no, pide iniciarla). Configuración (§240) |
+| `/messages/asistente` (y `/ngo/…`, `/company/…`) | `AssistantScreen` | los tres | el asistente, fijado arriba en Mensajes (§240; reemplaza a `ChatbotWidget`) |
 | `/cuenta/borrar` | `DeleteAccountPage` | `Root` | público (el código del link autoriza). Confirmación del borrado de cuenta (§178) |
 | `/donaciones/vuelta` | `DonationReturn` | `Root` | con sesión (si no hay, pide iniciarla). Adonde vuelve Mercado Pago (§172) |
 | `/ngo/:id` | `NGOPublicProfile` | `Root` | público |
@@ -84,6 +125,8 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 ## 4. Todos los componentes (49, sin contar `*.test.tsx`)
 
 ### Layouts / navegación
+> **§240:** todo este bloque cambió: ver la sección 0. `Root`, `NGOLayout` y `CompanyLayout` solo envuelven `AppShell`; `BottomNav`, `NGOBottomNav`, `NGOSidebarNav`, `CompanyBottomNav`, `CompanySidebarNav` y `ChatbotWidget` se borraron. Lo que sigue queda como historia.
+
 - `Root.tsx` — layout del lado "voluntario/público": `<Outlet/>` + `<BottomNav/>` + `<AuthModal/>` + `<ChatbotWidget/>`. Su barra lateral de escritorio muestra "Cerrar sesión" solo con sesión; sin sesión, "Iniciar sesión" (abre el login; §130).
 - `NGOLayout.tsx` — layout del lado "ONG": `<NGOSidebarNav/>` (desktop) + `<NGOBottomNav/>` (mobile) + `<Outlet/>` + `<AuthModal/>` + `<ChatbotWidget/>`.
 - `CompanyLayout.tsx` — layout del lado "Empresa", mismo patrón que `NGOLayout` (`CompanySidebarNav`/`CompanyBottomNav`).
@@ -103,26 +146,26 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 - ~~`ProjectCard.tsx`~~ — borrado en §211: ninguna pantalla lo importaba desde `f58b72d` (el feed vertical usa `FeedPostCard`).
 - `FeedPostCard.tsx` — tarjeta de post para el feed vertical (like, comentar, inscribirse, calificar vía `ReviewsModal.tsx`).
 - `FeedSidebar.tsx` — sidebar de escritorio del feed, puramente presentacional (recibe todo por props, incluidos `suggestionsError`/`onRetrySuggestions`: con error muestra el mensaje y "Reintentar" en vez de "¡Ya seguís a todas…!"; y `followError` (`{ ngoId, message }`, tipo `FollowNgoError`): el error de seguir se muestra debajo de esa ONG).
-- `MyParticipation.tsx` — historial de inscripciones del voluntario logueado, con estado (pendiente/aprobada/rechazada) y horas acumuladas. "Reseña" (en las aprobadas) abre `ReviewsModal` con el formulario habilitado (§101).
+- `MyParticipation.tsx` — "Mis voluntariados" (§240): cuatro pestañas, Próximos (aprobadas en voluntariados activos), Postulaciones (todas menos las canceladas, con "Cancelar postulación" en el menú "···" y confirmación propia), Seguidos (`api.follows.myProjects`) y Realizados (aprobadas en voluntariados terminados; "Dejá tu reseña" abre `ReviewsModal` con el formulario habilitado, §101). Si hay algo próximo arranca ahí; si no, en Postulaciones. Un error de carga se ve con "Reintentar".
 - `VolunteerProfile.tsx` — perfil propio editable, incluyendo selección de habilidades (chips desde el catálogo `api.catalog.habilidades()` + nivel por habilidad, guardado vía `api.voluntarios.habilidades.update`). Si alguna carga falla muestra un aviso con "Reintentar" (recarga todo); cada parte que falló muestra "—" o "No se pudo cargar." en vez de 0 o del vacío, y si no cargaron mis habilidades o el catálogo, guardar el perfil no toca las habilidades (§109).
-- `VolunteerPublicProfile.tsx` — perfil público de otro voluntario, con follow/unfollow (si falla, mensaje con `role="alert"` debajo del botón; §114) y sus listas de seguidores/seguidos (`FollowListModal`). La foto es `avatar` (`users.avatar`), nunca `foto_perfil` (copia vieja del registro; decisión F2, §163). Lo mismo en `FollowListModal` y en "Voluntarios que sigo" de `VolunteerProfile`.
+- `VolunteerPublicProfile.tsx` — perfil público de otro voluntario, con follow/unfollow (si falla, mensaje con `role="alert"` debajo del botón; §114) y sus listas de seguidores/seguidos (`FollowListModal`). La foto es `avatar` (`users.avatar`), nunca `foto_perfil` (copia vieja del registro; decisión F2, §163). Lo mismo en `FollowListModal` (desde §240, el perfil propio ya no tiene la lista "Voluntarios que sigo": se abre desde la estadística "Siguiendo").
 - `ProfilePhotoPicker.tsx` — botón "Cambiar foto" de los tres perfiles propios (`VolunteerProfile`, `NGOOwnProfile`, `CompanyOwnProfile`; §163). Comprime con `compressImage`, sube con `api.auth.uploadPhoto` (campo `photo`), actualiza la sesión con `updateUser` y avisa a la pantalla con `onUploaded(url)` (la ONG y la empresa actualizan su `logo` local). Error con `role="alert"`; mientras sube, el botón dice "Subiendo foto…" y queda deshabilitado.
-- `NotificationsScreen.tsx` — lista de notificaciones (las últimas 50), marcar todas como leídas. El "N sin leer" y el botón "Marcar todas leídas" usan `unread` de `GET /api/notifications` (total del usuario), no la cuenta de la lista: antes contaba las 50 recibidas y con más de 50 sin leer quedaba corto (`PROJECT_ANALYSIS.md §154`). Mientras carga y si la carga falla, el contador es 0.
+- `NotificationsScreen.tsx` — lista de notificaciones (las últimas 50), marcar todas como leídas. El "N sin leer" y el botón "Marcar todo leído" (así desde §240) usan `unread` de `GET /api/notifications` (total del usuario), no la cuenta de la lista: antes contaba las 50 recibidas y con más de 50 sin leer quedaba corto (`PROJECT_ANALYSIS.md §154`). Mientras carga y si la carga falla, el contador es 0.
 
 **Reseñas:** un solo componente, `ReviewsModal.tsx` (reseñas de otros + formulario si `canRate`). Lo usan el feed (`FeedPostCard`) y "Mis participaciones". Hasta `PROJECT_ANALYSIS.md §101` había además un `ReviewModal.tsx` que hacía lo mismo; se borró con OK del usuario. **Cada vez que se abre pide `GET /api/projects/:id`** (REVISION S3, §112): `initialRatings` solo se muestra mientras llega la respuesta (puede estar vieja; desde §122 las reseñas del feed traen `user_id` y la misma forma que las del detalle). Si la persona logueada ya calificó, el formulario se precarga con su reseña y el botón dice "Actualizar reseña" (S4; el backend hace upsert); mientras carga, el botón está deshabilitado. Un error de carga se ve con `InlineError` y "Reintentar" (S1, §107), y los errores tienen `role="alert"` (S10, §115; el de carga lo pone el propio `InlineError`, §124). `ProjectDetails` tiene su propio formulario con la misma precarga (§123).
 
 ### Pantallas — lado ONG
-- `NGODashboard.tsx` — lista de proyectos propios + resumen de inscripciones pendientes por proyecto (una sola llamada agregada a `GET /api/ngos/me`, el N+1 que tenía antes ya se resolvió). Cada proyecto muestra su categoría (`{p.category} · Fugaz/Sostenido`); hasta §144 `GET /api/ngos/me` la mandaba vacía y se veía " · Fugaz". En el celular, Equipo y Momentos del encabezado son solo ícono (con `aria-label`) y el nombre se trunca: antes no entraban y había scroll horizontal (§128).
+- `NGODashboard.tsx` — lista de proyectos propios + resumen de inscripciones pendientes por proyecto (una sola llamada agregada a `GET /api/ngos/me`, el N+1 que tenía antes ya se resolvió). Cada proyecto muestra su categoría (`{p.category} · Fugaz/Sostenido`); hasta §144 `GET /api/ngos/me` la mandaba vacía y se veía " · Fugaz". En el celular, Equipo y Momentos del encabezado eran solo ícono y el nombre se trunca (§128); desde §240 el encabezado tiene solo la campanita (celular) y "Crear voluntariado" ("Crear" en el celular), y la lista de pendientes se llama "Postulaciones sin responder".
 - `CreateVoluntariado.tsx` — formulario de alta/edición de proyecto (mismo componente sirve para crear y editar, diferenciado por `projectId` en query string). Pide modalidad (presencial/remoto/híbrido) y, según la modalidad, ubicación física y/o plataforma digital. Reimplementa validaciones de fecha/cupos/duración ya presentes en el backend. Título, descripción corta y completa tienen los topes del backend (`maxLength` 80, 1000 y 5000), y el paso 1 valida título y descripción también contra lo pegado (§145, §147).
 - `NGOProjectDetail.tsx` — detalle de proyecto desde la óptica de la ONG: lista de inscriptos, aprobar/rechazar, cargar horas. El botón "Ver CV de <nombre>" (`openCv(e.user_id)`, §166) aparece solo si la inscripción trae `has_cv: true` (pendiente o aprobada, y con CV; §168). Antes aparecía en todas las pendientes y aprobadas y, sin CV, se abría y cerraba una pestaña vacía. Si el CV se borró después de cargar la lista (404), la fila dice "<nombre> no cargó su CV." con `role="alert"`, sin `alert()`.
 - `PrivacyPage.tsx` — `/privacidad` (§179): 8 secciones con `aria-labelledby`. Responsable: "proyecto final de la UCC", sin nombres ni email. **Cada afirmación está verificada en el código** (ver §179): si cambia el comportamiento de la app, hay que cambiar este texto.
-- `DeleteAccountSection.tsx` — "Zona peligrosa" → "Borrar mi cuenta" al final de los tres perfiles propios (§178). Pide confirmar en la pantalla (`role="group"` "¿Querés borrar tu cuenta?"), avisa a una ONG que se van sus proyectos y las inscripciones, y llama a `api.auth.requestDeletion`. El resultado va con `role="status"`; los errores, con `role="alert"`.
+- `DeleteAccountSection.tsx` — "Zona peligrosa" → "Borrar mi cuenta" (§178); desde §240 está en Configuración (`SettingsScreen`), no al final de los perfiles. Pide confirmar en la pantalla (`role="group"` "¿Querés borrar tu cuenta?"), avisa a una ONG que se van sus proyectos y las inscripciones, y llama a `api.auth.requestDeletion`. El resultado va con `role="status"`; los errores, con `role="alert"`.
 - `DeleteAccountPage.tsx` — `/cuenta/borrar?token=…` (§178). Explica qué se borra; "Sí, borrar mi cuenta" llama a `api.auth.deleteAccount(token)` y cierra la sesión. Si el link venció o es inválido, muestra el mensaje del servidor sin cerrar la sesión.
-- `DonateModal.tsx` — modal "Donar a <proyecto>" (§172; usa `<Modal>`). Tiene atajos ($500, $1.000 y $5.000) y un campo libre que se valida con `checkDonationAmount` antes de mandar. Llama a `api.donaciones.create` y redirige a `checkout_url` (la redirección se inyecta con `go`, para los tests). Mientras espera dice "Preparando el pago…"; los errores van con `role="alert"`. Avisa que es modo prueba.
+- `DonateModal.tsx` — hoja "Donar a <proyecto>" (§172; desde §240 usa `Sheet`). Arranca en $ 2.500, tiene atajos ($ 1.000, $ 2.500, $ 5.000 y $ 10.000) y "Otro monto", que muestra un campo libre; el botón dice el monto ("Donar $ 2.500") que se valida con `checkDonationAmount` antes de mandar. Llama a `api.donaciones.create` y redirige a `checkout_url` (la redirección se inyecta con `go`, para los tests). Mientras espera dice "Preparando el pago…"; los errores van con `role="alert"`. Avisa que es modo prueba.
 - `DonationReturn.tsx` — `/donaciones/vuelta` (§172). Lee `external_reference` y `payment_id` de la URL (`readReturnParams`) y le pregunta al backend (`api.donaciones.get`), que concilia con Mercado Pago. **Lo que se muestra lo decide el backend**: con `completed` dice "¡Gracias!" con el monto y el proyecto; con `failed`, o con `pending` cuando Mercado Pago avisó rechazo o falta de pago, dice "El pago no se completó"; con `pending`, "Estamos confirmando tu pago". Mientras está pendiente vuelve a preguntar hasta 5 veces cada 3 segundos y después ofrece "Actualizar". También muestra "No encontramos esta donación" (404) y "Iniciá sesión para ver tu donación", y espera a que termine de verificarse la sesión.
 - **Notificaciones de la ONG (§173):** `/ngo/notifications` reusa `NotificationsScreen` con `inPanel`, que saca el `md:ml-60`, porque en `NGOLayout` la barra está en el flujo. `NGOSidebarNav` tiene "Notificaciones" con el contador de no leídas (`api.notifications.list`, al montar y al cambiar de pantalla), y `NGODashboard` una campanita con contador en el encabezado, para el celular, porque la barra inferior ya tiene 7 botones.
 - `ProjectDetails.tsx` — sin meta de financiamiento pero con donaciones, muestra "Recaudado en donaciones: $X" (§173). Además: botón **"Donar a este proyecto"** en la tarjeta "Progreso del proyecto" (§172), solo si el proyecto está `active` y quien mira no es una ONG. Aparece aunque no haya meta de financiamiento. Un visitante ve "Iniciá sesión para donar"; voluntario o empresa abren `DonateModal`. **Desde §218 el botón solo aparece si `project.accepts_donations`**, es decir, si la ONG vinculó su cuenta de Mercado Pago. Si no, quien no es ONG ve "Esta ONG todavía no recibe donaciones".
-- `CvSection.tsx` — "Mi CV" en `VolunteerProfile` (§166; se oculta mientras se edita el perfil). Si hay CV sale de `profile.has_cv` de `GET /auth/me`. Permite subir o reemplazar (valida con `checkCvFile` antes de subir), ver (`openCv`) y borrar, con una confirmación en la pantalla (`role="group"` "¿Borrar tu CV?"), sin `window.confirm`. Los avisos van con `role="alert"` y el éxito con `role="status"`. Si no se puede saber si hay CV, dice "No se pudo cargar." y no muestra botones.
+- `CvSection.tsx` — "Mi CV" (§166); desde §240 está en Configuración, no en `VolunteerProfile`. Si hay CV sale de `profile.has_cv` de `GET /auth/me`. Permite subir o reemplazar (valida con `checkCvFile` antes de subir), ver (`openCv`) y borrar, con una confirmación en la pantalla (`role="group"` "¿Borrar tu CV?"), sin `window.confirm`. Los avisos van con `role="alert"` y el éxito con `role="status"`. Si no se puede saber si hay CV, dice "No se pudo cargar." y no muestra botones.
 - `MercadoPagoAccount.tsx` (§218): dos componentes.
   - **`MercadoPagoAccountSection`** va en el perfil de la ONG, con el ancla `#mercadopago` (hace scroll ahí una vez, cuando carga).
     - Muestra el estado de la cuenta (`api.ngos.mercadopago.get`).
@@ -143,17 +186,17 @@ No existen carpetas `hooks/`, `services/`, `types/`, `utils/` separadas — todo
 - `CompanyPublicProfile.tsx` — vista pública del perfil de una Empresa, accesible sin login desde `/company/:id`.
 
 ### Momentos (publicaciones con fotos) — ver la sección "Momentos" al final
-- `MomentsPage.tsx` — `/momentos`: título + `FeedTabs` + `MomentsFeed`. Pública; al visitante le ofrece ingresar; a una ONG la redirige a `/ngo/momentos`; espera a que termine la verificación de sesión (`initializing`) para no parpadear.
+- `MomentsPage.tsx` — `/momentos`: título + `MomentsFeed` (sin `FeedTabs` desde §240; `?crear=1` abre el compositor, es el "Crear" de la navegación). Pública; al visitante le ofrece ingresar; a una ONG la redirige a `/ngo/momentos`; espera a que termine la verificación de sesión (`initializing`) para no parpadear.
 - `NGOMoments.tsx` — `/ngo/momentos`, dentro del panel de la ONG (sin pestañas). Solo las publicaciones de los proyectos de **su** ONG: pide `api.ngos.me()` y le pasa `filters={{ ngo_id }}` a `MomentsFeed`; hasta tener el id no muestra el feed (sería el general), sino "Cargando momentos" o un `InlineError` con "Reintentar" (REVISION S2, §113).
 - `MomentsFeed.tsx` — lista paginada (carga, vacío, error, "Ver más"), botón "Compartir un momento" y alta/borrado en la lista. Acepta `filters` (`project_id`/`user_id`/`ngo_id`) para las galerías de la Etapa 3 y los Momentos de la ONG.
 - `PostCard.tsx` — una publicación: autor, proyecto, carrusel, me gusta optimista con rollback, borrar según `can_delete`, texto con "ver más".
 - `PhotoCarousel.tsx` — carrusel (botones, flechas del teclado, deslizar con el dedo).
 - `PostComposer.tsx` — modal para publicar (proyecto, hasta 5 fotos con vista previa, texto de hasta 500, compresión, aviso de fotos propias).
-- `FeedTabs.tsx` — pestañas "Proyectos | Momentos" (son enlaces, no estado).
+- ~~`FeedTabs.tsx`~~ — borrado en §240: el Inicio mezcla voluntariados y publicaciones y ya no tiene pestañas.
 - `MomentsGrid.tsx` — grilla de miniaturas (`thumb_url`, 3 columnas, 9 por página) filtrada por `project_id` o `user_id`; al tocar una se abre la publicación completa (`PostCard`) en un modal. Misma paginación y recarga que `MomentsFeed`. Se usa en `ProjectDetails` (galería del proyecto) y `VolunteerPublicProfile` (por id de *usuario*).
 
 ### Chat
-- `MessagesScreen.tsx` — lista de conversaciones (compartido entre voluntario, ONG y empresa).
+- `MessagesScreen.tsx` — lista de conversaciones (compartido entre voluntario, ONG y empresa). Desde §240: buscador por nombre (`normalizeText`), el asistente fijado arriba y un punto de no leídos (con la cantidad en su nombre accesible) en vez del contador.
 - `ChatThread.tsx` — hilo de una conversación puntual: historial, envío (WS con fallback a REST), marcado automático de leído al abrir.
 
 ### Otros

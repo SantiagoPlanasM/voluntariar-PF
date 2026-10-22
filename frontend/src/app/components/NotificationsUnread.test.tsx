@@ -30,7 +30,7 @@ describe('NotificationsScreen: "N sin leer" sale del contador del backend', () =
     render(<MemoryRouter><NotificationsScreen /></MemoryRouter>);
     expect(await screen.findByText('63 sin leer')).toBeInTheDocument();
     expect(screen.queryByText('1 sin leer')).not.toBeInTheDocument();
-    expect(screen.getByText('Marcar todas leídas')).toBeInTheDocument();
+    expect(screen.getByText('Marcar todo leído')).toBeInTheDocument();
   });
 
   test('unread 0 → sin "sin leer" ni botón, aunque la lista traiga una con read=false', async () => {
@@ -38,16 +38,16 @@ describe('NotificationsScreen: "N sin leer" sale del contador del backend', () =
     render(<MemoryRouter><NotificationsScreen /></MemoryRouter>);
     await screen.findByText('Aviso a');
     expect(screen.queryByText(/sin leer/)).not.toBeInTheDocument();
-    expect(screen.queryByText('Marcar todas leídas')).not.toBeInTheDocument();
+    expect(screen.queryByText('Marcar todo leído')).not.toBeInTheDocument();
   });
 
-  test('"Marcar todas leídas" recarga y toma el contador nuevo del backend', async () => {
+  test('"Marcar todo leído" recarga y toma el contador nuevo del backend', async () => {
     vi.mocked(api.notifications.list)
       .mockResolvedValueOnce({ notifications: [notif('a', false)], unread: 70 })
       .mockResolvedValueOnce({ notifications: [notif('a', true)], unread: 0 });
     vi.mocked(api.notifications.markAllRead).mockResolvedValue(undefined as never);
     render(<MemoryRouter><NotificationsScreen /></MemoryRouter>);
-    fireEvent.click(await screen.findByText('Marcar todas leídas'));
+    fireEvent.click(await screen.findByText('Marcar todo leído'));
     await waitFor(() => expect(screen.queryByText(/sin leer/)).not.toBeInTheDocument());
     expect(api.notifications.list).toHaveBeenCalledTimes(2);
   });
@@ -57,7 +57,7 @@ describe('NotificationsScreen: "N sin leer" sale del contador del backend', () =
     render(<MemoryRouter><NotificationsScreen /></MemoryRouter>);
     expect(screen.getByText('Notificaciones')).toBeInTheDocument();
     expect(screen.queryByText(/sin leer/)).not.toBeInTheDocument();
-    expect(screen.queryByText('Marcar todas leídas')).not.toBeInTheDocument();
+    expect(screen.queryByText('Marcar todo leído')).not.toBeInTheDocument();
   });
 
   test('si la carga falla, no queda un contador viejo', async () => {
@@ -66,7 +66,7 @@ describe('NotificationsScreen: "N sin leer" sale del contador del backend', () =
       .mockRejectedValueOnce(new TypeError('Failed to fetch'));   // sin conexión → mensaje genérico
     vi.mocked(api.notifications.markAllRead).mockResolvedValue(undefined as never);
     render(<MemoryRouter><NotificationsScreen /></MemoryRouter>);
-    fireEvent.click(await screen.findByText('Marcar todas leídas'));
+    fireEvent.click(await screen.findByText('Marcar todo leído'));
     await screen.findByText(/No pudimos cargar tus notificaciones/);
     expect(screen.queryByText(/sin leer/)).not.toBeInTheDocument();
   });

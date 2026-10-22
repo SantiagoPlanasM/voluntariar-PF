@@ -1,9 +1,10 @@
+// Página del voluntariado (DESIGN.md → Página del voluntariado): foto grande, datos ordenados y los botones
+// siempre a mano (barra fija abajo en el celular, caja fija a la derecha en escritorio). Los bloques son
+// secciones apiladas con un título cada una; no hay tarjetas dentro de tarjetas.
 import { useParams, useNavigate, Link } from 'react-router';
 import { useState, useEffect, useRef } from 'react';
 import {
-  ArrowLeft, MapPin, Clock, Users, DollarSign, Calendar,
-  Star, Briefcase, Loader2, Send, Zap, BarChart3, Bookmark, Check,
-  Laptop, Globe, Heart
+  ArrowLeft, Briefcase, Check, Clock, Laptop, Globe, MapPin, Send, Share2, Star, Bell,
 } from 'lucide-react';
 import { api, ProjectDetail } from '../../lib/api';
 import { useLatestRequest } from '../../lib/useLatestRequest';
@@ -12,19 +13,39 @@ import { LoadError, describeLoadError } from './LoadError';
 import { useAuth } from '../../lib/AuthContext';
 import { MomentsGrid } from './MomentsGrid';
 import { DonateModal } from './DonateModal';
+import { Avatar } from '../ui/Avatar';
+import { Button, ButtonLink } from '../ui/Button';
+import { DualGoal, formatMoney } from '../ui/Meter';
+import { LogoMark } from '../ui/Logo';
+import { TypeBadge } from '../ui/TypeBadge';
+import { useToast } from '../ui/UiProvider';
+import { JoinButton } from './FeedPostCard';
+import { cardActions } from '../volunteering/cardActions';
 
-type Tab = 'details' | 'ratings' | 'comments';
-const safePct = (a: any, b: any) => { const na=Number.parseFloat(a),nb=Number.parseFloat(b); if(!nb||Number.isNaN(na)||Number.isNaN(nb)) return 0; return Math.min(100,Math.round((na/nb)*100)); };
-const safeMoney = (val: any) => { const n=Number.parseFloat(val); return Number.isNaN(n)?'$0':'$'+n.toLocaleString('es-AR'); };
+const isRemote = (p: ProjectDetail) =>
+  p.modality === 'remoto' || !!p.location?.toLowerCase().includes('remoto') || !!p.location?.toLowerCase().includes('virtual');
+
+function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+  return (
+    <section aria-labelledby={id} className="py-6 border-t border-hairline flex flex-col gap-3">
+      <h2 id={id} className="text-lg font-bold tracking-[-0.2px]">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function Chip({ children }: { children: React.ReactNode }) {
+  return <span className="h-7 px-2.5 rounded-full bg-surface-soft text-xs font-semibold inline-flex items-center gap-1">{children}</span>;
+}
 
 export function ProjectDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const { user, openAuthModal } = useAuth();
   const [project, setProject]     = useState<ProjectDetail | null>(null);
   const [loading, setLoading]     = useState(true);
   const [loadError, setLoadError] = useState<{ message: string; retry: boolean } | null>(null);
-  const [tab, setTab]             = useState<Tab>('details');
   const [enrolling, setEnrolling] = useState(false);
   const [enrollMsg, setEnrollMsg] = useState('');
   const [showDonate, setShowDonate] = useState(false);   // modal "Donar" (§172)
@@ -100,7 +121,7 @@ export function ProjectDetails() {
         setIsFollowing(true);
       }
     } catch (e) {
-      console.error(e);
+      toast('No pudimos actualizar el seguimiento. Probá de nuevo.', { kind: 'error' });
     } finally {
       setTogglingFollow(false);
     }
@@ -112,6 +133,15 @@ export function ProjectDetails() {
     try { await api.enrollments.enroll(id!); setEnrollMsg('Inscripción enviada.'); void load(id!); }
     catch (e: any) { setEnrollMsg(e.message); }
     finally { setEnrolling(false); }
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) { await navigator.share({ title: project?.title, url }); return; }
+      await navigator.clipboard.writeText(url);
+      toast('Link copiado');
+    } catch { /* la persona canceló */ }
   };
 
   const handleComment = async (e: React.FormEvent) => {
@@ -147,8 +177,9 @@ export function ProjectDetails() {
   };
 
   if (loading) return (
-    <div role="status" aria-label="Cargando voluntariado" className="flex items-center justify-center h-screen">
-      <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+    <div role="status" aria-label="Cargando voluntariado" className="flex flex-col">
+      <div className="aspect-[4/3] md:aspect-[16/6] skeleton" />
+      <div className="p-4 flex flex-col gap-3"><div className="h-6 w-2/3 rounded skeleton" /><div className="h-4 w-1/3 rounded skeleton" /><div className="h-24 rounded-xl skeleton" /></div>
     </div>
   );
   if (loadError || !project) return (
@@ -156,494 +187,340 @@ export function ProjectDetails() {
       onRetry={loadError?.retry && id ? () => load(id) : undefined} home="/" />
   );
 
-  const fundPct = safePct(project.current_funding, project.funding_goal);
-  const volPct  = safePct(project.current_volunteers, project.volunteers_needed);
   const hasFunding = (project.funding_goal || 0) > 0;
-  const alreadyEnrolled = !!project.my_enrollment;
   // Solo GET /projects/:id trae user_id en las reseñas (§112); sin sesión ninguna es propia.
   const hasOwnRating = !!user && project.ratings.some(r => r.user_id === user.id);
+  const remote = isRemote(project);
   const hoursLabel = project.type === 'fugaz'
     ? (project.duration || 'Sin especificar')
-    : (project.hours_per_week ? `${project.hours_per_week}h/semana` : 'No especificado');
+    : (project.hours_per_week ? `${project.hours_per_week} h por semana` : 'No especificado');
+  const avg = project.avg_rating ? Number(project.avg_rating).toFixed(1).replace('.', ',') : null;
+  const spotsLeft = Math.max(0, (project.volunteers_needed || 0) - (project.current_volunteers || 0));
+  const active = project.status === 'active';
+  const goalMet = hasFunding && project.current_funding >= project.funding_goal;
+  const canDonate = active && user?.role !== 'ngo' && !!project.accepts_donations;
+  const actions = cardActions(project, project.my_enrollment?.status ?? null, user?.role ?? null);
+  const mapsHref = project.latitude != null && project.longitude != null
+    ? `https://www.google.com/maps/search/?api=1&query=${project.latitude},${project.longitude}` : null;
 
-  const EnrollButton = ({ className = '' }: { className?: string }) => {
+  /** Los botones de acción: se dibujan en la barra fija (celular) y en la caja de la derecha (escritorio). */
+  const ActionButtons = () => {
     if (user?.role === 'company') {
       return (
-        <Link
-          // ?proponer: el perfil abre "Proponer" con este proyecto ya elegido (REVISION F6)
-          to={`/company/profile?proponer=${encodeURIComponent(project?.id ?? '')}`}
-          className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-200 ${className}`}>
-          <Briefcase className="w-4 h-4" />
-          Patrocinar este proyecto
-        </Link>
+        <div className="flex gap-2 w-full">
+          <ButtonLink
+            // ?proponer: el perfil abre "Proponer" con este proyecto ya elegido (REVISION F6)
+            to={`/company/profile?proponer=${encodeURIComponent(project.id)}`}
+            variant="secondary" className="flex-1 h-12 rounded-[12px]">
+            <Briefcase size={16} strokeWidth={1.75} aria-hidden="true" />Patrocinar este proyecto
+          </ButtonLink>
+          {canDonate && <Button variant="donate" onClick={() => setShowDonate(true)} className="flex-1">Donar</Button>}
+        </div>
       );
     }
     if (user?.role === 'ngo') {
       // Solo a la ONG dueña: antes se ofrecía a cualquier ONG y el panel de un proyecto ajeno daba 403
       // (REVISION F16). can_manage lo calcula el backend.
-      if (project?.can_manage) {
-        return (
-          <Link
-            to={`/ngo/dashboard/project/${project.id}`}
-            className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 ${className}`}>
-            Ver en panel ONG
-          </Link>
-        );
-      }
-      return null;
+      return project.can_manage ? (
+        <ButtonLink to={`/ngo/dashboard/project/${project.id}`} variant="primary" block className="h-12 rounded-[12px]">Ver en el panel</ButtonLink>
+      ) : null;
     }
     return (
-      <button
-        onClick={handleEnroll}
-        disabled={enrolling || alreadyEnrolled}
-        className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2
-          ${!alreadyEnrolled ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-200'
-            : project.my_enrollment?.status === 'rejected' ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'}
-          disabled:opacity-60 ${className}`}>
-        {enrolling && <Loader2 className="w-4 h-4 animate-spin" />}
-        {!alreadyEnrolled ? 'Unirme como voluntario'
-          // Rechazada: antes se veía "Inscripto · Pendiente" para siempre (REVISION F8). No se puede volver a
-          // postular (UNIQUE(user_id, project_id) en enrollments), así que el botón sigue deshabilitado.
-          : project.my_enrollment?.status === 'rejected' ? 'Inscripción rechazada'
-          : `Inscripto · ${project.my_enrollment?.status === 'approved' ? 'Aprobado' : 'Pendiente'}`}
-      </button>
+      <div className="flex gap-2 w-full">
+        <JoinButton action={actions.join} busy={enrolling} onJoin={handleEnroll} projectId={project.id} />
+        {canDonate && (
+          <Button variant="donate" onClick={() => (user ? setShowDonate(true) : openAuthModal('Iniciá sesión para donar'))}
+            className={`flex-1 ${goalMet ? '!bg-brand-soft !text-brand-text' : ''}`}>
+            {goalMet ? <><Check size={18} strokeWidth={2.25} aria-hidden="true" />Meta cumplida</> : 'Donar'}
+          </Button>
+        )}
+      </div>
     );
   };
 
+  const enrollNotice = enrollMsg && (
+    <p role={enrollMsg === 'Inscripción enviada.' ? 'status' : 'alert'}
+      className={`text-[13px] font-medium ${enrollMsg === 'Inscripción enviada.' ? 'text-people-text' : 'text-critical'}`}>
+      {enrollMsg}
+    </p>
+  );
+  const noDonations = active && user?.role !== 'ngo' && !project.accepts_donations && (
+    <p className="text-[13px] text-ink-muted">Esta ONG todavía no recibe donaciones</p>
+  );
+
+  const goalBlock = (
+    <>
+      <DualGoal
+        fundingGoal={project.funding_goal || 0}
+        currentFunding={project.current_funding || 0}
+        volunteersNeeded={project.volunteers_needed || 0}
+        currentVolunteers={project.current_volunteers || 0}
+        large
+      />
+      {active && project.volunteers_needed > 0 && (
+        <p className="text-[13px] text-ink-muted">{spotsLeft === 0 ? 'No quedan lugares' : `Quedan ${spotsLeft} ${spotsLeft === 1 ? 'lugar' : 'lugares'}`}</p>
+      )}
+    </>
+  );
+
   return (
-    // pb-32 en mobile para que el botón fijo no tape el contenido
-    // md:pb-8 en desktop donde no hay botón fijo
-    <div className="min-h-screen bg-gray-50 md:ml-60 pb-32 md:pb-8">
+    <div className="min-h-screen bg-canvas md:bg-canvas-soft pb-24 md:pb-10">
+      <div className="max-w-[1040px] mx-auto md:px-6 md:pt-6">
+        <div className="md:grid md:grid-cols-[minmax(0,1fr)_360px] md:gap-8 md:items-start">
 
-      {/* Hero */}
-      <div className="relative h-56 sm:h-72">
-        {project.image
-          ? <img src={project.image} alt={project.title} className="w-full h-full object-cover" />
-          : <div className="w-full h-full bg-gradient-to-br from-emerald-200 to-teal-300" />
-        }
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-        <button onClick={() => navigate(-1)} aria-label="Volver"
-          className="absolute top-4 left-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg">
-          <ArrowLeft className="w-5 h-5 text-gray-800" />
-        </button>
-        {(!user || user.role === 'volunteer') && (
-          <button
-            onClick={handleToggleFollow}
-            disabled={togglingFollow}
-            title={isFollowing ? 'Dejar de seguir voluntariado' : 'Seguir voluntariado'}
-            className={`absolute top-4 right-4 px-3.5 py-2 rounded-full backdrop-blur-md flex items-center gap-1.5 text-xs font-bold transition-all shadow-md ${
-              isFollowing
-                ? 'bg-emerald-600 text-white'
-                : 'bg-white/90 hover:bg-white text-gray-800'
-            }`}
-          >
-            <Bookmark className={`w-3.5 h-3.5 ${isFollowing ? 'fill-current' : ''}`} />
-            <span>{isFollowing ? 'Siguiendo' : 'Seguir'}</span>
-          </button>
-        )}
-        <div className="absolute bottom-4 left-4 flex gap-2 flex-wrap">
-          <span className="px-3 py-1 bg-white/95 rounded-full text-xs font-bold text-gray-800">{project.category}</span>
-          {project.type === 'fugaz'
-            ? <span className="px-3 py-1 bg-blue-600/90 rounded-full text-xs font-bold text-white flex items-center gap-1"><Zap className="w-3 h-3" />Fugaz</span>
-            : <span className="px-3 py-1 bg-emerald-600/90 rounded-full text-xs font-bold text-white flex items-center gap-1"><Calendar className="w-3 h-3" />Sostenido</span>
-          }
-          {(project.modality === 'remoto' || project.location?.toLowerCase().includes('remoto') || project.location?.toLowerCase().includes('virtual')) ? (
-            <span className="px-3 py-1 bg-violet-600/90 backdrop-blur-sm rounded-full text-xs font-bold text-white flex items-center gap-1 shadow-sm">
-              <Laptop className="w-3 h-3" /> Remoto
-            </span>
-          ) : project.modality === 'hibrido' ? (
-            <span className="px-3 py-1 bg-sky-600/90 backdrop-blur-sm rounded-full text-xs font-bold text-white flex items-center gap-1 shadow-sm">
-              <Globe className="w-3 h-3" /> Híbrido
-            </span>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5">
-
-        {/* ── DESKTOP: 3-col grid ─────────────────────────────── */}
-        <div className="md:grid md:grid-cols-3 md:gap-6">
-
-          {/* Main column — visible on ALL screen sizes */}
-          <div className="md:col-span-2 space-y-4">
-
-            {/* Header card */}
-            <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100">
-              <div className="flex items-center gap-2 mb-2">
-                {project.ngo_logo
-                  ? <img src={project.ngo_logo} alt={project.ngo_name} className="w-8 h-8 rounded-full object-cover ring-2 ring-gray-100" />
-                  : <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700">{project.ngo_name?.[0]}</div>
-                }
-                <div>
-                  <Link to={project.ngo_id ? `/ngo/${project.ngo_id}` : '#'}
-                className="text-sm font-semibold text-gray-800 hover:text-emerald-600 transition-colors">
-                {project.ngo_name}
-              </Link>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                    <span className="text-xs text-gray-400">{(project.avg_rating || 0).toFixed(1)} · {project.ratings.length} reseñas</span>
-                  </div>
-                </div>
-              </div>
-              <h1 className="text-xl sm:text-2xl font-black text-gray-900">{project.title}</h1>
-            </div>
-
-            {/* Info grid — visible on ALL sizes */}
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                {
-                  icon: (project.modality === 'remoto' || project.location?.toLowerCase().includes('remoto') || project.location?.toLowerCase().includes('virtual'))
-                    ? Laptop
-                    : project.modality === 'hibrido'
-                    ? Globe
-                    : MapPin,
-                  label: (project.modality === 'remoto' || project.location?.toLowerCase().includes('remoto') || project.location?.toLowerCase().includes('virtual'))
-                    ? 'Modalidad'
-                    : project.modality === 'hibrido'
-                    ? 'Modalidad'
-                    : 'Ubicación',
-                  val: (project.modality === 'remoto' || project.location?.toLowerCase().includes('remoto') || project.location?.toLowerCase().includes('virtual'))
-                    ? (project.location && project.location.toLowerCase() !== 'remoto' ? `Remoto · ${project.location}` : '100% Remoto')
-                    : project.location,
-                },
-                { icon: Clock,      label: project.type === 'fugaz' ? 'Duración' : 'Horas/sem', val: hoursLabel },
-                { icon: DollarSign, label: 'Costo',       val: (project.cost_per_person || 0) === 0 ? 'Gratis' : safeMoney(project.cost_per_person) },
-                { icon: Users,      label: 'Voluntarios', val: `${project.current_volunteers || 0}/${project.volunteers_needed || 0}` },
-              ].map(({ icon: Icon, label, val }) => (
-                <div key={label} className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
-                  <div className="flex items-center gap-1.5 text-gray-400 mb-1">
-                    <Icon className="w-3.5 h-3.5" /><span className="text-xs">{label}</span>
-                  </div>
-                  <p className="text-sm font-bold text-gray-900 truncate" title={String(val)}>{val}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Progress — visible on ALL sizes */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
-              <h3 className="font-bold text-sm text-gray-900">Progreso del proyecto</h3>
-              {hasFunding && (
-                <div>
-                  <div className="flex justify-between text-xs mb-1.5">
-                    <span className="text-gray-500">Financiamiento</span>
-                    <span className="font-bold text-blue-600">{fundPct}% · {safeMoney(project.current_funding)}</span>
-                  </div>
-                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all" style={{ width: `${fundPct}%` }} />
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1">Meta: {safeMoney(project.funding_goal)}</p>
-                </div>
+          {/* ── Columna principal ──────────────────────────────────── */}
+          <div className="bg-canvas md:rounded-2xl md:border md:border-hairline overflow-hidden min-w-0">
+            <div className="relative aspect-[4/3] md:aspect-[16/10] bg-surface-soft">
+              {project.image ? (
+                <img src={project.image} alt={project.title} className="w-full h-full object-cover" />
+              ) : (
+                <span className="w-full h-full flex items-center justify-center opacity-30" aria-hidden="true"><LogoMark size={72} /></span>
               )}
-              {/* §173: sin meta no hay barra, pero lo recaudado en donaciones se ve igual (antes solo lo veía la ONG). */}
-              {!hasFunding && Number(project.current_funding) > 0 && (
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Recaudado en donaciones</span>
-                  <span className="font-bold text-blue-600">{safeMoney(project.current_funding)}</span>
-                </div>
-              )}
-              {/* Donar (§172): el backend deja a voluntarios y empresas en proyectos activos; un visitante inicia sesión. */}
-              {/* §218: sin cuenta de Mercado Pago vinculada la ONG no recibe donaciones (accepts_donations, §217). */}
-              {project.status === 'active' && user?.role !== 'ngo' && !project.accepts_donations && (
-                <p className="text-xs text-gray-400 text-center">Esta ONG todavía no recibe donaciones</p>
-              )}
-              {project.status === 'active' && user?.role !== 'ngo' && project.accepts_donations && (
-                <button type="button"
-                  onClick={() => (user ? setShowDonate(true) : openAuthModal('Iniciá sesión para donar'))}
-                  className="w-full py-2.5 rounded-xl text-sm font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors flex items-center justify-center gap-1.5">
-                  <Heart className="w-4 h-4" aria-hidden="true" />Donar a este proyecto
+              <button type="button" onClick={() => navigate(-1)} aria-label="Volver"
+                className="absolute top-3 left-3 w-10 h-10 rounded-full bg-[var(--photo-chip)] text-[var(--on-photo)] flex items-center justify-center active:scale-95 transition-transform">
+                <ArrowLeft size={20} strokeWidth={1.75} aria-hidden="true" />
+              </button>
+              <div className="absolute top-3 right-3 flex gap-2">
+                <button type="button" onClick={handleShare} aria-label="Compartir"
+                  className="w-10 h-10 rounded-full bg-[var(--photo-chip)] text-[var(--on-photo)] flex items-center justify-center active:scale-95 transition-transform">
+                  <Share2 size={18} strokeWidth={1.75} aria-hidden="true" />
                 </button>
-              )}
-              <div>
-                <div className="flex justify-between text-xs mb-1.5">
-                  <span className="text-gray-500 flex items-center gap-1"><Users className="w-3 h-3" />Voluntarios</span>
-                  <span className="font-bold text-emerald-600">{volPct}% · {project.current_volunteers || 0}/{project.volunteers_needed || 0}</span>
-                </div>
-                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all" style={{ width: `${volPct}%` }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Roles */}
-            {project.roles_needed && project.roles_needed.length > 0 && (
-              <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                <div className="flex items-center gap-2 mb-3">
-                  <Briefcase className="w-4 h-4 text-emerald-600" />
-                  <h3 className="font-bold text-sm text-gray-900">Roles buscados</h3>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {project.roles_needed.map((r, i) => (
-                    <span key={i} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full">{r}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* KPIs públicos */}
-        {project.kpis && project.kpis.length > 0 && (
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <div className="flex items-center gap-2 mb-3">
-              <BarChart3 className="w-5 h-5 text-violet-600" />
-              <h3 className="font-bold text-sm text-gray-900">Impacto del proyecto</h3>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {project.kpis.map((k: any) => (
-                <div key={k.id} className="bg-violet-50 rounded-xl p-3 text-center">
-                  <p className="text-xl font-black text-violet-700">
-                    {k.valor !== null && k.valor !== undefined
-                      ? k.tipo_valor === 'porcentaje' ? `${k.valor}%`
-                        : k.tipo_valor === 'booleano' ? (k.valor ? 'Sí' : 'No')
-                        : `${k.valor}${k.unidad ? ' ' + k.unidad : ''}`
-                      : '—'}
-                  </p>
-                  <p className="text-xs text-gray-600 mt-0.5 font-medium">{k.nombre}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Tabs */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="flex border-b border-gray-100">
-                {(['details', 'ratings', 'comments'] as Tab[]).map(t => (
-                  <button key={t} onClick={() => setTab(t)}
-                    className={`flex-1 py-3 text-xs sm:text-sm font-bold transition-colors ${tab === t ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-gray-400 hover:text-gray-600'}`}>
-                    {t === 'details' ? 'Detalles' : t === 'ratings' ? `Reseñas (${project.ratings.length})` : `Comentarios (${project.comments.length})`}
+                {(!user || user.role === 'volunteer') && (
+                  <button type="button" onClick={handleToggleFollow} disabled={togglingFollow} aria-pressed={isFollowing}
+                    title={isFollowing ? 'Dejar de seguir voluntariado' : 'Seguir voluntariado'}
+                    className="h-10 px-3.5 rounded-full bg-[var(--photo-chip)] text-[var(--on-photo)] text-[13px] font-semibold inline-flex items-center gap-1.5 active:scale-95 transition-transform disabled:opacity-60">
+                    <Bell size={16} strokeWidth={1.75} className={isFollowing ? 'fill-current' : ''} aria-hidden="true" />
+                    {isFollowing ? 'Siguiendo' : 'Seguir'}
                   </button>
-                ))}
+                )}
               </div>
-              <div className="p-4 sm:p-5">
-                {tab === 'details' && (
-                  <div className="space-y-4">
-                    <p className="text-sm text-gray-600 leading-relaxed">{project.full_description || project.description}</p>
-                    {project.requirements && project.requirements.length > 0 && (
-                      <>
-                        <h4 className="font-bold text-sm text-gray-900">Requisitos</h4>
-                        <ul className="space-y-1.5">
-                          {project.requirements.map((r, i) => (
-                            <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-2 flex-shrink-0" />{r}
-                            </li>
-                          ))}
-                        </ul>
-                      </>
-                    )}
+            </div>
+
+            <div className="px-4 md:px-6 pt-5 pb-6 flex flex-col gap-3">
+              <h1 className="text-[22px] font-bold leading-[1.2] tracking-[-0.3px]">{project.title}</h1>
+              <div className="flex items-center gap-2 flex-wrap text-[15px]">
+                <Link to={project.ngo_id ? `/ngo/${project.ngo_id}` : '#'} className="inline-flex items-center gap-2 min-w-0">
+                  <Avatar src={project.ngo_logo} name={project.ngo_name || 'ONG'} kind="org" size={28} />
+                  <span className="font-semibold truncate">{project.ngo_name}</span>
+                </Link>
+                <span className="text-[13px] text-ink-muted inline-flex items-center gap-1">
+                  ·{' '}
+                  {avg ? <><Star size={14} className="fill-star text-star" aria-hidden="true" />{avg} · {project.ratings.length} {project.ratings.length === 1 ? 'reseña' : 'reseñas'}</> : 'Nuevo, sin reseñas'}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {project.category && <Chip>{project.category}</Chip>}
+                <TypeBadge type={project.type} variant="soft" className="!h-7" />
+                {remote ? <Chip><Laptop size={14} strokeWidth={1.75} aria-hidden="true" />Remoto</Chip>
+                  : project.modality === 'hibrido' ? <Chip><Globe size={14} strokeWidth={1.75} aria-hidden="true" />Híbrido</Chip>
+                  : <Chip>Presencial</Chip>}
+              </div>
+            </div>
+
+            <div className="px-4 md:px-6 pb-6 grid grid-cols-3 gap-3">
+              <div className="flex flex-col gap-1"><span className="text-xs font-semibold text-ink-muted">{project.type === 'fugaz' ? 'Duración' : 'Dedicación'}</span><span className="text-[15px] font-bold leading-snug">{hoursLabel}</span></div>
+              <div className="flex flex-col gap-1"><span className="text-xs font-semibold text-ink-muted">Costo por persona</span><span className="text-[15px] font-bold leading-snug">{(project.cost_per_person || 0) === 0 ? 'Sin costo' : formatMoney(project.cost_per_person)}</span></div>
+              <div className="flex flex-col gap-1"><span className="text-xs font-semibold text-ink-muted">Lugares</span><span className="text-[15px] font-bold leading-snug">{project.current_volunteers || 0} de {project.volunteers_needed || 0}</span></div>
+            </div>
+            <div className="px-4 md:px-6 pb-6 flex items-center gap-2 text-[15px]">
+              {remote ? <Laptop size={16} strokeWidth={1.75} aria-hidden="true" className="flex-shrink-0" /> : <MapPin size={16} strokeWidth={1.75} aria-hidden="true" className="flex-shrink-0" />}
+              <span className="flex-1 min-w-0">{remote ? (project.location && project.location.toLowerCase() !== 'remoto' ? `Remoto · ${project.location}` : '100% remoto') : project.location}</span>
+              {mapsHref && !remote && <a href={mapsHref} target="_blank" rel="noopener noreferrer" className="font-semibold flex-shrink-0">Cómo llegar</a>}
+            </div>
+
+            {/* La doble meta en el celular; en escritorio vive en la caja de la derecha. */}
+            <div className="md:hidden px-4">
+              <Section id="como-vamos" title="Cómo vamos">
+                {goalBlock}
+                {noDonations}
+              </Section>
+            </div>
+
+            <div className="px-4 md:px-6">
+              <Section id="sobre" title="Sobre el voluntariado">
+                <p className="text-[15px] leading-[1.5] whitespace-pre-line">{project.full_description || project.description}</p>
+                {project.requirements && project.requirements.length > 0 && (
+                  <div className="flex flex-col gap-1.5">
+                    <h3 className="text-xs font-semibold text-ink-soft">Requisitos</h3>
+                    <ul className="flex flex-col gap-1">
+                      {project.requirements.map((r, i) => (
+                        <li key={i} className="flex items-start gap-2 text-[15px]"><Check size={16} strokeWidth={2} className="mt-1 text-ink-muted flex-shrink-0" aria-hidden="true" />{r}</li>
+                      ))}
+                    </ul>
                   </div>
                 )}
-                {tab === 'ratings' && (
-                  <div className="space-y-5">
-                    {/* Formulario de calificación: solo para voluntarios con inscripción aprobada */}
-                    {project.my_enrollment?.status === 'approved' ? (
-                      <div className="bg-emerald-50/70 rounded-2xl p-4 border border-emerald-100">
-                        <h4 className="font-bold text-xs text-emerald-900 mb-2">
-                          {hasOwnRating
-                            ? 'Ya calificaste este voluntariado. Podés editar tu reseña.'
-                            : '¿Qué te pareció este voluntariado? Dejá tu reseña'}
-                        </h4>
-                        <form onSubmit={handleRate} className="space-y-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-600 font-medium">Tu puntuación:</span>
-                            <div className="flex gap-1">
-                              {[1, 2, 3, 4, 5].map(star => (
-                                <button
-                                  type="button"
-                                  key={star}
-                                  aria-label={`${star} estrella${star > 1 ? 's' : ''}`} aria-pressed={star === userRating}
-                                  onClick={() => { setUserRating(star); prefillPending.current = false; }}
-                                  className="p-0.5 hover:scale-110 transition-transform"
-                                >
-                                  <Star
-                                    className={`w-6 h-6 ${
-                                      star <= userRating
-                                        ? 'fill-yellow-400 text-yellow-400'
-                                        : 'text-gray-300'
-                                    }`}
-                                  />
-                                </button>
-                              ))}
-                            </div>
-                            <span className="text-xs font-bold text-gray-700 ml-1">
-                              {userRating} / 5
-                            </span>
-                          </div>
+              </Section>
 
-                          <textarea
-                            aria-label="Tu reseña"
-                            value={ratingComment}
-                            onChange={e => { setRatingComment(e.target.value); setRatingErr(''); prefillPending.current = false; }}
-                            placeholder="Escribí tu experiencia, aprendizajes o sugerencias..."
-                            rows={2}
-                            className="w-full px-3 py-2 bg-white rounded-xl text-xs border border-gray-200 focus:border-emerald-500 focus:outline-none resize-none"
-                          />
-
-                          {ratingErr && <p className="text-xs text-red-600 font-medium">{ratingErr}</p>}
-                          {ratingMsg && <p className="text-xs text-emerald-700 font-bold">{ratingMsg}</p>}
-
-                          <button
-                            type="submit"
-                            disabled={submittingRating}
-                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
-                          >
-                            {submittingRating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                            <span>{hasOwnRating ? 'Actualizar reseña' : 'Guardar reseña'}</span>
-                          </button>
-                        </form>
-                      </div>
-                    ) : (
-                      <div className="bg-gray-50 rounded-2xl p-3 border border-gray-100 text-center">
-                        <p className="text-xs text-gray-500">
-                          Solo los voluntarios que hayan participado con inscripción aprobada pueden calificar este voluntariado.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Lista de reseñas existentes */}
-                    {project.ratings.length === 0 ? (
-                      <p className="text-sm text-gray-400 text-center py-4">Sin reseñas aún</p>
-                    ) : (
-                      <div className="space-y-4">
-                        {project.ratings.map(r => (
-                          <div key={r.id} className="flex gap-3 bg-gray-50/50 p-3 rounded-xl border border-gray-100">
-                            {/* La foto de quien calificó, o la inicial si no tiene (§133). */}
-                            {(() => {
-                              const face = r.user_avatar
-                                ? <img src={r.user_avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
-                                : <span data-initial>{r.user_name[0]}</span>;
-                              return r.user_id ? (
-                                <Link to={`/volunteer/${r.user_id}`} aria-label={`Perfil de ${r.user_name}`} className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700 flex-shrink-0 overflow-hidden hover:opacity-80 transition-opacity">
-                                  {face}
-                                </Link>
-                              ) : (
-                                <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700 flex-shrink-0 overflow-hidden">
-                                  {face}
-                                </div>
-                              );
-                            })()}
-                            <div>
-                              <div className="flex items-center gap-2">
-                                {r.user_id ? (
-                                  <Link to={`/volunteer/${r.user_id}`} className="text-xs font-bold text-gray-800 hover:text-emerald-700 transition-colors">
-                                    {r.user_name}
-                                  </Link>
-                                ) : (
-                                  <p className="text-xs font-bold text-gray-800">{r.user_name}</p>
-                                )}
-                                <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">
-                                  Participó
-                                </span>
-                              </div>
-                              <div className="flex my-1">
-                                {Array.from({ length: 5 }).map((_, i) => (
-                                  <Star key={i} className={`w-3.5 h-3.5 ${i < r.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'}`} />
-                                ))}
-                              </div>
-                              {r.comment && <p className="text-xs text-gray-600">{r.comment}</p>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+              {project.roles_needed && project.roles_needed.length > 0 && (
+                <Section id="roles" title="Roles que se necesitan">
+                  <div className="flex flex-wrap gap-2">
+                    {project.roles_needed.map((r, i) => (
+                      <span key={i} className="h-8 px-3 rounded-full bg-surface-soft text-xs font-semibold inline-flex items-center">{r}</span>
+                    ))}
                   </div>
-                )}
-                {tab === 'comments' && (
-                  <div className="space-y-3">
-                    {project.comments.length === 0 && (
-                      <p className="text-sm text-gray-400 text-center py-4">Sin comentarios aún. ¡Sé el primero!</p>
-                    )}
-                    {project.comments.map(c => (
-                      <div key={c.id} className="flex gap-2">
-                        {c.user_id ? (
-                          <Link to={`/volunteer/${c.user_id}`} className="hover:opacity-80 transition-opacity flex-shrink-0">
-                            {c.user_avatar ? (
-                              <img src={c.user_avatar} alt={c.user_name} className="w-7 h-7 rounded-full object-cover" />
-                            ) : (
-                              <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600">{c.user_name[0]}</div>
-                            )}
-                          </Link>
-                        ) : (
-                          c.user_avatar ? (
-                            <img src={c.user_avatar} alt={c.user_name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
-                          ) : (
-                            <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 flex-shrink-0">{c.user_name[0]}</div>
-                          )
-                        )}
-                        <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-3 py-2 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            {c.user_id ? (
-                              <Link to={`/volunteer/${c.user_id}`} className="text-xs font-bold text-gray-700 hover:text-emerald-700 transition-colors">
-                                {c.user_name}
-                              </Link>
-                            ) : (
-                              <p className="text-xs font-bold text-gray-700">{c.user_name}</p>
-                            )}
-                            {Boolean(c.is_participant) && (
-                              <span className="px-1.5 py-0.5 bg-[#e4f1e0] text-[#255f24] text-[10px] font-bold rounded">
-                                Participó
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-600 mt-0.5">{c.comment}</p>
-                        </div>
+                </Section>
+              )}
+
+              {/* KPIs públicos */}
+              {project.kpis && project.kpis.length > 0 && (
+                <Section id="impacto" title="Impacto del voluntariado">
+                  <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-4">
+                    {project.kpis.map((k: any) => (
+                      <div key={k.id} className="flex flex-col">
+                        <dd className="order-1 text-[22px] font-extrabold tracking-[-0.3px] leading-tight">
+                          {k.valor !== null && k.valor !== undefined
+                            ? k.tipo_valor === 'porcentaje' ? `${k.valor} %`
+                              : k.tipo_valor === 'booleano' ? (k.valor ? 'Sí' : 'No')
+                              : `${k.valor}${k.unidad ? ' ' + k.unidad : ''}`
+                            : '—'}
+                        </dd>
+                        <dt className="order-2 text-[13px] text-ink-soft">{k.nombre}</dt>
                       </div>
                     ))}
-                    <form onSubmit={handleComment} className="pt-2 border-t border-gray-100 space-y-1.5">
-                      <div className="flex gap-2">
-                        <input
-                          aria-label="Comentario"
-                          maxLength={1000}
-                          value={comment}
-                          onChange={e => { setComment(e.target.value); setCommentErr(''); }}
-                          placeholder={user ? 'Escribí un comentario...' : 'Iniciá sesión para comentar'}
-                          readOnly={!user}
-                          onClick={() => !user && openAuthModal('Iniciá sesión para comentar')}
-                          className={`flex-1 px-3 py-2 bg-gray-100 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 ${!user ? 'cursor-pointer' : ''}`}
-                        />
-                        {user && (
-                          <button type="submit" disabled={commenting} aria-label="Publicar comentario"
-                            className="w-9 h-9 bg-emerald-600 text-white rounded-xl flex items-center justify-center disabled:opacity-60 flex-shrink-0">
-                            {commenting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                          </button>
-                        )}
-                      </div>
-                      {commentErr && <p className="text-xs text-red-500 ml-1">{commentErr}</p>}
-                    </form>
-                  </div>
+                  </dl>
+                </Section>
+              )}
+
+              {/* Reseñas */}
+              <Section id="resenas" title={project.ratings.length ? `Reseñas (${project.ratings.length})` : 'Reseñas'}>
+                {/* Formulario de calificación: solo para voluntarios con inscripción aprobada */}
+                {project.my_enrollment?.status === 'approved' ? (
+                  <form onSubmit={handleRate} className="rounded-xl bg-surface-soft p-4 flex flex-col gap-3">
+                    <h3 className="text-[15px] font-semibold">
+                      {hasOwnRating
+                        ? 'Ya calificaste este voluntariado. Podés editar tu reseña.'
+                        : '¿Qué te pareció? Dejá tu reseña'}
+                    </h3>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button type="button" key={star}
+                          aria-label={`${star} estrella${star > 1 ? 's' : ''}`} aria-pressed={star === userRating}
+                          onClick={() => { setUserRating(star); prefillPending.current = false; }}
+                          className="w-10 h-10 -mx-0.5 flex items-center justify-center active:scale-90 transition-transform">
+                          <Star size={26} className={star <= userRating ? 'fill-star text-star' : 'text-border-strong'} aria-hidden="true" />
+                        </button>
+                      ))}
+                      <span className="ml-2 text-[15px] font-bold">{userRating} / 5</span>
+                    </div>
+                    <textarea
+                      aria-label="Tu reseña"
+                      value={ratingComment}
+                      onChange={e => { setRatingComment(e.target.value); setRatingErr(''); prefillPending.current = false; }}
+                      placeholder="Contá tu experiencia, qué aprendiste o qué mejorarías"
+                      rows={3}
+                      className="w-full px-3.5 py-3 rounded-[10px] bg-surface text-[15px] border-[1.5px] border-transparent focus:border-ink outline-none resize-none"
+                    />
+                    {ratingErr && <p role="alert" className="text-[13px] text-critical font-medium">{ratingErr}</p>}
+                    {ratingMsg && <p role="status" className="text-[13px] text-people-text font-semibold">{ratingMsg}</p>}
+                    <Button type="submit" variant="primary" busy={submittingRating} busyLabel="Guardando…" className="self-start">
+                      {hasOwnRating ? 'Actualizar reseña' : 'Guardar reseña'}
+                    </Button>
+                  </form>
+                ) : (
+                  <p className="text-[13px] text-ink-muted">Solo pueden reseñar las personas que participaron con inscripción aprobada.</p>
                 )}
-              </div>
+
+                {project.ratings.length === 0 ? (
+                  <p className="text-[15px] text-ink-soft">Sin reseñas aún.</p>
+                ) : (
+                  <ul className="flex flex-col gap-4">
+                    {project.ratings.map(r => (
+                      <li key={r.id} className="flex gap-3">
+                        {r.user_id ? (
+                          <Link to={`/volunteer/${r.user_id}`} aria-label={`Perfil de ${r.user_name}`} className="flex-shrink-0">
+                            <Avatar src={r.user_avatar} name={r.user_name} size={36} />
+                          </Link>
+                        ) : <Avatar src={r.user_avatar} name={r.user_name} size={36} />}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {r.user_id
+                              ? <Link to={`/volunteer/${r.user_id}`} className="text-[15px] font-semibold">{r.user_name}</Link>
+                              : <span className="text-[15px] font-semibold">{r.user_name}</span>}
+                            <span className="text-xs font-semibold text-people-text">Participó</span>
+                          </div>
+                          <div className="flex my-0.5" aria-label={`${r.rating} de 5`} role="img">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star key={i} size={14} className={i < r.rating ? 'fill-star text-star' : 'text-hairline'} aria-hidden="true" />
+                            ))}
+                          </div>
+                          {r.comment && <p className="text-[15px] leading-snug text-ink-soft">{r.comment}</p>}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Section>
+
+              {/* Comentarios */}
+              <Section id="comentarios" title={project.comments.length ? `Comentarios (${project.comments.length})` : 'Comentarios'}>
+                {project.comments.length === 0 && <p className="text-[15px] text-ink-soft">Sin comentarios aún. Sé la primera persona.</p>}
+                <ul className="flex flex-col gap-3">
+                  {project.comments.map(c => (
+                    <li key={c.id} className="flex gap-2.5">
+                      {c.user_id
+                        ? <Link to={`/volunteer/${c.user_id}`} className="flex-shrink-0"><Avatar src={c.user_avatar} name={c.user_name} size={32} /></Link>
+                        : <Avatar src={c.user_avatar} name={c.user_name} size={32} />}
+                      <div className="min-w-0 text-[15px] leading-snug">
+                        {c.user_id ? <Link to={`/volunteer/${c.user_id}`} className="font-semibold">{c.user_name}</Link> : <span className="font-semibold">{c.user_name}</span>}
+                        {Boolean(c.is_participant) && <span className="ml-1.5 text-xs font-semibold text-people-text">Participó</span>}
+                        <p className="text-ink-soft break-words">{c.comment}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <form onSubmit={handleComment} className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-2">
+                    <input
+                      aria-label="Comentario"
+                      maxLength={1000}
+                      value={comment}
+                      onChange={e => { setComment(e.target.value); setCommentErr(''); }}
+                      placeholder={user ? 'Escribí un comentario…' : 'Iniciá sesión para comentar'}
+                      readOnly={!user}
+                      onClick={() => !user && openAuthModal('Iniciá sesión para comentar')}
+                      className={`flex-1 min-w-0 h-11 px-4 rounded-full bg-surface-soft text-[15px] outline-none focus:bg-surface focus:ring-[1.5px] focus:ring-ink ${!user ? 'cursor-pointer' : ''}`}
+                    />
+                    {user && (
+                      <button type="submit" disabled={commenting} aria-label="Publicar comentario"
+                        className="w-11 h-11 rounded-full inline-flex items-center justify-center disabled:opacity-40">
+                        <Send size={20} strokeWidth={1.75} aria-hidden="true" />
+                      </button>
+                    )}
+                  </div>
+                  {commentErr && <p role="alert" className="text-[13px] text-critical ml-1">{commentErr}</p>}
+                </form>
+              </Section>
+
+              {/* Publicaciones de este voluntariado */}
+              {id && (
+                <section aria-labelledby="publicaciones" className="py-6 border-t border-hairline flex flex-col gap-3">
+                  <h2 id="publicaciones" className="text-lg font-bold tracking-[-0.2px]">Publicaciones de este voluntariado</h2>
+                  <MomentsGrid filters={{ project_id: id }} />
+                </section>
+              )}
             </div>
-
-            {/* Momentos: fotos que compartieron los voluntarios de este proyecto */}
-            {id && (
-              <section aria-label="Momentos del proyecto" className="mt-6">
-                <h2 className="font-bold text-gray-900 text-base mb-3">Momentos</h2>
-                <MomentsGrid filters={{ project_id: id }} />
-              </section>
-            )}
           </div>
 
-          {/* ── SIDEBAR: solo desktop ─────────────────────────── */}
-          <div className="hidden md:flex flex-col gap-4 mt-0">
-            {enrollMsg && (
-              <p className={`text-sm text-center font-semibold px-3 py-2 rounded-xl ${enrollMsg === 'Inscripción enviada.' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
-                {enrollMsg}
-              </p>
-            )}
-            <EnrollButton />
-          </div>
+          {/* ── Caja fija (escritorio) ─────────────────────────────── */}
+          <aside className="hidden md:flex flex-col gap-4 sticky top-6 rounded-2xl bg-surface border border-hairline p-5" aria-label="Cómo sumarte">
+            {goalBlock}
+            <div className="flex items-baseline justify-between border-t border-hairline pt-3">
+              <span className="text-xs font-semibold text-ink-soft">Costo por persona</span>
+              <span className="text-[15px] font-bold">{(project.cost_per_person || 0) === 0 ? 'Sin costo' : formatMoney(project.cost_per_person)}</span>
+            </div>
+            {enrollNotice}
+            <ActionButtons />
+            {noDonations}
+          </aside>
         </div>
       </div>
 
-      {/* ── BOTÓN FIJO MOBILE/TABLET (oculto en desktop) ─── */}
-      {/* z-[60] para estar sobre el BottomNav que tiene z-50   */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 pb-4 z-[60] shadow-lg">
-        {enrollMsg && (
-          <p className={`text-xs text-center mb-2 font-semibold ${enrollMsg === 'Inscripción enviada.' ? 'text-emerald-600' : 'text-red-500'}`}>
-            {enrollMsg}
-          </p>
-        )}
-        <EnrollButton />
+      {/* ── Barra fija (celular) ──────────────────────────────────── */}
+      <div className="md:hidden fixed inset-x-0 bottom-[calc(56px+env(safe-area-inset-bottom,0px))] z-20 bg-surface border-t border-hairline px-4 py-3 flex flex-col gap-2">
+        {enrollNotice}
+        <ActionButtons />
       </div>
+
       {showDonate && (
         <DonateModal projectId={project.id} projectTitle={project.title} onClose={() => setShowDonate(false)} />
       )}

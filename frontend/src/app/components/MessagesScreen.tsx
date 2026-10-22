@@ -1,62 +1,87 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { MessageCircle } from 'lucide-react';
+import { Pin, Search } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useChat } from '../../lib/ChatContext';
-import { timeAgo } from '../../lib/format';
+import { timeAgo, normalizeText } from '../../lib/format';
+import { Avatar } from '../ui/Avatar';
+import { LogoMark } from '../ui/Logo';
+import { messagesBase } from './AssistantScreen';
 
 export function MessagesScreen() {
   const { user } = useAuth();
   const { conversations } = useChat();
   const navigate = useNavigate();
+  const [q, setQ] = useState('');
 
-  const base = user?.role === 'ngo' ? '/ngo/messages' : user?.role === 'company' ? '/company/messages' : '/messages';
+  const base = messagesBase(user?.role);
+  const shown = q.trim()
+    ? conversations.filter(c => normalizeText(c.user.name).includes(normalizeText(q)))
+    : conversations;
 
   return (
-    <div className="max-w-2xl mx-auto w-full px-4 py-5">
-      <h1 className="text-xl font-bold text-gray-900 mb-4">Mensajes</h1>
+    <div className="max-w-2xl mx-auto w-full bg-canvas min-h-screen">
+      <div className="px-4 pt-4 pb-2 flex flex-col gap-3">
+        <h1 className="text-[22px] font-bold tracking-[-0.3px]">Mensajes</h1>
+        <label className="h-10 px-3.5 rounded-[10px] bg-surface-soft flex items-center gap-2 text-ink-muted">
+          <Search size={18} strokeWidth={1.75} aria-hidden="true" />
+          <input
+            type="search"
+            aria-label="Buscar conversaciones"
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            placeholder="Buscar"
+            className="flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-muted"
+          />
+        </label>
+      </div>
 
-      {conversations.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
-            <MessageCircle className="w-6 h-6 text-gray-400" />
-          </div>
-          <p className="text-sm text-gray-500">Todavía no tenés conversaciones.</p>
-          <p className="text-xs text-gray-400 mt-1">
-            {user?.role === 'ngo'
-              ? 'Escribile a un voluntario inscripto desde el detalle de un proyecto.'
-              : 'Escribile a una ONG desde su perfil.'}
-          </p>
+      {/* El asistente va fijado arriba de todo (reemplaza al botón flotante). */}
+      <button type="button" onClick={() => navigate(`${base}/asistente`)} className="w-full h-[72px] px-4 flex items-center gap-3 text-left hover:bg-surface-soft transition-colors">
+        <LogoMark size={56} />
+        <span className="flex-1 min-w-0">
+          <span className="block text-[15px] font-semibold">Asistente VoluntariAR</span>
+          <span className="block text-[13px] text-ink-muted truncate">Preguntame lo que quieras sobre voluntariados</span>
+        </span>
+        <Pin size={16} strokeWidth={1.75} className="text-ink-muted" aria-label="Fijado" role="img" />
+      </button>
+
+      {shown.length === 0 ? (
+        <div className="px-6 py-16 text-center">
+          <p className="text-[15px] font-semibold">{q ? 'No encontramos esa conversación' : 'Todavía no tenés conversaciones'}</p>
+          {!q && (
+            <p className="text-[13px] text-ink-muted mt-1">
+              {user?.role === 'ngo'
+                ? 'Escribile a un voluntario inscripto desde el detalle de un voluntariado.'
+                : 'Escribile a una ONG desde su perfil.'}
+            </p>
+          )}
         </div>
       ) : (
-        <div className="space-y-1">
-          {conversations.map(c => (
-            <button key={c.user.id} onClick={() => navigate(`${base}/${c.user.id}`)}
-              className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-gray-50 transition-colors text-left">
-              {c.user.avatar
-                ? <img src={c.user.avatar} alt={c.user.name} className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
-                : <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-sm font-bold text-emerald-700 flex-shrink-0">
-                    {c.user.name[0]}
-                  </div>
-              }
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <p className={`text-sm truncate ${c.unread > 0 ? 'font-bold text-gray-900' : 'font-semibold text-gray-800'}`}>
-                    {c.user.name}
-                  </p>
-                  <span className="text-[11px] text-gray-400 flex-shrink-0">{timeAgo(c.last_at)}</span>
-                </div>
-                <p className={`text-xs truncate ${c.unread > 0 ? 'text-gray-700 font-medium' : 'text-gray-400'}`}>
-                  {c.last_from_me ? 'Vos: ' : ''}{c.last_message}
-                </p>
-              </div>
-              {c.unread > 0 && (
-                <span className="w-5 h-5 bg-emerald-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center flex-shrink-0">
-                  {c.unread > 9 ? '9+' : c.unread}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+        <ul>
+          {shown.map(c => {
+            const unread = c.unread > 0;
+            const kind = c.user.role === 'volunteer' ? 'person' : 'org';
+            return (
+              <li key={c.user.id}>
+                <button type="button" onClick={() => navigate(`${base}/${c.user.id}`)}
+                  className="w-full h-[72px] px-4 flex items-center gap-3 text-left hover:bg-surface-soft transition-colors">
+                  <Avatar src={c.user.avatar} name={c.user.name} kind={kind} size={56} />
+                  <span className="flex-1 min-w-0">
+                    <span className="flex items-baseline justify-between gap-2">
+                      <span className={`text-[15px] truncate ${unread ? 'font-bold' : 'font-semibold'}`}>{c.user.name}</span>
+                      <span className="text-[13px] text-ink-muted flex-shrink-0">{timeAgo(c.last_at)}</span>
+                    </span>
+                    <span className={`block text-[13px] truncate ${unread ? 'text-ink font-semibold' : 'text-ink-muted'}`}>
+                      {c.last_from_me ? 'Vos: ' : ''}{c.last_message}
+                    </span>
+                  </span>
+                  {unread && <span role="img" aria-label={`${c.unread} sin leer`} className="w-2 h-2 rounded-full bg-ink flex-shrink-0" />}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );

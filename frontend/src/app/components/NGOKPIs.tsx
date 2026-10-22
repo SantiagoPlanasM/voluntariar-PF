@@ -262,7 +262,7 @@ export function NGOKPIs() {
                     </div>
                     <div className="flex items-center gap-2 mt-2 flex-wrap">
                       <span className="text-xl font-black text-emerald-600">{formatValor(kpi)}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${TIPO_COLORS[kpi.tipo_valor]}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${TIPO_COLORS[kpi.tipo_valor]}`}>
                         {TIPO_LABELS[kpi.tipo_valor]}
                       </span>
                       {kpi.fecha && (

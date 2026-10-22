@@ -35,14 +35,19 @@ import { NGODashboard } from './NGODashboard';
 // §128: en el celular el encabezado (Equipo, Momentos, Nuevo) no entraba y la pantalla tenía scroll horizontal.
 // jsdom no aplica Tailwind: se comprueban las clases que lo resuelven y que los botones sin texto visible
 // conserven su nombre accesible.
+// Rediseño (§240): Equipo y Momentos salieron del encabezado (están en la navegación); quedan Notificaciones (solo
+// en el celular) y "Crear voluntariado" ("Crear" en el celular).
 describe('NGODashboard: encabezado en el celular', () => {
-  test('Equipo y Momentos: texto solo desde sm, nombre accesible por aria-label', async () => {
+  test('Crear: el texto largo solo desde sm y el corto solo en el celular', async () => {
     render(<MemoryRouter><NGODashboard /></MemoryRouter>);
-    for (const name of ['Equipo', 'Momentos']) {
-      const b = await screen.findByRole('button', { name });
-      expect(b).toHaveAttribute('aria-label', name);
-      expect(within(b).getByText(name).className).toContain('hidden sm:inline');
-    }
+    // El del encabezado es el único con el texto corto "Crear" (el estado vacío tiene otro link a /ngo/create).
+    const crear = (await screen.findByText('Crear')).closest('a')!;
+    expect(crear).toHaveAttribute('href', '/ngo/create');
+    expect(within(crear).getByText('Crear voluntariado').className).toContain('hidden sm:inline');
+    expect(within(crear).getByText('Crear').className).toContain('sm:hidden');
+    const campana = screen.getByRole('link', { name: 'Notificaciones' });
+    expect(campana).toHaveAttribute('href', '/ngo/notifications');
+    expect(campana.className).toContain('md:hidden');
   });
 
   test('el nombre de la ONG se trunca y los botones no se achican', async () => {
@@ -51,15 +56,16 @@ describe('NGODashboard: encabezado en el celular', () => {
     expect(h1.className).toContain('truncate');
     expect(h1.parentElement!.className).toContain('min-w-0');
     expect(h1.parentElement!.parentElement!.className).toContain('min-w-0');
-    expect(screen.getByRole('button', { name: 'Equipo' }).parentElement!.className).toContain('flex-shrink-0');
+    expect(screen.getByRole('link', { name: 'Notificaciones' }).parentElement!.className).toContain('flex-shrink-0');
   });
 });
 
 describe('NGODashboard: solicitudes pendientes', () => {
   test('cada solicitud muestra a qué voluntariado es', async () => {
     render(<MemoryRouter><NGODashboard /></MemoryRouter>);
-    const heading = await screen.findByRole('heading', { name: /Solicitudes pendientes/ });
-    const box = heading.closest('div')!.parentElement!;
+    const heading = await screen.findByRole('heading', { name: /Postulaciones sin responder/ });
+    expect(heading).toHaveTextContent('Postulaciones sin responder (2)');
+    const box = heading.closest('section')!;
     expect(within(box).getByText('Reforestación Urbana')).toBeInTheDocument();
     expect(within(box).getByText('Huerta Comunitaria')).toBeInTheDocument();
   });

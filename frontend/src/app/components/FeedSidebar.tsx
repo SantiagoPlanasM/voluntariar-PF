@@ -1,6 +1,10 @@
+// Columna derecha del Inicio en escritorio (DESIGN.md → Tablet y desktop): quién sos, voluntariados cerca y
+// ONGs para seguir. Puramente presentacional: recibe todo por props.
 import { Link } from 'react-router';
-import { Sparkles, Users, Check, ArrowRight, Zap, MapPin, RefreshCw } from 'lucide-react';
+import { Check, RefreshCw } from 'lucide-react';
 import { User, NGO, Project } from '../../lib/api';
+import { Avatar } from '../ui/Avatar';
+import { Button } from '../ui/Button';
 
 interface FeedSidebarProps {
   user: User | null;
@@ -34,206 +38,94 @@ export function FeedSidebar({
   sendingNgoIds = NO_IDS,
 }: FeedSidebarProps) {
   return (
-    <div className="space-y-4 w-full">
-      {/* ── 1. Mini Perfil de Usuario ────────────────────────────────────── */}
+    <div className="flex flex-col gap-6 w-full">
       {user && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            {user.avatar ? (
-              <img
-                src={user.avatar}
-                alt={user.name}
-                className="w-11 h-11 rounded-full object-cover ring-2 ring-emerald-100 flex-shrink-0"
-              />
-            ) : (
-              <div className="w-11 h-11 rounded-full bg-emerald-100 text-emerald-800 font-black flex items-center justify-center text-sm ring-2 ring-emerald-100 flex-shrink-0">
-                {user.name?.[0] || 'V'}
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="text-sm font-black text-gray-900 truncate leading-tight">
-                {user.name}
-              </p>
-              <p className="text-xs text-emerald-600 font-semibold truncate mt-0.5">
-                Voluntario activo
-              </p>
-            </div>
-          </div>
-          <Link
-            to="/profile"
-            className="text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100/80 px-2.5 py-1.5 rounded-xl transition-colors flex-shrink-0"
-          >
-            Mi perfil
-          </Link>
-        </div>
+        <Link to="/profile" className="flex items-center gap-3 min-w-0">
+          <Avatar src={user.avatar} name={user.name} size={44} />
+          <span className="min-w-0 flex flex-col">
+            <span className="text-[15px] font-semibold truncate">{user.name}</span>
+            <span className="text-[13px] text-ink-muted truncate">Ver mi perfil</span>
+          </span>
+        </Link>
       )}
 
-      {/* ── 2. Sugerencias de ONGs para vos ─────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm space-y-3.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Users className="w-4 h-4 text-emerald-600" />
-            <h3 className="text-xs font-black text-gray-900 tracking-wide uppercase">
-              Sugerencias para vos
-            </h3>
+      {urgentProjects.length > 0 && (
+        <section aria-labelledby="side-cerca" className="flex flex-col gap-3">
+          <div className="flex items-baseline justify-between">
+            <h3 id="side-cerca" className="text-[15px] font-bold">Próximas actividades</h3>
+            <Link to="/explore" className="text-[13px] font-semibold">Ver todo</Link>
           </div>
-          <Link
-            to="/explore"
-            className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700"
-          >
-            Ver todas
-          </Link>
+          {urgentProjects.slice(0, 3).map(p => (
+            <Link key={p.id} to={`/project/${p.id}`} className="flex items-center gap-3 group">
+              {p.image
+                ? <img src={p.image} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0 bg-surface-soft" />
+                : <span className="w-14 h-14 rounded-xl bg-surface-soft flex-shrink-0" aria-hidden="true" />}
+              <span className="min-w-0 flex flex-col gap-0.5">
+                <span className="text-[15px] font-semibold leading-tight line-clamp-2 group-hover:underline underline-offset-2">{p.title}</span>
+                <span className="text-[13px] text-ink-muted truncate">{p.location?.split(',')[0] || p.ngo_name}</span>
+              </span>
+            </Link>
+          ))}
+        </section>
+      )}
+
+      <section aria-labelledby="side-ongs" className="flex flex-col gap-3">
+        <div className="flex items-baseline justify-between">
+          <h3 id="side-ongs" className="text-[15px] font-bold">ONGs para seguir</h3>
         </div>
 
         {suggestionsError ? (
-          <div role="alert" className="py-1 space-y-2">
-            <p className="text-xs text-gray-500">{suggestionsError}</p>
+          <div role="alert" className="flex flex-col gap-2">
+            <p className="text-[13px] text-ink-soft">{suggestionsError}</p>
             {onRetrySuggestions && (
-              <button onClick={onRetrySuggestions}
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 hover:text-emerald-700">
-                <RefreshCw className="w-3 h-3" /> Reintentar
+              <button type="button" onClick={onRetrySuggestions} className="self-start inline-flex items-center gap-1.5 h-10 text-[13px] font-semibold">
+                <RefreshCw size={14} strokeWidth={1.75} aria-hidden="true" /> Reintentar
               </button>
             )}
           </div>
         ) : suggestedNgos.length === 0 ? (
-          <p className="text-xs text-gray-400 py-1">¡Ya seguís a todas las organizaciones recomendadas!</p>
+          <p className="text-[13px] text-ink-muted">¡Ya seguís a todas las organizaciones recomendadas!</p>
         ) : (
-          <div className="space-y-3">
-            {suggestedNgos.map(ngo => {
-              const isFollowing = followingNgoIds.has(ngo.id);
-              return (
-                <div key={ngo.id}>
-                <div className="flex items-center justify-between gap-2.5">
-                  <Link
-                    to={`/ngo/${ngo.id}`}
-                    className="flex items-center gap-2.5 min-w-0 group flex-1"
-                  >
-                    {ngo.logo ? (
-                      <img
-                        src={ngo.logo}
-                        alt={ngo.name}
-                        className="w-9 h-9 rounded-full object-cover border border-gray-100 flex-shrink-0 group-hover:scale-105 transition-transform"
-                      />
-                    ) : (
-                      <div className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-700 font-bold flex items-center justify-center text-xs border border-emerald-100 flex-shrink-0 group-hover:scale-105 transition-transform">
-                        {ngo.name[0]}
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-gray-900 group-hover:text-emerald-600 truncate transition-colors">
-                        {ngo.name}
-                      </p>
-                      <p className="text-[11px] text-gray-400 truncate">
-                        {ngo.category ? `${ngo.category} • ` : ''}
-                        {ngo.followers || 0} seguidores
-                      </p>
-                    </div>
+          suggestedNgos.map(ngo => {
+            const isFollowing = followingNgoIds.has(ngo.id);
+            return (
+              <div key={ngo.id}>
+                <div className="flex items-center gap-3">
+                  <Link to={`/ngo/${ngo.id}`} className="flex items-center gap-3 min-w-0 flex-1">
+                    <Avatar src={ngo.logo} name={ngo.name} kind="org" size={44} />
+                    <span className="min-w-0 flex flex-col">
+                      <span className="text-[15px] font-semibold truncate">{ngo.name}</span>
+                      <span className="text-[13px] text-ink-muted truncate">{ngo.followers || 0} seguidores</span>
+                    </span>
                   </Link>
-
-                  <button
-                    onClick={() => onFollowNgo(ngo.id)}
-                    disabled={isFollowing || sendingNgoIds.has(ngo.id)}
-                    className={`px-3 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 flex-shrink-0 ${
-                      isFollowing
-                        ? 'bg-gray-100 text-gray-400 cursor-default'
-                        : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow disabled:opacity-60'
-                    }`}
-                  >
-                    {isFollowing ? (
-                      <>
-                        <Check className="w-3 h-3" />
-                        <span>Siguiendo</span>
-                      </>
-                    ) : (
-                      <span>+ Seguir</span>
-                    )}
-                  </button>
+                  {isFollowing ? (
+                    <span className="h-8 px-3 rounded-[10px] bg-surface-soft text-[13px] font-bold inline-flex items-center gap-1 flex-shrink-0">
+                      <Check size={14} strokeWidth={2.25} aria-hidden="true" />Siguiendo
+                    </span>
+                  ) : (
+                    <Button variant="primary" onClick={() => onFollowNgo(ngo.id)} disabled={sendingNgoIds.has(ngo.id)}
+                      className="!h-8 !px-3.5 !text-[13px] flex-shrink-0">
+                      Seguir
+                    </Button>
+                  )}
                 </div>
                 {followError?.ngoId === ngo.id && (
-                  <p role="alert" className="mt-1 text-[11px] font-medium text-red-600">{followError.message}</p>
+                  <p role="alert" className="mt-1 text-[13px] font-medium text-critical">{followError.message}</p>
                 )}
-                </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })
         )}
-      </div>
+      </section>
 
-      {/* ── 3. Convocatorias Destacadas / Próximas ───────────────────────── */}
-      {urgentProjects.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
-              <h3 className="text-xs font-black text-gray-900 tracking-wide uppercase">
-                Próximas actividades
-              </h3>
-            </div>
-            <Link
-              to="/explore"
-              className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700"
-            >
-              Explorar
-            </Link>
-          </div>
-
-          <div className="space-y-2.5">
-            {urgentProjects.slice(0, 3).map(p => (
-              <Link
-                key={p.id}
-                to={`/project/${p.id}`}
-                className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-all group border border-transparent hover:border-gray-100"
-              >
-                {p.image ? (
-                  <img
-                    src={p.image}
-                    alt={p.title}
-                    className="w-12 h-12 rounded-xl object-cover flex-shrink-0 group-hover:scale-105 transition-transform"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                    🌿
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-gray-900 group-hover:text-emerald-600 truncate transition-colors leading-snug">
-                    {p.title}
-                  </p>
-                  <p className="text-[11px] text-gray-500 truncate mt-0.5">
-                    {p.ngo_name || 'Organización'}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-md bg-amber-50 text-amber-700 border border-amber-200/60">
-                      {p.type === 'fugaz' ? '⚡ Fugaz' : '🌱 Sostenido'}
-                    </span>
-                    <span className="text-[10px] text-gray-400 flex items-center gap-0.5 truncate">
-                      <MapPin className="w-2.5 h-2.5 flex-shrink-0" />
-                      {p.location?.split(',')[0] || 'Córdoba'}
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+      <footer className="text-xs text-ink-muted leading-relaxed flex flex-col gap-1">
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
+          <Link to="/explore" className="hover:text-ink">Explorar</Link>
+          <Link to="/profile" className="hover:text-ink">Mi perfil</Link>
+          <Link to="/notifications" className="hover:text-ink">Notificaciones</Link>
+          <Link to="/privacidad" className="hover:text-ink">Privacidad y términos</Link>
         </div>
-      )}
-
-      {/* ── 4. Mini Footer Institucional ─────────────────────────────────── */}
-      <footer className="px-2 pt-2 text-[11px] text-gray-400 space-y-2 leading-relaxed">
-        <div className="flex flex-wrap gap-x-2 gap-y-1">
-          <Link to="/explore" className="hover:text-gray-600 transition-colors">Explorar</Link>
-          <span>•</span>
-          <Link to="/profile" className="hover:text-gray-600 transition-colors">Mi Perfil</Link>
-          <span>•</span>
-          <Link to="/notifications" className="hover:text-gray-600 transition-colors">Notificaciones</Link>
-          <span>•</span>
-          <a href="#ayuda" className="hover:text-gray-600 transition-colors">Ayuda</a>
-          <span>•</span>
-          <Link to="/privacidad" className="hover:text-gray-600 transition-colors">Privacidad y términos</Link>
-        </div>
-        <p className="text-gray-400 text-[10px] uppercase font-bold tracking-wider">
-          © 2026 Voluntariar
-        </p>
+        <p>© 2026 VoluntariAR</p>
       </footer>
     </div>
   );

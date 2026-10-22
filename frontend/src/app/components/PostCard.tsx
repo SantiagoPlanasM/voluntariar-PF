@@ -1,6 +1,7 @@
 // src/app/components/PostCard.tsx
 //
-// Una publicación de Momentos: autor, proyecto, carrusel de fotos, "me gusta" y texto.
+// Una publicación (DESIGN.md → Publicación): encabezado con "en <voluntariado>", foto de borde a borde, acciones,
+// texto y el vínculo al voluntariado. Antes se llamaba "Momento".
 //
 // - El "me gusta" es OPTIMISTA: la pantalla cambia al instante y, si el servidor falla, se revierte.
 //   Mientras hay un pedido en vuelo se ignoran los toques nuevos (evita pedidos cruzados con doble clic).
@@ -8,30 +9,39 @@
 //   del proyecto). El cliente no puede deducirlo: conoce el id del autor pero no quién es dueña del proyecto.
 // - `post.author.id` es el id del USUARIO: el enlace al perfil solo existe para voluntarios (`/volunteer/:id`);
 //   una ONG no tiene ese perfil, así que no se enlaza.
+// - El vínculo muestra la foto, la ONG y el avance de voluntarios cuando la pantalla le pasa el proyecto
+//   completo (`project`); si no, solo el título (la publicación trae únicamente `project.id` y `project.title`).
 import { useRef, useState } from 'react';
 import { Link } from 'react-router';
-import { Heart, Trash2, MapPin } from 'lucide-react';
-import { api, type Post } from '../../lib/api';
+import { ChevronRight, Heart, MoreHorizontal, Trash2 } from 'lucide-react';
+import { api, type Post, type Project } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { timeAgo, truncateText, userMessage } from '../../lib/format';
 import { PhotoCarousel } from './PhotoCarousel';
+import { Avatar } from '../ui/Avatar';
+import { Meter, pct } from '../ui/Meter';
+import { useConfirm } from '../ui/UiProvider';
 
 const CAPTION_PREVIEW_CHARS = 140;
 
 interface Props {
   post: Post;
+  /** El voluntariado completo, si la pantalla ya lo tiene: enriquece el vínculo. */
+  project?: Project | null;
   /** Se llama con el id de la publicación cuando se borró en el servidor. */
   onDeleted?: (postId: string) => void;
 }
 
-export function PostCard({ post, onDeleted }: Props) {
+export function PostCard({ post, project, onDeleted }: Props) {
   const { user, openAuthModal } = useAuth();
+  const confirm = useConfirm();
 
   const [liked, setLiked] = useState(post.liked_by_me);
   const [likes, setLikes] = useState(post.likes_count);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const likePending = useRef(false);
 
   async function toggleLike() {
@@ -58,12 +68,16 @@ export function PostCard({ post, onDeleted }: Props) {
   }
 
   async function handleDelete() {
+    setMenuOpen(false);
     if (deleting) return;
     const mine = user?.id === post.author.id;
-    const question = mine
-      ? '¿Borrar tu publicación? También se eliminan sus fotos y me gusta.'
-      : `¿Eliminar esta publicación de ${post.author.name}? También se eliminan sus fotos y me gusta.`;
-    if (!window.confirm(question)) return;
+    const ok = await confirm({
+      title: mine ? '¿Borrar tu publicación?' : `¿Eliminar la publicación de ${post.author.name}?`,
+      body: 'También se eliminan sus fotos y me gusta.',
+      confirmLabel: mine ? 'Borrar' : 'Eliminar',
+      danger: true,
+    });
+    if (!ok) return;
 
     setDeleting(true);
     setError(null);
@@ -78,94 +92,95 @@ export function PostCard({ post, onDeleted }: Props) {
   }
 
   const author = post.author;
-  const avatar = author.avatar
-    ? <img src={author.avatar} alt="" className="w-10 h-10 rounded-full object-cover ring-1 ring-gray-200 flex-shrink-0" />
-    : (
-      <div aria-hidden="true" className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-sm font-bold text-emerald-700 flex-shrink-0">
-        {author.name.trim().charAt(0).toUpperCase()}
-      </div>
-    );
-  const authorName = <span className="text-sm font-bold text-gray-900 truncate">{author.name}</span>;
-
+  const kind = author.role === 'volunteer' ? 'person' : 'org';
   const caption = post.caption ? truncateText(post.caption, CAPTION_PREVIEW_CHARS) : null;
 
+  const nameEl = <span className="text-[15px] font-semibold truncate">{author.name}</span>;
+  const thumb = project?.image || post.photos[0]?.thumb_url || post.photos[0]?.url;
+  const open = project ? project.status === 'active' && project.current_volunteers < project.volunteers_needed : false;
+
   return (
-    <article className="bg-white rounded-3xl border border-gray-200 overflow-hidden shadow-sm">
-      <header className="flex items-center gap-3 px-4 py-3">
+    <article className="bg-surface md:rounded-2xl md:border md:border-hairline overflow-hidden">
+      <header className="h-14 pl-3 pr-1 flex items-center gap-2.5">
         {author.role === 'volunteer' ? (
-          <Link to={`/volunteer/${author.id}`} className="flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity">
-            {avatar}
-            {authorName}
-          </Link>
+          <Link to={`/volunteer/${author.id}`} className="flex-shrink-0"><Avatar src={author.avatar} name={author.name} kind={kind} size={32} /></Link>
         ) : (
-          <div className="flex items-center gap-3 min-w-0">
-            {avatar}
-            {authorName}
-            <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-bold flex-shrink-0">ONG</span>
-          </div>
+          <Avatar src={author.avatar} name={author.name} kind={kind} size={32} />
         )}
-
-        <div className="ml-auto flex items-center gap-2 flex-shrink-0 text-xs text-gray-400">
-          <span>{timeAgo(post.created_at)}</span>
-          {post.can_delete && (
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={deleting}
-              aria-label="Borrar publicación"
-              className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
+        <div className="flex-1 min-w-0 flex flex-col leading-[1.3]">
+          {author.role === 'volunteer'
+            ? <Link to={`/volunteer/${author.id}`} className="min-w-0 flex">{nameEl}</Link>
+            : nameEl}
+          <span className="text-[13px] text-ink-muted truncate">
+            en <Link to={`/project/${post.project.id}`} className="font-semibold text-ink">{post.project.title}</Link> · <span>{timeAgo(post.created_at)}</span>
+          </span>
+        </div>
+        {post.can_delete && (
+          <div className="relative">
+            <button type="button" onClick={() => setMenuOpen(v => !v)} aria-label="Más opciones" aria-haspopup="menu" aria-expanded={menuOpen}
+              className="w-11 h-11 inline-flex items-center justify-center rounded-full hover:bg-surface-soft">
+              <MoreHorizontal size={24} strokeWidth={1.75} aria-hidden="true" />
             </button>
-          )}
-        </div>
-      </header>
-
-      <div className="px-4 pb-3">
-        <Link
-          to={`/project/${post.project.id}`}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:underline"
-        >
-          <MapPin className="w-3 h-3" aria-hidden="true" />
-          {post.project.title}
-        </Link>
-      </div>
-
-      <PhotoCarousel photos={post.photos} alt={post.project.title} />
-
-      <div className="px-4 pt-3 pb-4 space-y-2">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={toggleLike}
-            aria-label={liked ? 'Quitar me gusta' : 'Me gusta'}
-            aria-pressed={liked}
-            className="w-9 h-9 -ml-2 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
-          >
-            <Heart className={`w-6 h-6 transition-colors ${liked ? 'fill-red-500 text-red-500' : 'text-gray-700'}`} />
-          </button>
-          {likes > 0 && <span className="text-sm font-semibold text-gray-800">{`${likes} me gusta`}</span>}
-        </div>
-
-        {caption && (
-          <div>
-            <p className="text-sm text-gray-800 whitespace-pre-line break-words">
-              {expanded || !caption.truncated ? post.caption : caption.text}
-            </p>
-            {caption.truncated && (
-              <button
-                type="button"
-                onClick={() => setExpanded((v) => !v)}
-                className="text-xs font-semibold text-gray-500 hover:text-gray-800 mt-1"
-              >
-                {expanded ? 'Ver menos' : 'Ver más'}
-              </button>
+            {menuOpen && (
+              <div role="menu" className="absolute right-1 top-11 z-10 w-52 p-1.5 rounded-xl bg-surface shadow-[var(--elev-popover)] border border-hairline">
+                <button type="button" role="menuitem" onClick={handleDelete} disabled={deleting}
+                  className="w-full h-11 px-3 rounded-lg text-left text-[15px] font-semibold text-critical hover:bg-surface-soft disabled:opacity-50 inline-flex items-center gap-2">
+                  <Trash2 size={18} strokeWidth={1.75} aria-hidden="true" />Borrar publicación
+                </button>
+              </div>
             )}
           </div>
         )}
+      </header>
 
-        {error && <p role="alert" className="text-xs font-medium text-red-600">{error}</p>}
+      <PhotoCarousel photos={post.photos} alt={post.project.title} />
+
+      <div className="h-12 pl-1 pr-2 flex items-center">
+        <button type="button" onClick={toggleLike} aria-label={liked ? 'Quitar me gusta' : 'Me gusta'} aria-pressed={liked}
+          className="h-11 px-2.5 inline-flex items-center gap-1.5 text-[15px] font-bold active:scale-95 transition-transform">
+          <Heart size={24} strokeWidth={1.75} className={`transition-colors ${liked ? 'fill-like text-like' : 'text-ink'}`} aria-hidden="true" />
+          {likes > 0 && <span aria-label={`${likes} me gusta`}>{likes}</span>}
+        </button>
       </div>
+
+      {caption && (
+        <p className="px-3 text-[15px] leading-[1.45] whitespace-pre-line break-words">
+          <span className="font-semibold">{author.name}</span>{' '}
+          {expanded || !caption.truncated ? post.caption : caption.text}
+          {caption.truncated && (
+            <>
+              {' '}
+              <button type="button" onClick={() => setExpanded(v => !v)} aria-label={expanded ? 'Ver menos' : 'Ver más'} className="text-ink-muted font-normal">
+                {expanded ? 'menos' : 'más'}
+              </button>
+            </>
+          )}
+        </p>
+      )}
+
+      {error && <p role="alert" className="px-3 pt-1 text-[13px] font-medium text-critical">{error}</p>}
+
+      {/* El vínculo: cada publicación apunta al voluntariado al que pertenece. */}
+      <Link to={`/project/${post.project.id}`}
+        className="mx-3 mt-3 mb-3 h-[60px] p-2 box-border rounded-xl bg-surface-soft flex items-center gap-2.5 hover:bg-surface-pressed transition-colors">
+        {thumb && <img src={thumb} alt="" className="w-11 h-11 rounded-md object-cover flex-shrink-0" />}
+        <span className="flex-1 min-w-0 flex flex-col gap-0.5">
+          <span className="text-[15px] font-semibold truncate leading-tight">{post.project.title}</span>
+          {project ? (
+            <>
+              <span className="text-[13px] text-ink-muted truncate leading-tight">
+                {project.ngo_name} · {project.current_volunteers} de {project.volunteers_needed} voluntarios
+              </span>
+              <Meter value={pct(project.current_volunteers, project.volunteers_needed)} tone="people" thin label="Voluntarios" />
+            </>
+          ) : (
+            <span className="text-[13px] text-ink-muted leading-tight">Ver el voluntariado</span>
+          )}
+        </span>
+        {open
+          ? <span className="h-8 px-3 rounded-[10px] bg-people text-white text-[13px] font-bold inline-flex items-center flex-shrink-0">Sumarme</span>
+          : <ChevronRight size={20} strokeWidth={1.75} className="text-ink-muted flex-shrink-0" aria-hidden="true" />}
+      </Link>
     </article>
   );
 }

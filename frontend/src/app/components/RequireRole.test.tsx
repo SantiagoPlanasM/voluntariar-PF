@@ -15,12 +15,11 @@ const { auth } = vi.hoisted(() => ({
   auth: { user: null as null | { id: string; role: string }, initializing: false, openAuthModal: vi.fn() },
 }));
 vi.mock('../../lib/AuthContext', () => ({ useAuth: () => auth }));
-vi.mock('./NGOSidebarNav', () => ({ NGOSidebarNav: () => null }));
-vi.mock('./NGOBottomNav', () => ({ NGOBottomNav: () => null }));
-vi.mock('./CompanySidebarNav', () => ({ CompanySidebarNav: () => null }));
-vi.mock('./CompanyBottomNav', () => ({ CompanyBottomNav: () => null }));
-vi.mock('./AuthModal', () => ({ AuthModal: () => null }));
-vi.mock('./ChatbotWidget', () => ({ ChatbotWidget: () => null, ChatbotSpacer: () => null }));
+// El layout (barras, modal de ingreso) no importa acá: solo la guarda de rol. AppShell se reduce a su <Outlet />.
+vi.mock('../layout/AppShell', async () => {
+  const { Outlet } = await import('react-router');
+  return { AppShell: () => <Outlet /> };
+});
 
 import { NGOLayout } from './NGOLayout';
 import { CompanyLayout } from './CompanyLayout';
@@ -110,17 +109,5 @@ describe('panel de empresa', () => {
   });
 });
 
-// §128: #root es un flex en columna; el div exterior de cada layout (min-h-screen) se encogía al alto de la
-// pantalla y su contenido se desbordaba: la última tarjeta quedaba debajo de la barra inferior y del botón del
-// chatbot aunque se bajara hasta el final. jsdom no hace layout: se comprueba la clase que lo evita.
-describe('los layouts no se encogen dentro de #root', () => {
-  test('ONG y empresa: el contenedor exterior tiene flex-shrink-0', () => {
-    as('ngo');
-    const { unmount } = app('/ngo/dashboard');
-    expect(screen.getByText('Panel ONG').parentElement!.parentElement!.className).toContain('flex-shrink-0');
-    unmount();
-    as('company');
-    app('/company/profile');
-    expect(screen.getByText('Perfil empresa').parentElement!.parentElement!.className).toContain('flex-shrink-0');
-  });
-});
+// §128 (el contenedor exterior no se encoge dentro de #root): ahora el layout es AppShell, y su test lo comprueba
+// (layout/AppShell.test.tsx). Acá AppShell está reemplazado por su <Outlet />.

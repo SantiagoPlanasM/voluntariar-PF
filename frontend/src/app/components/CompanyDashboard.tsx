@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { Loader2, LayoutDashboard, Handshake, Hourglass, Clock, Users, AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import { api, CompanyDashboard as CompanyDashboardData } from '../../lib/api';
 import { SPONSORSHIP_BADGE, SPONSORSHIP_LABEL } from '../../lib/sponsorship';
 
@@ -26,19 +26,19 @@ export function CompanyDashboard() {
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
+    <div role="status" aria-label="Cargando el panel" className="p-6 md:p-10 max-w-[900px] mx-auto flex flex-col gap-4">
+      <div className="h-8 w-48 rounded skeleton" /><div className="h-24 rounded-xl skeleton" /><div className="h-48 rounded-xl skeleton" />
     </div>
   );
 
   if (error || !data) return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto">
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm text-center py-12 px-4">
-        <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-        <p className="text-sm text-gray-600 mb-4">{error || 'No pudimos cargar el panel'}</p>
+      <div role="alert" className="bg-surface rounded-xl border border-hairline text-center py-12 px-4">
+        <AlertCircle className="w-8 h-8 text-ink-muted mx-auto mb-3" strokeWidth={1.75} />
+        <p className="text-[15px] text-ink-soft mb-4">{error || 'No pudimos cargar el panel'}</p>
         <button onClick={load}
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold transition-colors">
-          <RefreshCw className="w-3.5 h-3.5" /> Reintentar
+          className="inline-flex items-center gap-1.5 h-10 px-4 bg-ink text-on-ink rounded-[10px] text-[15px] font-bold">
+          <RefreshCw className="w-4 h-4" strokeWidth={1.75} /> Reintentar
         </button>
       </div>
     </div>
@@ -47,66 +47,62 @@ export function CompanyDashboard() {
   const { stats, impact, projects } = data;
 
   const kpis = [
-    { label: 'Proyectos patrocinados', value: String(stats.sponsored_projects), icon: Handshake, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: 'Proyectos patrocinados', value: String(stats.sponsored_projects) },
     {
-      label: 'Propuestas pendientes', value: String(stats.pending_proposals), icon: Hourglass, color: 'text-amber-500', bg: 'bg-amber-50',
+      label: 'Propuestas pendientes', value: String(stats.pending_proposals),
       caption: stats.rejected_proposals > 0
         ? `${stats.rejected_proposals} ${stats.rejected_proposals === 1 ? 'rechazada' : 'rechazadas'}`
         : undefined,
     },
-    { label: 'Horas de voluntariado', value: formatHours(impact.total_hours), icon: Clock, color: 'text-violet-600', bg: 'bg-violet-50' },
-    { label: 'Voluntarios alcanzados', value: String(impact.volunteers_reached), icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Horas de voluntariado', value: formatHours(impact.total_hours) },
+    { label: 'Voluntarios alcanzados', value: String(impact.volunteers_reached) },
   ];
 
   return (
-    <div className="p-4 md:p-8 max-w-4xl mx-auto">
-      <div className="flex items-center gap-2 mb-6">
-        <LayoutDashboard className="w-5 h-5 text-violet-600" />
-        <h1 className="text-xl font-black text-gray-900">Panel de impacto</h1>
-      </div>
+    <div className="p-4 md:p-10 max-w-[900px] mx-auto">
+      <h1 className="text-[22px] font-bold tracking-[-0.3px] mb-5">Panel de impacto</h1>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {kpis.map(({ label, value, icon: Icon, color, bg, caption }) => (
-          <div key={label} className={`${bg} rounded-2xl p-4`}>
-            <Icon className={`w-4 h-4 ${color} mb-2`} />
-            <p className={`text-2xl font-black ${color}`}>{value}</p>
-            <p className="text-xs text-gray-600 font-medium mt-0.5">{label}</p>
-            {caption && <p className="text-[11px] text-gray-400 mt-0.5">{caption}</p>}
+      <dl className="grid grid-cols-2 md:grid-cols-4 rounded-xl bg-surface border border-hairline overflow-hidden">
+        {kpis.map(({ label, value, caption }, i) => (
+          <div key={label} className={`px-5 py-4 flex flex-col gap-1 border-hairline ${i % 2 === 0 ? 'border-r' : ''} ${i < 2 ? 'border-b md:border-b-0' : ''} md:border-r md:last:border-r-0`}>
+            <dt className="order-2 text-xs font-semibold text-ink-soft">{label}</dt>
+            <dd className="order-1 text-[28px] font-extrabold tracking-[-0.5px] leading-tight">{value}</dd>
+            {caption && <dd className="order-3 text-xs text-ink-muted">{caption}</dd>}
           </div>
         ))}
-      </div>
-      <p className="text-xs text-gray-400 mt-3">
+      </dl>
+      <p className="text-[13px] text-ink-muted mt-3">
         Las horas y los voluntarios corresponden a los proyectos con patrocinio aceptado (todo el proyecto, no solo tu equipo).
       </p>
 
-      <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wide mt-8 mb-2">Tus proyectos</h2>
+      <h2 className="text-lg font-bold tracking-[-0.2px] mt-8 mb-3">Tus proyectos</h2>
 
       {projects.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm text-center py-12 px-4">
-          <p className="text-gray-500 text-sm mb-1">Todavía no tenés patrocinios.</p>
-          <p className="text-gray-400 text-xs mb-4">Explorá proyectos y proponé tu primer patrocinio desde el perfil de tu empresa.</p>
+        <div className="bg-surface rounded-xl border border-hairline text-center py-12 px-4">
+          <p className="text-[15px] font-semibold mb-1">Todavía no tenés patrocinios.</p>
+          <p className="text-[13px] text-ink-muted mb-4">Explorá proyectos y proponé tu primer patrocinio desde el perfil de tu empresa.</p>
           <div className="flex items-center justify-center gap-2">
-            <Link to="/explore" className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold transition-colors">
+            <Link to="/explore" className="h-10 px-4 inline-flex items-center bg-ink text-on-ink rounded-[10px] text-[15px] font-bold">
               Explorar proyectos
             </Link>
-            <Link to="/company/profile" className="px-4 py-2 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-xl text-xs font-bold transition-colors">
+            <Link to="/company/profile" className="h-10 px-4 inline-flex items-center bg-surface-soft hover:bg-surface-pressed rounded-[10px] text-[15px] font-bold transition-colors">
               Ir a mi empresa
             </Link>
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50">
+        <div className="bg-surface rounded-xl border border-hairline divide-y divide-hairline overflow-hidden">
           {projects.map((p) => (
             <Link key={p.project_id} to={`/project/${p.project_id}`}
-              className="flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors first:rounded-t-2xl last:rounded-b-2xl">
+              className="flex items-center gap-3 p-4 hover:bg-surface-soft transition-colors">
               {p.image
                 ? <img src={p.image} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
-                : <div className="w-12 h-12 rounded-xl bg-violet-100 flex items-center justify-center text-sm font-bold text-violet-700 flex-shrink-0">{p.title[0]}</div>}
+                : <div className="w-12 h-12 rounded-xl bg-surface-soft flex items-center justify-center text-sm font-extrabold flex-shrink-0">{p.title[0]}</div>}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-sm font-semibold text-gray-900 truncate">{p.title}</p>
                   {PROJECT_STATUS_LABEL[p.project_status] && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
                       {PROJECT_STATUS_LABEL[p.project_status]}
                     </span>
                   )}
@@ -120,7 +116,7 @@ export function CompanyDashboard() {
                   <p className="text-xs text-gray-400 mt-1">Esperando respuesta de la ONG</p>
                 ) : null}
               </div>
-              <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${SPONSORSHIP_BADGE[p.sponsorship_status]}`}>
+              <span className={`text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${SPONSORSHIP_BADGE[p.sponsorship_status]}`}>
                 {SPONSORSHIP_LABEL[p.sponsorship_status]}
               </span>
             </Link>

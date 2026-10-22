@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { TypeBadge } from '../ui/TypeBadge';
 import { useNavigate } from 'react-router';
 import {
   ArrowLeft, ArrowRight, Plus, X, Loader2, Check, AlertCircle,
@@ -232,15 +233,15 @@ export function CreateVoluntariado() {
                     <button key={val} type="button" onClick={() => set('type', val)}
                       className={`text-left p-4 rounded-xl border-2 transition-all ${
                         selected
-                          ? color === 'blue' ? 'border-blue-500 bg-blue-50' : 'border-emerald-500 bg-emerald-50'
+                          ? color === 'blue' ? 'border-brand bg-brand-soft' : 'border-people bg-people-soft'
                           : 'border-gray-100 bg-gray-50 hover:border-gray-200 hover:bg-white'
                       }`}>
                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2 ${
-                        selected ? (color === 'blue' ? 'bg-blue-600' : 'bg-emerald-600') : 'bg-gray-200'
+                        selected ? (color === 'blue' ? 'bg-brand' : 'bg-people') : 'bg-surface-pressed'
                       }`}>
                         <Icon className={`w-4 h-4 ${selected ? 'text-white' : 'text-gray-500'}`} />
                       </div>
-                      <p className={`font-bold text-sm ${selected ? (color === 'blue' ? 'text-blue-700' : 'text-emerald-700') : 'text-gray-800'}`}>{title}</p>
+                      <p className={`font-bold text-sm ${selected ? (color === 'blue' ? 'text-brand-text' : 'text-people-text') : 'text-ink'}`}>{title}</p>
                       <p className="text-xs text-gray-500 mt-1 leading-relaxed">{desc}</p>
                     </button>
                   );
@@ -329,7 +330,7 @@ export function CreateVoluntariado() {
                           </div>
                           <span className="text-xs sm:text-sm font-bold">{label}</span>
                         </div>
-                        <p className="text-[11px] text-gray-500 leading-tight hidden sm:block">{desc}</p>
+                        <p className="text-xs text-gray-500 leading-tight hidden sm:block">{desc}</p>
                       </button>
                     );
                   })}
@@ -516,16 +517,12 @@ export function CreateVoluntariado() {
             </div>
 
             {/* Resumen */}
-            <div className="bg-gradient-to-br from-blue-50 to-emerald-50 rounded-2xl border border-blue-100 p-5">
+            <div className="bg-surface-soft rounded-2xl p-5">
               <p className="text-sm font-bold text-gray-800 mb-3">Resumen</p>
               <div className="space-y-1.5 text-sm text-gray-600">
                 <p><span className="font-medium text-gray-800">{form.title || '—'}</span></p>
                 <p className="flex items-center gap-1.5 flex-wrap">
-                  {form.type === 'fugaz' ? (
-                    <span className="flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-amber-500" /> Fugaz</span>
-                  ) : (
-                    <span className="flex items-center gap-1"><Sprout className="w-3.5 h-3.5 text-emerald-600" /> Sostenido</span>
-                  )}
+                  <TypeBadge type={form.type} variant="soft" />
                   <span>
                     · {form.category} · {
                       form.modality === 'remoto'

@@ -67,8 +67,8 @@ describe('<CompanyOwnProfile />', () => {
     vi.mocked(api.empresas.me).mockResolvedValue({ empresa: baseEmpresa });
     renderWithProviders(<CompanyOwnProfile />);
 
-    await waitFor(() => expect(screen.getByText('TechCorp')).toBeInTheDocument());
-    expect(screen.getByText('Tecnología')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'TechCorp' })).toBeInTheDocument());
+    expect(screen.getByText(/^Tecnología/)).toBeInTheDocument();
     expect(screen.getByText('Somos TechCorp')).toBeInTheDocument();
   });
 
@@ -77,11 +77,10 @@ describe('<CompanyOwnProfile />', () => {
     vi.mocked(api.empresas.update).mockResolvedValue({ empresa: { ...baseEmpresa, description: 'Nueva descripción' } });
     renderWithProviders(<CompanyOwnProfile />);
 
-    await waitFor(() => expect(screen.getByText('TechCorp')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'TechCorp' })).toBeInTheDocument());
 
-    // Abrir modo edición (botón de lápiz, sin texto — se identifica por rol de botón)
-    const buttons = screen.getAllByRole('button');
-    fireEvent.click(buttons[0]); // primer botón del header es "Editar"
+    // Abrir modo edición (rediseño, §240: el botón "Editar perfil" del encabezado)
+    fireEvent.click(screen.getByRole('button', { name: 'Editar perfil' }));
 
     const descriptionInput = await screen.findByDisplayValue('Somos TechCorp');
     fireEvent.change(descriptionInput, { target: { value: 'Nueva descripción' } });
@@ -98,7 +97,7 @@ describe('<CompanyOwnProfile />', () => {
       empresa: { ...baseEmpresa, description: undefined, mission: undefined },
     });
     expect(() => renderWithProviders(<CompanyOwnProfile />)).not.toThrow();
-    await waitFor(() => expect(screen.getByText('TechCorp')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'TechCorp' })).toBeInTheDocument());
   });
 
   test('muestra los patrocinios existentes con su estado', async () => {
@@ -116,7 +115,7 @@ describe('<CompanyOwnProfile />', () => {
     vi.mocked(api.empresas.patrocinios.propose).mockResolvedValue({ message: 'ok' });
     renderWithProviders(<CompanyOwnProfile />);
 
-    await waitFor(() => expect(screen.getByText('TechCorp')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'TechCorp' })).toBeInTheDocument());
     fireEvent.click(screen.getByText('Proponer'));
 
     const select = await screen.findByRole('combobox');

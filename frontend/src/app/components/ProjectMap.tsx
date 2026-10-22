@@ -15,18 +15,18 @@ const DEFAULT_ZOOM = 13;
 
 // Colores vivos y definidos según categoría para pines y filtros
 export const CATEGORY_COLORS: Record<string, { bg: string; border: string }> = {
-  'Medio Ambiente': { bg: '#2EB875', border: '#1F9359' }, // Verde esmeralda vivo
-  'Alimentación':   { bg: '#F59E0B', border: '#D97706' }, // Ámbar / naranja cálido
-  'Educación':      { bg: '#3B82F6', border: '#1D4ED8' }, // Azul vibrante
-  'Animales':       { bg: '#9333EA', border: '#7E22CE' }, // Púrpura / violeta definido
-  'Salud':          { bg: '#F43F5E', border: '#BE123C' }, // Rosa coral / carmesí
-  'Construcción':   { bg: '#C27838', border: '#9C5B23' }, // Caramelo / marrón cálido
-  'Tecnología':     { bg: '#06B6D4', border: '#0891B2' }, // Turquesa / cian vivo
+  'Medio Ambiente': { bg: '#0F1419', border: '#0F1419' },
+  'Alimentación':   { bg: '#0F1419', border: '#0F1419' },
+  'Educación':      { bg: '#0F1419', border: '#0F1419' },
+  'Animales':       { bg: '#0F1419', border: '#0F1419' },
+  'Salud':          { bg: '#0F1419', border: '#0F1419' },
+  'Construcción':   { bg: '#0F1419', border: '#0F1419' },
+  'Tecnología':     { bg: '#0F1419', border: '#0F1419' },
 };
 
-export function getCategoryColor(cat?: string) {
-  if (!cat) return { bg: '#2EB875', border: '#1F9359' };
-  return CATEGORY_COLORS[cat] || { bg: '#2EB875', border: '#1F9359' };
+// Todos los pines van en `ink` (DESIGN.md: sin colores por categoría; el azul y el verde son solo dinero y personas).
+export function getCategoryColor(_cat?: string) {
+  return { bg: '#0F1419', border: '#0F1419' };
 }
 
 // Respaldo de coordenadas por nombre de ubicación si el proyecto no las tiene
@@ -111,8 +111,8 @@ function drawMarkers(
   if (userLocation) {
     const userHtml = `
         <div class="relative flex items-center justify-center">
-          <div class="w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-md z-10"></div>
-          <div class="absolute w-8 h-8 bg-emerald-400 rounded-full opacity-40 animate-ping"></div>
+          <div class="w-4 h-4 bg-[#0F1419] rounded-full border-2 border-white shadow-md z-10"></div>
+          <div class="absolute w-8 h-8 bg-[#0F1419] rounded-full opacity-25 animate-ping"></div>
         </div>
       `;
     const userIcon = L.divIcon({
@@ -397,7 +397,7 @@ function ProjectMapModal({
                 <button
                   type="button"
                   onClick={clearCategories}
-                  className="text-[11px] font-bold text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 border border-gray-200 px-2.5 py-1 rounded-full transition-all shrink-0 cursor-pointer shadow-xs"
+                  className="text-xs font-bold text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 border border-gray-200 px-2.5 py-1 rounded-full transition-all shrink-0 cursor-pointer shadow-xs"
                   title="Mostrar todos los proyectos"
                 >
                   Todos ({projects.length})
@@ -438,7 +438,7 @@ function ProjectMapModal({
                     <span>{name}</span>
                     {count > 0 && (
                       <span
-                        className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold transition-colors ${
+                        className={`text-xs px-1.5 py-0.2 rounded-full font-bold transition-colors ${
                           isSelected
                             ? 'bg-black/15 text-white'
                             : 'bg-gray-100 text-gray-500'
@@ -544,7 +544,7 @@ function ProjectMapModal({
                       </div>
                     )}
                     <div className="min-w-0">
-                      <span className="text-[10px] uppercase font-bold text-emerald-700 tracking-wider bg-emerald-50 px-2 py-0.5 rounded-full inline-block">
+                      <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full inline-block">
                         {selectedProject.category || 'General'}
                       </span>
                       <h4 className="font-bold text-xs sm:text-sm text-gray-900 truncate mt-0.5" title={selectedProject.title}>
@@ -783,13 +783,13 @@ export function ProjectMap({ projects, className = '', onSelectProject }: Projec
                     </div>
                   )}
                   <div className="min-w-0">
-                    <span className="text-[10px] uppercase font-bold text-emerald-700 tracking-wider bg-emerald-50 px-2 py-0.5 rounded-full inline-block">
+                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full inline-block">
                       {selectedProject.category || 'General'}
                     </span>
                     <h4 className="font-bold text-xs text-gray-900 truncate mt-0.5" title={selectedProject.title}>
                       {selectedProject.title}
                     </h4>
-                    <p className="text-[11px] text-gray-500 truncate">
+                    <p className="text-xs text-gray-500 truncate">
                       {selectedProject.ngo_name || 'Organización Solidaria'}
                     </p>
                   </div>
@@ -802,7 +802,7 @@ export function ProjectMap({ projects, className = '', onSelectProject }: Projec
                 </button>
               </div>
 
-              <div className="flex items-center justify-between pt-1 border-t border-gray-100 text-[11px]">
+              <div className="flex items-center justify-between pt-1 border-t border-gray-100 text-xs">
                 <span className="text-gray-500 flex items-center gap-1 truncate max-w-[170px]">
                   <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
                   <span className="truncate">{selectedProject.location || 'Córdoba'}</span>

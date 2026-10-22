@@ -54,7 +54,7 @@ describe('Feed: reabrir las reseñas después de calificar (S3)', () => {
     vi.mocked(api.projects.rate).mockResolvedValue({ message: 'ok' } as never);
     render(<MemoryRouter><FeedPostCard project={feedProject as never} /></MemoryRouter>);
 
-    fireEvent.click(screen.getAllByTitle('Ver reseñas de la comunidad')[0]);
+    fireEvent.click(screen.getByRole('button', { name: /Ver reseñas/ }));
     let d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
     await waitFor(() => expect(within(d).getByRole('button', { name: /Publicar reseña/ })).toBeEnabled());
     fireEvent.click(within(d).getByRole('button', { name: '3 estrellas' }));
@@ -66,7 +66,7 @@ describe('Feed: reabrir las reseñas después de calificar (S3)', () => {
     fireEvent.click(within(d).getAllByRole('button', { name: 'Cerrar' })[0]);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByTitle('Ver reseñas de la comunidad')[0]);
+    fireEvent.click(screen.getByRole('button', { name: /Ver reseñas/ }));
     d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
     expect(await within(d).findByText('2 reseñas en total')).toBeInTheDocument();
     expect(within(d).getByText('Faltó organización', { selector: 'p' })).toBeInTheDocument();
@@ -77,7 +77,7 @@ describe('Feed: reabrir las reseñas después de calificar (S3)', () => {
   test('mientras recarga se sigue viendo la lista que vino del feed (no un spinner en blanco)', async () => {
     vi.mocked(api.projects.get).mockReturnValue(new Promise(() => {}) as never);
     render(<MemoryRouter><FeedPostCard project={feedProject as never} /></MemoryRouter>);
-    fireEvent.click(screen.getAllByTitle('Ver reseñas de la comunidad')[0]);
+    fireEvent.click(screen.getByRole('button', { name: /Ver reseñas/ }));
     const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
     expect(within(d).getByText('Muy bueno')).toBeInTheDocument();
     expect(api.projects.get).toHaveBeenCalledWith('proj-1');

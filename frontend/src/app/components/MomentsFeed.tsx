@@ -14,7 +14,8 @@
 // modal (por ejemplo al tocar "me gusta") sin salir de la pantalla, lo ya cargado quedó calculado para un
 // anónimo: por eso el feed recarga cuando cambia el id del usuario (no cuando cambia su objeto).
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Camera, ImageOff, Loader2 } from 'lucide-react';
+import { Camera, ImageOff } from 'lucide-react';
+import { Button } from '../ui/Button';
 import { api, type Post, type PostFilters } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { PostCard } from './PostCard';
@@ -26,6 +27,10 @@ interface Props {
   /** Mostrar el botón para publicar (solo lo ven voluntarios y ONGs). Por defecto sí. */
   showComposer?: boolean;
   pageSize?: number;
+  /** Abrir el compositor al montar (el botón "Crear" de la barra llega a /momentos?crear=1). */
+  autoCompose?: boolean;
+  /** Se avisa cuando el compositor se abrió por `autoCompose`, para que quien lo pidió limpie el pedido. */
+  onAutoComposed?: () => void;
 }
 
 function mergeById(current: Post[], incoming: Post[]): Post[] {
@@ -37,7 +42,7 @@ function mergeById(current: Post[], incoming: Post[]): Post[] {
   return fresh.length ? [...current, ...fresh] : current;
 }
 
-export function MomentsFeed({ filters, showComposer = true, pageSize = 12 }: Props) {
+export function MomentsFeed({ filters, showComposer = true, pageSize = 12, autoCompose = false, onAutoComposed }: Props) {
   const { user } = useAuth();
   const projectId = filters?.project_id;
   const userId = filters?.user_id;
@@ -131,52 +136,51 @@ export function MomentsFeed({ filters, showComposer = true, pageSize = 12 }: Pro
 
   const canPost = showComposer && (user?.role === 'volunteer' || user?.role === 'ngo');
 
+  useEffect(() => {
+    if (autoCompose && canPost) {
+      setComposing(true);
+      onAutoComposed?.();
+    }
+  }, [autoCompose, canPost]);
+
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-3 md:gap-6">
       {canPost && (
-        <button
-          type="button"
-          onClick={() => setComposing(true)}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
-        >
-          <Camera className="w-4 h-4" aria-hidden="true" />
-          Compartir un momento
-        </button>
+        <Button variant="primary" onClick={() => setComposing(true)} block className="!h-12">
+          <Camera size={18} strokeWidth={1.75} aria-hidden="true" />
+          Nueva publicación
+        </Button>
       )}
 
       {status === 'loading' && (
-        <div role="status" aria-label="Cargando momentos" className="space-y-6">
+        <div role="status" aria-label="Cargando publicaciones" className="flex flex-col gap-3 md:gap-6">
           {[1, 2].map((i) => (
-            <div key={i} aria-hidden="true" className="bg-white rounded-3xl border border-gray-200 overflow-hidden animate-pulse">
-              <div className="flex items-center gap-3 p-4">
-                <div className="w-10 h-10 rounded-full bg-gray-200" />
-                <div className="h-4 bg-gray-200 rounded w-1/3" />
+            <div key={i} aria-hidden="true" className="bg-surface md:rounded-2xl md:border md:border-hairline overflow-hidden">
+              <div className="flex items-center gap-2.5 h-14 px-3">
+                <div className="w-8 h-8 rounded-full skeleton" />
+                <div className="h-4 w-1/3 rounded skeleton" />
               </div>
-              <div className="aspect-square bg-gray-200" />
-              <div className="p-4"><div className="h-3 bg-gray-200 rounded w-1/2" /></div>
+              <div className="aspect-[4/5] skeleton" />
+              <div className="p-3"><div className="h-3 w-1/2 rounded skeleton" /></div>
             </div>
           ))}
         </div>
       )}
 
       {status === 'error' && (
-        <div className="bg-white rounded-3xl border border-gray-200 p-8 text-center space-y-3">
-          <p role="alert" className="text-sm text-red-600">
-            No pudimos cargar los momentos. Revisá tu conexión y probá de nuevo.
+        <div className="rounded-2xl bg-surface border border-hairline p-8 text-center flex flex-col items-center gap-3">
+          <p role="alert" className="text-[15px] text-ink-soft">
+            No pudimos cargar las publicaciones. Revisá tu conexión y probá de nuevo.
           </p>
-          <button type="button" onClick={loadFirst} className="text-sm font-semibold text-emerald-700 hover:underline">
-            Reintentar
-          </button>
+          <Button variant="primary" onClick={loadFirst}>Reintentar</Button>
         </div>
       )}
 
       {status === 'ready' && posts.length === 0 && (
-        <div className="bg-white rounded-3xl border border-gray-200 p-8 text-center space-y-2">
-          <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
-            <ImageOff className="w-6 h-6" aria-hidden="true" />
-          </div>
-          <p className="font-bold text-gray-900">Todavía no hay momentos</p>
-          <p className="text-sm text-gray-500">
+        <div className="rounded-2xl bg-surface border border-hairline p-8 text-center flex flex-col items-center gap-2">
+          <ImageOff size={28} strokeWidth={1.75} className="text-ink-muted" aria-hidden="true" />
+          <p className="text-[15px] font-semibold">Todavía no hay publicaciones</p>
+          <p className="text-[13px] text-ink-muted max-w-xs">
             {canPost
               ? 'Compartí las primeras fotos de tu voluntariado.'
               : 'Cuando los voluntarios compartan fotos de sus jornadas, las vas a ver acá.'}
@@ -189,20 +193,14 @@ export function MomentsFeed({ filters, showComposer = true, pageSize = 12 }: Pro
           {posts.map((post) => <PostCard key={post.id} post={post} onDeleted={handleDeleted} />)}
 
           {moreFailed && (
-            <p role="alert" className="text-center text-sm text-red-600">
-              No pudimos cargar más momentos.
+            <p role="alert" className="text-center text-[13px] font-medium text-critical">
+              No pudimos cargar más publicaciones.
             </p>
           )}
           {hasMore && (
-            <button
-              type="button"
-              onClick={loadMore}
-              disabled={loadingMore}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60 transition-colors"
-            >
-              {loadingMore && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}
-              {loadingMore ? 'Cargando…' : 'Ver más'}
-            </button>
+            <Button variant="secondary" onClick={loadMore} busy={loadingMore} busyLabel="Cargando…" block>
+              Ver más
+            </Button>
           )}
         </>
       )}

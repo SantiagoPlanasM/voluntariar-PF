@@ -48,7 +48,7 @@ describe('<PhotoCarousel />', () => {
   test('varias fotos: arranca en la primera, con contador y sin botón "anterior"', () => {
     render(<PhotoCarousel photos={three} alt="Reforestación" />);
     expect(shownSrc()).toBe('https://img.test/p1.jpg');
-    expect(screen.getByText('1 / 3')).toBeInTheDocument();
+    expect(screen.getByText('1/3')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Foto anterior' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Foto siguiente' })).toBeInTheDocument();
   });
@@ -62,7 +62,7 @@ describe('<PhotoCarousel />', () => {
     render(<PhotoCarousel photos={three} alt="x" />);
     fireEvent.click(screen.getByRole('button', { name: 'Foto siguiente' }));
     expect(shownSrc()).toBe('https://img.test/p2.jpg');
-    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+    expect(screen.getByText('2/3')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Foto siguiente' }));
     expect(shownSrc()).toBe('https://img.test/p3.jpg');
@@ -120,7 +120,7 @@ describe('<PhotoCarousel />', () => {
     fireEvent.touchStart(region, { touches: [{ clientX: 100, clientY: 100 }] });
     fireEvent.touchEnd(region, { changedTouches: [{ clientX: 300, clientY: 100 }] });
     expect(shownSrc()).toBe('https://img.test/p1.jpg');
-    expect(screen.getByText('1 / 3')).toBeInTheDocument();
+    expect(screen.getByText('1/3')).toBeInTheDocument();
   });
 
   test('si la lista se achica y la foto actual ya no existe, muestra la última que queda', () => {

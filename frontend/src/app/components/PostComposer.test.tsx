@@ -63,7 +63,7 @@ const publishBtn = () => screen.getByRole('button', { name: /^(Publicar|Publican
 describe('<PostComposer /> — carga de proyectos', () => {
   test('es un diálogo modal con título y trae los proyectos elegibles', async () => {
     await renderOpen();
-    expect(screen.getByRole('dialog', { name: 'Compartir un momento' })).toHaveAttribute('aria-modal', 'true');
+    expect(screen.getByRole('dialog', { name: 'Nueva publicación' })).toHaveAttribute('aria-modal', 'true');
     expect(api.posts.eligibleProjects).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('option', { name: 'Reforestación Urbana' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Comedor Comunitario' })).toBeInTheDocument();
@@ -391,7 +391,7 @@ describe('<PostComposer /> — cerrar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
-    expect(onClose).toHaveBeenCalledTimes(3);
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(3));
     expect(confirm).not.toHaveBeenCalled();
   });
 
@@ -401,6 +401,7 @@ describe('<PostComposer /> — cerrar', () => {
     addPhotos(photo('a.jpg'));
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect(confirm).toHaveBeenCalledTimes(1);
+    await act(async () => {});
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -410,7 +411,7 @@ describe('<PostComposer /> — cerrar', () => {
     fireEvent.change(screen.getByLabelText('Descripción (opcional)'), { target: { value: 'algo' } });
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
     expect(confirm).toHaveBeenCalledTimes(1);
-    expect(onClose).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });
 
   test('otras teclas no cierran', async () => {
@@ -425,7 +426,7 @@ describe('<PostComposer /> — modal accesible (REVISION F12, <Modal> común)', 
     const { onClose } = await renderOpen();
     expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true);
     fireEvent.keyDown(document.body, { key: 'Escape' });
-    expect(onClose).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });
 
   test('clic en el fondo NO cierra (se perderían las fotos)', async () => {

@@ -1,15 +1,18 @@
 // src/app/components/MomentsPlacement.test.tsx
 // Etapa 3: la galería del proyecto, la grilla del perfil y la moderación de la ONG, con el filtro correcto.
 import { describe, test, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router';
 import { ProjectDetails } from './ProjectDetails';
 import { VolunteerPublicProfile } from './VolunteerPublicProfile';
 import { NGOProjectDetail } from './NGOProjectDetail';
 
-vi.mock('../../lib/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 'u-viewer', name: 'V', email: 'v@x.com', role: 'volunteer' }, openAuthModal: vi.fn(), initializing: false }),
-}));
+// El mismo objeto en cada render, como el AuthContext real: un `user` nuevo por render relanzaría la carga del
+// perfil (depende de [id, user]) y la pestaña elegida se vería un instante entre recargas.
+vi.mock('../../lib/AuthContext', () => {
+  const auth = { user: { id: 'u-viewer', name: 'V', email: 'v@x.com', role: 'volunteer' }, openAuthModal: vi.fn(), initializing: false };
+  return { useAuth: () => auth };
+});
 vi.mock('./MomentsGrid', async () => {
   const React = await import('react');
   return { MomentsGrid: (p: { filters: object }) => React.createElement('div', { 'data-testid': 'grid' }, JSON.stringify(p.filters)) };
@@ -50,11 +53,14 @@ describe('Momentos en las pantallas', () => {
   test('ProjectDetails: galería filtrada por el proyecto', async () => {
     at('/project/proj-7', '/project/:id', <ProjectDetails />);
     expect(await screen.findByTestId('grid')).toHaveTextContent('{"project_id":"proj-7"}');
-    expect(screen.getByRole('heading', { name: 'Momentos' })).toBeInTheDocument();
+    // Rediseño (§240): "Momentos" se llama "Publicaciones".
+    expect(screen.getByRole('heading', { name: 'Publicaciones de este voluntariado' })).toBeInTheDocument();
   });
 
   test('VolunteerPublicProfile: grilla filtrada por el id de USUARIO del perfil', async () => {
     at('/volunteer/user-55', '/volunteer/:id', <VolunteerPublicProfile />);
+    // Rediseño (§240): las publicaciones están en su pestaña.
+    fireEvent.click(await screen.findByRole('tab', { name: 'Publicaciones' }));
     expect(await screen.findByTestId('grid')).toHaveTextContent('{"user_id":"user-55"}');
   });
 

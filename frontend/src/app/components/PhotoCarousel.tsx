@@ -72,7 +72,7 @@ export function PhotoCarousel({ photos, alt }: Props) {
       onKeyDown={many ? onKeyDown : undefined}
       onTouchStart={many ? onTouchStart : undefined}
       onTouchEnd={many ? onTouchEnd : undefined}
-      className="relative w-full bg-gray-100 overflow-hidden select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+      className="relative w-full bg-surface-soft overflow-hidden select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-inset"
       style={{ aspectRatio: String(carouselAspect(photos)) }}
     >
       <img
@@ -86,8 +86,8 @@ export function PhotoCarousel({ photos, alt }: Props) {
 
       {many && (
         <>
-          <span className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/60 text-white text-xs font-semibold">
-            {`${current + 1} / ${photos.length}`}
+          <span className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-[var(--photo-chip-dark)] text-white text-xs font-semibold">
+            {`${current + 1}/${photos.length}`}
           </span>
 
           {hasPrev && (
@@ -95,9 +95,9 @@ export function PhotoCarousel({ photos, alt }: Props) {
               type="button"
               onClick={goPrev}
               aria-label="Foto anterior"
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 shadow flex items-center justify-center hover:bg-white transition-colors"
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-[var(--photo-chip)] text-[var(--on-photo)] flex items-center justify-center transition-colors"
             >
-              <ChevronLeft className="w-5 h-5 text-gray-800" />
+              <ChevronLeft className="w-5 h-5" />
             </button>
           )}
           {hasNext && (
@@ -105,9 +105,9 @@ export function PhotoCarousel({ photos, alt }: Props) {
               type="button"
               onClick={goNext}
               aria-label="Foto siguiente"
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 shadow flex items-center justify-center hover:bg-white transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-[var(--photo-chip)] text-[var(--on-photo)] flex items-center justify-center transition-colors"
             >
-              <ChevronRight className="w-5 h-5 text-gray-800" />
+              <ChevronRight className="w-5 h-5" />
             </button>
           )}
 

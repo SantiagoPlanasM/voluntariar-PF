@@ -1,6 +1,7 @@
 // src/app/components/NgoPanelLink.test.tsx
 //
 // REVISION.md F16: ProjectDetails le ofrecía "Ver en panel ONG" a CUALQUIER ONG, también en proyectos
+// (rediseño, §240: el link ahora dice "Ver en el panel")
 // ajenos (el panel respondía 403). Ahora solo si el backend dice `can_manage: true` (es la ONG dueña).
 import { describe, test, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -39,13 +40,13 @@ const mountWith = (can_manage: boolean) => {
 describe('ProjectDetails: "Ver en panel ONG"', () => {
   test('la ONG dueña (can_manage) ve el link a su panel', async () => {
     mountWith(true);
-    const links = await screen.findAllByRole('link', { name: 'Ver en panel ONG' });
+    const links = await screen.findAllByRole('link', { name: 'Ver en el panel' });
     for (const a of links) expect(a).toHaveAttribute('href', '/ngo/dashboard/project/proj-1');
   });
 
   test('otra ONG no lo ve', async () => {
     mountWith(false);
     await waitFor(() => expect(screen.getAllByText('Reforestación Urbana').length).toBeGreaterThan(0));
-    expect(screen.queryAllByRole('link', { name: 'Ver en panel ONG' })).toHaveLength(0);
+    expect(screen.queryAllByRole('link', { name: 'Ver en el panel' })).toHaveLength(0);
   });
 });

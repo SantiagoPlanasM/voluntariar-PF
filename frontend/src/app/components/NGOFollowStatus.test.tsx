@@ -150,34 +150,25 @@ describe('perfil público de una ONG: quién consulta "¿ya la sigo?"', () => {
   });
 });
 
-// §128: el banner (relative) se pintaba sobre la fila del logo y el nombre, que no era posicionada, y tapaba
-// la parte de arriba del nombre. jsdom no aplica Tailwind: se comprueban las clases que lo resuelven.
-describe('perfil público de una ONG: el banner no tapa el nombre', () => {
-  test('la fila del logo es relative y el nombre y los botones arrancan debajo del banner (pt-11)', async () => {
+// §128: el banner (relative) se pintaba sobre la fila del logo y el nombre y tapaba la parte de arriba del nombre;
+// en el celular, los botones tapaban el nombre. Rediseño (§240, DESIGN.md → Perfiles): ya no hay banner. El nombre va
+// en la barra de arriba (recortado si es largo) y completo debajo del logo; los botones van en su propia fila.
+// jsdom no aplica Tailwind: se comprueban las clases que lo resuelven.
+describe('perfil público de una ONG: el nombre no queda tapado', () => {
+  test('el nombre de la barra se recorta y se repite completo debajo del logo', async () => {
     mount();
     const h1 = await screen.findByRole('heading', { level: 1, name: 'Fundación Verde' });
-    const textBlock = h1.parentElement!;
-    const row = textBlock.parentElement!;
-    expect(row.className).toMatch(/\brelative\b/);
-    expect(row.className).toContain('-mt-10');
-    expect(row.className).toContain('items-start');
-    expect(textBlock.className).toMatch(/(^|\s)pt-11(\s|$)/);
-    expect(h1.className).toContain('break-words');
+    expect(h1.className).toContain('truncate');
+    expect(screen.getAllByText('Fundación Verde')).toHaveLength(2);
   });
 
-  // En el celular los botones (Seguir, Mensaje) en la misma fila tapaban el nombre: van en su propia línea
-  // (la fila hace wrap y ellos ocupan todo el ancho); desde sm vuelven al costado, alineados con el nombre.
-  test('celular: los botones pasan a su propia línea; desde sm, al costado del nombre', async () => {
+  test('los botones (Seguir, Mensaje) van en su propia fila, debajo del nombre', async () => {
     mount();
     const follow = await screen.findByRole('button', { name: 'Seguir' });
-    const buttons = follow.parentElement!;
-    const row = buttons.parentElement!;
-    expect(row.className).toContain('flex-wrap');
-    expect(row.className).toContain('sm:flex-nowrap');
-    expect(buttons.className).toContain('w-full');
-    expect(buttons.className).toContain('sm:w-auto');
-    expect(buttons.className).toContain('sm:pt-11');
-    expect(buttons.className).not.toMatch(/(^|\s)pt-11(\s|$)/);
+    const row = follow.parentElement!;
+    expect(row.className).toContain('flex');
+    expect(row.className).toContain('gap-2');
+    expect(row.contains(screen.getByRole('heading', { level: 1 }))).toBe(false);
   });
 });
 

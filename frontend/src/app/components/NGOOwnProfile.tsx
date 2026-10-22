@@ -1,17 +1,23 @@
+// Perfil propio de la ONG (DESIGN.md → Perfiles): la misma estructura que el de un voluntario (identidad arriba,
+// contenido abajo). "Cerrar sesión" y "Borrar la cuenta" están en Configuración; la cuenta de Mercado Pago queda acá
+// (el aviso del panel lleva a #mercadopago).
 import { useEffect, useState } from 'react';
-import { LogOut, Edit2, Loader2, Save, X, Sprout } from 'lucide-react';
+import { Menu, Save } from 'lucide-react';
 import { useNavigate, Link } from 'react-router';
 import { api, NGO, Project } from '../../lib/api';
-import { useAuth } from '../../lib/AuthContext';
 import { ProfilePhotoPicker } from './ProfilePhotoPicker';
-import { DeleteAccountSection } from './DeleteAccountSection';
 import { MercadoPagoAccountSection } from './MercadoPagoAccount';
+import { MomentsFeed } from './MomentsFeed';
+import { ProfileHeader, ProfileTabs } from '../ui/ProfileHeader';
+import { Button } from '../ui/Button';
+import { useToast } from '../ui/UiProvider';
+import { VolunteeringTile } from '../volunteering/VolunteeringTile';
 
 const CATEGORIES = ['Medio Ambiente','Educación','Salud','Animales','Alimentación','Tecnología','Arte y Cultura','Deportes'];
 
 export function NGOOwnProfile() {
-  const { logout } = useAuth();
   const navigate   = useNavigate();
+  const toast      = useToast();
   const [ngo, setNgo]         = useState<NGO | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,6 +25,7 @@ export function NGOOwnProfile() {
   const [saving, setSaving]   = useState(false);
   const [saveErr, setSaveErr] = useState('');
   const [form, setForm] = useState({ name: '', description: '', mission: '', location: '', category: '' });
+  const [tab, setTab] = useState<'volunteering' | 'posts'>('volunteering');
 
   useEffect(() => { void load(); }, []);
 
@@ -40,159 +47,124 @@ export function NGOOwnProfile() {
     finally { setSaving(false); }
   };
 
+  const handleShare = async () => {
+    if (!ngo) return;
+    const url = `${window.location.origin}/ngo/${ngo.id}`;
+    try {
+      if (navigator.share) { await navigator.share({ title: ngo.name, url }); return; }
+      await navigator.clipboard.writeText(url);
+      toast('Link de tu perfil copiado');
+    } catch { /* la persona canceló */ }
+  };
+
   if (loading) return (
-    <div className="flex items-center justify-center h-screen">
-      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+    <div role="status" aria-label="Cargando perfil" className="p-4 flex flex-col gap-4">
+      <div className="flex items-center gap-4"><div className="w-[88px] h-[88px] rounded-[28%] skeleton" /><div className="flex-1 h-10 rounded skeleton" /></div>
+      <div className="h-4 w-1/2 rounded skeleton" />
     </div>
   );
   if (!ngo) return null;
 
-  const inp = 'w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+  const inp = 'w-full h-12 px-3.5 rounded-[10px] bg-surface-soft text-[15px] border-[1.5px] border-transparent focus:bg-surface focus:border-ink outline-none';
+  const lbl = 'text-xs font-semibold text-ink-soft';
+  const about = [ngo.description, ngo.mission ? `Misión: ${ngo.mission}` : ''].filter(Boolean).join('\n\n');
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-blue-600 to-emerald-600 px-4 pt-14 pb-8 relative">
-        <div className="absolute top-4 right-4 flex gap-2">
-          <button onClick={() => { setEditing(!editing); setSaveErr(''); }}
-            aria-label={editing ? 'Cancelar edición' : 'Editar perfil'}
-            className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
-            {editing ? <X className="w-5 h-5 text-white" /> : <Edit2 className="w-5 h-5 text-white" />}
-          </button>
-          <button onClick={() => { logout(); navigate('/'); }} aria-label="Cerrar sesión"
-            className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
-            <LogOut className="w-5 h-5 text-white" />
-          </button>
-        </div>
+    <div className="min-h-screen bg-canvas md:bg-canvas-soft pb-6">
+      <div className="max-w-[640px] mx-auto md:pt-8 flex flex-col gap-4">
+        <div className="bg-canvas md:rounded-2xl md:border md:border-hairline">
+          <ProfileHeader
+            name={ngo.name}
+            avatar={ngo.logo}
+            kind="org"
+            subtitle={[ngo.category, ngo.location].filter(Boolean).join(' · ')}
+            bio={editing ? undefined : about}
+            stats={[
+              { n: projects.length, label: 'Voluntariados' },
+              { n: projects.reduce((s, p) => s + (p.current_volunteers || 0), 0), label: 'Voluntarios' },
+              { n: ngo.followers ?? 0, label: 'Seguidores' },
+            ]}
+            corner={(
+              <Link to="/settings" aria-label="Configuración" className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-surface-soft">
+                <Menu size={24} strokeWidth={1.75} aria-hidden="true" />
+              </Link>
+            )}
+            actions={(
+              <>
+                <Button variant="secondary" className="flex-1" onClick={() => { setEditing(e => !e); setSaveErr(''); }} aria-label={editing ? 'Cancelar edición' : 'Editar perfil'}>
+                  {editing ? 'Cancelar' : 'Editar perfil'}
+                </Button>
+                <Button variant="secondary" className="flex-1" onClick={handleShare}>Compartir perfil</Button>
+              </>
+            )}
+          />
 
-        <div className="text-center">
-          <div className="w-20 h-20 bg-white rounded-full mx-auto mb-3 overflow-hidden shadow-xl flex items-center justify-center">
-            {ngo.logo
-              ? <img src={ngo.logo} alt={ngo.name} className="w-full h-full object-cover" />
-              : <span className="text-2xl font-bold text-blue-600">{ngo.name[0]}</span>
-            }
-          </div>
-          <ProfilePhotoPicker onUploaded={(url) => setNgo((n) => (n ? { ...n, logo: url } : n))} />
-          {!editing ? (
-            <>
-              <h1 className="text-xl font-bold text-white mb-0.5">{ngo.name}</h1>
-              {ngo.category && <p className="text-white/70 text-sm">{ngo.category}</p>}
-              <div className="flex justify-center gap-4 mt-3 text-white/80 text-sm">
-                <span><strong className="text-white">{ngo.followers}</strong> seguidores</span>
-                <span><strong className="text-white">{projects.length}</strong> proyectos</span>
+          {editing && (
+            <div className="mx-4 mt-4 rounded-xl bg-surface-soft p-4 flex flex-col gap-4">
+              <h2 className="text-[15px] font-bold">Editar información</h2>
+              <ProfilePhotoPicker onUploaded={(url) => setNgo((n) => (n ? { ...n, logo: url } : n))} />
+
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="ong-nombre" className={lbl}>Nombre *</label>
+                <input id="ong-nombre" className={inp} placeholder="Nombre de la ONG" aria-label="Nombre" value={form.name}
+                  onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setSaveErr(''); }} />
               </div>
-            </>
-          ) : (
-            <p className="text-white/80 text-sm mt-2">Editando perfil</p>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="ong-cat" className={lbl}>Categoría</label>
+                <select id="ong-cat" className={inp} aria-label="Categoría" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
+                  <option value="">Sin especificar</option>
+                  {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="ong-ubi" className={lbl}>Ubicación</label>
+                <input id="ong-ubi" className={inp} placeholder="Ej: Córdoba, Argentina" aria-label="Ubicación" value={form.location}
+                  onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="ong-desc" className={lbl}>Descripción</label>
+                <textarea id="ong-desc" className={inp + ' h-auto py-3 resize-none'} rows={3} aria-label="Descripción" value={form.description}
+                  onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="ong-mis" className={lbl}>Misión</label>
+                <textarea id="ong-mis" className={inp + ' h-auto py-3 resize-none'} rows={2} aria-label="Misión" value={form.mission}
+                  onChange={e => setForm(f => ({ ...f, mission: e.target.value }))} />
+              </div>
+
+              {saveErr && <p role="alert" className="text-[13px] font-medium text-critical">{saveErr}</p>}
+
+              <Button variant="primary" onClick={handleSave} busy={saving} busyLabel="Guardando…" className="!h-12">
+                <Save size={18} strokeWidth={1.75} aria-hidden="true" />Guardar cambios
+              </Button>
+            </div>
           )}
-        </div>
-      </div>
 
-      <div className="p-4 space-y-4">
-        {editing ? (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-4">
-            <h2 className="font-bold text-sm text-gray-900">Editar información</h2>
+          <ProfileTabs
+            label="Contenido de la ONG"
+            value={tab}
+            onChange={setTab}
+            tabs={[{ key: 'volunteering', label: 'Voluntariados' }, { key: 'posts', label: 'Publicaciones' }]}
+          />
 
-            <div>
-              <p className="text-xs font-semibold text-gray-600 mb-1.5">Nombre *</p>
-              <input className={inp} placeholder="Nombre de la ONG" aria-label="Nombre" value={form.name}
-                onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setSaveErr(''); }} />
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold text-gray-600 mb-1.5">Categoría</p>
-              <select className={inp} aria-label="Categoría" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
-                <option value="">Sin especificar</option>
-                {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold text-gray-600 mb-1.5">Ubicación</p>
-              <input className={inp} placeholder="Ej: Córdoba, Argentina" aria-label="Ubicación" value={form.location}
-                onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold text-gray-600 mb-1.5">Descripción</p>
-              <textarea className={inp + ' resize-none'} rows={3} aria-label="Descripción" value={form.description}
-                onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold text-gray-600 mb-1.5">Misión</p>
-              <textarea className={inp + ' resize-none'} rows={2} aria-label="Misión" value={form.mission}
-                onChange={e => setForm(f => ({ ...f, mission: e.target.value }))} />
-            </div>
-
-            {saveErr && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-xl">{saveErr}</p>}
-
-            <button onClick={handleSave} disabled={saving}
-              className="w-full py-3 bg-blue-600 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60 hover:bg-blue-700 transition-colors">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Guardar cambios
-            </button>
-          </div>
-        ) : (
-          <>
-            {(ngo.description || ngo.mission) && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
-                {ngo.description && (
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Descripción</p>
-                    <p className="text-sm text-gray-700">{ngo.description}</p>
-                  </div>
-                )}
-                {ngo.mission && (
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Misión</p>
-                    <p className="text-sm text-gray-700">{ngo.mission}</p>
-                  </div>
-                )}
+          <div className="p-4 pb-6" role="tabpanel">
+            {tab === 'posts' ? (
+              <MomentsFeed filters={{ ngo_id: ngo.id }} showComposer={false} />
+            ) : projects.length === 0 ? (
+              <div className="py-10 text-center flex flex-col items-center gap-1">
+                <p className="text-[15px] font-semibold">Todavía no publicaste voluntariados</p>
+                <Link to="/ngo/create" className="text-[15px] font-semibold mt-1">Crear el primero →</Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-x-2 gap-y-5">
+                {projects.map(p => <VolunteeringTile key={p.id} project={p} />)}
               </div>
             )}
+          </div>
+        </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-                <h2 className="font-bold text-sm text-gray-900">Proyectos ({projects.length})</h2>
-                <Link to="/ngo/create" className="text-xs text-blue-600 font-semibold">+ Nuevo</Link>
-              </div>
-              {projects.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-400 text-sm">Aún no publicaste proyectos</p>
-                  <Link to="/ngo/create" className="text-xs text-blue-600 font-semibold mt-2 inline-block">Crear el primero →</Link>
-                </div>
-              ) : (
-                <div className="divide-y divide-gray-50">
-                  {projects.map(p => (
-                    <Link to={`/ngo/dashboard/project/${p.id}`} key={p.id}>
-                      <div className="p-4 flex gap-3 hover:bg-gray-50 transition-colors">
-                        {p.image
-                          ? <img src={p.image} alt={p.title} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
-                          : <div className="w-12 h-12 rounded-xl bg-emerald-50 flex-shrink-0 flex items-center justify-center">
-                              <Sprout className="w-5 h-5 text-emerald-400" />
-                            </div>
-                        }
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 truncate">{p.title}</p>
-                          <p className="text-xs text-gray-500">{p.category}</p>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium mt-1 inline-block ${
-                            p.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                            {p.status === 'active' ? 'Activo' : 'Completado'}
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-          </>
-        )}
         {/* §218: Marketplace */}
-        <MercadoPagoAccountSection />
-        {/* §178 */}
-        <DeleteAccountSection />
+        <div className="px-4 md:px-0"><MercadoPagoAccountSection /></div>
       </div>
     </div>
   );

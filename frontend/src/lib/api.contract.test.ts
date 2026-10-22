@@ -86,6 +86,7 @@ const CASES: Case[] = [
   ['messages.markRead', () => api.messages.markRead('u1'), 'PATCH', '/messages/thread/u1/read'],
   ['notifications.list', () => api.notifications.list(), 'GET', '/notifications'],
   ['notifications.markAllRead', () => api.notifications.markAllRead(), 'PATCH', '/notifications/read-all'],
+  ['notifications.markRead', () => api.notifications.markRead('n1'), 'PATCH', '/notifications/n1/read'],
   ['faqs.list sin categoría', () => api.faqs.list(), 'GET', '/faqs'],
   ['faqs.list con categoría', () => api.faqs.list('donaciones'), 'GET', '/faqs?categoria=donaciones'],
   ['faqs.ask', () => api.faqs.ask('¿Cómo dono?', 'donaciones'), 'POST', '/faqs/ask', { question: '¿Cómo dono?', categoria: 'donaciones' }],

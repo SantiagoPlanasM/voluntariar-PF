@@ -27,11 +27,11 @@ export function describeLoadError(err: unknown, notFound: string): { message: st
  *  tiene que envolverlo en otro `alert` (quedarían dos anidados). */
 export function InlineError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div role="alert" className="bg-white rounded-2xl border border-gray-100 text-center py-10 px-4">
-      <AlertCircle className="w-7 h-7 text-red-400 mx-auto mb-2" />
-      <p className="text-sm text-gray-600 mb-4">{message}</p>
+    <div role="alert" className="bg-surface rounded-2xl border border-hairline text-center py-10 px-4">
+      <AlertCircle className="w-7 h-7 text-ink-muted mx-auto mb-2" strokeWidth={1.75} />
+      <p className="text-[15px] text-ink-soft mb-4">{message}</p>
       <button onClick={onRetry}
-        className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors">
+        className="inline-flex items-center gap-1.5 h-10 px-4 bg-ink text-on-ink rounded-[10px] text-[15px] font-bold transition-opacity hover:opacity-90">
         <RefreshCw className="w-3.5 h-3.5" /> Reintentar
       </button>
     </div>
@@ -54,24 +54,24 @@ export function LoadError({ message, onRetry, home }: Props) {
   // lector de pantalla no se entera de que la carga falló. Mismo criterio que InlineError (en la tarjeta).
   return (
     <div className="min-h-[60vh] flex items-center justify-center p-4">
-      <div role="alert" className="bg-white rounded-2xl border border-gray-100 shadow-sm text-center py-12 px-6 max-w-sm w-full">
-        <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-        <p className="text-sm text-gray-600 mb-5">{message}</p>
+      <div role="alert" className="bg-surface rounded-2xl border border-hairline text-center py-12 px-6 max-w-sm w-full">
+        <AlertCircle className="w-8 h-8 text-ink-muted mx-auto mb-3" strokeWidth={1.75} />
+        <p className="text-[15px] text-ink-soft mb-5">{message}</p>
         <div className="flex items-center justify-center gap-2">
           {onRetry && (
             <button onClick={onRetry}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors">
+              className="inline-flex items-center gap-1.5 h-10 px-4 bg-ink text-on-ink rounded-[10px] text-[15px] font-bold transition-opacity hover:opacity-90">
               <RefreshCw className="w-3.5 h-3.5" /> Reintentar
             </button>
           )}
           {canGoBack ? (
             <button onClick={() => navigate(-1)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-colors">
+              className="inline-flex items-center gap-1.5 h-10 px-4 bg-surface-soft hover:bg-surface-pressed text-ink rounded-[10px] text-[15px] font-bold transition-colors">
               <ArrowLeft className="w-3.5 h-3.5" /> Volver
             </button>
           ) : (
             <Link to={home}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-colors">
+              className="inline-flex items-center gap-1.5 h-10 px-4 bg-surface-soft hover:bg-surface-pressed text-ink rounded-[10px] text-[15px] font-bold transition-colors">
               Ir al inicio
             </Link>
           )}

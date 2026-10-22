@@ -6638,3 +6638,65 @@ Las secciones siguientes pasan de 4–7 a 5–8 (índice, títulos y la referenc
 - **El contraste del modo oscuro** no se midió combinación por combinación; los valores son los del DESIGN.
 - **Cómo se ve el lienzo en el navegador:** no se abrió ni se capturó después de publicarlo.
 - **El tamaño de las fases** (S/M/L) es una estimación, no una medida.
+
+## 240. Rediseño del frontend implementado (DESIGN 1.1) y tests al día
+
+### Qué se hizo
+- **El rediseño de §239, en código.** Primero se hizo solo en local, a pedido del usuario, para verlo; después pidió subirlo con los tests validados. La estructura nueva está en `FRONTEND_CONTEXT.md` §0:
+  - un solo layout para los tres roles (`app/layout/AppShell.tsx` + `navConfig.ts`);
+  - kit `app/ui/`, `app/volunteering/` (`cardActions`, `VolunteeringTile`), tokens con modo oscuro y fuente propia;
+  - asistente dentro de Mensajes, Configuración (`/settings`), notificaciones clickeables y tipo de voluntariado con color (azul = Fugaz, verde = Sostenido);
+  - se rehicieron casi todas las pantallas.
+- **Componentes borrados:**
+  - `BottomNav`, `NGOBottomNav`, `NGOSidebarNav`, `CompanyBottomNav`, `CompanySidebarNav` y `ChatbotWidget`, reemplazados por `AppShell` y `AssistantScreen`;
+  - `FeedTabs`: el Inicio ya no tiene pestañas y nadie lo importaba;
+  - también sus tests (`BottomNav`, `ChatbotSpacer`, `ChatbotWidget`, `CompanySidebarNav`, `NGOSidebarNav`, `RootLayout`, `FeedTabs`, `FeedTabsPlacement`).
+- **Tests al día con las pantallas nuevas.** Se mantuvo el criterio de aceptación de cada archivo y se cambió cómo se busca cada cosa: pestañas en vez de botones, `role="tab"`, títulos de sección, nombres nuevos ("Inscribirme", "Postulado", "Vas a ir", "Marcar todo leído", "Ver en el panel").
+  - Reescritos enteros: `FeedPostCard` (39), `MyParticipation` (17), `DonateModal` (11), `MessagesScreen` (12) y `VolunteerProfileErrors` (8).
+  - Reescrita la segunda mitad de `ExploreScreen` (23): ya no hay carruseles ni "Ver todos".
+  - Ajustados: `AuthModal`, `CommentMaxLength`, `CompanyOwnProfile`, `CompanyPublicProfile`, `EnrollStatusLabel`, `FollowErrors`, `FollowLists`, `MainFeedErrors`, `MomentsPlacement`, `MyParticipationReview`, `NGODashboard`, `NGOFollowStatus`, `NgoPanelLink`, `NotificationsUnread`, `ProfilePhotoScreens`, `ProjectDetailsDonate`, `ProjectDetailsRating`, `ProjectMap`, `PublicFeedStats`, `ReviewAvatars`, `ReviewsModal` y `SwallowedErrors`.
+  - Nuevos: `AppShell.test`, `AssistantScreen.test`, `NotificationsLinks.test` (adónde lleva cada notificación), `SettingsScreen.test` y `cardActions.test`.
+- **Arreglos de código que pidieron los tests:**
+  - Explorar vuelve a mostrar una pastilla por cada filtro del modal (tipo, modalidad, costo), no solo por categoría;
+  - el perfil de la empresa mostraba la descripción y la misión dos veces (encabezado nuevo y tarjeta vieja): se sacó la tarjeta;
+  - `Avatar` marca las iniciales con `data-initial`;
+  - se corrigió un comentario cruzado en `routes.tsx`.
+- `FRONTEND_CONTEXT.md`: sección 0 nueva (el rediseño) y las líneas que nombraban componentes o textos viejos. `CLAUDE.md`: conteos y el aviso de `npm audit`.
+
+### Verificación
+- **Frontend:**
+  - `npm test`: **939** en verde, en 79 archivos (antes 904, §234). Antes de arreglarlos fallaban 244 en la primera corrida de esta tanda y 131 en la segunda.
+  - `npm run test:coverage`: sentencias 87,25 %, ramas 83,45 %, funciones 83,28 %, líneas 90,85 %. El umbral es 80 % y antes daba 86,69 / 81,44 / 82,54 / 90,34.
+  - `npm run typecheck`: 0 errores. `npm run build`: compila, con el aviso de Vite de un chunk de más de 500 kB (733 kB).
+- **Mutantes a mano sobre `cardActions.ts`** (la regla nueva de qué botón se ve), con la corrida de control en verde antes: **13 mutantes, 13 muertos**. Los mutantes:
+  - `completed` → `active`, `> 0` → `>= 0` y `>=` → `>` en el cupo;
+  - sacar `company` del rol que no se inscribe, `pending` → `accepted` y sacar `rejected`;
+  - invertir terminado/lleno y `||` → `&&` en "hay plata";
+  - sacar el chequeo de ONG y el de terminado al donar, `=== false` → `!` en `accepts_donations`, `>=` → `>` en "Meta cumplida" y sacar "meta > 0".
+- **`MomentsPlacement` falló una vez en la suite completa y pasaba solo.** Era el mock de `useAuth` del test, que devolvía un `user` nuevo en cada render: el perfil público recarga con `[id, user]` y la pestaña elegida se perdía entre recargas. Con el mock estable pasó 3 de 3 solo y en la suite completa.
+- **Backend:** no cambió ningún archivo. No se corrieron sus suites en esta sección (siguen 930/932 de §238).
+- **`npm audit`:** backend 0. **Frontend: 1 aviso alto, nuevo en la base de avisos, en `vite` ≤ 6.4.3** (GHSA-9jrq-w75r-8gcw, GHSA-rq7h-c2jc-7f22 y tres de `launch-editor`). `package.json` y el lock no cambiaron en este trabajo. `npm audit fix --dry-run` lo resuelve pasando a 6.4.5. **No se aplicó: queda para que el usuario decida.** Mientras tanto, el job `audit` de la CI va a fallar (también fallaría sobre el main anterior).
+
+### Errores propios
+- **No fue "tests primero".** Las pantallas se rehicieron antes que los tests, porque el usuario quería verlas en local. Los tests se adaptaron después y los nuevos (`SettingsScreen`, `cardActions`) pasaron de entrada: son de caracterización. En `cardActions` el rojo lo dan los mutantes; en `SettingsScreen` no se corrieron mutantes.
+- **Regresiones del rediseño que encontraron los tests viejos** (antes del commit):
+  - la ONG y la empresa no tenían cómo llegar a las notificaciones en el celular;
+  - un clic en el fondo cerraba el compositor y se perdían las fotos;
+  - faltaban "Cancelar" en el compositor y "Limpiar búsqueda" en Explorar;
+  - las pastillas de tipo, modalidad y costo de Explorar se habían perdido;
+  - la descripción de la empresa salía repetida.
+- **En el primer borrador de `FRONTEND_CONTEXT.md` puse que `AppShell` monta `ChatProvider`.** Es falso: está en `main.tsx`. Se corrigió antes del commit.
+- **En `ProfilePhotoScreens.test.tsx` escribí que `SettingsScreen.test.tsx` probaba "Borrar mi cuenta"**, cuando ese test todavía no existía. Se escribió después, antes del commit.
+- **Usé `sed -i` una vez, en `ReviewAvatars.test.tsx`.** El archivo es LF (`i/lf w/lf`), así que no cambió los saltos de línea, pero CLAUDE.md pide no usarlo. El resto se editó con `Edit` o Node, respetando CRLF.
+- **Dos intentos de escribir montos con espacio duro desde la línea de comandos se comieron los `\`** (bash dentro de `node -e`, el mismo error que §235). Se corrigió con un script en archivo.
+
+### ⚠️ NO verificado
+- **Todo lo visual:**
+  - cómo se ve en un navegador o un teléfono reales (más allá de las capturas de §239 y de lo que el usuario miró en local);
+  - el contraste del modo oscuro;
+  - las animaciones (hoja, acordeón de la tarjeta, barras);
+  - el foco con teclado en la barra lateral y en la inferior.
+- **Las pantallas que no se rehicieron** (`NGOProjectDetail`, `NGOKPIs`, `NGOPatrocinios`, `NGOEmpleados`, `CreateVoluntariado`, `ReviewsModal`, `FilterModal`) solo cambiaron por la paleta remapeada. No se revisó una por una cómo quedaron.
+- **El aviso de chunk de 733 kB del build:** no se comparó con el tamaño de antes del rediseño.
+- **Los cambios de backend B1–B10 del plan (§239)** siguen sin decidir. Las pantallas no muestran nada que dependa de ellos: no hay lugares reservados por empresas, ni rol al inscribirse, ni preferencias de avisos.
+- **Producción:** el push no despliega (auto-deploy apagado); los dos servicios de Render se despliegan a mano. No se desplegó.

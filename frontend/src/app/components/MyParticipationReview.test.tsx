@@ -29,7 +29,7 @@ import { MyParticipation } from './MyParticipation';
 beforeEach(() => {
   vi.mocked(api.enrollments.my).mockResolvedValue({ enrollments: [{
     id: 'e1', project_id: 'proj-1', title: 'Reforestación Urbana', status: 'approved', category: 'Medio Ambiente',
-    location: 'Córdoba', ngo_name: 'Sustentando', image: '', hours_logged: 4,
+    location: 'Córdoba', ngo_name: 'Sustentando', image: '', hours_logged: 4, project_status: 'completed',
   }] } as never);
   vi.mocked(api.projects.get).mockResolvedValue({ project: { ratings: [
     { id: 'r1', user_id: 'u-juan', user_name: 'Juan Pérez', rating: 5, comment: 'Muy bueno', created_at: '2026-10-10 12:00:00' },
@@ -38,9 +38,11 @@ beforeEach(() => {
 });
 
 describe('Mis participaciones: reseña', () => {
-  test('"Reseña" abre el mismo modal que el feed: se ven las reseñas de otros y se puede dejar la propia', async () => {
+  test('"Dejá tu reseña" abre el mismo modal que el feed: se ven las reseñas de otros y se puede dejar la propia', async () => {
     render(<MemoryRouter><MyParticipation /></MemoryRouter>);
-    fireEvent.click(await screen.findByRole('button', { name: /Reseña/ }));
+    // Rediseño (§240): la reseña está en la pestaña Realizados (aprobada en un voluntariado que ya no está activo).
+    fireEvent.click(await screen.findByRole('tab', { name: /Realizados/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dejá tu reseña' }));
     const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
     expect(await within(d).findByText('Muy bueno')).toBeInTheDocument();
     fireEvent.click(within(d).getByRole('button', { name: '4 estrellas' }));

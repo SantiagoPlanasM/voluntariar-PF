@@ -1,25 +1,31 @@
+// Panel de la ONG (DESIGN.md → Paneles de gestión): pantalla de trabajo, no de red social. Los números
+// importantes son texto grande en una sola franja (no tarjetas de colores), las listas son tablas simples y la
+// acción más común (aprobar postulaciones, crear un voluntariado) está a un toque desde la primera pantalla.
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router';
-import { Plus, Search, Users, Sprout, ChevronRight, CheckCircle, Clock, XCircle, Loader2, Camera, Bell } from 'lucide-react';
+import { Bell, Plus, Search, Check, X } from 'lucide-react';
 import { api, ApiError, Project, PendingEnrollment, NGO, NGOStats } from '../../lib/api';
 import { userMessage } from '../../lib/format';
 import { InlineError } from './LoadError';
 import { MercadoPagoBanner } from './MercadoPagoAccount';
-import { useAuth } from '../../lib/AuthContext';
+import { Avatar } from '../ui/Avatar';
+import { TypeBadge } from '../ui/TypeBadge';
+import { Button, ButtonLink } from '../ui/Button';
+import { Meter, formatMoney, pct } from '../ui/Meter';
+import { useToast } from '../ui/UiProvider';
 
-const safeNum = (v: any, f=0) => { const n=Number.parseFloat(v); return Number.isNaN(n)?f:n; };
-const safeMoney = (v: any) => { const n=safeNum(v); return '$'+(n>=1000?(n/1000).toFixed(1)+'k':n.toLocaleString('es-AR')); };
+const safeNum = (v: any, f = 0) => { const n = Number.parseFloat(v); return Number.isNaN(n) ? f : n; };
 
 export function NGODashboard() {
-  const { user }  = useAuth();
   const navigate  = useNavigate();
+  const toast     = useToast();
   const [ngo, setNgo]         = useState<NGO | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [stats, setStats]     = useState<NGOStats | null>(null);
   const [pending, setPending] = useState<PendingEnrollment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch]   = useState('');
-  const [processing, setProcessing] = useState<string|null>(null);
+  const [processing, setProcessing] = useState<string | null>(null);
   const [loadError, setLoadError] = useState('');
 
   useEffect(() => { void load(); }, []);
@@ -44,164 +50,152 @@ export function NGODashboard() {
     } finally { setLoading(false); }
   };
 
-  const handleEnrollment = async (id: string, status: 'approved'|'rejected') => {
-    setProcessing(id);
-    try { await api.enrollments.updateStatus(id, status); void load(); }
-    catch (e: any) { alert(e.message); }
-    finally { setProcessing(null); }
+  const handleEnrollment = async (e: PendingEnrollment, status: 'approved' | 'rejected') => {
+    setProcessing(e.id);
+    try {
+      await api.enrollments.updateStatus(e.id, status);
+      toast(status === 'approved' ? `Aceptaste a ${e.volunteer_name}` : `Rechazaste a ${e.volunteer_name}`);
+      void load();
+    } catch (err) {
+      toast(userMessage(err, 'No pudimos guardar la respuesta. Probá de nuevo.'), { kind: 'error' });
+    } finally { setProcessing(null); }
   };
 
-  const filtered = projects.filter(
-    p => (p.title ?? "")
-        .toLowerCase()
-        .includes(search.toLowerCase().trim())
-  );
+  const filtered = projects.filter(p => (p.title ?? '').toLowerCase().includes(search.toLowerCase().trim()));
 
-  if (loading) return <div className="flex items-center justify-center h-screen"><Loader2 className="w-8 h-8 animate-spin text-blue-600"/></div>;
+  if (loading) return (
+    <div role="status" aria-label="Cargando el panel" className="p-6 md:p-10 max-w-[1100px] mx-auto flex flex-col gap-5">
+      <div className="h-8 w-48 rounded skeleton" /><div className="h-24 rounded-xl skeleton" /><div className="h-64 rounded-xl skeleton" />
+    </div>
+  );
   if (loadError) return <div className="p-4 md:p-8 max-w-3xl mx-auto"><InlineError message={loadError} onRetry={load} /></div>;
 
+  const th = 'text-left text-xs font-semibold text-ink-muted px-4 py-2.5 border-b border-hairline';
+  const td = 'px-4 py-3 border-b border-hairline align-middle';
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4">
-          <div className="flex items-center justify-between gap-4 mb-3">
-            {/* En el celular el nombre se trunca y Equipo/Momentos quedan solo con ícono: antes no entraban y
-                la pantalla tenía scroll horizontal (§128). El nombre accesible lo dan los aria-label. */}
-            <div className="flex items-center gap-3 min-w-0">
-              {ngo?.logo && <img src={ngo.logo} alt={ngo.name} className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-100 flex-shrink-0"/>}
-              <div className="min-w-0">
-                <h1 className="text-base sm:text-lg font-bold text-gray-900 truncate">{ngo?.name}</h1>
-                <p className="text-xs text-gray-400 truncate">Panel de gestión</p>
-              </div>
-            </div>
-            <div className="flex gap-2 flex-shrink-0">
-              {/* §173: la barra inferior ya tiene 7 botones (§121); en el celular las notificaciones se abren desde acá. */}
-              <button onClick={() => navigate('/ngo/notifications')}
-                aria-label={unread > 0 ? `Notificaciones (${unread} sin leer)` : 'Notificaciones'}
-                className="relative flex items-center px-2.5 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-xs font-semibold hover:bg-gray-50 transition-colors">
-                <Bell className="w-3.5 h-3.5"/>
-                {unread > 0 && (
-                  <span aria-hidden="true" className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                    {unread > 9 ? '9+' : unread}
-                  </span>
-                )}
-              </button>
-              <button onClick={() => ngo && navigate(`/ngo/empleados/${ngo.id}`)} aria-label="Equipo"
-                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-xs font-semibold hover:bg-gray-50 transition-colors">
-                <Users className="w-3.5 h-3.5"/><span className="hidden sm:inline">Equipo</span>
-              </button>
-              <button onClick={() => navigate('/ngo/momentos')} aria-label="Momentos"
-                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-xs font-semibold hover:bg-gray-50 transition-colors">
-                <Camera className="w-3.5 h-3.5"/><span className="hidden sm:inline">Momentos</span>
-              </button>
-              <button onClick={() => navigate('/ngo/create')}
-                className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-700 transition-colors flex-shrink-0">
-                <Plus className="w-4 h-4"/><span className="hidden sm:inline">Nuevo proyecto</span><span className="sm:hidden">Nuevo</span>
-              </button>
+    <div className="min-h-screen">
+      <div className="max-w-[1100px] mx-auto px-4 md:px-10 py-6 md:py-8 flex flex-col gap-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {ngo && <Avatar src={ngo.logo} name={ngo.name} kind="org" size={44} />}
+            <div className="min-w-0">
+              <h1 className="text-[22px] font-bold tracking-[-0.3px] truncate">{ngo?.name ?? 'Panel'}</h1>
+              <p className="text-[13px] text-ink-muted">Panel de la ONG</p>
             </div>
           </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"/>
-            <input type="text" aria-label="Buscar proyectos" placeholder="Buscar proyectos..."
-              className="w-full pl-9 pr-4 py-2 bg-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={search} onChange={e => setSearch(e.target.value)}/>
+          <div className="flex items-center gap-1 flex-shrink-0">
+          <Link to="/ngo/notifications" aria-label={unread > 0 ? `Notificaciones (${unread} sin leer)` : 'Notificaciones'}
+            className="md:hidden relative w-11 h-11 flex items-center justify-center rounded-full hover:bg-surface-soft">
+            <Bell size={22} strokeWidth={1.75} aria-hidden="true" />
+            {unread > 0 && (
+              <span aria-hidden="true" className="absolute top-1.5 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-like text-white text-[11px] font-bold flex items-center justify-center">
+                {unread > 9 ? '9+' : unread}
+              </span>
+            )}
+          </Link>
+          <ButtonLink to="/ngo/create" variant="primary" className="flex-shrink-0">
+            <Plus size={18} strokeWidth={2} aria-hidden="true" /><span className="hidden sm:inline">Crear voluntariado</span><span className="sm:hidden">Crear</span>
+          </ButtonLink>
           </div>
         </div>
-      </header>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 space-y-5">
-        {/* §218: sin cuenta de Mercado Pago la ONG no recibe donaciones; el cartel solo aparece si falta vincularla. */}
+        {/* §218: sin cuenta de Mercado Pago la ONG no recibe donaciones; el aviso solo aparece si falta vincularla. */}
         <MercadoPagoBanner />
-        {/* Stats grid: 2 col mobile → 4 col desktop */}
+
         {stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <dl className="grid grid-cols-2 md:grid-cols-4 rounded-xl bg-surface border border-hairline overflow-hidden">
             {[
-              { label: 'Proyectos activos', val: safeNum(stats.active_projects),    color: 'text-emerald-600', bg: 'bg-emerald-50' },
-              { label: 'Voluntarios',       val: safeNum(stats.total_volunteers),    color: 'text-blue-600',    bg: 'bg-blue-50'    },
-              { label: 'Pendientes',        val: safeNum(stats.pending_enrollments), color: 'text-amber-500',   bg: 'bg-amber-50'   },
-              { label: 'Recaudado',         val: safeMoney(stats.total_funding),     color: 'text-violet-600',  bg: 'bg-violet-50', str: true },
-            ].map(({ label, val, color, bg }) => (
-              <div key={label} className={`${bg} rounded-2xl p-4`}>
-                <p className={`text-2xl sm:text-3xl font-bold ${color}`}>{val}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+              { label: 'Voluntariados activos', val: String(safeNum(stats.active_projects)) },
+              { label: 'Voluntarios', val: String(safeNum(stats.total_volunteers)) },
+              { label: 'Postulaciones sin responder', val: String(safeNum(stats.pending_enrollments)) },
+              { label: 'Recaudado', val: formatMoney(safeNum(stats.total_funding)) },
+            ].map(({ label, val }, i) => (
+              <div key={label} className={`px-5 py-4 flex flex-col gap-1 border-hairline ${i % 2 === 0 ? 'border-r' : ''} ${i < 2 ? 'border-b md:border-b-0' : ''} md:border-r md:last:border-r-0`}>
+                <dt className="text-xs font-semibold text-ink-soft order-2">{label}</dt>
+                <dd className="text-[28px] font-extrabold tracking-[-0.5px] leading-tight order-1">{val}</dd>
               </div>
             ))}
-          </div>
+          </dl>
         )}
 
-        {/* Two-col layout on desktop */}
-        <div className="md:grid md:grid-cols-2 md:gap-5 space-y-5 md:space-y-0">
-          {/* Pending */}
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] items-start">
           {pending.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-4 border-b border-gray-100 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-amber-500"/>
-                <h2 className="font-bold text-sm text-gray-900">Solicitudes pendientes ({pending.length})</h2>
-              </div>
-              <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto">
+            <section aria-labelledby="pend" className="rounded-xl bg-surface border border-hairline overflow-hidden">
+              <h2 id="pend" className="px-4 pt-4 pb-2 text-lg font-bold tracking-[-0.2px]">Postulaciones sin responder ({pending.length})</h2>
+              <ul className="max-h-[28rem] overflow-y-auto">
                 {pending.map(e => (
-                  <div key={e.id} className="p-4 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-600 flex-shrink-0">{e.volunteer_name[0]}</div>
+                  <li key={e.id} className="px-4 py-3 border-t border-hairline flex items-center gap-3">
+                    <Avatar src={undefined} name={e.volunteer_name} size={36} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{e.volunteer_name}</p>
-                      <p className="text-xs text-emerald-700 font-medium truncate">{e.project_title}</p>
-                      <p className="text-xs text-gray-400 truncate">{e.volunteer_email}</p>
+                      <p className="text-[15px] font-semibold truncate">{e.volunteer_name}</p>
+                      <p className="text-[13px] text-ink-soft truncate">{e.project_title}</p>
+                      <p className="text-xs text-ink-muted truncate">{e.volunteer_email}</p>
                     </div>
                     <div className="flex gap-1.5 flex-shrink-0">
-                      <button onClick={() => handleEnrollment(e.id,'approved')} disabled={processing===e.id}
-                        aria-label={`Aprobar a ${e.volunteer_name} en ${e.project_title}`}
-                        className="w-9 h-9 bg-green-50 text-green-600 rounded-xl flex items-center justify-center hover:bg-green-100 disabled:opacity-50">
-                        {processing===e.id ? <Loader2 className="w-4 h-4 animate-spin"/> : <CheckCircle className="w-4 h-4"/>}
-                      </button>
-                      <button onClick={() => handleEnrollment(e.id,'rejected')} disabled={processing===e.id}
-                        aria-label={`Rechazar a ${e.volunteer_name} en ${e.project_title}`}
-                        className="w-9 h-9 bg-red-50 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-100 disabled:opacity-50">
-                        <XCircle className="w-4 h-4"/>
-                      </button>
+                      <Button variant="primary" onClick={() => handleEnrollment(e, 'approved')} disabled={processing === e.id}
+                        aria-label={`Aprobar a ${e.volunteer_name} en ${e.project_title}`} className="!h-9 !px-3 !text-[13px]">
+                        <Check size={16} strokeWidth={2.25} aria-hidden="true" />Aceptar
+                      </Button>
+                      <Button variant="text" onClick={() => handleEnrollment(e, 'rejected')} disabled={processing === e.id}
+                        aria-label={`Rechazar a ${e.volunteer_name} en ${e.project_title}`} className="!h-9 !px-2 !text-[13px]">
+                        <X size={16} strokeWidth={2} aria-hidden="true" /><span className="hidden sm:inline">Rechazar</span>
+                      </Button>
                     </div>
-                  </div>
+                  </li>
                 ))}
-              </div>
-            </div>
+              </ul>
+            </section>
           )}
 
-          {/* Projects */}
-          <div className={`bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden ${pending.length === 0 ? 'md:col-span-2' : ''}`}>
-            <div className="p-4 border-b border-gray-100 flex items-center gap-2">
-              <Sprout className="w-4 h-4 text-emerald-600"/>
-              <h2 className="font-bold text-sm text-gray-900">Mis Voluntariados ({filtered.length}{search?` de ${projects.length}`:''})</h2>
+          <section aria-labelledby="vols" className={`rounded-xl bg-surface border border-hairline overflow-hidden ${pending.length === 0 ? 'lg:col-span-2' : ''}`}>
+            <div className="px-4 pt-4 pb-2 flex items-center justify-between gap-3">
+              <h2 id="vols" className="text-lg font-bold tracking-[-0.2px]">Voluntariados ({filtered.length}{search ? ` de ${projects.length}` : ''})</h2>
+              <label className="h-9 w-44 sm:w-56 px-3 rounded-[10px] bg-surface-soft flex items-center gap-2 text-ink-muted focus-within:bg-surface focus-within:ring-[1.5px] focus-within:ring-ink">
+                <Search size={16} strokeWidth={1.75} aria-hidden="true" />
+                <input type="search" aria-label="Buscar proyectos" placeholder="Buscar" value={search} onChange={e => setSearch(e.target.value)}
+                  className="flex-1 min-w-0 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-muted" />
+              </label>
             </div>
             {filtered.length === 0 ? (
-              <div className="text-center py-10 text-gray-400">
-                <p className="text-sm">{search ? `Sin resultados para "${search}"` : 'No hay proyectos aún'}</p>
-                {!search && <button onClick={() => navigate('/ngo/create')} className="text-xs text-blue-600 font-semibold mt-2 block mx-auto">Crear el primero →</button>}
+              <div className="text-center py-10 flex flex-col items-center gap-1">
+                <p className="text-[15px] font-semibold">{search ? `Sin resultados para "${search}"` : 'Todavía no creaste voluntariados'}</p>
+                {!search && <Link to="/ngo/create" className="text-[15px] font-semibold">Crear el primero →</Link>}
               </div>
             ) : (
-              <div className="divide-y divide-gray-50">
-                {filtered.map(p => (
-                  <Link key={p.id} to={`/ngo/dashboard/project/${p.id}`}>
-                    <div className="p-4 flex gap-3 hover:bg-gray-50 transition-colors">
-                      {p.image
-                        ? <img src={p.image} alt={p.title} className="w-14 h-14 rounded-xl object-cover flex-shrink-0"/>
-                        : <div className="w-14 h-14 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0"><Sprout className="w-6 h-6 text-emerald-400"/></div>
-                      }
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm text-gray-900 truncate">{p.title}</h3>
-                        <p className="text-xs text-gray-500 mt-0.5">{p.category} · {p.type==='fugaz'?'Fugaz':'Sostenido'}</p>
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <span className="text-xs text-gray-400 flex items-center gap-1"><Users className="w-3 h-3"/>{safeNum(p.current_volunteers)}/{safeNum(p.volunteers_needed)}</span>
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${p.status==='active'?'bg-green-50 text-green-600':'bg-gray-100 text-gray-500'}`}>
-                            {p.status==='active'?'Activo':'Completado'}
+              <table className="w-full text-[15px]">
+                <thead>
+                  <tr><th className={th}>Voluntariado</th><th className={`${th} hidden sm:table-cell`}>Voluntarios</th><th className={`${th} text-right`}>Recaudado</th></tr>
+                </thead>
+                <tbody>
+                  {filtered.map(p => (
+                    <tr key={p.id} className="hover:bg-surface-soft transition-colors">
+                      <td className={td}>
+                        <Link to={`/ngo/dashboard/project/${p.id}`} className="flex items-center gap-3 min-w-0">
+                          {p.image
+                            ? <img src={p.image} alt="" className="w-10 h-10 rounded-md object-cover flex-shrink-0 bg-surface-soft" />
+                            : <span className="w-10 h-10 rounded-md bg-surface-soft flex-shrink-0" aria-hidden="true" />}
+                          <span className="min-w-0 flex flex-col">
+                            <span className="font-semibold truncate">{p.title}</span>
+                            <span className="text-[13px] text-ink-muted truncate">
+                              {p.category ? `${p.category} · ` : ''}<TypeBadge type={p.type} variant="text" className="!text-[13px]" />{p.status !== 'active' ? ' · Completado' : ''}
+                            </span>
                           </span>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300 self-center flex-shrink-0"/>
-                    </div>
-                  </Link>
-                ))}
-              </div>
+                        </Link>
+                      </td>
+                      <td className={`${td} hidden sm:table-cell`}>
+                        <span className="flex flex-col gap-1 w-28">
+                          <span className="text-[13px]"><b>{safeNum(p.current_volunteers)}</b> de {safeNum(p.volunteers_needed)}</span>
+                          <Meter value={pct(p.current_volunteers, p.volunteers_needed)} tone="people" thin label="Voluntarios" />
+                        </span>
+                      </td>
+                      <td className={`${td} text-right font-bold`}>{formatMoney(safeNum(p.current_funding))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
-          </div>
+          </section>
         </div>
       </div>
     </div>

@@ -78,9 +78,9 @@ describe('<MomentsFeed /> — carga inicial', () => {
     const d = deferred<PostsPage>();
     list().mockReturnValue(d.promise);
     render(<MomentsFeed />);
-    expect(screen.getByRole('status', { name: 'Cargando momentos' })).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Cargando publicaciones' })).toBeInTheDocument();
     await act(async () => { d.resolve(page(['a'])); });
-    expect(screen.queryByRole('status', { name: 'Cargando momentos' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Cargando publicaciones' })).not.toBeInTheDocument();
   });
 
   test('pasa los filtros (proyecto / autor) al pedido', async () => {
@@ -108,7 +108,7 @@ describe('<MomentsFeed /> — carga inicial', () => {
   test('sin publicaciones muestra el estado vacío', async () => {
     list().mockResolvedValue(page([]));
     render(<MomentsFeed />);
-    expect(await screen.findByText('Todavía no hay momentos')).toBeInTheDocument();
+    expect(await screen.findByText('Todavía no hay publicaciones')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Ver más' })).not.toBeInTheDocument();
   });
 
@@ -116,9 +116,9 @@ describe('<MomentsFeed /> — carga inicial', () => {
     list().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce(page(['a']));
     render(<MomentsFeed />);
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('No pudimos cargar los momentos');
+    expect(alert).toHaveTextContent('No pudimos cargar las publicaciones');
     expect(alert).not.toHaveTextContent('Failed to fetch');
-    expect(screen.queryByText('Todavía no hay momentos')).not.toBeInTheDocument();
+    expect(screen.queryByText('Todavía no hay publicaciones')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
     await waitFor(() => expect(shown()).toEqual(['a']));
@@ -205,7 +205,7 @@ describe('<MomentsFeed /> — "Ver más"', () => {
     render(<MomentsFeed pageSize={2} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Ver más' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos cargar más momentos');
+    expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos cargar más publicaciones');
     expect(shown()).toEqual(['a', 'b']);
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver más' }));
@@ -259,7 +259,7 @@ describe('<MomentsFeed /> — borrar', () => {
     render(<MomentsFeed />);
     await screen.findByText('post:a');
     fireEvent.click(screen.getByRole('button', { name: 'borrar-a' }));
-    expect(await screen.findByText('Todavía no hay momentos')).toBeInTheDocument();
+    expect(await screen.findByText('Todavía no hay publicaciones')).toBeInTheDocument();
   });
 });
 
@@ -269,19 +269,19 @@ describe('<MomentsFeed /> — publicar', () => {
     ['ONG', true, ngo],
     ['empresa', false, company],
     ['visitante', false, null],
-  ])('el botón "Compartir un momento" para %s — visible: %s', async (_name, visible, user) => {
+  ])('el botón "Nueva publicación" para %s — visible: %s', async (_name, visible, user) => {
     asViewer(user);
     list().mockResolvedValue(page(['a']));
     render(<MomentsFeed />);
     await screen.findByText('post:a');
-    expect(!!screen.queryByRole('button', { name: 'Compartir un momento' })).toBe(visible);
+    expect(!!screen.queryByRole('button', { name: 'Nueva publicación' })).toBe(visible);
   });
 
   test('con showComposer={false} no aparece aunque sea voluntario', async () => {
     list().mockResolvedValue(page(['a']));
     render(<MomentsFeed showComposer={false} />);
     await screen.findByText('post:a');
-    expect(screen.queryByRole('button', { name: 'Compartir un momento' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Nueva publicación' })).not.toBeInTheDocument();
   });
 
   test('el botón abre el compositor y se cierra con su onClose', async () => {
@@ -289,7 +289,7 @@ describe('<MomentsFeed /> — publicar', () => {
     render(<MomentsFeed />);
     await screen.findByText('post:a');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Compartir un momento' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Nueva publicación' }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'cerrar-compositor' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -299,7 +299,7 @@ describe('<MomentsFeed /> — publicar', () => {
     list().mockResolvedValue(page(['a', 'b']));
     render(<MomentsFeed />);
     await screen.findByText('post:a');
-    fireEvent.click(screen.getByRole('button', { name: 'Compartir un momento' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Nueva publicación' }));
     fireEvent.click(screen.getByRole('button', { name: 'publicar-doble' }));
     expect(shown()).toEqual(['nuevo', 'a', 'b']);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -309,7 +309,7 @@ describe('<MomentsFeed /> — publicar', () => {
     list().mockResolvedValueOnce(page(['a', 'b'], true)).mockResolvedValueOnce(page(['c'], false));
     render(<MomentsFeed pageSize={2} />);
     await screen.findByText('post:a');
-    fireEvent.click(screen.getByRole('button', { name: 'Compartir un momento' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Nueva publicación' }));
     fireEvent.click(screen.getByRole('button', { name: 'publicar-doble' }));
     fireEvent.click(screen.getByRole('button', { name: 'Ver más' }));
     await waitFor(() => expect(list()).toHaveBeenCalledTimes(2));
@@ -319,18 +319,18 @@ describe('<MomentsFeed /> — publicar', () => {
   test('desde el estado vacío también se puede publicar, y la primera publicación aparece', async () => {
     list().mockResolvedValue(page([]));
     render(<MomentsFeed />);
-    await screen.findByText('Todavía no hay momentos');
-    fireEvent.click(screen.getByRole('button', { name: 'Compartir un momento' }));
+    await screen.findByText('Todavía no hay publicaciones');
+    fireEvent.click(screen.getByRole('button', { name: 'Nueva publicación' }));
     fireEvent.click(screen.getByRole('button', { name: 'publicar-doble' }));
     expect(shown()).toEqual(['nuevo']);
-    expect(screen.queryByText('Todavía no hay momentos')).not.toBeInTheDocument();
+    expect(screen.queryByText('Todavía no hay publicaciones')).not.toBeInTheDocument();
   });
 
   test('si el feed está filtrado por otro proyecto, la publicación nueva NO se agrega (no corresponde a esta vista)', async () => {
     list().mockResolvedValueOnce(page(['a'], true)).mockResolvedValueOnce(page(['b'], false));
     render(<MomentsFeed pageSize={1} filters={{ project_id: 'proj-1' }} />);
     await screen.findByText('post:a');
-    fireEvent.click(screen.getByRole('button', { name: 'Compartir un momento' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Nueva publicación' }));
     fireEvent.click(screen.getByRole('button', { name: 'publicar-otro-proyecto' }));
     expect(shown()).toEqual(['a']);
     // y el offset no se corrió
@@ -343,7 +343,7 @@ describe('<MomentsFeed /> — publicar', () => {
     list().mockResolvedValue(page(['a']));
     render(<MomentsFeed filters={{ project_id: 'proj-1' }} />);
     await screen.findByText('post:a');
-    fireEvent.click(screen.getByRole('button', { name: 'Compartir un momento' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Nueva publicación' }));
     fireEvent.click(screen.getByRole('button', { name: 'publicar-doble' }));
     expect(shown()).toEqual(['nuevo', 'a']);
   });
@@ -352,7 +352,7 @@ describe('<MomentsFeed /> — publicar', () => {
     list().mockResolvedValue(page(['a']));
     render(<MomentsFeed filters={{ user_id: 'otra-persona' }} />);
     await screen.findByText('post:a');
-    fireEvent.click(screen.getByRole('button', { name: 'Compartir un momento' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Nueva publicación' }));
     fireEvent.click(screen.getByRole('button', { name: 'publicar-doble' }));
     expect(shown()).toEqual(['a']);
   });

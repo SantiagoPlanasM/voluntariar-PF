@@ -103,6 +103,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/** Igual que useChat, pero sin proveedor devuelve null en vez de fallar (para piezas que solo muestran contadores). */
+export function useChatOptional() {
+  return useContext(ChatContext);
+}
+
 export function useChat() {
   const ctx = useContext(ChatContext);
   if (!ctx) throw new Error('useChat debe usarse dentro de <ChatProvider>');
