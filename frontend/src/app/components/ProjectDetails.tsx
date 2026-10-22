@@ -2,7 +2,7 @@
 // siempre a mano (barra fija abajo en el celular, caja fija a la derecha en escritorio). Los bloques son
 // secciones apiladas con un título cada una; no hay tarjetas dentro de tarjetas.
 import { useParams, useNavigate, Link } from 'react-router';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   ArrowLeft, Briefcase, Check, Clock, Laptop, Globe, MapPin, Send, Share2, Star, Bell,
 } from 'lucide-react';
@@ -81,7 +81,9 @@ export function ProjectDetails() {
     void load(id);
   }, [id]);
 
-  useEffect(() => {
+  // useLayoutEffect, no useEffect: la precarga se aplica antes de pintar. Con useEffect había un render con el
+  // proyecto ya cargado y el formulario todavía en 5 ★ (un parpadeo, y un test que a veces lo leía; §241).
+  useLayoutEffect(() => {
     if (!prefillPending.current || !project || project.id !== id || !user) return;
     prefillPending.current = false;
     const own = project.ratings.find(r => r.user_id === user.id);

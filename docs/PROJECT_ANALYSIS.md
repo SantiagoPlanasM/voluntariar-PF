@@ -6700,3 +6700,24 @@ Las secciones siguientes pasan de 4–7 a 5–8 (índice, títulos y la referenc
 - **El aviso de chunk de 733 kB del build:** no se comparó con el tamaño de antes del rediseño.
 - **Los cambios de backend B1–B10 del plan (§239)** siguen sin decidir. Las pantallas no muestran nada que dependa de ellos: no hay lugares reservados por empresas, ni rol al inscribirse, ni preferencias de avisos.
 - **Producción:** el push no despliega (auto-deploy apagado); los dos servicios de Render se despliegan a mano. No se desplegó.
+
+## 241. La reseña propia se precargaba un render tarde (test intermitente de §240)
+
+### Qué se hizo
+- **El síntoma:** `ProjectDetailsRating.test.tsx` → "si ya calificó…" falló fuera de esta máquina (el usuario pegó la salida): `stars(3)` tenía `aria-pressed="false"`.
+- **La causa:** en `ProjectDetails`, la precarga de la reseña propia (§123) corría en un `useEffect`. Había un render con el proyecto ya cargado, y por lo tanto con el título "Reseñas", pero el formulario todavía estaba en 5 ★ y vacío.
+  - Antes de §240, el test hacía clic en la pestaña Reseñas y eso le daba tiempo al efecto.
+  - Desde §240, el test espera solo el título (ya no hay pestañas) y a veces lo encontraba en ese render intermedio.
+  - En el navegador era un parpadeo de un frame (5 ★ → la nota propia).
+- **El arreglo:** la precarga pasa a `useLayoutEffect`, que se aplica antes de pintar. El test no se tocó: sigue exigiendo que, cuando aparece la sección, el formulario ya esté precargado.
+
+### Verificación
+- **El estado intermedio, observado.** Un test temporal (no quedó en el repo) miró el DOM en cada cambio con un `MutationObserver` y anotó si alguna vez estaban a la vez el título "Reseñas" y "5 estrellas" con `aria-pressed="true"`. Con el código anterior (vuelto con `git stash`) pasó: `true`. Con el arreglo, no: `false`.
+- **Frontend:** `npm test` 939 en verde (79 archivos) y `npm run typecheck` sin errores.
+
+### Errores propios
+- **En §240 el test quedó dependiendo de la velocidad de la máquina.** Pasó todas las corridas locales, incluso 6 seguidas con cobertura, y no lo vi. Cambiar "clic en la pestaña" por "esperar el título" sacó la espera que tapaba el render intermedio.
+
+### ⚠️ NO verificado
+- **La falla original no la pude reproducir acá.** No sé en qué entorno corrió: la CI o la máquina del usuario.
+- **El resultado de la CI con este arreglo:** `gh` no está instalado en esta máquina.
