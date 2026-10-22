@@ -6807,3 +6807,58 @@ Las secciones siguientes pasan de 4–7 a 5–8 (índice, títulos y la referenc
 - **Por qué se colgó `npm audit` en el CI #37:** parece una demora del registro de npm, pero no lo investigué. Re-correr el CI #37 daría un run en verde sobre `b7e17c2`.
 - **Producción:** sigue en `7b05f02` (Deploy #29). `b7e17c2` no se desplegó.
 - **Este commit no se pusheó.**
+
+## 245. Sesión exploratoria #1 sobre el frontend rediseñado (SBTM)
+
+### Qué se hizo
+- **El pedido:** el usuario aceptó la sesión exploratoria documentada que estaba ofrecida desde §238, para que "exploratorias" deje de estar "a medias" en el informe.
+- **`docs/calidad/SESION_EXPLORATORIA.md`** (nuevo), con el formato SBTM:
+  - charter: el frontend rediseñado, tres roles, celular y escritorio, oscuro y claro;
+  - tiempo fijo de 60 minutos; se usaron 12 de reloj (18:49 a 19:01);
+  - entorno, heurísticas, hallazgos, lo que funcionó, lo que no se cubrió y la lectura.
+- **Hallazgos: 8 defectos y 4 observaciones. Ninguno se corrigió** (la sesión informa, no arregla).
+  - **Del rediseño:**
+    - H2: Explorar esconde 2 voluntariados a una voluntaria, porque muestra 6 recomendaciones y excluye 8 de la lista;
+    - H8: "Enviar propuesta" con contraste 1,10:1 en oscuro;
+    - H11: 3 respuestas del asistente nombran la interfaz vieja;
+    - H9: "Aprobado" con 2,71:1 en oscuro;
+    - H7: el texto vacío de notificaciones de la ONG es el del voluntario.
+  - **De antes:**
+    - H1: no se vuelve arriba al cambiar de pantalla;
+    - H3: sin página 404;
+    - H10: el texto vacío de KPIs con 1,57:1.
+  - **Observaciones:**
+    - H4: barra superior solo en Inicio, contra lo que dice DESIGN;
+    - H5: `window.confirm` en dos pantallas;
+    - H6: "Cerrar sesión" sin confirmar en la barra lateral;
+    - H12: el indicador de pasos en oscuro.
+- **Informe:**
+  - la fila "exploratorias" de 4.2 deja de decir "a medias";
+  - un punto nuevo en el análisis crítico y una referencia en 7.6;
+  - el trabajo futuro pasa a "más sesiones, hechas por personas";
+  - el entregable entra en el anexo;
+  - PDF regenerado: sigue en 20 páginas.
+
+### Verificación
+- **Entorno:**
+  - backend sobre una SQLite del scratchpad con la semilla, con `RESEND_API_KEY` y `CLOUDINARY_*` vacías (el arranque lo confirmó: "Email: desactivado", "Fotos: sin configurar"), y Vite;
+  - al terminar se mataron los dos procesos por puerto (0 escuchando).
+- **Cada hallazgo se contrastó con su fuente:**
+  - H2: la API devolvió 8 recomendaciones y la pantalla mostró 6 + 4 de 12 activos; el código viejo (`bf90862`) mostraba todas;
+  - H8, H9 y H10: relación de contraste WCAG calculada con el color y el fondo computados;
+  - H11: `backend/scripts/migrate.js`;
+  - H1, H3, H7, H9 y H10: comparados con `bf90862` para saber si son del rediseño.
+- **Una hipótesis descartada:** del código de H2 parecía que una búsqueda tampoco encontraba los recomendados. Se probó en la pantalla: con una búsqueda sí aparecen ("Resultados: 1"). H2 queda limitado a la vista sin filtros.
+- No se tocó código ni tests.
+
+### Errores propios
+- **El primer clic sobre el iframe no llegó a la app** (la coordenada no entró al iframe) y por un momento pareció que "Seguir" no andaba. Con un clic por JavaScript funcionó. No se anotó como hallazgo.
+- **Al cerrar sesión como voluntaria, el script tocó el botón oculto de la barra lateral**, no el de Configuración. De ahí salió H6, que es real. La confirmación de Configuración se probó después, como ONG.
+- **Escribí mal una ruta** (`/my-participation` en vez de `/participation`). Por ese error apareció H3.
+
+### ⚠️ NO verificado
+- **El teclado real:** la herramienta no mueve el foco con Tab.
+- **Un teléfono real:** el iframe de 390 px no es táctil ni tiene zona segura.
+- Mapa, donación, subida de archivos, chat en tiempo real y borrar la cuenta.
+- **El sesgo del explorador:** lo hizo el mismo asistente que escribió el código.
+- **Si se abren Issues para los hallazgos y cuáles se corrigen:** lo decide el usuario (regla 16).
