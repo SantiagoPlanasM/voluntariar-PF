@@ -120,8 +120,10 @@ export function ExploreScreen() {
   if (filters.cost !== 'all') otherPills.push({ key: 'cost', label: COST_LABEL[filters.cost], aria: 'Quitar filtro de costo' });
   const removeFilter = (key: 'type' | 'modality' | 'cost') => setFilters(prev => ({ ...prev, [key]: 'all' }));
 
-  // IDs de recomendaciones para evitar duplicados en listado genérico
-  const recIds = useMemo(() => new Set(recommendations.map(r => r.id)), [recommendations]);
+  // "Para vos" muestra hasta 6. La lista general saca solo las que se ven: si sacaba todas las que manda la API
+  // (hasta 8), las que no entraban no aparecían en ningún lado (D22, §246).
+  const shownRecs = useMemo(() => recommendations.slice(0, 6), [recommendations]);
+  const recIds = useMemo(() => new Set(shownRecs.map(r => r.id)), [shownRecs]);
   const genericProjects = useMemo(() => {
     if (!isVolunteer || recommendations.length === 0) return filteredProjects;
     return filteredProjects.filter(p => !recIds.has(p.id));
@@ -246,7 +248,7 @@ export function ExploreScreen() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-2 gap-y-5">
-                    {recommendations.slice(0, 6).map(p => (
+                    {shownRecs.map(p => (
                       <VolunteeringTile key={p.id} project={p} note={p.recommendation_reasons?.[0]} />
                     ))}
                   </div>

@@ -179,6 +179,30 @@ describe('ExploreScreen: catálogo vacío', () => {
   });
 });
 
+// D22 (Issue #23, sesión exploratoria §245): "Para vos" muestra hasta 6 recomendaciones, pero la lista general sacaba
+// las 8 que devuelve la API: con los datos de prueba, 2 voluntariados no aparecían en ningún lado sin filtros.
+// Criterio: sin búsqueda ni filtros, cada voluntariado del catálogo aparece exactamente una vez.
+describe('ExploreScreen: más recomendaciones de las que entran en "Para vos"', () => {
+  test('con 8 recomendaciones y 12 voluntariados, se ven los 12 y ninguno repetido', async () => {
+    // Arrange: 12 en el catálogo; la API recomienda 8 (Para vos muestra 6)
+    const catalogo = Array.from({ length: 12 }, (_, i) => project(`p${i}`, `Voluntariado ${i}`));
+    vi.mocked(api.projects.list).mockReset().mockResolvedValue({ projects: catalogo } as never);
+    vi.mocked(api.projects.recommended).mockReset().mockResolvedValue({
+      recommendations: catalogo.slice(0, 8).map(p => ({ ...p, score: 5, recommendation_reasons: ['Te puede gustar'] })),
+      based_on_history: true,
+    } as never);
+
+    // Act
+    mount();
+    await screen.findByRole('region', { name: 'Para vos' });
+    await screen.findAllByText('Te puede gustar');
+
+    // Assert: "Para vos" sigue mostrando 6, y cada voluntariado está una sola vez en la pantalla
+    expect(within(screen.getByRole('region', { name: 'Para vos' })).getAllByText('Te puede gustar')).toHaveLength(6);
+    for (const p of catalogo) expect(screen.getAllByText(p.title)).toHaveLength(1);
+  });
+});
+
 // §203 (SonarCloud S6848): las tarjetas de Explorar eran <div onClick={navigate}>: con el teclado no se podían enfocar
 // ni abrir. Criterio: cada tarjeta (catálogo, destacados y "Para vos", en móvil y escritorio) es un LINK a su
 // proyecto, así que se enfoca con Tab y se abre con Enter (y también se puede abrir en otra pestaña).
