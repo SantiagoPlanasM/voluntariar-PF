@@ -6744,3 +6744,22 @@ Las secciones siguientes pasan de 4–7 a 5–8 (índice, títulos y la referenc
 - **El resultado de la CI:** no lo vi, porque `gh` no está instalado en esta máquina.
 - **El servidor de desarrollo (`npm run dev`) con 6.4.5:** no se volvió a levantar. El build sí se probó.
 - **La advertencia de `npm` sobre scripts de instalación** (`allow-scripts`, esbuild): se mostró al instalar y no se aprobó nada nuevo.
+
+## 243. SonarCloud: promesa sin `void` en `MyParticipation` (quality gate en C)
+
+### Qué se hizo
+- **El problema:** el quality gate de SonarCloud falló sobre 7b05f02 con "C Reliability Rating on New Code (required ≥ A)". Hubo un solo issue nuevo: `MyParticipation.tsx` L57, "Promises must be awaited… or be explicitly marked as ignored with the `void` operator" (Bug, Major).
+- **El arreglo:** se agregó `void` delante de `Promise.allSettled(...).then(...)` en `load()`, con un comentario. `allSettled` no rechaza nunca: el error de cada pedido ya se leía en su `status`. Es el mismo patrón que el resto del código (`void load(id)`, `void loadProjects()`).
+- **Se buscaron cadenas parecidas** en `frontend/src`: las demás que arrancan en `api.*().then(` terminan en `.catch`.
+
+### Verificación
+- `MyParticipation.test.tsx` + `MyParticipationReview.test.tsx`: 18 en verde.
+- `npm run typecheck`: sin errores.
+- `npm test` (suite completa): 939 en verde (79 archivos).
+
+### Errores propios
+- **El issue entró con §240:** reescribí `load()` sin el `void`. Las corridas locales no lo ven; lo marca solo SonarCloud.
+
+### ⚠️ NO verificado
+- **Que SonarCloud dé el issue por cerrado y el gate vuelva a A:** se ve en el próximo análisis de la CI.
+- **No es "tests primero":** el cambio no altera el comportamiento, así que no hay rojo posible.

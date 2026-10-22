@@ -54,7 +54,8 @@ export function MyParticipation() {
   const load = () => {
     setLoading(true);
     setError('');
-    Promise.allSettled([api.enrollments.my(), api.follows.myProjects()]).then(([mine, fol]) => {
+    // allSettled no rechaza nunca: los errores de cada pedido se leen en su `status` (de ahí el `void`).
+    void Promise.allSettled([api.enrollments.my(), api.follows.myProjects()]).then(([mine, fol]) => {
       if (mine.status === 'rejected') setError(userMessage(mine.reason, 'No pudimos cargar tus voluntariados. Revisá tu conexión.'));
       else setItems(mine.value.enrollments);
       if (fol.status === 'fulfilled') setFollowed(fol.value.projects);
