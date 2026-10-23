@@ -61,6 +61,14 @@ export function getProjectCoords(p: Project): { lat: number; lng: number } {
 
 type MappedProject = { project: Project; coords: { lat: number; lng: number }; colors: { bg: string } };
 
+// Encuadra todos los pines (D32): antes el mapa abría siempre en el centro de Córdoba con zoom 13 y un voluntariado
+// lejos (Mar Chiquita, a ~170 km) contaba en la pastilla pero quedaba fuera de la vista. Nunca acerca más que antes.
+function fitToProjects(map: L.Map, mappedProjects: MappedProject[]) {
+  if (mappedProjects.length === 0) return;
+  const bounds = L.latLngBounds(mappedProjects.map(({ coords }) => [coords.lat, coords.lng] as L.LatLngTuple));
+  map.fitBounds(bounds, { padding: [40, 40], maxZoom: DEFAULT_ZOOM });
+}
+
 // Redibuja los pines y el punto del usuario. Común al mapa chico y al ampliado (antes copiado en los
 // dos, REVISION S7): quita los marcadores anteriores y devuelve los nuevos para guardarlos en el ref.
 // Lo único que difería es la duración del paneo al tocar un pin (`panDuration`).
@@ -281,6 +289,17 @@ function ProjectMapModal({
   useEffect(() => {
     updateMarkers();
   }, [mappedProjects, updateMarkers]);
+
+  // Encuadre (D32): al abrir sin un pin elegido, y cada vez que el filtro de categoría cambia la lista. Si se abrió
+  // desde un pin elegido, la primera vez se respeta ese centro.
+  const firstFit = useRef(true);
+  useEffect(() => {
+    const map = leafletMapRef.current;
+    if (!map) return;
+    const skip = firstFit.current && initialSelectedProject;
+    firstFit.current = false;
+    if (!skip) fitToProjects(map, mappedProjects);
+  }, [mappedProjects]);
 
   const handleLocateMe = () => {
     if (!navigator.geolocation) {
@@ -645,6 +664,11 @@ export function ProjectMap({ projects: allProjects, className = '', onSelectProj
   useEffect(() => {
     updateMarkers();
   }, [mappedProjects, updateMarkers]);
+
+  // Encuadre (D32): al abrir y cada vez que cambia la lista (filtros de Explorar); tocar un pin no reencuadra.
+  useEffect(() => {
+    if (leafletMapRef.current) fitToProjects(leafletMapRef.current, mappedProjects);
+  }, [mappedProjects]);
 
   const handleLocateMe = () => {
     if (!navigator.geolocation) {

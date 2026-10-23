@@ -159,6 +159,64 @@ describe('<ProjectMap /> los remotos no van al mapa', () => {
   });
 });
 
+// D32 (Issue #33, §257): el mapa abría siempre en el centro de Córdoba con zoom 13. Un voluntariado en Mar Chiquita
+// (a ~170 km) contaba en "2 proyectos" pero su pin quedaba fuera de la vista. Ahora encuadra los pines, sin
+// acercarse más que antes (zoom 13 como máximo, para no pegarse a un pin solo).
+describe('<ProjectMap /> encuadra los pines', () => {
+  const LEJOS = project('far', 'Medio Ambiente', -30.889557, -62.646618); // la laguna Mar Chiquita, al noreste
+  let fitBounds: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    fitBounds = vi.spyOn(L.Map.prototype, 'fitBounds').mockImplementation(function (this: L.Map) { return this; });
+  });
+  const bounds = (call: unknown[]) => {
+    const b = call[0] as L.LatLngBounds;
+    return [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()];
+  };
+
+  test('mapa chico: abre encuadrando todos los pines, con zoom 13 como máximo', () => {
+    renderMap([P1, LEJOS]);
+    expect(fitBounds).toHaveBeenCalledTimes(1);
+    expect(bounds(fitBounds.mock.calls[0])).toEqual([-31.40, -64.18, -30.889557, -62.646618]);
+    expect(fitBounds.mock.calls[0][1]).toEqual({ padding: [40, 40], maxZoom: 13 });
+  });
+
+  test('sin proyectos no encuadra (queda el centro de Córdoba)', () => {
+    renderMap([]);
+    expect(fitBounds).not.toHaveBeenCalled();
+  });
+
+  test('si cambia la lista (filtros) vuelve a encuadrar; tocar un pin no', () => {
+    const { container, rerender } = renderMap([P1, P2]);
+    fireEvent.click(pins(container)[0]);
+    expect(fitBounds).toHaveBeenCalledTimes(1);
+    rerender(<MemoryRouter><ProjectMap projects={[P2, LEJOS]} /></MemoryRouter>);
+    expect(fitBounds).toHaveBeenCalledTimes(2);
+    expect(bounds(fitBounds.mock.calls[1])).toEqual([-31.41, -64.19, -30.889557, -62.646618]);
+  });
+
+  test('mapa ampliado sin pin elegido: encuadra; con el filtro de categoría, encuadra los que quedan', () => {
+    renderMap([P1, P2, LEJOS]);
+    fitBounds.mockClear();
+    fireEvent.click(screen.getByTitle('Abrir mapa ampliado (Pop-up)'));
+    expect(fitBounds).toHaveBeenCalledTimes(1);
+    expect(bounds(fitBounds.mock.calls[0])).toEqual([-31.41, -64.19, -30.889557, -62.646618]);
+    fireEvent.click(screen.getByTitle('Filtrar por Salud (1 proyectos)'));
+    expect(fitBounds).toHaveBeenCalledTimes(2);
+    expect(bounds(fitBounds.mock.calls[1])).toEqual([-31.41, -64.19, -31.41, -64.19]);
+  });
+
+  test('mapa ampliado con un pin elegido: abre centrado en ese pin, sin encuadrar; un filtro después sí encuadra', () => {
+    const { container } = renderMap([P1, P2, LEJOS]);
+    fireEvent.click(pins(container)[0]);
+    fitBounds.mockClear();
+    fireEvent.click(screen.getByTitle('Abrir mapa ampliado (Pop-up)'));
+    expect(fitBounds).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTitle('Filtrar por Salud (1 proyectos)'));
+    expect(fitBounds).toHaveBeenCalledTimes(1);
+    expect(bounds(fitBounds.mock.calls[0])).toEqual([-31.41, -64.19, -31.41, -64.19]);
+  });
+});
+
 describe('<ProjectMap /> mapa chico — marcadores', () => {
   test('un pin por proyecto, todos color tinta y ninguno seleccionado', () => {
     const { container } = renderMap([P1, P2]);
