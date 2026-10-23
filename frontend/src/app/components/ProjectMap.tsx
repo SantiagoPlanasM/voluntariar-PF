@@ -30,27 +30,29 @@ export function getCategoryColor(_cat?: string) {
   return { bg: '#0F1419', border: '#0F1419' };
 }
 
-// Respaldo de coordenadas por nombre de ubicación si el proyecto no las tiene
-export function getProjectCoords(p: Project, index = 0): { lat: number; lng: number } {
+// Hash FNV-1a de 32 bits: el mismo texto da siempre el mismo número.
+function hashId(id: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h;
+}
+
+// Coordenadas del proyecto; si no tiene, un punto de respaldo alrededor del centro de Córdoba que sale de su id.
+// Antes el respaldo buscaba palabras clave de la semilla en la ubicación ("centro" llevaba al microcentro
+// cualquier "Centro vecinal…") y si no, usaba la posición en la lista: el pin saltaba de lugar al filtrar.
+export function getProjectCoords(p: Project): { lat: number; lng: number } {
   if (p.latitude != null && p.longitude != null) {
     // Convertir antes de mirar NaN: Number.isNaN('abc') da false (el isNaN global convertía solo).
     const lat = Number(p.latitude), lng = Number(p.longitude);
     if (!Number.isNaN(lat) && !Number.isNaN(lng)) return { lat, lng };
   }
 
-  const loc = (p.location || '').toLowerCase();
-  if (loc.includes('sarmiento')) return { lat: -31.4287, lng: -64.1756 };
-  if (loc.includes('suquía') || loc.includes('suquia')) return { lat: -31.4050, lng: -64.1800 };
-  if (loc.includes('galpón') || loc.includes('galpon')) return { lat: -31.4110, lng: -64.1920 };
-  if (loc.includes('blas pascal') || loc.includes('ubp')) return { lat: -31.3414, lng: -64.2505 };
-  if (loc.includes('microcentro') || loc.includes('centro')) return { lat: -31.4167, lng: -64.1833 };
-  if (loc.includes('müller') || loc.includes('muller')) return { lat: -31.4250, lng: -64.1480 };
-  if (loc.includes('güemes') || loc.includes('guemes')) return { lat: -31.4255, lng: -64.1915 };
-  if (loc.includes('salta')) return { lat: -25.4667, lng: -65.5667 };
-
-  // Offset determinista y suave alrededor del centro de Córdoba
-  const angle = (index * 47) % 360;
-  const radius = 0.015 + ((index * 13) % 25) / 1000;
+  const h = hashId(p.id || '');
+  const angle = h % 360;
+  const radius = 0.015 + (Math.floor(h / 360) % 25) / 1000;
   const rad = (angle * Math.PI) / 180;
   return {
     lat: DEFAULT_CENTER.lat + radius * Math.sin(rad),
@@ -229,9 +231,9 @@ function ProjectMapModal({
 
   // Proyectos mapeados para Leaflet
   const mappedProjects = useMemo(() => {
-    return filteredProjects.map((p, idx) => ({
+    return filteredProjects.map(p => ({
       project: p,
-      coords: getProjectCoords(p, idx),
+      coords: getProjectCoords(p),
       colors: getCategoryColor(p.category),
     }));
   }, [filteredProjects]);
@@ -607,9 +609,9 @@ export function ProjectMap({ projects, className = '', onSelectProject }: Projec
   const leafletMarkersRef = useRef<L.Marker[]>([]);
 
   const mappedProjects = useMemo(() => {
-    return projects.map((p, idx) => ({
+    return projects.map(p => ({
       project: p,
-      coords: getProjectCoords(p, idx),
+      coords: getProjectCoords(p),
       colors: getCategoryColor(p.category),
     }));
   }, [projects]);

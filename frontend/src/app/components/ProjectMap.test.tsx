@@ -61,9 +61,11 @@ afterEach(() => {
 // Caracterización de getProjectCoords antes de pasar de `isNaN` global a `Number.isNaN` (Sonar S7773):
 // el global convierte antes ('abc' → NaN), Number.isNaN no. Tiene que seguir igual con strings.
 describe('getProjectCoords', () => {
-  const withCoords = (latitude: unknown, longitude: unknown) =>
-    ({ id: 'x', latitude, longitude, location: 'Sarmiento' } as unknown as Project);
-  const SARMIENTO = { lat: -31.4287, lng: -64.1756 };
+  const withCoords = (latitude: unknown, longitude: unknown, id = 'x', location = 'Sarmiento') =>
+    ({ id, latitude, longitude, location } as unknown as Project);
+  // Sin coordenadas el punto sale del id: siempre el mismo para ese proyecto, sin mirar el texto de la ubicación
+  // (antes: palabras clave de la semilla, y si no, la posición en la lista, que cambiaba al filtrar).
+  const RESPALDO_X = getProjectCoords(withCoords(null, null));
 
   test('coordenadas numéricas: se usan tal cual', () => {
     expect(getProjectCoords(withCoords(-31.5, -64.2))).toEqual({ lat: -31.5, lng: -64.2 });
@@ -78,8 +80,33 @@ describe('getProjectCoords', () => {
     ['longitud no numérica', -31.5, 'abc'],
     ['latitud NaN', Number.NaN, -64.2],
     ['longitud null', -31.5, null],
-  ])('%s: cae al respaldo por ubicación', (_caso, lat, lng) => {
-    expect(getProjectCoords(withCoords(lat, lng))).toEqual(SARMIENTO);
+  ])('%s: cae al respaldo del id', (_caso, lat, lng) => {
+    expect(getProjectCoords(withCoords(lat, lng))).toEqual(RESPALDO_X);
+  });
+
+  test('respaldo: el texto de la ubicación no lo mueve (sin palabras clave de la semilla)', () => {
+    expect(RESPALDO_X).not.toEqual({ lat: -31.4287, lng: -64.1756 }); // el punto fijo de "Sarmiento"
+    expect(getProjectCoords(withCoords(null, null, 'x', 'Centro vecinal de Villa Allende'))).toEqual(RESPALDO_X);
+    expect(getProjectCoords(withCoords(null, null, 'x', 'Salta 123'))).toEqual(RESPALDO_X);
+  });
+
+  test('respaldo: ids distintos caen en puntos distintos, a entre 1,5 y 4 km del centro de Córdoba', () => {
+    const ids = ['a', 'b', 'p-1', 'p-2', '6f1c2a90-0000-4000-8000-000000000001', '6f1c2a90-0000-4000-8000-000000000002'];
+    const puntos = ids.map(id => getProjectCoords(withCoords(null, null, id)));
+    expect(new Set(puntos.map(p => `${p.lat},${p.lng}`)).size).toBe(ids.length);
+    for (const p of puntos) {
+      const r = Math.hypot(p.lat - -31.4201, p.lng - -64.1888);
+      expect(r).toBeGreaterThanOrEqual(0.015 - 1e-9);
+      expect(r).toBeLessThan(0.04);
+    }
+  });
+
+  test('respaldo: los puntos se reparten en distintas direcciones y distancias (ni en una línea ni en un círculo)', () => {
+    const puntos = Array.from({ length: 30 }, (_, i) => getProjectCoords(withCoords(null, null, `proyecto-${i}`)));
+    const direcciones = new Set(puntos.map(p => Math.round(Math.atan2(p.lat - -31.4201, p.lng - -64.1888) * 4)));
+    const distancias = new Set(puntos.map(p => Math.round(Math.hypot(p.lat - -31.4201, p.lng - -64.1888) * 1000)));
+    expect(direcciones.size).toBeGreaterThanOrEqual(8);
+    expect(distancias.size).toBeGreaterThanOrEqual(8);
   });
 });
 
@@ -185,6 +212,25 @@ describe('<ProjectMap /> mapa ampliado — marcadores', () => {
     expect(p).toHaveLength(1);
     fireEvent.click(p[0]);
     expect(onSelectProject).toHaveBeenCalledWith(P2);
+  });
+
+  test('un proyecto sin coordenadas no cambia de lugar al filtrar por categoría', () => {
+    const sinCoords = (id: string, category: string) =>
+      ({ id, title: `Proyecto ${id}`, category, latitude: null, longitude: null, location: 'Córdoba' } as unknown as Project);
+    const Q1 = sinCoords('q1', 'Salud'), Q2 = sinCoords('q2', 'Educación');
+    // L.marker([lat, lng]) se llama una vez por pin, en el orden de la lista (filtrada) que se dibuja.
+    const marker = vi.spyOn(L, 'marker');
+    const dibujados = () => marker.mock.calls.map((c: unknown[]) => c[0]);
+    renderMap([Q1, Q2]);
+    openModal();
+    marker.mockClear();
+    fireEvent.click(screen.getByTitle('Filtrar por Salud (1 proyectos)'));   // redibuja todo: deja [Q1]
+    fireEvent.click(screen.getByTitle('Quitar filtro: Salud'));              // vuelve a [Q1, Q2]
+    const [, q2Completa] = dibujados().slice(-2);
+    marker.mockClear();
+    fireEvent.click(screen.getByTitle('Filtrar por Educación (1 proyectos)')); // solo Q2: pasa a ser el primero
+    expect(pins(modalRoot())).toHaveLength(1);
+    expect(dibujados()).toEqual([q2Completa]);
   });
 
   test('el punto del usuario del mapa ampliado es propio (no hereda el del chico) y es uno solo', () => {
