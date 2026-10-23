@@ -83,6 +83,28 @@ describe('getProjectCoords', () => {
   });
 });
 
+// Los mosaicos salían de los servidores internos de Google (mt0..3.google.com/vt), sin clave y sin atribución:
+// sus condiciones no lo permiten. Ahora los dos mapas usan CARTO sobre OpenStreetMap y muestran la atribución.
+describe('<ProjectMap /> mosaicos y atribución', () => {
+  const tileUrls = (spy: ReturnType<typeof vi.spyOn>) => spy.mock.calls.map((c: unknown[]) => String(c[0]));
+
+  test('mapa chico y ampliado: mosaicos de CARTO (no de Google) con la atribución de OpenStreetMap', () => {
+    const tileLayer = vi.spyOn(L, 'tileLayer');
+    const { container } = renderMap([P1]);
+    fireEvent.click(screen.getByTitle('Abrir mapa ampliado (Pop-up)'));
+    expect(tileLayer).toHaveBeenCalledTimes(2);
+    for (const url of tileUrls(tileLayer)) {
+      expect(url).toContain('basemaps.cartocdn.com');
+      expect(url).not.toContain('google');
+    }
+    for (const root of [container, modalRoot()]) {
+      const attribution = root.querySelector('.leaflet-control-attribution');
+      expect(attribution?.textContent).toContain('OpenStreetMap');
+      expect(attribution?.textContent).toContain('CARTO');
+    }
+  });
+});
+
 describe('<ProjectMap /> mapa chico — marcadores', () => {
   test('un pin por proyecto, todos color tinta y ninguno seleccionado', () => {
     const { container } = renderMap([P1, P2]);

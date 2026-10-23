@@ -8,6 +8,7 @@ import { Project } from '../../lib/api';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Modal } from './Modal';
+import { addBaseTiles } from '../../lib/mapTiles';
 
 // Coordenadas base de Córdoba Capital
 const DEFAULT_CENTER = { lat: -31.4201, lng: -64.1888 };
@@ -270,13 +271,9 @@ function ProjectMapModal({
       center: initialCenter as L.LatLngExpression,
       zoom: selectedProject ? 14 : DEFAULT_ZOOM,
       zoomControl: false,
-      attributionControl: false,
     });
 
-    L.tileLayer('https://{s}.google.com/vt/lyrs=m&hl=es&x={x}&y={y}&z={z}', {
-      maxZoom: 20,
-      subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-    }).addTo(map);
+    addBaseTiles(map);
 
     leafletMapRef.current = map;
     updateMarkers();
@@ -642,13 +639,9 @@ export function ProjectMap({ projects, className = '', onSelectProject }: Projec
       center: [DEFAULT_CENTER.lat, DEFAULT_CENTER.lng],
       zoom: DEFAULT_ZOOM,
       zoomControl: false,
-      attributionControl: false,
     });
 
-    L.tileLayer('https://{s}.google.com/vt/lyrs=m&hl=es&x={x}&y={y}&z={z}', {
-      maxZoom: 20,
-      subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-    }).addTo(map);
+    addBaseTiles(map);
 
     leafletMapRef.current = map;
     updateMarkers();
