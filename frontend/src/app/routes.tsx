@@ -31,6 +31,7 @@ import { AssistantScreen } from './components/AssistantScreen';
 import { SettingsScreen } from './components/SettingsScreen';
 import { MomentsPage } from './components/MomentsPage';
 import { NGOMoments } from './components/NGOMoments';
+import { NotFoundPage } from './components/NotFoundPage';
 
 export const router = createBrowserRouter([
   {
@@ -56,6 +57,7 @@ export const router = createBrowserRouter([
       { path: 'cuenta/borrar',   Component: DeleteAccountPage },   // link del email para borrar la cuenta (§178)
       { path: 'privacidad',      Component: PrivacyPage },            // privacidad y términos (§179)
       { path: 'settings',        Component: SettingsScreen },         // configuración: CV, tema, cerrar sesión, borrar cuenta (§240)
+      { path: '*',               Component: NotFoundPage },           // URL que no existe: antes, la pantalla de desarrollador de React Router (D28, §247)
     ],
   },
   {
