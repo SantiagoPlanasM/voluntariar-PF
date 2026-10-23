@@ -5,7 +5,7 @@
 // su lista, el ítem activo se marca, los no leídos se cuentan, salir cierra la sesión), ahora sobre una sola pieza.
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router';
+import { Link, MemoryRouter, Routes, Route, useNavigate } from 'react-router';
 
 const { auth, chat } = vi.hoisted(() => ({
   auth: {
@@ -180,5 +180,57 @@ describe('<AppShell />', () => {
   test('el contenedor exterior no se encoge (flex-shrink-0, §128)', () => {
     const { container } = app('/feed');
     expect(container.firstElementChild).toHaveClass('flex-shrink-0');
+  });
+});
+
+// D27 (Issue #28, sesión exploratoria §245): al pasar de una pantalla a otra se quedaba el scroll de la anterior
+// (Explorar abría con scrollY = 1111). Criterio: una navegación nueva (link, navigate) vuelve arriba; "atrás" (POP)
+// y un link a un #ancla no, para no pisar al navegador ni al ancla.
+describe('volver arriba al cambiar de pantalla (D27)', () => {
+  function Links() {
+    const navigate = useNavigate();
+    return (
+      <>
+        <Link to="/explore">a explorar</Link>
+        <Link to="/ngo/profile#mercadopago">al ancla</Link>
+        <button type="button" onClick={() => navigate(-1)}>atrás</button>
+      </>
+    );
+  }
+  const mount = () => render(
+    <MemoryRouter initialEntries={['/feed']}>
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="*" element={<Links />} />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  test('un link a otra pantalla llama a scrollTo(0, 0)', () => {
+    // Arrange
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    mount();
+    scrollTo.mockClear();
+
+    // Act
+    fireEvent.click(screen.getByRole('link', { name: 'a explorar' }));
+
+    // Assert
+    expect(scrollTo).toHaveBeenCalledWith(0, 0);
+    scrollTo.mockRestore();
+  });
+
+  test('"atrás" y un link con #ancla no vuelven arriba', () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    mount();
+    fireEvent.click(screen.getByRole('link', { name: 'a explorar' }));
+    scrollTo.mockClear();
+
+    fireEvent.click(screen.getByRole('button', { name: 'atrás' }));
+    fireEvent.click(screen.getByRole('link', { name: 'al ancla' }));
+
+    expect(scrollTo).not.toHaveBeenCalled();
+    scrollTo.mockRestore();
   });
 });

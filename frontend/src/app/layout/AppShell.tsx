@@ -2,7 +2,7 @@
 // en escritorio (solo íconos entre 768 y 1263 px, con nombres desde 1264 px) y una barra superior corta en las
 // pantallas de inicio. Lo usan los tres layouts (Root, NGOLayout, CompanyLayout); antes cada uno tenía las suyas.
 import { useEffect, useState } from 'react';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router';
+import { Link, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router';
 import { Bell, LogIn, LogOut, MessageCircle, Moon, Sun } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
@@ -171,6 +171,18 @@ function TopBar({ badges }: { badges: Record<string, number> }) {
   );
 }
 
+// Una pantalla nueva arranca arriba: antes se quedaba el scroll de la anterior (D27, §247). "Atrás" (POP) y los
+// links a un #ancla no se tocan. No es <ScrollRestoration>: ese necesita un router de datos y los tests usan MemoryRouter.
+function ScrollToTop() {
+  const { pathname, hash } = useLocation();
+  const navigationType = useNavigationType();
+  useEffect(() => {
+    if (navigationType === 'POP' || hash) return;
+    window.scrollTo(0, 0);
+  }, [pathname, hash, navigationType]);
+  return null;
+}
+
 export function AppShell() {
   const { user } = useAuth();
   const role = navRole(user?.role);
@@ -182,6 +194,7 @@ export function AppShell() {
       <SideNav items={set.side} badges={badges} role={role} />
       <div className="flex-1 min-w-0 flex flex-col pb-[calc(56px+env(safe-area-inset-bottom,0px))] md:pb-0">
         <TopBar badges={badges} />
+        <ScrollToTop />
         <Outlet />
       </div>
       <TabBar items={set.tabs} badges={badges} />
