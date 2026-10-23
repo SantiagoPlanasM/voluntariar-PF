@@ -30,6 +30,7 @@ vi.mock('../../lib/api', async () => {
   };
 });
 
+import { api } from '../../lib/api';
 import { NGODashboard } from './NGODashboard';
 
 // §128: en el celular el encabezado (Equipo, Momentos, Nuevo) no entraba y la pantalla tenía scroll horizontal.
@@ -76,5 +77,25 @@ describe('NGODashboard: solicitudes pendientes', () => {
     expect(screen.getByRole('button', { name: 'Rechazar a Juan Pérez en Reforestación Urbana' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Aprobar a Juan Pérez en Huerta Comunitaria' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Rechazar a Juan Pérez en Huerta Comunitaria' })).toBeInTheDocument();
+  });
+});
+
+// §256: la ONG puede finalizar o cancelar un voluntariado. Antes cualquier estado que no fuera activo decía "Completado".
+describe('NGODashboard: el estado de cada voluntariado', () => {
+  test('finalizado y cancelado se distinguen; el activo no lleva etiqueta', async () => {
+    const proj = (id: string, title: string, status: string) =>
+      ({ id, title, status, category: 'Salud', type: 'fugaz', volunteers_needed: 10, current_volunteers: 0, funding_goal: 0, current_funding: 0 });
+    vi.mocked(api.ngos.me).mockResolvedValueOnce({
+      ngo: { id: 'ngo-1', name: 'Sustentando', followers: 0 },
+      projects: [proj('a', 'Huerta en marcha', 'active'), proj('b', 'Jornada que ya pasó', 'completed'), proj('c', 'Jornada suspendida', 'cancelled')],
+      stats: { total_projects: 3, active_projects: 1, completed_projects: 1, total_volunteers: 0, total_funding: 0, pending_enrollments: 0 },
+      pending_enrollments: [],
+    } as never);
+    render(<MemoryRouter><NGODashboard /></MemoryRouter>);
+    const row = async (title: string) => (await screen.findByText(title)).closest('a') as HTMLElement;
+    expect((await row('Jornada que ya pasó')).textContent).toContain('· Finalizado');
+    expect((await row('Jornada suspendida')).textContent).toContain('· Cancelado');
+    expect((await row('Huerta en marcha')).textContent).not.toMatch(/Finalizado|Cancelado|Completado/);
+    expect(screen.queryByText(/Completado/)).not.toBeInTheDocument();
   });
 });

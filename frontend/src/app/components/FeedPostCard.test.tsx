@@ -290,6 +290,12 @@ describe('FeedPostCard: inscribirse', () => {
     montar({ status: 'completed' });
     expect(screen.getByRole('link', { name: 'Ver cómo salió' })).toHaveAttribute('href', '/project/p1');
   });
+
+  test('cancelado (§256): "Cancelado", deshabilitado, y sin "Inscribirme"', () => {
+    montar({ status: 'cancelled' });
+    expect(screen.getByRole('button', { name: 'Cancelado' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Inscribirme' })).not.toBeInTheDocument();
+  });
 });
 
 describe('FeedPostCard: donar', () => {

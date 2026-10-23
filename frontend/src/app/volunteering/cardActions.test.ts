@@ -41,6 +41,15 @@ describe('cardActions: inscribirse', () => {
     expect(cardActions(p({ volunteers_needed: 0, current_volunteers: 5 }), null, 'volunteer').join.kind).toBe('join');
   });
 
+  // §256: la ONG puede cancelar un voluntariado desde el panel. Antes solo se conocía 'completed' y un cancelado
+  // ofrecía "Inscribirme" (el backend lo rechazaba recién al tocar).
+  test('cancelado sin inscripción: "Cancelado" (gana sobre lleno); con inscripción, su estado', () => {
+    expect(cardActions(p({ status: 'cancelled' }), null, 'volunteer').join).toEqual({ kind: 'cancelled' });
+    expect(cardActions(p({ status: 'cancelled', current_volunteers: 10 }), null, null).join.kind).toBe('cancelled');
+    expect(cardActions(p({ status: 'cancelled' }), 'approved', 'volunteer').join.kind).toBe('accepted');
+    expect(cardActions(p({ status: 'cancelled' }), null, 'ngo').join.kind).toBe('hidden');
+  });
+
   test('una inscripción cancelada cuenta como sin inscripción', () => {
     expect(cardActions(p(), 'cancelled', 'volunteer').join.kind).toBe('join');
   });
@@ -53,6 +62,11 @@ describe('cardActions: inscribirse', () => {
 describe('cardActions: donar', () => {
   test('con meta y sin alcanzarla: donar (voluntario, empresa o visitante)', () => {
     for (const viewer of ['volunteer', 'company', null] as const) expect(cardActions(p(), null, viewer).donate.kind).toBe('donate');
+  });
+
+  test('cancelado: no se dona (aunque tenga meta y la ONG reciba donaciones)', () => {
+    expect(cardActions(p({ status: 'cancelled' }), null, 'volunteer').donate.kind).toBe('hidden');
+    expect(cardActions(p({ status: 'cancelled', accepts_donations: true }), null, 'company').donate.kind).toBe('hidden');
   });
 
   test('meta alcanzada justo o pasada: "Meta cumplida"', () => {

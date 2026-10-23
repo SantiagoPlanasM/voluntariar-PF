@@ -13,6 +13,7 @@ import { TypeBadge } from '../ui/TypeBadge';
 import { Button, ButtonLink } from '../ui/Button';
 import { Meter, formatMoney, pct } from '../ui/Meter';
 import { useToast } from '../ui/UiProvider';
+import { PROJECT_STATUS_LABEL } from '../volunteering/status';
 
 const safeNum = (v: any, f = 0) => { const n = Number.parseFloat(v); return Number.isNaN(n) ? f : n; };
 
@@ -178,7 +179,7 @@ export function NGODashboard() {
                           <span className="min-w-0 flex flex-col">
                             <span className="font-semibold truncate">{p.title}</span>
                             <span className="text-[13px] text-ink-muted truncate">
-                              {p.category ? `${p.category} · ` : ''}<TypeBadge type={p.type} variant="text" className="!text-[13px]" />{p.status !== 'active' ? ' · Completado' : ''}
+                              {p.category ? `${p.category} · ` : ''}<TypeBadge type={p.type} variant="text" className="!text-[13px]" />{PROJECT_STATUS_LABEL[p.status] ? ` · ${PROJECT_STATUS_LABEL[p.status]}` : ''}
                             </span>
                           </span>
                         </Link>

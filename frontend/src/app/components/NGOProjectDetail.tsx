@@ -1,5 +1,5 @@
 import { useParams, useNavigate, Link } from 'react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { ArrowLeft, Users, CheckCircle, Clock, XCircle, Loader2, DollarSign, BarChart2, MessageCircle, Clock3, Save, FileText, Pencil } from 'lucide-react';
 import { api, ApiError, Project, EnrollmentWithVolunteer } from '../../lib/api';
 import { openCv } from '../../lib/cv';
@@ -7,6 +7,23 @@ import { userMessage } from '../../lib/format';
 import { useLatestRequest } from '../../lib/useLatestRequest';
 import { MomentsFeed } from './MomentsFeed';
 import { LoadError, describeLoadError } from './LoadError';
+import { useConfirm } from '../ui/UiProvider';
+import { PROJECT_STATUS_LABEL } from '../volunteering/status';
+
+// Finalizar y cancelar sacan el voluntariado de circulación: se confirman. Volver a activarlo, no (§256).
+const STATUS_CONFIRM = {
+  completed: {
+    title: '¿Finalizar este voluntariado?',
+    body: 'Deja de recibir inscripciones y donaciones y queda como finalizado. Lo podés volver a activar.',
+    confirmLabel: 'Finalizar voluntariado',
+  },
+  cancelled: {
+    title: '¿Cancelar este voluntariado?',
+    body: 'Deja de aparecer en Explorar y de recibir inscripciones y donaciones. Lo podés volver a activar.',
+    confirmLabel: 'Cancelar voluntariado',
+    danger: true,
+  },
+} as const;
 
 export function NGOProjectDetail() {
   const { projectId } = useParams();
@@ -21,6 +38,10 @@ export function NGOProjectDetail() {
   const [savingHours, setSavingHours] = useState<string | null>(null);
   // "Ver CV" (§166): el aviso es por inscripción, debajo de su fila (sin alert).
   const [cvError, setCvError] = useState<Record<string, string>>({});
+  const confirm = useConfirm();
+  const statusTitleId = useId();
+  const [statusBusy, setStatusBusy] = useState(false);
+  const [statusError, setStatusError] = useState('');
 
   // Solo vale la respuesta del último pedido (al cambiar de proyecto, reintentar o recargar tras aprobar): F15, §89.
   const latest = useLatestRequest();
@@ -46,6 +67,20 @@ export function NGOProjectDetail() {
     try { await api.enrollments.updateStatus(id, status); void load(); }
     catch (e: any) { alert(e.message); }
     finally { setProcessing(null); }
+  };
+
+  const changeStatus = async (status: Project['status']) => {
+    if (status !== 'active' && !(await confirm(STATUS_CONFIRM[status]))) return;
+    setStatusBusy(true);
+    setStatusError('');
+    try {
+      const { project: p } = await api.projects.update(projectId!, { status });
+      setProject(prev => (prev ? { ...prev, status: p.status } : prev));
+    } catch (e) {
+      setStatusError(userMessage(e, 'No pudimos guardar el cambio. Revisá tu conexión y probá de nuevo.'));
+    } finally {
+      setStatusBusy(false);
+    }
   };
 
   const handleSaveHours = async (id: string) => {
@@ -123,6 +158,36 @@ export function NGOProjectDetail() {
             </div>
           </div>
         </div>
+
+        {/* Estado: finalizar, cancelar o volver a activar (§256) */}
+        <section aria-labelledby={statusTitleId} className="bg-white rounded-2xl shadow-sm p-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 id={statusTitleId} className="font-bold text-sm text-gray-900">Estado del voluntariado</h2>
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-surface-soft text-ink">
+              {PROJECT_STATUS_LABEL[project.status] ?? 'Activo'}
+            </span>
+          </div>
+          {statusError && <p role="alert" className="text-xs text-critical">{statusError}</p>}
+          <div className="flex flex-wrap gap-2">
+            {project.status === 'active' ? (
+              <>
+                <button type="button" disabled={statusBusy} onClick={() => void changeStatus('completed')}
+                  className="px-3 py-2 rounded-xl bg-surface-soft hover:bg-surface-pressed text-ink text-xs font-bold disabled:opacity-50">
+                  Finalizar
+                </button>
+                <button type="button" disabled={statusBusy} onClick={() => void changeStatus('cancelled')}
+                  className="px-3 py-2 rounded-xl text-critical text-xs font-bold hover:bg-surface-soft disabled:opacity-50">
+                  Cancelar voluntariado
+                </button>
+              </>
+            ) : (
+              <button type="button" disabled={statusBusy} onClick={() => void changeStatus('active')}
+                className="px-3 py-2 rounded-xl bg-surface-soft hover:bg-surface-pressed text-ink text-xs font-bold disabled:opacity-50">
+                Volver a activar
+              </button>
+            )}
+          </div>
+        </section>
 
         {/* Enrollments */}
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">

@@ -3,9 +3,8 @@ import { Link } from 'react-router';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { api, CompanyDashboard as CompanyDashboardData } from '../../lib/api';
 import { SPONSORSHIP_BADGE, SPONSORSHIP_LABEL } from '../../lib/sponsorship';
-
 // Estados de proyecto (projects.status). 'active' no se rotula: es el caso normal.
-const PROJECT_STATUS_LABEL: Record<string, string> = { completed: 'Finalizado', cancelled: 'Cancelado' };
+import { PROJECT_STATUS_LABEL } from '../volunteering/status';
 
 // Las horas pueden ser decimales (la ONG las carga con parseFloat): 12 → "12", 7.5 → "7,5".
 const formatHours = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 1 });

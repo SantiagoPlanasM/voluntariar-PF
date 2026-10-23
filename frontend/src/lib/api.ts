@@ -260,7 +260,7 @@ export interface Project {
   id: string; ngo_id: string; title: string; description: string;
   full_description?: string; image?: string; category: string;
   location: string; duration?: string; type: 'fugaz' | 'sostenido';
-  status: 'active' | 'completed'; volunteers_needed: number;
+  status: 'active' | 'completed' | 'cancelled'; volunteers_needed: number;
   current_volunteers: number; funding_goal: number; current_funding: number;
   cost_per_person: number; hours_per_week?: number;
   roles_needed: string[]; requirements?: string[];

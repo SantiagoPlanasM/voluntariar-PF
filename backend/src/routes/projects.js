@@ -272,8 +272,11 @@ router.get('/', optionalAuth, async (req, res) => {
     if (type && type !== 'Todos') {
       sql += ` AND p.tipo = $${i++}`; params.push(type);
     }
+    // Sin `status`, el catálogo no trae los cancelados (§256: desde que se cancelan desde el panel). Los finalizados sí.
     if (status) {
       sql += ` AND p.status = $${i++}`; params.push(status);
+    } else {
+      sql += ` AND p.status <> 'cancelled'`;
     }
     // ILIKE y no LIKE: en Postgres LIKE distingue mayúsculas ("maratón" no encontraba "Maratón" y
     // "%remoto%" no reconocía "Remoto"). translatePg lo vuelve LIKE en SQLite, que ya no distingue (solo ASCII). REVISION B8.
@@ -328,6 +331,7 @@ router.get('/', optionalAuth, async (req, res) => {
       }
       if (type && type !== 'Todos')  { simpleSql += ` AND p.tipo=$${si++}`;   simpleParams.push(type); }
       if (status)                    { simpleSql += ` AND p.status=$${si++}`; simpleParams.push(status); }
+      else                           { simpleSql += ` AND p.status <> 'cancelled'`; }
       if (modFilter && modFilter !== 'all' && modFilter !== 'Todos') {
         if (modFilter === 'remoto') {
           simpleSql += ` AND (p.modalidad = 'remoto' OR p.ubicacion ILIKE '%remoto%' OR p.ubicacion ILIKE '%virtual%')`;

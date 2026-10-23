@@ -345,6 +345,8 @@ export function JoinButton({ action, busy, onJoin, projectId, block = true }:
       return <Button variant="secondary" disabled className={`${cls} h-12 rounded-[12px]`}>Cupos completos</Button>;
     case 'past':
       return <ButtonLink to={`/project/${projectId}`} variant="secondary" className={`${cls} h-12 rounded-[12px]`}>Ver cómo salió</ButtonLink>;
+    case 'cancelled':
+      return <Button variant="secondary" disabled className={`${cls} h-12 rounded-[12px]`}>Cancelado</Button>;
     default:
       return null;
   }

@@ -12,6 +12,7 @@ export type JoinAction =
   | { kind: 'rejected' }
   | { kind: 'full' }
   | { kind: 'past' }
+  | { kind: 'cancelled' }
   | { kind: 'hidden' };
 
 export type DonateAction =
@@ -28,6 +29,7 @@ export function cardActions(
   viewer: UserRole | null,
 ): { join: JoinAction; donate: DonateAction } {
   const past = p.status === 'completed';
+  const cancelled = p.status === 'cancelled'; // §256: la ONG lo canceló desde el panel
   const full = p.volunteers_needed > 0 && p.current_volunteers >= p.volunteers_needed;
 
   let join: JoinAction;
@@ -35,6 +37,7 @@ export function cardActions(
   else if (enrollment === 'pending') join = { kind: 'pending' };
   else if (enrollment === 'approved') join = { kind: 'accepted' };
   else if (enrollment === 'rejected') join = { kind: 'rejected' };
+  else if (cancelled) join = { kind: 'cancelled' };
   else if (past) join = { kind: 'past' };
   else if (full) join = { kind: 'full' };
   else join = { kind: 'join' };
@@ -43,7 +46,7 @@ export function cardActions(
   // `accepts_donations === false` solo llega en el detalle, y ahí se decide. Sin meta de dinero no se ofrece.
   let donate: DonateAction;
   const hasMoneyGoal = (p.funding_goal || 0) > 0 || (p.current_funding || 0) > 0;
-  if (viewer === 'ngo' || past || p.accepts_donations === false || !hasMoneyGoal) donate = { kind: 'hidden' };
+  if (viewer === 'ngo' || past || cancelled || p.accepts_donations === false || !hasMoneyGoal) donate = { kind: 'hidden' };
   else if ((p.funding_goal || 0) > 0 && p.current_funding >= p.funding_goal) donate = { kind: 'goal-met' };
   else donate = { kind: 'donate' };
 
