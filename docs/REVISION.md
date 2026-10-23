@@ -1,5 +1,7 @@
 # REVISION.md — Revisión de código de VoluntariAR (2026-10-13)
 
+> **Histórico (estado al 23/10/2026):** revisión de código del 13/10. Casi todos los hallazgos se arreglaron; cada uno tiene ✅ y la sección de `PROJECT_ANALYSIS.md` donde está el detalle. No describe el código actual: para eso, los `*_CONTEXT.md`. Índice de la documentación: [`README.md`](README.md).
+
 > **Estado (2026-10-14):** este informe se escribió sin tocar el código; después se fueron arreglando ítems en commits separados. Los arreglados tienen ✅ y la sección de `PROJECT_ANALYSIS.md` donde está el detalle (§51–§105; la segunda pasada, en §106, y sus arreglos en §107–§119). Las correcciones a lo que decía este informe (B2 y B8 tenían menos impacto visible del indicado) están en esas secciones.
 
 **Base revisada:** commit `0d6663a` (`main`). **Método:** tres revisiones de solo lectura en paralelo (backend, frontend, tests+docs) y una verificación propia de los hallazgos de severidad alta. No se modificó ningún archivo del proyecto; este informe es lo único nuevo.

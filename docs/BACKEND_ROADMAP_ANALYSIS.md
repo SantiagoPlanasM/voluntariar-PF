@@ -1,5 +1,7 @@
 # BACKEND_ROADMAP_ANALYSIS.md — VoluntariAR
 
+> **Histórico (estado al 23/10/2026):** diseño de los módulos que faltaban. Están implementados; lo vigente es `BACKEND_CONTEXT.md` y `API_CONTEXT.md`. Lo que quedó como trabajo futuro está en `GUION_DEFENSA.md §5`. Índice de la documentación: [`README.md`](README.md).
+
 > Diseño técnico del backend (Express + SQL nativo + SQLite/Postgres) para las funcionalidades que **faltan**. Es un documento de *diseño*, no de estado: el registro cronológico de lo implementado está en `PROJECT_ANALYSIS.md` (§24 en adelante).
 >
 > **Historial de este archivo:** la primera versión (sept. 2026) era un análisis previo a construir Empresas/Patrocinio/Chatbot y describía todo como pendiente, con Pagos pensado para Mercado Pago. Esta versión (reescrita tras cerrar esos módulos y tomar las decisiones de producto de `PROJECT_ANALYSIS.md §30`) marca lo hecho como hecho, incorpora las decisiones, y **corrige los diseños pendientes contra el esquema y el adaptador reales** (ver "Hechos verificados" más abajo). La numeración de secciones se mantiene igual que la original para no romper referencias cruzadas.

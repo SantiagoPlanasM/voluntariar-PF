@@ -2,6 +2,27 @@
 
 > Diagnóstico consolidado. Para contexto arquitectónico neutral, ver `PROJECT_CONTEXT.md`, `BACKEND_CONTEXT.md`, `FRONTEND_CONTEXT.md`, `DATABASE_CONTEXT.md`, `API_CONTEXT.md`. Este documento no modifica nada — solo analiza y prioriza.
 
+> **Bitácora del proyecto.** Una sección por cambio, en orden: qué se hizo, verificación, errores propios y lo no
+> verificado. Las secciones 1–12 son el análisis inicial; desde la 13, cada una es un cambio. Las secciones se citan
+> como "§N" en todo el repo. Índice de toda la documentación: [`README.md`](README.md).
+
+## Índice por etapa
+
+| Secciones | Etapa |
+|---|---|
+| §1–§12 | Análisis inicial: fortalezas, debilidades, bugs y prioridades |
+| §13–§33 | Funcionalidades del roadmap: KPIs, habilidades, chat, emails, recomendaciones, empresas, patrocinio, chatbot, seguimiento, panel de empresa |
+| §34–§50 | Infraestructura y Momentos: transacciones, `test:pg`, fechas en Postgres, Node 22, `npm audit`, publicaciones con fotos |
+| §51–§105 | Arreglos de la revisión de código (`REVISION.md`: B, F, T, D) y decisiones del usuario |
+| §106–§161 | Segunda pasada de revisión (S1–S10, A1–A7) y verificación en producción |
+| §162–§182 | Plan de cierre (`PLAN_FALTANTE.md`): foto, CV, donaciones con Mercado Pago, borrar la cuenta, privacidad, guion de la defensa |
+| §183–§214 | TP de Calidad: CI, SonarCloud, deploy con smoke y E2E, carga con k6, defectos, métricas, informe, cobertura del frontend |
+| §215–§227 | Marketplace de Mercado Pago: cada ONG cobra en su cuenta |
+| §228–§238 | SonarCloud en 0 issues, validaciones de entrada y los temas de la materia en el informe |
+| §239–§243 | Rediseño del frontend (DESIGN 1.1) |
+| §244–§250 | Informe con el rediseño, sesión exploratoria, sus 8 defectos, contraste en 0, corte final y orden de la documentación |
+
+
 ## 1. Fortalezas
 
 - **Esquema de datos bien normalizado:** requisitos y roles de proyecto viven en tablas propias (no JSON embebido), hay tablas intermedias N:M correctas para categorías/habilidades/seguidores, y las FKs tienen políticas de borrado (`CASCADE`/`SET NULL`) pensadas caso por caso, no aplicadas ciegamente.
@@ -7065,3 +7086,35 @@ El usuario pidió arreglar los cinco que seguían abiertos. Cada uno se hizo con
 - **El recorrido del guion no se hizo entero en producción.** Los nombres salen del código.
 - **El PDF** (20 páginas) sigue sin revisión visual completa.
 - **Los datos de demo de producción:** no se revisó qué hay cargado hoy en la base de Render.
+
+## 250. Orden de la documentación: índice de `docs/`, estado de los planes históricos y README del backend
+
+### Qué se hizo
+- **El pedido:** el usuario preguntó si hacían falta tantos documentos y si estaban mezclados. El diagnóstico (28 `.md`, unos 1,5 MB):
+  - **los temas no estaban mezclados**, pero lo vigente y lo histórico convivían sin ninguna señal;
+  - `backend/README.md` estaba desactualizado: era de julio, listaba 26 endpoints cuando hay 88 y recomendaba Railway;
+  - la bitácora (`PROJECT_ANALYSIS.md`, 7.067 líneas y 249 secciones) no tenía índice.
+- **Se descartó mover archivos antes del 26/10:** `REVISION` se cita en 138 archivos y `PLAN_FALTANTE` en 34, y el informe cita rutas. Mover y partir la bitácora queda como opción para después de la entrega.
+- **Cambios, todos de documentación:**
+  - **`docs/README.md`** (nuevo): un índice con cada documento, para qué sirve y si está vigente o es histórico; "por dónde empezar" según qué se busca; y, para cada histórico, dónde está lo vigente;
+  - **una línea de estado ("Histórico, al 23/10")** al principio de `REVISION.md`, `BACKEND_ROADMAP_ANALYSIS.md`, `PLAN_FALTANTE.md`, `PLAN_CALIDAD_TP.md` y `PLAN_REDISENO_FRONTEND.md`. En `PLAN_FALTANTE.md` aclara además que el marketplace, que ahí figura como trabajo futuro, se hizo después (§215–§225); en `PLAN_REDISENO_FRONTEND.md`, que B1–B10 siguen sin decidir;
+  - **`PROJECT_ANALYSIS.md`**: una nota de qué es la bitácora y un **índice por etapa** (11 rangos de secciones, de §1–§12 a §244–§250);
+  - **`backend/README.md`** reescrito corto: cómo correrlo, tests, estructura y producción, sin lista de endpoints. Remite a `API_CONTEXT.md` y lo explica;
+  - **`README.md`**: una línea en "Endpoints de la API" que aclara que es un resumen (35 de 88) y remite a `API_CONTEXT.md` y al índice.
+
+### Verificación
+- **Los links relativos** de `docs/README.md`, `backend/README.md` y `README.md` apuntan a archivos que existen (chequeo con un script).
+- **Cada dato del README del backend se buscó en el repo:**
+  - `engines` (Node ≥ 22), los scripts de `package.json`, las variables de `.env.example` (ya trae un `JWT_SECRET` de desarrollo) y la negativa del seed con `NODE_ENV=production`;
+  - las carpetas de `src/`, `requireRole` en `middleware/auth.js` y el `startCommand` de `render.yaml`.
+- **Los 88 endpoints** son los `router.get/post/put/patch/delete` de `src/routes/*.js`.
+- **Los saltos de línea de cada archivo se conservaron:** CRLF en `PROJECT_ANALYSIS.md` y `PLAN_REDISENO_FRONTEND.md`, LF en el resto.
+- No se tocó código.
+
+### Errores propios
+- **Arreglo de una auditoría anterior:** el README del backend llevaba tres meses desactualizado y ninguna pasada de documentación (§31, §78, §182) lo había revisado.
+- **El primer borrador del README del backend decía "completar `JWT_SECRET`".** `.env.example` ya lo trae; se corrigió antes del commit.
+
+### ⚠️ NO verificado
+- **El `README.md` principal no se revisó entero:** solo la sección de endpoints. Es del 17/10, así que no menciona el rediseño ni la sesión exploratoria.
+- **Partir la bitácora y mover los históricos a `docs/historico/`:** queda decidido para después de la entrega, no hecho.

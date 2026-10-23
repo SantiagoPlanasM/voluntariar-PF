@@ -1,5 +1,7 @@
 # Rediseño del frontend: análisis y plan de implementación
 
+> **Histórico (estado al 23/10/2026):** el rediseño está implementado (§240); lo vigente es `DESIGN.md` y `FRONTEND_CONTEXT.md`. **Siguen sin decidir** los cambios de backend B1–B10 de este plan. Índice de la documentación: [`README.md`](README.md).
+
 > **Estado:** plan, sin código cambiado (2026-10-20, `PROJECT_ANALYSIS.md` §239).
 > **Fuente del diseño:** `docs/DESIGN.md` v1.1 (el borrador `DESIGN2.md` corregido y completado).
 > **Mockups, antes y después:** lienzo "VoluntariAR · Rediseño antes y después",

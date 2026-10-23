@@ -1,5 +1,7 @@
 # PLAN_FALTANTE.md — Qué le falta a VoluntariAR y en qué orden (2026-10-16)
 
+> **Histórico (estado al 23/10/2026):** plan de cierre de la tesis, cumplido (§162–§182). Después de cerrarlo se hizo también lo que acá figura como trabajo futuro sobre adónde llega la plata: el marketplace de Mercado Pago, con la cuenta de cada ONG (§215–§225). Índice de la documentación: [`README.md`](README.md).
+
 > Plan de cierre de la tesis. **No es un registro de lo hecho** (eso es `PROJECT_ANALYSIS.md`), ni reemplaza a
 > `BACKEND_ROADMAP_ANALYSIS.md` (diseño de los módulos): lo resume, lo corrige donde quedó viejo y lo ordena
 > según las respuestas del usuario. Se armó leyendo solo `CLAUDE.md`, `AI_RULES.md`, `PROJECT_CONTEXT.md`, las

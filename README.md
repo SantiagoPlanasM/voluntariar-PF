@@ -334,6 +334,8 @@ En `voluntariar` (frontend) → Environment:
 
 ## Endpoints de la API
 
+> Resumen de los principales. La lista completa (88 rutas, con cuerpo, respuestas y errores) está en [`docs/API_CONTEXT.md`](docs/API_CONTEXT.md). Índice de toda la documentación: [`docs/README.md`](docs/README.md).
+
 ### Autenticación
 | Método | Ruta | Auth | Descripción |
 |--------|------|------|-------------|

@@ -1,5 +1,7 @@
 # PLAN_CALIDAD_TP.md — TP Integrador de Calidad de Software sobre VoluntariAR (2026-10-17)
 
+> **Histórico (estado al 23/10/2026):** plan del TP de Calidad, cumplido. El resultado está en `docs/calidad/` y el entregable es `docs/calidad/informe/INFORME_TP_CALIDAD.pdf`. Índice de la documentación: [`README.md`](README.md).
+
 > Plan para cumplir el TP (presentación **26/10/2026**). No reemplaza a `PLAN_FALTANTE.md` (producto) ni a
 > `PROJECT_ANALYSIS.md` (registro de lo hecho). Fuentes leídas: `CLAUDE.md`, `AI_RULES.md`, `PROJECT_CONTEXT.md`,
 > `PLAN_FALTANTE.md` (§0, §1, §4, §6), `GUION_DEFENSA.md`, los `package.json`, `render.yaml`, los títulos y los
