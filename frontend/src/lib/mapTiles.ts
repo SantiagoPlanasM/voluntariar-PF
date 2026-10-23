@@ -2,19 +2,19 @@
 // el fondo, el centro por defecto y el pin.
 //
 // Antes los mosaicos salían de los servidores internos de Google (mt0..3.google.com/vt), sin clave y con la
-// atribución apagada: sus condiciones no lo permiten. CARTO (estilo Voyager) dibuja datos de OpenStreetMap, es
-// gratis para un uso como este y pide mostrar la atribución de los dos.
+// atribución apagada: sus condiciones no lo permiten. Ahora son los de OpenStreetMap: gratis y sin clave, piden la
+// atribución visible y un uso moderado (sirve para un proyecto así; con mucho tráfico habría que usar un proveedor).
+// CARTO se probó primero y no sirve: sin clave sus mosaicos salen con la marca "API KEY REQUIRED".
 import L from 'leaflet';
 
-export const TILE_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-export const TILE_ATTRIBUTION =
-  '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>';
+export const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+export const TILE_ATTRIBUTION = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 
 // Coordenadas base de Córdoba Capital
 export const DEFAULT_CENTER = { lat: -31.4201, lng: -64.1888 };
 
 export function addBaseTiles(map: L.Map) {
-  return L.tileLayer(TILE_URL, { subdomains: 'abcd', maxZoom: 20, attribution: TILE_ATTRIBUTION }).addTo(map);
+  return L.tileLayer(TILE_URL, { maxZoom: 19, attribution: TILE_ATTRIBUTION }).addTo(map);
 }
 
 export function createPinIcon(bg: string, isSelected: boolean) {

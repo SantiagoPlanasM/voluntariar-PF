@@ -111,23 +111,26 @@ describe('getProjectCoords', () => {
 });
 
 // Los mosaicos salían de los servidores internos de Google (mt0..3.google.com/vt), sin clave y sin atribución:
-// sus condiciones no lo permiten. Ahora los dos mapas usan CARTO sobre OpenStreetMap y muestran la atribución.
+// sus condiciones no lo permiten. Ahora los dos mapas usan los mosaicos de OpenStreetMap y muestran la atribución.
+// (Primero se usó CARTO: en Chrome sus mosaicos sin clave salen con la marca "API KEY REQUIRED"; un test en jsdom
+// no lo puede ver, porque no baja imágenes.)
 describe('<ProjectMap /> mosaicos y atribución', () => {
   const tileUrls = (spy: ReturnType<typeof vi.spyOn>) => spy.mock.calls.map((c: unknown[]) => String(c[0]));
 
-  test('mapa chico y ampliado: mosaicos de CARTO (no de Google) con la atribución de OpenStreetMap', () => {
+  test('mapa chico y ampliado: mosaicos de OpenStreetMap (no de Google ni de CARTO) con su atribución', () => {
     const tileLayer = vi.spyOn(L, 'tileLayer');
     const { container } = renderMap([P1]);
     fireEvent.click(screen.getByTitle('Abrir mapa ampliado (Pop-up)'));
     expect(tileLayer).toHaveBeenCalledTimes(2);
     for (const url of tileUrls(tileLayer)) {
-      expect(url).toContain('basemaps.cartocdn.com');
-      expect(url).not.toContain('google');
+      expect(url).toBe('https://tile.openstreetmap.org/{z}/{x}/{y}.png');
     }
+    // OpenStreetMap llega hasta el zoom 19: con 20 se podría acercar a un mapa gris (mosaicos que no existen).
+    expect(tileLayer.mock.calls.map((c: unknown[]) => (c[1] as L.TileLayerOptions).maxZoom)).toEqual([19, 19]);
     for (const root of [container, modalRoot()]) {
       const attribution = root.querySelector('.leaflet-control-attribution');
-      expect(attribution?.textContent).toContain('OpenStreetMap');
-      expect(attribution?.textContent).toContain('CARTO');
+      expect(attribution?.textContent).toContain('© OpenStreetMap');
+      expect(attribution?.querySelector('a[href="https://www.openstreetmap.org/copyright"]')).not.toBeNull();
     }
   });
 });
