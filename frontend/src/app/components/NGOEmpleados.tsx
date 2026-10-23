@@ -133,7 +133,7 @@ export function NGOEmpleados() {
           <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
             <Users className="w-10 h-10 text-gray-200 mx-auto mb-3" />
             <p className="font-medium text-gray-400">Sin miembros en el equipo</p>
-            <p className="text-sm text-gray-300 mt-1">Agregá personas que forman parte de tu ONG</p>
+            <p className="text-sm text-ink-muted mt-1">Agregá personas que forman parte de tu ONG</p>
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">

@@ -56,6 +56,85 @@ function offenders(): string[] {
   return found;
 }
 
+// D25 y D29 (Issues #26 y #30, §247): el mismo problema con textos de color, no solo blancos.
+//  - pares: un `text-<color>-<tono>` y un `bg-<color>-<tono>` en el mismo string (pastillas de estado, avisos);
+//  - textos sueltos: un `<p>`, `<span>`, `<h*>`, `<li>`, `<label>` o `<td>` con `text-<color>-<tono>` y sin fondo propio,
+//    medido contra `--surface` (la tarjeta; es una aproximación: puede estar sobre otro fondo).
+// Las pantallas que no se rehicieron (§240) tienen más casos que los dos defectos. Arreglarlos todos es otro trabajo,
+// así que esto es un TRINQUETE: KNOWN_* es la lista de hoy; el test falla si aparece uno nuevo y también si uno de la
+// lista ya no está (hay que sacarlo, para que la lista solo baje).
+const KNOWN_PAIRS: string[] = [
+  'components/CompanyOwnProfile.tsx: text-red-500 sobre bg-red-50 en claro',
+  'components/CompanyOwnProfile.tsx: text-red-500 sobre bg-red-50 en oscuro',
+  'components/CompanyOwnProfile.tsx: text-red-600 sobre bg-red-50 en claro',
+  'components/CreateVoluntariado.tsx: text-blue-600 sobre bg-blue-50 en oscuro',
+  'components/CreateVoluntariado.tsx: text-blue-900 sobre bg-blue-50 en oscuro',
+  'components/CreateVoluntariado.tsx: text-emerald-600 sobre bg-emerald-50 en oscuro',
+  'components/CreateVoluntariado.tsx: text-gray-400 sobre bg-gray-200 en claro',
+  'components/CreateVoluntariado.tsx: text-red-500 sobre bg-red-50 en claro',
+  'components/CreateVoluntariado.tsx: text-red-500 sobre bg-red-50 en oscuro',
+  'components/FollowListModal.tsx: text-emerald-600 sobre bg-emerald-50 en oscuro',
+  'components/NGOEmpleados.tsx: text-red-500 sobre bg-red-50 en claro',
+  'components/NGOEmpleados.tsx: text-red-500 sobre bg-red-50 en oscuro',
+  'components/NGOKPIs.tsx: text-red-500 sobre bg-red-50 en claro',
+  'components/NGOKPIs.tsx: text-red-500 sobre bg-red-50 en oscuro',
+  'components/NGOPatrocinios.tsx: text-red-600 sobre bg-red-50 en claro',
+  'components/NGOProjectDetail.tsx: text-blue-600 sobre bg-blue-50 en oscuro',
+  'components/NGOProjectDetail.tsx: text-red-600 sobre bg-red-50 en claro',
+  'components/ProjectMap.tsx: text-emerald-600 sobre bg-emerald-50 en oscuro',
+];
+const KNOWN_TEXT: string[] = [
+  'components/CompanyOwnProfile.tsx: text-red-500 sobre surface en claro',
+  'components/CreateVoluntariado.tsx: text-red-500 sobre surface en claro',
+  'components/NGOKPIs.tsx: text-blue-600 sobre surface en oscuro',
+  'components/NGOKPIs.tsx: text-emerald-600 sobre surface en oscuro',
+];
+
+function lowContrastPairs(): { pairs: string[]; text: string[] } {
+  const tok = (block: string) => new Map([...block.matchAll(/--([a-z-]+):\s*(#[0-9a-fA-F]{6})/g)].map(m => [m[1], m[2]]));
+  const lightT = tok(blocks(':root'));
+  const darkT = new Map([...lightT, ...tok(blocks("[data-theme='dark']"))]);
+  const modes = [['claro', light, lightT], ['oscuro', dark, darkT]] as const;
+  const pairs = new Set<string>();
+  const text = new Set<string>();
+  const files = readdirSync(join(SRC, 'app'), { recursive: true }) as string[];
+  for (const rel of files) {
+    if (!rel.endsWith('.tsx') || rel.includes('.test.')) continue;
+    const name = rel.replace(/\\/g, '/');
+    const src = readFileSync(join(SRC, 'app', rel), 'utf8');
+    const fgOf = (s: string) => [...s.matchAll(/(?<![\w:-])text-([a-z]+-\d+)\b/g)].map(m => m[1]);
+    const bgOf = (s: string) => [...s.matchAll(/(?<![\w:-])bg-([a-z]+-\d+)\b/g)].map(m => m[1]);
+    for (const s of src.matchAll(/(["'`])([^"'`\n]*\btext-[a-z]+-\d+\b[^"'`\n]*)\1/g)) {
+      for (const f of fgOf(s[2])) for (const b of bgOf(s[2])) for (const [mode, p] of modes) {
+        if (p.get(f) && p.get(b) && contrast(p.get(f)!, p.get(b)!) < 4.5) pairs.add(`${name}: text-${f} sobre bg-${b} en ${mode}`);
+      }
+    }
+    for (const m of src.matchAll(/<(?:p|span|h[1-6]|li|label|td)\b[^>]*?className=(["'])([^"']*)\1/g)) {
+      if (bgOf(m[2]).length) continue;
+      for (const f of fgOf(m[2])) for (const [mode, p, t] of modes) {
+        if (p.get(f) && contrast(p.get(f)!, t.get('surface')!) < 4.5) text.add(`${name}: text-${f} sobre surface en ${mode}`);
+      }
+    }
+  }
+  return { pairs: [...pairs].sort(), text: [...text].sort() };
+}
+
+describe('contraste de textos de color sobre la paleta (trinquete)', () => {
+  const found = lowContrastPairs();
+  test('ninguna combinación texto/fondo nueva por debajo de 4,5:1, y la lista de conocidas solo baja', () => {
+    expect(found.pairs.filter(x => !KNOWN_PAIRS.includes(x)), 'nuevas').toEqual([]);
+    expect(KNOWN_PAIRS.filter(x => !found.pairs.includes(x)), 'ya arregladas: sacarlas de KNOWN_PAIRS').toEqual([]);
+  });
+  test('ningún texto suelto nuevo por debajo de 4,5:1 sobre la tarjeta, y la lista de conocidos solo baja', () => {
+    expect(found.text.filter(x => !KNOWN_TEXT.includes(x)), 'nuevos').toEqual([]);
+    expect(KNOWN_TEXT.filter(x => !found.text.includes(x)), 'ya arreglados: sacarlos de KNOWN_TEXT').toEqual([]);
+  });
+  test('los defectos D25 y D29 no están en la lista de conocidos', () => {
+    expect(KNOWN_PAIRS.filter(x => x.startsWith('components/NGOProjectDetail.tsx: text-green-600 sobre bg-green-50'))).toEqual([]);
+    expect(KNOWN_TEXT.filter(x => x.startsWith('components/NGOKPIs.tsx: text-gray-300'))).toEqual([]);
+  });
+});
+
 describe('contraste de text-white sobre los fondos de la paleta (claro y oscuro)', () => {
   test('la medición coincide con la de la sesión exploratoria: blanco sobre violet-600 oscuro = 1,10:1', () => {
     expect(dark.get('violet-600')).toBe('#f2f4f7');
@@ -67,7 +146,9 @@ describe('contraste de text-white sobre los fondos de la paleta (claro y oscuro)
     const tokens = (block: string) => new Map([...block.matchAll(/--([a-z-]+):\s*(#[0-9a-fA-F]{6})/g)].map(m => [m[1], m[2]]));
     const lightT = tokens(blocks(':root'));
     const darkT = new Map([...lightT, ...tokens(blocks("[data-theme='dark']"))]);
-    const pairs: [string, string][] = [['people', '#ffffff'], ['brand', '#ffffff'], ['ink', 'on-ink'], ['critical', 'on-ink']];
+    const pairs: [string, string][] = [['people', '#ffffff'], ['brand', '#ffffff'], ['ink', 'on-ink'], ['critical', 'on-ink'],
+      // pastillas de estado y texto de ayuda (D25 y D29, §247): fondo, texto
+      ['people-soft', 'people-text'], ['surface-soft', 'ink-soft'], ['surface-soft', 'critical'], ['surface', 'ink-muted']];
     for (const [mode, t] of [['claro', lightT], ['oscuro', darkT]] as const) {
       for (const [bg, fg] of pairs) {
         const ratio = contrast(t.get(bg)!, fg.startsWith('#') ? fg : t.get(fg)!);

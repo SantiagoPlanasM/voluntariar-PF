@@ -151,9 +151,10 @@ export function NGOProjectDetail() {
                         <p className="text-sm font-semibold text-gray-900">{e.volunteer_name}</p>
                         <div className="flex items-center gap-1.5 flex-shrink-0">
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            e.status === 'approved' ? 'bg-green-50 text-green-600'
-                            : e.status === 'pending' ? 'bg-amber-50 text-amber-500'
-                            : 'bg-red-50 text-red-500'}`}>
+                            // Tokens del rediseño: con la paleta vieja "Aprobado" daba 2,71:1 en oscuro (D25, §247).
+                            e.status === 'approved' ? 'bg-people-soft text-people-text'
+                            : e.status === 'pending' ? 'bg-surface-soft text-ink-soft'
+                            : 'bg-surface-soft text-critical'}`}>
                             {e.status === 'approved' ? 'Aprobado' : e.status === 'pending' ? 'Pendiente' : 'Rechazado'}
                           </span>
                           {e.has_cv && (

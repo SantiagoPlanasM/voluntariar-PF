@@ -229,7 +229,7 @@ export function NGOKPIs() {
           <div className="text-center py-14 bg-white rounded-2xl border border-gray-100">
             <BarChart2 className="w-10 h-10 text-gray-200 mx-auto mb-3" />
             <p className="font-medium text-gray-400">Sin KPIs todavía</p>
-            <p className="text-sm text-gray-300 mt-1">
+            <p className="text-sm text-ink-muted mt-1">
               Agregá indicadores para medir el impacto del proyecto
             </p>
           </div>
