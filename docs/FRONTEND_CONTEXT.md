@@ -19,9 +19,11 @@ El frontend se rehízo según `docs/DESIGN.md` v1.1 y `docs/PLAN_REDISENO_FRONTE
 - **`app/volunteering/`:**
   - `cardActions()`: función pura que decide los botones de una tarjeta o de la barra del voluntariado (Inscribirme / Postulado / Vas a ir / No seleccionado / Cupos completos / Ver cómo salió; Donar / Meta cumplida);
   - `VolunteeringTile`: la miniatura de Explorar, Mis voluntariados y "Para vos".
+  - Explorar: "Para vos" muestra hasta 6 recomendaciones y la lista general saca **solo esas**. Antes sacaba las 8 que manda la API y 2 voluntariados no aparecían en ningún lado (D22, §246).
 - **Tokens en `styles/theme.css`:**
   - `ink`, `surface`, `canvas`, `hairline`, `brand` (azul, solo dinero), `people` (verde, personas), `critical`, `like` y `star`, con modo oscuro;
   - la paleta vieja de Tailwind (`blue`/`sky`/`indigo` y otras) está remapeada a la escala neutra, así que las pantallas que no se rehicieron toman los colores nuevos sin tocarlas;
+  - **ojo con `text-white`:** en oscuro varios tonos se vuelven claros (`violet-600` es `#f2f4f7`, `red-600` es `#ff6b5e`), pero el blanco no cambia. `styles/paletteContrast.test.ts` exige 4,5:1 a todo `text-white` sobre `bg-<color>-<tono>` en los dos modos. Para botones llenos usar tokens: `bg-ink text-on-ink`, `bg-people text-white`, `bg-critical text-on-ink` (§246);
   - fuente Plus Jakarta Sans servida desde `public/fonts`.
 - **Pantallas rehechas:**
   - Inicio, con voluntariados y publicaciones mezclados; ya no tiene pestañas, y `FeedTabs` se borró;

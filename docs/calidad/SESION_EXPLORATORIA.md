@@ -68,6 +68,13 @@
 - **H11 cruza capas:** el contenido del asistente está en el backend y el cambio de nombres fue en el frontend. Ningún test relaciona los dos.
 - El sesgo del explorador es real: buscó con las mismas herramientas con las que se construyó. Una segunda sesión con una persona y otro charter (por ejemplo, "una ONG nueva publica su primer voluntariado") daría otra mirada.
 
-## 7. Qué se hace con los hallazgos
+## 7. Qué se hizo con los hallazgos
 
-Ninguno se corrigió en la sesión (la exploración informa, no arregla). Quedan para que el equipo decida qué se arregla, con un test que primero falle (regla de "tests primero"), y si se registran como Issues abiertos: a diferencia de D01–D21, serían defectos **reportados antes de arreglarse**, el ciclo de vida completo.
+Ninguno se corrigió en la sesión (la exploración informa, no arregla). Después, a pedido del usuario:
+
+- **Los 8 defectos se abrieron como Issues antes de arreglarse** (D22–D29 = #23–#30, label `encontrado:exploratoria`): es el primer ciclo de vida completo del registro (reportado → triage → corregido con su test → verificado en el CI → cerrado). Los tres corregidos se cierran cuando su test pase en el CI.
+- **Corregidos con un test que primero falló (§246):**
+  - H2 → D22 (`358789a`);
+  - H8 → D23 (`3d9a2ba`): el test estático de contraste encontró **otras 5 combinaciones** del mismo defecto, y se corrigieron las 7;
+  - H11 → D24 (`c538022`): además, `migrate.js` no actualizaba las FAQs ya cargadas, así que el arreglo del texto no habría llegado a producción.
+- **Siguen abiertos:** D25 (H9), D26 (H7), D27 (H1), D28 (H3) y D29 (H10). Las observaciones H4, H5, H6 y H12 no se registraron como defectos: son decisiones de diseño.

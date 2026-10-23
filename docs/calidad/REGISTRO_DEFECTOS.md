@@ -8,10 +8,10 @@
 
 ## Resumen
 
-- **21 defectos.** Severidad: alta 2 · media 10 · baja 9.
-- **Dónde se encontraron:** revisión de código 6 · pipeline/CI 5 · SonarCloud 3 · mutation testing 1 · suite de regresión 2 · **producción 4**.
-- **Tasa de defectos escapados a producción** (métrica de proceso, T11): 4 de 21 = **19,0 %** **de este registro** (era 4 de 18 = 22,2 % antes del rediseño del frontend, §240). Ojo: el registro es una **selección** (abajo); con todos los hallazgos de `REVISION.md`, que se encontraron antes de producción, el denominador sería mucho mayor y la tasa, menor. Para el informe vale como "sobre los defectos registrados", no como tasa del proceso completo.
-- Todos corregidos, y todos con prueba de regresión que corre en el CI (salvo D08, que era un defecto del propio test, y D09/D10, que se verifican en el run siguiente).
+- **29 defectos.** Severidad: alta 2 · media 12 · baja 15. **24 corregidos y 5 abiertos** (D25–D29, ver abajo).
+- **Dónde se encontraron:** revisión de código 6 · pipeline/CI 5 · SonarCloud 3 · mutation testing 1 · suite de regresión 2 · sesión exploratoria 8 · **producción 4**.
+- **Tasa de defectos escapados a producción** (métrica de proceso, T11): 4 de 29 = **13,8 %** **de este registro** (4 de 18 = 22,2 % antes del rediseño del frontend, §240; 4 de 21 = 19,0 % antes de la sesión exploratoria, §245). Ojo: el registro es una **selección** (abajo); con todos los hallazgos de `REVISION.md`, que se encontraron antes de producción, el denominador sería mucho mayor y la tasa, menor. Para el informe vale como "sobre los defectos registrados", no como tasa del proceso completo.
+- **D22–D29 (sesión exploratoria, §245) son los primeros Issues abiertos antes del arreglo:** se reportaron el 22/10, D22–D24 se corrigieron con un test que primero falló (§246) y D25–D29 siguen abiertos. Los D01–D21 están todos corregidos, y todos con prueba de regresión que corre en el CI (salvo D08, que era un defecto del propio test, y D09/D10, que se verifican en el run siguiente).
 - **No se registran como defectos** (son mejoras o decisiones): el hallazgo 4 de §173 (los avisos que salían bien no dejaban línea en los logs: observabilidad) y las issues de SonarCloud que resultaron falsos positivos (`TRIAGE_SONAR.md`). Tampoco la promesa sin `void` de `MyParticipation` que SonarCloud marcó como bug en `7b05f02` (§243): `Promise.allSettled` no rechaza nunca, así que no había un fallo posible; es mantenibilidad. Ni el aviso de `vite` 6.4.3 que hizo fallar `npm audit` en el CI #34 (§242): es una vulnerabilidad de una dependencia, publicada después de instalarla, no un defecto del código. Los defectos de REVISION.md que no figuran acá también están corregidos (ver su tabla); se eligieron los de mayor severidad o con prueba de regresión propia.
 
 ## Registro
@@ -39,6 +39,14 @@
 | D19 | [#20](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/20) | Rediseño: la ONG y la empresa no tenían cómo llegar a las notificaciones en el celular | media | suite de regresión | RF-14 | CP-NOT-02 (frontend NGONotifications.test.tsx) y layout/AppShell.test.tsx | `37b13e8` |
 | D20 | [#21](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/21) | Rediseño: un clic en el fondo cerraba el compositor y se perdían las fotos | media | suite de regresión | — | frontend PostComposer.test.tsx ("clic en el fondo NO cierra") | `37b13e8` |
 | D21 | [#22](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/22) | La reseña propia se precargaba un render tarde (test intermitente en el CI #34) | baja | pipeline / CI | — | frontend ProjectDetailsRating.test.tsx | `d7d5a48` |
+| D22 | [#23](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/23) | Explorar esconde 2 voluntariados a una voluntaria con 8 recomendaciones | media | sesión exploratoria | RF-3 | frontend ExploreScreen.test.tsx ("más recomendaciones de las que entran") | `358789a` |
+| D23 | [#24](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/24) | Modo oscuro: "Enviar propuesta" ilegible (1,10:1) y otros 5 `text-white` sobre la paleta invertida | media | sesión exploratoria | — | frontend styles/paletteContrast.test.ts | `3d9a2ba` |
+| D24 | [#25](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/25) | El asistente da instrucciones de la interfaz vieja (3 de 8 respuestas) | baja | sesión exploratoria | RF-9 | test/integration/faqs-ui-names.test.js | `c538022` |
+| D25 | [#26](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/26) | Modo oscuro: pastilla "Aprobado" con 2,71:1 en el detalle del proyecto de la ONG | baja | sesión exploratoria | — | — | **abierto** |
+| D26 | [#27](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/27) | Notificaciones vacías de la ONG con el texto del voluntario | baja | sesión exploratoria | RF-14 | — | **abierto** |
+| D27 | [#28](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/28) | Al cambiar de pantalla no se vuelve arriba | baja | sesión exploratoria | — | — | **abierto** |
+| D28 | [#29](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/29) | Sin página 404: una URL inexistente muestra la pantalla de desarrollador de React Router | baja | sesión exploratoria | — | — | **abierto** |
+| D29 | [#30](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/30) | KPIs: el texto de ayuda vacío tiene contraste 1,57:1 | baja | sesión exploratoria | RF-13 | — | **abierto** |
 
 ## Trazabilidad por requisito
 
@@ -48,16 +56,17 @@
 | RF-10 Habilidades del voluntario | D03 ([#4](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/4)) |
 | RF-11 Comentarios con filtro de palabras | D04 ([#5](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/5)) |
 | RF-12 Patrocinios | D06 ([#7](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/7)) |
-| RF-13 KPIs del proyecto | D05 ([#6](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/6)) |
-| RF-14 Notificaciones | D17 ([#18](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/18)), D19 ([#20](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/20)) |
-| RF-3 Listar y buscar proyectos | D02 ([#3](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/3)), D13 ([#14](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/14)) |
+| RF-13 KPIs del proyecto | D05 ([#6](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/6)), D29 ([#30](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/30)) |
+| RF-14 Notificaciones | D17 ([#18](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/18)), D19 ([#20](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/20)), D26 ([#27](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/27)) |
+| RF-3 Listar y buscar proyectos | D02 ([#3](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/3)), D13 ([#14](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/14)), D22 ([#23](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/23)) |
 | RF-6 Donar con Mercado Pago | D12 ([#13](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/13)), D15 ([#16](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/16)), D16 ([#17](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/17)), D18 ([#19](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/19)) |
 | RF-7 CV privado | D07 ([#8](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/8)) |
-| RF-9 Chatbot de preguntas frecuentes | D01 ([#2](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/2)) |
+| RF-9 Chatbot de preguntas frecuentes | D01 ([#2](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/2)), D24 ([#25](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/25)) |
 | — (proceso: confiabilidad de la suite) | D08 ([#9](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/9)) |
 | — (proceso: los números del informe tienen que coincidir con el pipeline) | D09 ([#10](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/10)) |
 | — (proceso: quality gate) | D10 ([#11](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/11)) |
 | — (publicaciones y reseñas: sin RF propio en el plan) | D20 ([#21](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/21)), D21 ([#22](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/22)) |
+| — (accesibilidad y navegación general) | D23 ([#24](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/24)), D25 ([#26](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/26)), D27 ([#28](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/28)), D28 ([#29](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/29)) |
 
 ## Detalle
 
@@ -270,3 +279,84 @@
 - **Esperado:** cuando aparece la sección "Reseñas", el formulario ya muestra la nota y el comentario propios
 - **Obtenido:** la precarga corría en un `useEffect`: había un render con la sección visible y el formulario en 5 estrellas y vacío (en el navegador, un parpadeo de un frame). El test lo encontraba a veces
 - **Arreglo:** `d7d5a48` (`useLayoutEffect`) · **Regresión:** ProjectDetailsRating.test.tsx, sin cambios
+
+### D22 — Explorar esconde 2 voluntariados a una voluntaria con 8 recomendaciones
+
+- **Issue:** [#23](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/23) · **Severidad:** media · **Encontrado en:** sesión exploratoria #1 · **Área:** frontend
+- **Requisito:** RF-3 Listar y buscar proyectos · **Caso:** frontend ExploreScreen.test.tsx
+- **Origen:** SESION_EXPLORATORIA.md, PROJECT_ANALYSIS.md §245 · **Entorno:** Local (`d0a5ed4`, datos de prueba), Chrome
+- **Pasos:** (1) Entrar como maria@example.com (2) Explorar, sin búsqueda ni filtros
+- **Esperado:** cada voluntariado activo aparece una vez (12)
+- **Obtenido:** "Para vos" mostraba 6 y la lista general sacaba las 8 de la API: 10 de 12
+- **Arreglo:** `358789a` (la lista saca solo las 6 que se ven) · **Regresión:** ExploreScreen.test.tsx, rojo → verde, 5/5 mutantes muertos
+
+### D23 — Modo oscuro: "Enviar propuesta" ilegible (1,10:1) y otros 5 `text-white` sobre la paleta invertida
+
+- **Issue:** [#24](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/24) · **Severidad:** media · **Encontrado en:** sesión exploratoria #1 · **Área:** frontend
+- **Requisito:** — (accesibilidad) · **Caso:** frontend styles/paletteContrast.test.ts
+- **Origen:** SESION_EXPLORATORIA.md, PROJECT_ANALYSIS.md §245 · **Entorno:** Local (`d0a5ed4`, datos de prueba), Chrome
+- **Pasos:** (1) Empresa con el tema oscuro (2) Perfil → Proponer
+- **Esperado:** el botón se lee (≥ 4,5:1)
+- **Obtenido:** blanco sobre #f2f4f7 (1,10:1). El test estático encontró 7 combinaciones en 5 componentes (borrar cuenta y desvincular Mercado Pago 2,79:1, reseñas 2,16:1, paso hecho de "Nuevo voluntariado" 4,41:1)
+- **Arreglo:** `3d9a2ba` (tokens `bg-ink text-on-ink`, `bg-critical text-on-ink`, `bg-people text-white`) · **Regresión:** paletteContrast.test.ts, rojo con 7 → 0
+
+### D24 — El asistente da instrucciones de la interfaz vieja (3 de 8 respuestas)
+
+- **Issue:** [#25](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/25) · **Severidad:** baja · **Encontrado en:** sesión exploratoria #1 · **Área:** backend
+- **Requisito:** RF-9 Chatbot de preguntas frecuentes · **Caso:** test/integration/faqs-ui-names.test.js
+- **Origen:** SESION_EXPLORATORIA.md, PROJECT_ANALYSIS.md §245 · **Entorno:** Local (`d0a5ed4`, datos de prueba), Chrome
+- **Pasos:** (1) Mensajes → Asistente (2) "¿Cómo cancelo mi inscripción?"
+- **Esperado:** nombra "Mis voluntariados"
+- **Obtenido:** decía "Mi Participación"; también "el ícono de lápiz" y "Nuevo Voluntariado". Además migrate.js solo insertaba FAQs nuevas: producción se quedaba con el texto viejo
+- **Arreglo:** `c538022` (textos nuevos y migrate.js actualiza la respuesta de las existentes) · **Regresión:** faqs-ui-names.test.js (SQLite, Postgres, Córdoba), 5/5 mutantes muertos
+
+### D25 — Modo oscuro: pastilla "Aprobado" con 2,71:1 en el detalle del proyecto de la ONG
+
+- **Issue:** [#26](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/26) · **Severidad:** baja · **Encontrado en:** sesión exploratoria #1 · **Área:** frontend
+- **Requisito:** — (accesibilidad) · **Caso:** —
+- **Origen:** SESION_EXPLORATORIA.md, PROJECT_ANALYSIS.md §245 · **Entorno:** Local (`d0a5ed4`, datos de prueba), Chrome
+- **Pasos:** (1) ONG con el tema oscuro (2) Detalle de un voluntariado con aprobados
+- **Esperado:** ≥ 4,5:1
+- **Obtenido:** `bg-green-50` + `text-green-600`: 2,71:1
+- **Arreglo:** **abierto**
+
+### D26 — Notificaciones vacías de la ONG con el texto del voluntario
+
+- **Issue:** [#27](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/27) · **Severidad:** baja · **Encontrado en:** sesión exploratoria #1 · **Área:** frontend
+- **Requisito:** RF-14 Notificaciones · **Caso:** —
+- **Origen:** SESION_EXPLORATORIA.md, PROJECT_ANALYSIS.md §245 · **Entorno:** Local (`d0a5ed4`, datos de prueba), Chrome
+- **Pasos:** (1) ONG sin notificaciones (2) Notificaciones
+- **Esperado:** un texto para la ONG
+- **Obtenido:** "Cuando una ONG responda o alguien te siga, aparece acá."
+- **Arreglo:** **abierto**
+
+### D27 — Al cambiar de pantalla no se vuelve arriba
+
+- **Issue:** [#28](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/28) · **Severidad:** baja · **Encontrado en:** sesión exploratoria #1 · **Área:** frontend
+- **Requisito:** — · **Caso:** —
+- **Origen:** SESION_EXPLORATORIA.md, PROJECT_ANALYSIS.md §245 · **Entorno:** Local (`d0a5ed4`, datos de prueba), Chrome
+- **Pasos:** (1) Bajar en Inicio (2) Tocar Explorar
+- **Esperado:** Explorar abre arriba
+- **Obtenido:** abre con el scroll anterior (scrollY = 1111). Anterior al rediseño
+- **Arreglo:** **abierto**
+
+### D28 — Sin página 404: una URL inexistente muestra la pantalla de desarrollador de React Router
+
+- **Issue:** [#29](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/29) · **Severidad:** baja · **Encontrado en:** sesión exploratoria #1 · **Área:** frontend
+- **Requisito:** — · **Caso:** —
+- **Origen:** SESION_EXPLORATORIA.md, PROJECT_ANALYSIS.md §245 · **Entorno:** Local (`d0a5ed4`, datos de prueba), Chrome
+- **Pasos:** (1) Abrir una ruta que no existe
+- **Esperado:** una pantalla propia con link al inicio
+- **Obtenido:** "Unexpected Application Error! 404 … Hey developer". Anterior al rediseño
+- **Arreglo:** **abierto**
+
+### D29 — KPIs: el texto de ayuda vacío tiene contraste 1,57:1
+
+- **Issue:** [#30](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/30) · **Severidad:** baja · **Encontrado en:** sesión exploratoria #1 · **Área:** frontend
+- **Requisito:** RF-13 KPIs del proyecto · **Caso:** —
+- **Origen:** SESION_EXPLORATORIA.md, PROJECT_ANALYSIS.md §245 · **Entorno:** Local (`d0a5ed4`, datos de prueba), Chrome
+- **Pasos:** (1) ONG (2) KPIs de un proyecto sin indicadores
+- **Esperado:** ≥ 4,5:1
+- **Obtenido:** `text-gray-300`: 1,57:1 en claro y 1,73:1 en oscuro. Anterior al rediseño
+- **Arreglo:** **abierto**
+

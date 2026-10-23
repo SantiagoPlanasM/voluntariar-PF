@@ -90,7 +90,7 @@ exactamente los mismos números de la tabla (33/101 y 69/245) antes de medir el 
 
 ### 2.3 Defectos escapados a producción (`REGISTRO_DEFECTOS.md`)
 
-**4 de 21 = 19,0 % sobre el registro** (4 de 18 = 22,2 % antes del rediseño del frontend: D19–D21 no llegaron a producción). El registro es una **selección**: con todos los hallazgos de `REVISION.md`, encontrados antes de producción, la tasa sería mucho menor. Los 4 escapados (D07, D16, D17, D18) son de **flujos que dependen de un servicio externo o de lo que ve otro rol** (el panel de la ONG después de una donación real): justo lo que las pruebas con dobles no ven. Es el argumento para el E2E contra Mercado Pago en cada deploy (§193–§196).
+**4 de 29 = 13,8 % sobre el registro** (22,2 % con 18 y 19,0 % con 21). Ojo: D22–D29 **también estaban en producción** (`d0a5ed4` está desplegado), pero se encontraron en una sesión local, no en producción, así que por la definición del registro no son escapados. Con otra definición ("defectos presentes en producción") la tasa sería más alta. El registro es una **selección**: con todos los hallazgos de `REVISION.md`, encontrados antes de producción, la tasa sería mucho menor. Los 4 escapados (D07, D16, D17, D18) son de **flujos que dependen de un servicio externo o de lo que ve otro rol** (el panel de la ONG después de una donación real): justo lo que las pruebas con dobles no ven. Es el argumento para el E2E contra Mercado Pago en cada deploy (§193–§196).
 
 ## 3. Métrica de proyecto: densidad de pruebas
 

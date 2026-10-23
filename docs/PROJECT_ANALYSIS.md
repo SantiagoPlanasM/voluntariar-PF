@@ -6862,3 +6862,66 @@ Las secciones siguientes pasan de 4–7 a 5–8 (índice, títulos y la referenc
 - Mapa, donación, subida de archivos, chat en tiempo real y borrar la cuenta.
 - **El sesgo del explorador:** lo hizo el mismo asistente que escribió el código.
 - **Si se abren Issues para los hallazgos y cuáles se corrigen:** lo decide el usuario (regla 16).
+
+## 246. Issues de la sesión exploratoria (#23–#30) y arreglo de D22, D23 y D24 (H2, H8, H11)
+
+### Qué se hizo
+- **Issues abiertos antes de arreglar.** Los 8 defectos de §245 se cargaron en GitHub (#23–#30) como D22–D29, con el label nuevo `encontrado:exploratoria`. Es el primer ciclo de vida completo del registro: D01–D21 se cargaron después de corregirlos.
+- **D22 / H2, Explorar** (`358789a`):
+  - **el defecto:** "Para vos" muestra hasta 6 recomendaciones, pero la lista general sacaba las 8 que manda la API;
+  - **el arreglo:** `shownRecs` se usa para pintar "Para vos" y para filtrar la lista;
+  - **el test:** 12 voluntariados con 8 recomendaciones. Exige que "Para vos" muestre 6 y que cada voluntariado aparezca una sola vez.
+- **D23 / H8, contraste en modo oscuro** (`3d9a2ba`):
+  - **el test nuevo:** `frontend/src/styles/paletteContrast.test.ts`, estático. Lee las dos paletas de `theme.css` (`@theme` y `[data-theme='dark']`), busca en todos los `.tsx` de producción los strings con `text-white` y un fondo `bg-<color>-<tono>`, y exige 4,5:1 en los dos modos. También cuida los pares de tokens de los botones llenos (`people`/blanco, `brand`/blanco, `ink`/`on-ink`, `critical`/`on-ink`).
+  - **El rojo dio 7 combinaciones, no 1:**
+    - `CompanyOwnProfile`: `bg-violet-600`, 2 botones, 1,10:1;
+    - `DeleteAccountPage` y `MercadoPagoAccount`: `bg-red-600`, 2,79:1 en oscuro, en botones destructivos;
+    - `ReviewsModal`: `bg-emerald-700`, 2,16:1;
+    - `CreateVoluntariado`: `bg-emerald-500`, 4,41:1 en los dos modos.
+  - **El arreglo:** los botones pasan a tokens: `bg-ink text-on-ink`, `bg-critical text-on-ink` y `bg-people text-white`.
+- **D24 / H11, el asistente** (`c538022`):
+  - las tres respuestas nombran lo que hay hoy: "Mis voluntariados" → "Postulaciones" → "···" → "Cancelar postulación"; "Editar perfil"; "Crear voluntariado" con sus pasos Básico, Detalles y Extras. Los textos se verificaron contra el código de las pantallas;
+  - **el test reveló un segundo problema:** `migrate.js` solo insertaba las FAQs que no existían, así que en producción el texto viejo se quedaba aunque cambiara el código. Ahora actualiza la respuesta de las existentes, sin tocar `activo`;
+  - **el test** (`test/integration/faqs-ui-names.test.js`) comprueba los textos y simula una base de producción: respuestas viejas y una FAQ desactivada. Después de migrar otra vez, exige los textos nuevos, la FAQ sigue desactivada y siguen siendo 8.
+- **Documentación:**
+  - `REGISTRO_DEFECTOS.md`: 29 defectos (24 corregidos y 5 abiertos), escapados 4/29 = 13,8 %;
+  - `SESION_EXPLORATORIA.md` §7, `PLAN_PRUEBAS.md`, `METRICAS.md`, `FRONTEND_CONTEXT.md`, `API_CONTEXT.md` y `CLAUDE.md` (conteos);
+  - informe: defectos, ciclo de vida, exploratorias, análisis crítico y anexo. PDF regenerado: 20 páginas.
+
+### Verificación
+- **Rojo antes del arreglo, por la razón correcta:**
+  - D22: "Unable to find … Voluntariado 6";
+  - D23: 7 combinaciones listadas;
+  - D24: "todavía dice /Mi Participación/" en los dos tests.
+- **Mutantes, con corrida de control en verde antes:**
+  - D22: **5 de 5 muertos** (el 6 cambiado a 8 y a 5, `recIds` de todas, `recIds` vacío, "Para vos" con todas);
+  - D24: **5 de 5 muertos**, con conteos reales (2 tests, 0 cancelados): sin actualizar las existentes, `!==` → `===`, el UPDATE que reactiva, el UPDATE a todas las filas y el texto viejo;
+  - D23: no hubo mutantes sobre el código, porque los cambios son clases CSS. Cada reemplazo tiene su rojo propio en el test estático (7 → 0).
+- **Backend:**
+  - `npm test`: **932** (930 + 2);
+  - `npm run test:pg`: **934**;
+  - `TZ=America/Argentina/Cordoba npm test`: **932**;
+  - todo en verde, 0 cancelados.
+- **Frontend:**
+  - `npm test`: **943** en 80 archivos;
+  - `npm run typecheck`: 0 errores;
+  - `npm run test:coverage`: 87,2 / 83,45 / 83,3 / 90,78.
+- **Issues:** #23, #24 y #25 siguen **abiertos** hasta que su test pase en el CI, que es el paso "verificado" del ciclo de `PLAN_PRUEBAS.md §10`; ahí se cierran con el commit. #26–#30 quedan abiertos.
+
+### Errores propios
+- **El test de contraste pasó la primera vez sin probar nada.** Tomaba el primer bloque `[data-theme='dark']`, que es el de los tokens y no el de la paleta, y el test de los componentes salió verde de forma vacía. Lo vi porque falló el otro test, el de la medición conocida (`violet-600` daba `undefined`). Se corrigió el parseo y se agregó una guarda: tiene que revisar más de 20 combinaciones.
+- **La trampa de los escapes, dos veces:**
+  - un `'\\n'` en un heredoc terminó como un salto de línea real dentro del test (esbuild: "Unterminated string literal");
+  - un `'(\\d+)'` en el script de mutación quedó como `d`, y los conteos salieron `undefined`.
+  - En el segundo caso los mutantes "murieron" sin conteo de tests. Por la regla de `mutation-runner-control` no los di por buenos hasta arreglar el conteo y volver a correrlos.
+- **Arreglé más de lo pedido en D23:** el usuario pidió H8, y el test encontró otras 5 combinaciones del mismo defecto. Las corregí en el mismo commit porque el test, si no, quedaba en rojo. Se avisa acá y en el resumen.
+- **La documentación va en un commit aparte** de los tres arreglos, porque los archivos son compartidos (registro, informe). Cada arreglo tiene su comentario y sus tests en su propio commit.
+
+### ⚠️ NO verificado
+- **Cómo se ven los botones nuevos:** `bg-ink text-on-ink` y `bg-critical text-on-ink` no se miraron en el navegador; el contraste está calculado, no visto.
+- **El test estático no cubre todo:**
+  - no ve los `hover:`;
+  - no ve los textos que no son `text-white`: D25 y D29 siguen abiertos y no los detecta;
+  - no ve las clases armadas con variables.
+- **Producción:** las respuestas nuevas llegan al próximo deploy, porque `migrate.js` corre al arrancar el servicio en Render (`startCommand: npm run db:migrate && npm start`). No se desplegó ni se verificó en producción.
+- **El CI de estos commits** (no se pusheó todavía).
