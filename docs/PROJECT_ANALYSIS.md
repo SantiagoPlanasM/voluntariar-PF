@@ -21,7 +21,7 @@
 | §228–§238 | SonarCloud en 0 issues, validaciones de entrada y los temas de la materia en el informe |
 | §239–§243 | Rediseño del frontend (DESIGN 1.1) |
 | §244–§251 | Informe con el rediseño, sesión exploratoria, sus 8 defectos, contraste en 0, corte final y orden de la documentación |
-| §252 | Mapas: el alta manda el lugar (pin y búsqueda de dirección), respaldo estable y mosaicos de OpenStreetMap |
+| §252–§253 | Mapas: el alta manda el lugar (pin y búsqueda de dirección), respaldo estable, mosaicos de OpenStreetMap y D30 (tarjeta del mapa en oscuro) |
 
 
 ## 1. Fortalezas
@@ -7211,4 +7211,38 @@ El usuario pidió arreglar los cinco que seguían abiertos. Cada uno se hizo con
 - **Celular y táctil:** no se probó tocar el mapa ni arrastrar el pin con el dedo, ni el modo claro (se probó en oscuro).
 - **Volumen:** los mosaicos de OpenStreetMap son para uso moderado. Si la app tuviera mucho tráfico, habría que pasar a un proveedor con clave.
 - **El mapa no se puede usar con el teclado** (Leaflet), pero buscar la dirección y elegir el resultado sí.
-- **Defecto viejo que apareció en Chrome, sin corregir:** en modo oscuro, el título de la tarjeta del proyecto elegido en el mapa (chico y ampliado) sale en `#F2F4F7` sobre fondo blanco (`bg-white/98` no cambia con el tema y `text-gray-900` sí): no se lee. `paletteContrast.test.ts` no lo detecta. Queda para decidir con el usuario.
+- **Defecto viejo que apareció en Chrome, sin corregir:** en modo oscuro, el título de la tarjeta del proyecto elegido en el mapa (chico y ampliado) sale en `#F2F4F7` sobre fondo blanco (`bg-white/98` no cambia con el tema y `text-gray-900` sí): no se lee. `paletteContrast.test.ts` no lo detecta. Queda para decidir con el usuario. → Registrado como D30 (#31) y corregido en §253.
+
+## 253. D30: la tarjeta del proyecto en el mapa, ilegible en modo oscuro (Issue #31)
+
+### Qué se hizo
+- **El pedido:** cargar el Issue del defecto que apareció en Chrome en §252 y corregirlo.
+- **Issue antes del arreglo** (como D22–D29): [#31](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/31), D30, labels `defecto`, `sev:media`, `area:frontend`, `encontrado:exploratoria`. No salió de una sesión con charter sino de una prueba manual sin guion; se usó el label más cercano y el Issue lo aclara.
+- **La causa:** en oscuro, `theme.css` pasa `bg-white` a la superficie oscura **clase por clase**, y cada opacidad es una clase aparte. Solo estaban `bg-white`, `bg-white/95` y `bg-white/90`. Las dos tarjetas del proyecto elegido (mapa chico y ampliado) usan `bg-white/98`: quedaban blancas con el texto ya invertido. Título #f2f4f7 sobre blanco = 1,10:1; ONG y lugar #8e96a1 = 2,99:1.
+- **El arreglo** (`1053d1d`): `.bg-white\/98` se suma a la misma regla que `/95` y `/90` en `theme.css`. Se corrigió el tema, no la clase del componente: así cualquier uso futuro de `/98` también queda cubierto.
+- **La regresión:** un test estático nuevo en `paletteContrast.test.ts` ("superficies blancas con opacidad en modo oscuro"):
+  - todo `bg-white/NN` de los componentes tiene que tener su línea en el bloque oscuro de `theme.css`;
+  - única excepción, con su motivo: `PhotoCarousel.tsx: bg-white/50`, los puntos sobre la foto, que tienen que seguir blancos;
+  - un segundo test controla la detección: ve `/95` y `/90`, y no ve una que no existe.
+- **Docs:** `REGISTRO_DEFECTOS.md` (fila, trazabilidad RF-3, detalle y resumen: 30 defectos, media 13, tasa de escapados 4 de 30 = 13,3 %), `METRICAS.md` (la tasa después del corte, sin tocar la tabla del corte), `GUION_DEFENSA.md` (30 defectos) y `CLAUDE.md` (980 tests).
+
+### Verificación
+- **Rojo → verde:** el test nuevo falló con exactamente `components/ProjectMap.tsx: bg-white/98` y pasó con el arreglo.
+- **Mutación:** 6 mutantes, 4 muertos (sacar `/98` del tema, cambiarlo por `/97` y pasar cada tarjeta a `/97`). Sobrevivieron 2 del propio test, **equivalentes con los archivos de hoy**:
+  - "buscar en cualquier línea de `theme.css`, no solo en las del modo oscuro": ninguna línea fuera del oscuro nombra `bg-white\/NN`;
+  - "excluir todo `PhotoCarousel`": ese archivo solo tiene el `/50`.
+- **Frontend:** `npm test` **980** (antes 978), `npm run typecheck` 0 errores.
+- **En Chrome** (base local de la semilla, María, `v_theme = dark` y recarga):
+  - el fondo de la tarjeta pasó a `#15181c` al 92 % en el mapa chico y en el ampliado (antes, blanco);
+  - en una captura del ampliado se lee el título, la ONG, el lugar y "Ver Proyecto";
+  - contraste en el peor caso (el 8 % transparente sobre un mosaico blanco, fondo #282a2e): título 13,05:1, ONG y lugar 4,81:1.
+
+### Errores propios
+- **El editor volvió a pasar a CRLF tres archivos LF** (`REGISTRO_DEFECTOS.md`, `GUION_DEFENSA.md`, `METRICAS.md`), como `DEMO_DATOS.md` en §252. Se vio al revisar los saltos de línea antes del commit y se volvieron a LF. Pasa siempre con los `.md` LF de `docs/`: hay que revisarlos después de cada edición.
+- **En §252 lo dejé como "NO verificado".** Lo vi en Chrome, así que estaba verificado como defecto: lo que faltaba era registrarlo y decidir. La formulación de esta sección es la correcta.
+
+### ⚠️ NO verificado
+- **El modo claro no se volvió a mirar.** La regla nueva está bajo `[data-theme='dark']`, así que el claro no cambia; no se comprobó en Chrome.
+- **Producción:** no se desplegó.
+- **El informe del TP** (HTML y PDF) sigue con el corte del CI #41: 29 defectos. D30 está en el registro y en las métricas como "después del corte"; queda para decidir si se actualiza el informe.
+- **Otro detalle visto en la captura, sin registrar:** en oscuro, el puntito de cada categoría en el encabezado del mapa ampliado es `#0F1419` (tinta) sobre el fondo oscuro, y casi no se ve. Es decorativo (el nombre de la categoría se lee). Tampoco se miró el punto actual del carrusel de fotos en oscuro (`bg-white` pasa a la superficie oscura).

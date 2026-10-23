@@ -8,9 +8,9 @@
 
 ## Resumen
 
-- **29 defectos.** Severidad: alta 2 · media 12 · baja 15. **Todos corregidos** (D25–D29 el 22/10, §247).
-- **Dónde se encontraron:** revisión de código 6 · pipeline/CI 5 · SonarCloud 3 · mutation testing 1 · suite de regresión 2 · sesión exploratoria 8 · **producción 4**.
-- **Tasa de defectos escapados a producción** (métrica de proceso, T11): 4 de 29 = **13,8 %** **de este registro** (4 de 18 = 22,2 % antes del rediseño del frontend, §240; 4 de 21 = 19,0 % antes de la sesión exploratoria, §245). Ojo: el registro es una **selección** (abajo); con todos los hallazgos de `REVISION.md`, que se encontraron antes de producción, el denominador sería mucho mayor y la tasa, menor. Para el informe vale como "sobre los defectos registrados", no como tasa del proceso completo.
+- **30 defectos.** Severidad: alta 2 · media 13 · baja 15. **Todos corregidos** (D25–D29 el 22/10, §247; D30 el 23/10, §253).
+- **Dónde se encontraron:** revisión de código 6 · pipeline/CI 5 · SonarCloud 3 · mutation testing 1 · suite de regresión 2 · sesión exploratoria 8 · prueba manual en Chrome sin guion 1 (D30, con el label `encontrado:exploratoria`) · **producción 4**.
+- **Tasa de defectos escapados a producción** (métrica de proceso, T11): 4 de 30 = **13,3 %** **de este registro** (4 de 18 = 22,2 % antes del rediseño del frontend, §240; 4 de 21 = 19,0 % antes de la sesión exploratoria, §245; 4 de 29 = 13,8 % en el corte del informe, §249). Ojo: el registro es una **selección** (abajo); con todos los hallazgos de `REVISION.md`, que se encontraron antes de producción, el denominador sería mucho mayor y la tasa, menor. Para el informe vale como "sobre los defectos registrados", no como tasa del proceso completo.
 - **D22–D29 (sesión exploratoria, §245) son los primeros Issues abiertos antes del arreglo:** se reportaron el 22/10, D22–D24 se corrigieron con un test que primero falló (§246) y D25–D29 también (§247). Los D01–D21 están todos corregidos, y todos con prueba de regresión que corre en el CI (salvo D08, que era un defecto del propio test, y D09/D10, que se verifican en el run siguiente).
 - **No se registran como defectos** (son mejoras o decisiones): el hallazgo 4 de §173 (los avisos que salían bien no dejaban línea en los logs: observabilidad) y las issues de SonarCloud que resultaron falsos positivos (`TRIAGE_SONAR.md`). Tampoco la promesa sin `void` de `MyParticipation` que SonarCloud marcó como bug en `7b05f02` (§243): `Promise.allSettled` no rechaza nunca, así que no había un fallo posible; es mantenibilidad. Ni el aviso de `vite` 6.4.3 que hizo fallar `npm audit` en el CI #34 (§242): es una vulnerabilidad de una dependencia, publicada después de instalarla, no un defecto del código. Los defectos de REVISION.md que no figuran acá también están corregidos (ver su tabla); se eligieron los de mayor severidad o con prueba de regresión propia.
 
@@ -47,6 +47,7 @@
 | D27 | [#28](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/28) | Al cambiar de pantalla no se vuelve arriba | baja | sesión exploratoria | — | frontend layout/AppShell.test.tsx ("volver arriba") | `793fcbc` |
 | D28 | [#29](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/29) | Sin página 404: una URL inexistente muestra la pantalla de desarrollador de React Router | baja | sesión exploratoria | — | frontend routes.test.tsx ("rutas que no existen") | `8612ac5` |
 | D29 | [#30](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/30) | KPIs: el texto de ayuda vacío tiene contraste 1,57:1 | baja | sesión exploratoria | RF-13 | frontend styles/paletteContrast.test.ts (trinquete) | `aafbf43` |
+| D30 | [#31](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/31) | Modo oscuro: la tarjeta del proyecto en el mapa queda blanca con el texto claro (1,10:1) | media | prueba manual en Chrome | RF-3 | frontend styles/paletteContrast.test.ts ("superficies blancas con opacidad") | `1053d1d` |
 
 ## Trazabilidad por requisito
 
@@ -58,7 +59,7 @@
 | RF-12 Patrocinios | D06 ([#7](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/7)) |
 | RF-13 KPIs del proyecto | D05 ([#6](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/6)), D29 ([#30](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/30)) |
 | RF-14 Notificaciones | D17 ([#18](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/18)), D19 ([#20](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/20)), D26 ([#27](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/27)) |
-| RF-3 Listar y buscar proyectos | D02 ([#3](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/3)), D13 ([#14](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/14)), D22 ([#23](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/23)) |
+| RF-3 Listar y buscar proyectos | D02 ([#3](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/3)), D13 ([#14](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/14)), D22 ([#23](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/23)), D30 ([#31](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/31)) |
 | RF-6 Donar con Mercado Pago | D12 ([#13](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/13)), D15 ([#16](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/16)), D16 ([#17](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/17)), D18 ([#19](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/19)) |
 | RF-7 CV privado | D07 ([#8](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/8)) |
 | RF-9 Chatbot de preguntas frecuentes | D01 ([#2](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/2)), D24 ([#25](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/25)) |
@@ -360,3 +361,12 @@
 - **Obtenido:** `text-gray-300`: 1,57:1 en claro y 1,73:1 en oscuro. Anterior al rediseño
 - **Arreglo:** `aafbf43` · **Regresión:** frontend styles/paletteContrast.test.ts (trinquete) (rojo → verde, §247)
 
+### D30 — Modo oscuro: la tarjeta del proyecto en el mapa queda blanca con el texto claro (1,10:1)
+
+- **Issue:** [#31](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/31) · **Severidad:** media · **Encontrado en:** prueba manual en Chrome sin guion, al verificar los mapas (§252) · **Área:** frontend
+- **Requisito:** RF-3 Listar y buscar proyectos · **Caso:** frontend styles/paletteContrast.test.ts ("superficies blancas con opacidad")
+- **Origen:** PROJECT_ANALYSIS.md §252–§253 · **Entorno:** Local (`f0b5f92`, datos de la semilla), Chrome, tema oscuro
+- **Pasos:** (1) Tema oscuro (2) Explorar → Mapa (3) Tocar un pin (también en el mapa ampliado)
+- **Esperado:** la tarjeta se lee (≥ 4,5:1)
+- **Obtenido:** fondo `bg-white/98` sin versión oscura en `theme.css` (solo estaban `bg-white`, `/95` y `/90`): título #f2f4f7 sobre blanco = 1,10:1; ONG y lugar 2,99:1. Anterior a §252
+- **Arreglo:** `1053d1d` (`.bg-white\/98` en el bloque oscuro de `theme.css`) · **Regresión:** paletteContrast.test.ts, todo `bg-white/NN` de los componentes tiene su versión oscura (rojo con la tarjeta del mapa → verde, §253)
