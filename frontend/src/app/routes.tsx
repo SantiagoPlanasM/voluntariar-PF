@@ -67,6 +67,7 @@ export const router = createBrowserRouter([
       { index: true,                              Component: NGODashboard },
       { path: 'dashboard',                        Component: NGODashboard },
       { path: 'dashboard/project/:projectId',     Component: NGOProjectDetail },
+      { path: 'dashboard/project/:projectId/editar', Component: CreateVoluntariado }, // editar un voluntariado (§255)
       { path: 'create',                           Component: CreateVoluntariado },
       { path: 'profile',                          Component: NGOOwnProfile },
       // §218: vuelta de Mercado Pago al vincular la cuenta (MP_OAUTH_REDIRECT_URI = <APP_URL>/ngo/mercadopago/vuelta).

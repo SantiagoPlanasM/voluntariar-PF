@@ -1,6 +1,6 @@
 import { useParams, useNavigate, Link } from 'react-router';
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Users, CheckCircle, Clock, XCircle, Loader2, DollarSign, BarChart2, MessageCircle, Clock3, Save, FileText } from 'lucide-react';
+import { ArrowLeft, Users, CheckCircle, Clock, XCircle, Loader2, DollarSign, BarChart2, MessageCircle, Clock3, Save, FileText, Pencil } from 'lucide-react';
 import { api, ApiError, Project, EnrollmentWithVolunteer } from '../../lib/api';
 import { openCv } from '../../lib/cv';
 import { userMessage } from '../../lib/format';
@@ -93,8 +93,13 @@ export function NGOProjectDetail() {
             <p className="text-xs text-gray-500">{project.category} · {project.type}</p>
           </div>
           <button
+            onClick={() => navigate(`/ngo/dashboard/project/${projectId}/editar`)}
+            className="ml-auto flex items-center gap-1.5 px-3 py-2 bg-surface-soft hover:bg-surface-pressed text-ink rounded-xl text-xs font-bold transition-colors">
+            <Pencil className="w-3.5 h-3.5" aria-hidden="true" />Editar
+          </button>
+          <button
             onClick={() => navigate(`/ngo/kpis/${projectId}`)}
-            className="ml-auto flex items-center gap-1.5 px-3 py-2 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-xl text-xs font-bold transition-colors">
+            className="flex items-center gap-1.5 px-3 py-2 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-xl text-xs font-bold transition-colors">
             <BarChart2 className="w-3.5 h-3.5" />KPIs
           </button>
         </div>

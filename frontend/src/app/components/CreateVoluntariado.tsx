@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { TypeBadge } from '../ui/TypeBadge';
-import { useNavigate } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import {
   ArrowLeft, ArrowRight, Plus, X, Loader2, Check, AlertCircle,
   Zap, Sprout, MapPin, Users, DollarSign, ClipboardList, Laptop, Globe,
 } from 'lucide-react';
-import { api } from '../../lib/api';
+import { api, type Project, type ProjectDetail } from '../../lib/api';
 import { LocationPicker } from './LocationPicker';
+import { LoadError, describeLoadError } from './LoadError';
 
 const CATEGORIES = ['Medio Ambiente', 'Educación', 'Salud', 'Animales', 'Alimentación', 'Tecnología', 'Arte y Cultura', 'Deportes'];
 const ROLE_RE    = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\-\/]{2,40}$/;
@@ -26,24 +27,108 @@ const FIELD_LABELS: Record<string, string> = {
   modality: 'Modalidad', duration: 'Duración', hours_per_week: 'Horas por semana', volunteers_needed: 'Voluntarios',
 };
 
+type Form = {
+  title: string; description: string; full_description: string; category: string; location: string;
+  modality: 'presencial' | 'remoto' | 'hibrido'; type: 'fugaz' | 'sostenido';
+  duration: string; hours_per_week: string; volunteers_needed: string; funding_goal: string; cost_per_person: string;
+};
+type Coords = { lat: number; lng: number } | null;
+
+const EMPTY_FORM: Form = {
+  title: '', description: '', full_description: '',
+  category: 'Medio Ambiente', location: '',
+  modality: 'presencial', type: 'fugaz',
+  duration: '', hours_per_week: '',
+  volunteers_needed: '', funding_goal: '', cost_per_person: '',
+};
+
+// Lo que se manda al backend, igual para crear y para editar. Al editar, "sin valor" es null (el PUT es parcial:
+// un campo que no viene se conserva, así que para borrar la descripción completa o el lugar hay que mandar null).
+function toBody(form: Form, roles: string[], requirements: string[], coords: Coords, editing: boolean): Partial<Project> {
+  const none = editing ? null : undefined;
+  return {
+    title: form.title.trim(),
+    description: form.description.trim(),
+    full_description: form.full_description.trim() || (none as undefined),
+    category: form.category,
+    location: form.modality === 'remoto' && !form.location.trim() ? 'Remoto' : form.location.trim(),
+    modality: form.modality,
+    // Remoto no tiene lugar: si había un punto marcado antes de cambiar la modalidad, no se manda.
+    latitude: form.modality !== 'remoto' && coords ? coords.lat : none,
+    longitude: form.modality !== 'remoto' && coords ? coords.lng : none,
+    type: form.type,
+    duration: form.type === 'fugaz' ? form.duration.trim() : undefined,
+    hours_per_week: form.type === 'sostenido' ? Number.parseInt(form.hours_per_week) : undefined,
+    volunteers_needed: Number.parseInt(form.volunteers_needed),
+    funding_goal: Number.parseFloat(form.funding_goal) || 0,
+    cost_per_person: Number.parseFloat(form.cost_per_person) || 0,
+    roles_needed: roles,
+    requirements,
+  };
+}
+
+// El formulario precargado con un voluntariado ya publicado (editar, §255).
+function fromProject(p: ProjectDetail): { form: Form; roles: string[]; requirements: string[]; coords: Coords } {
+  const num = (n: number | null | undefined) => (n ? String(n) : '');
+  return {
+    form: {
+      title: p.title ?? '', description: p.description ?? '', full_description: p.full_description ?? '',
+      category: p.category ?? '', location: p.location ?? '',
+      modality: p.modality ?? 'presencial', type: p.type,
+      duration: p.duration ?? '', hours_per_week: num(p.hours_per_week),
+      volunteers_needed: num(p.volunteers_needed), funding_goal: num(p.funding_goal), cost_per_person: num(p.cost_per_person),
+    },
+    roles: p.roles_needed ?? [],
+    requirements: p.requirements ?? [],
+    coords: p.latitude != null && p.longitude != null ? { lat: Number(p.latitude), lng: Number(p.longitude) } : null,
+  };
+}
+
+// Solo los campos que cambiaron respecto de lo que se cargó (para no reescribir lo que la ONG no tocó).
+function changedFields(body: Partial<Project>, initial: Partial<Project>): Partial<Project> {
+  return Object.fromEntries(
+    Object.entries(body).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify(initial[k as keyof Project])),
+  ) as Partial<Project>;
+}
+
 export function CreateVoluntariado() {
   const navigate = useNavigate();
+  // Con :projectId es la edición de un voluntariado ya publicado (§255); sin él, el alta.
+  const { projectId } = useParams();
+  const editing = !!projectId;
   const mainRef  = useRef<HTMLElement>(null);
+  const initialBody = useRef<Partial<Project>>({});
   const [step, setStep]       = useState(1);
   const [loading, setLoading] = useState(false);
+  const [loadingProject, setLoadingProject] = useState(editing);
+  const [loadError, setLoadError] = useState<{ message: string; retry: boolean } | null>(null);
   const [errors, setErrors]   = useState<Record<string, string>>({});
-  const [form, setForm] = useState({
-    title: '', description: '', full_description: '',
-    category: 'Medio Ambiente', location: '',
-    modality: 'presencial' as 'presencial' | 'remoto' | 'hibrido',
-    type: 'fugaz' as 'fugaz' | 'sostenido',
-    duration: '', hours_per_week: '',
-    volunteers_needed: '', funding_goal: '', cost_per_person: '',
-  });
+  const [form, setForm] = useState<Form>(EMPTY_FORM);
   // Lugar en el mapa (opcional). Antes no se mandaba nunca: el mapa ponía el voluntariado en un punto inventado.
   const [coords, setCoords]       = useState<{ lat: number; lng: number } | null>(null);
   const [roles, setRoles]         = useState<string[]>([]);
   const [requirements, setReqs]     = useState<string[]>([]);
+
+  const loadProject = async () => {
+    setLoadingProject(true);
+    setLoadError(null);
+    try {
+      const { project } = await api.projects.get(projectId!);
+      // El backend igual rechaza el PUT de otra ONG (404); esto evita llenar un formulario que no se va a poder guardar.
+      if (project.can_manage === false) {
+        setLoadError({ message: 'Solo la organización que lo publicó puede editarlo.', retry: false });
+        return;
+      }
+      const loaded = fromProject(project);
+      setForm(loaded.form); setRoles(loaded.roles); setReqs(loaded.requirements); setCoords(loaded.coords);
+      initialBody.current = toBody(loaded.form, loaded.roles, loaded.requirements, loaded.coords, true);
+    } catch (e) {
+      setLoadError(describeLoadError(e, 'No encontramos este voluntariado'));
+    } finally {
+      setLoadingProject(false);
+    }
+  };
+  useEffect(() => { if (editing) void loadProject(); }, [projectId]);
   const [newRole, setNewRole]       = useState('');
   const [newReq, setNewReq]         = useState('');
   const [roleError, setRoleError]   = useState('');
@@ -128,28 +213,17 @@ export function CreateVoluntariado() {
       setStep(Object.keys(validateStep(1)).length ? 1 : 2);
       return;
     }
+    const body = toBody(form, roles, requirements, coords, editing);
     setLoading(true);
     try {
-      await api.projects.create({
-        title: form.title.trim(),
-        description: form.description.trim(),
-        full_description: form.full_description.trim() || undefined,
-        category: form.category,
-        location: form.modality === 'remoto' && !form.location.trim() ? 'Remoto' : form.location.trim(),
-        modality: form.modality,
-        // Remoto no tiene lugar: si había un punto marcado antes de cambiar la modalidad, no se manda.
-        latitude: form.modality !== 'remoto' && coords ? coords.lat : undefined,
-        longitude: form.modality !== 'remoto' && coords ? coords.lng : undefined,
-        type: form.type,
-        duration: form.type === 'fugaz' ? form.duration.trim() : undefined,
-        hours_per_week: form.type === 'sostenido' ? Number.parseInt(form.hours_per_week) : undefined,
-        volunteers_needed: Number.parseInt(form.volunteers_needed),
-        funding_goal: Number.parseFloat(form.funding_goal) || 0,
-        cost_per_person: Number.parseFloat(form.cost_per_person) || 0,
-        roles_needed: roles,
-        requirements,
-      });
-      navigate('/ngo/dashboard');
+      if (editing) {
+        const changes = changedFields(body, initialBody.current);
+        if (Object.keys(changes).length > 0) await api.projects.update(projectId!, changes);
+        navigate(`/ngo/dashboard/project/${projectId}`);
+      } else {
+        await api.projects.create(body);
+        navigate('/ngo/dashboard');
+      }
     } catch (err: any) { setErrors({ _global: err.message }); }
     finally { setLoading(false); }
   };
@@ -176,6 +250,18 @@ export function CreateVoluntariado() {
     mainRef.current.style.paddingBottom = `${112 + extra}px`;
   }, [fieldErrors.length, step]);
 
+  if (loadingProject) return (
+    <div role="status" aria-label="Cargando voluntariado" className="flex items-center justify-center h-screen">
+      <Loader2 className="w-8 h-8 animate-spin text-brand" />
+    </div>
+  );
+  if (loadError) return (
+    <LoadError message={loadError.message} onRetry={loadError.retry ? loadProject : undefined} home="/ngo/dashboard" />
+  );
+
+  // Al editar, una categoría vieja que ya no está entre las sugeridas se muestra igual (elegida).
+  const categories = form.category && !CATEGORIES.includes(form.category) ? [...CATEGORIES, form.category] : CATEGORIES;
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -187,7 +273,7 @@ export function CreateVoluntariado() {
               <ArrowLeft className="w-4 h-4 text-gray-700" />
             </button>
             <div className="flex-1 min-w-0">
-              <h1 className="text-base font-bold text-gray-900">Nuevo Voluntariado</h1>
+              <h1 className="text-base font-bold text-gray-900">{editing ? 'Editar voluntariado' : 'Nuevo Voluntariado'}</h1>
               <p className="text-xs text-gray-400">Paso {step} de {STEPS.length} — {STEPS[step - 1].label}</p>
             </div>
           </div>
@@ -236,8 +322,8 @@ export function CreateVoluntariado() {
                 ] as const).map(({ val, icon: Icon, color, title, desc }) => {
                   const selected = form.type === val;
                   return (
-                    <button key={val} type="button" onClick={() => set('type', val)}
-                      className={`text-left p-4 rounded-xl border-2 transition-all ${
+                    <button key={val} type="button" onClick={() => set('type', val)} disabled={editing}
+                      className={`text-left p-4 rounded-xl border-2 transition-all disabled:cursor-not-allowed ${editing && !selected ? 'opacity-50' : ''} ${
                         selected
                           ? color === 'blue' ? 'border-brand bg-brand-soft' : 'border-people bg-people-soft'
                           : 'border-gray-100 bg-gray-50 hover:border-gray-200 hover:bg-white'
@@ -253,6 +339,8 @@ export function CreateVoluntariado() {
                   );
                 })}
               </div>
+              {/* Cambiarlo con inscriptos cambiaría el compromiso que aceptaron (una jornada o horas por semana). */}
+              {editing && <p className={hint}>El tipo no se puede cambiar después de publicar.</p>}
             </div>
 
             <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
@@ -283,7 +371,7 @@ export function CreateVoluntariado() {
               <div>
                 <p className={lbl}>Categoría</p>
                 <div className="flex flex-wrap gap-2 mt-1">
-                  {CATEGORIES.map(c => (
+                  {categories.map(c => (
                     <button key={c} type="button" onClick={() => set('category', c)}
                       className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                         form.category === c
@@ -572,7 +660,7 @@ export function CreateVoluntariado() {
             <button type="button" onClick={handleSubmit} disabled={loading}
               className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm transition-colors disabled:opacity-60 shadow-md shadow-emerald-200">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              Publicar Voluntariado
+              {editing ? 'Guardar cambios' : 'Publicar Voluntariado'}
             </button>
           )}
         </div>
