@@ -22,6 +22,7 @@
 | §239–§243 | Rediseño del frontend (DESIGN 1.1) |
 | §244–§251 | Informe con el rediseño, sesión exploratoria, sus 8 defectos, contraste en 0, corte final y orden de la documentación |
 | §252–§254 | Mapas: el alta manda el lugar (pin y búsqueda de dirección), respaldo estable, mosaicos de OpenStreetMap, D30 (tarjeta del mapa en oscuro) y D31 (remotos en el mapa) |
+| §255–§256 | Administrar un voluntariado desde el panel: editarlo y finalizarlo, cancelarlo o volver a activarlo |
 
 
 ## 1. Fortalezas
@@ -7278,3 +7279,83 @@ El usuario pidió arreglar los cinco que seguían abiertos. Cada uno se hizo con
 - **D31 en producción:** falta pushear y desplegar `e113674` (y estos docs).
 - **El lugar de "Jornada de limpieza en el Lago" sigue sin cargar** (el pedido quedó bloqueado; ver arriba).
 - **"Prueba cuenta 2" (Carlos Paz)** es de otra ONG: no se le puede cargar el lugar con la sesión de ONG SANTI.
+
+## 255. Editar un voluntariado desde el panel de la ONG
+
+### Qué se hizo
+- **El pedido:** "un lugar para modificar cosas de los voluntariados". Salió de §254: "Jornada de limpieza en el Lago" no tenía lugar en el mapa, y la única forma de cargárselo era un `PUT` a mano.
+- **Lo que había:** `PUT /api/projects/:id` parcial desde §95 (valida como el alta, solo la ONG dueña, no deja bajar los cupos por debajo de los aprobados). Ninguna pantalla lo usaba.
+- **Decisiones del usuario:** se editan los datos y el tipo (fugaz/sostenido) **queda fijo**, porque cambiarlo cambia el compromiso que aceptaron los inscriptos. Además, finalizar/cancelar (§256). Borrar, no: `DELETE` es irreversible y deja las fotos en Cloudinary (pendiente conocido).
+- **El cambio** (`81aa70d`):
+  - **ruta** `/ngo/dashboard/project/:projectId/editar`, dentro de `NGOLayout` (guarda de rol). Usa el mismo `CreateVoluntariado`, que pasa a tener modo edición; no hay un segundo formulario;
+  - **la precarga** sale de `api.projects.get`: todos los campos, roles, requisitos y el lugar en el mapa. Una categoría vieja que ya no está entre las sugeridas se muestra elegida;
+  - **guardar** arma el cuerpo con la misma función del alta (`toBody`) y manda **solo los campos que cambiaron** (`changedFields`, contra lo que se cargó). Para borrar se manda `null`: el `PUT` es parcial y un campo que no viene se conserva (descripción completa vacía, o pasar a remoto, que borra el lugar). Sin cambios no manda nada. Al terminar vuelve al detalle del panel;
+  - **si no se puede editar:** si el voluntariado no existe (404) o no es de la ONG (`can_manage === false`), se muestra `LoadError` sin formulario. El backend igual rechaza el `PUT` ajeno (404, `ownership.test.js`);
+  - **errores del backend** (por ejemplo, bajar los cupos por debajo de los aprobados) se muestran en el formulario, que no se cierra;
+  - **botón "Editar"** en el encabezado del detalle del panel (`NGOProjectDetail`).
+- **El backend no cambió en esta parte.** Se cotejó que `GET /:id` devuelve con esos nombres todos los campos que se precargan (regla 10).
+
+### Verificación
+- **Rojo → verde:** 14 tests nuevos en `CreateVoluntariadoEdit.test.tsx` y 1 en `NGOProjectDetailManage.test.tsx`, todos rojos con el formulario de alta. Cubren:
+  - la precarga de los tres pasos, con lugar y con categoría vieja, y el tipo bloqueado con su aviso;
+  - que se mande solo lo que cambió: título, lugar en el mapa, paso a remoto con `null`, descripción vaciada con `null` y roles;
+  - que sin cambios no se mande nada;
+  - el error de cupos del backend, que las validaciones del alta valen al editar, el 404 y otra ONG.
+  Después se sumó uno más (un remoto abre como remoto, sin mapa), por un mutante.
+- **Mutación:** 20 mutantes, 20 muertos. Sobrevivió primero "la modalidad se precarga siempre presencial", que no era equivalente: un remoto se abría con mapa. Se agregó el test.
+- **Frontend:** `npm test` 997 al cerrar el commit, `npm run typecheck` 0 errores.
+
+### Errores propios
+- **El primer juego de tests no probaba precargar un voluntariado remoto.** Todos los casos partían de uno presencial, así que un error que abriera todo como presencial pasaba. Lo encontró la mutación y se agregó el test antes del commit.
+- **Doc vieja:** `FRONTEND_CONTEXT.md` decía desde antes de §252 que `CreateVoluntariado` editaba por `projectId`. Recién ahora es cierto.
+
+### ⚠️ NO verificado
+- **En producción:** no se probó (falta desplegar). **En Chrome local sí** (base de la semilla, ONG Sustentando):
+  - "Editar" abrió el formulario precargado, con el tipo bloqueado y el pin en su lugar;
+  - se cambió solo el título y se guardó: un `PUT` 200, y la base cambió el título y conservó el lugar, los roles, los requisitos y los cupos;
+  - al terminar volvió al detalle del panel.
+- **El tipo queda fijo solo en la interfaz.** El backend sigue aceptando `type` en el `PUT`. No es un control de acceso (regla 15) sino una decisión de producto; si hiciera falta imponerla, iría en el backend.
+- **Celular:** la pantalla es la del alta, que ya se usaba en el celular, pero la edición no se miró en ese tamaño.
+
+## 256. Finalizar, cancelar o volver a activar un voluntariado
+
+### Qué se hizo
+- **El pedido:** junto con §255, botones para finalizar o cancelar (el `PUT` ya aceptaba `status`).
+- **Lo que hacía falta para no dejar bugs**, visto antes de escribir el código:
+  - `GET /api/projects` sin `status` traía **todos** los estados: un cancelado iba a seguir en Explorar, en su mapa y en la portada;
+  - `cardActions` solo conocía `completed`: un cancelado ofrecía "Inscribirme". El backend rechaza la inscripción y la donación si no está activo, pero el voluntario se enteraba recién al tocar;
+  - el panel de la ONG decía " · Completado" para cualquier estado no activo, también para un cancelado;
+  - `Project.status` en `api.ts` no incluía `cancelled` (regla 6).
+- **El cambio** (`432c6c7`):
+  - **backend:** `GET /api/projects` sin `status` excluye los cancelados, en las dos ramas (Postgres y SQLite). Con `status=cancelled` explícito los trae, y `GET /:id` los sigue abriendo para quien tenga el link. Un solo lugar en vez de filtrar en Explorar, el mapa y la portada;
+  - **panel, sección "Estado del voluntariado"** (`NGOProjectDetail`): muestra Activo, Finalizado o Cancelado.
+    - "Finalizar" y "Cancelar voluntariado" piden confirmación con el diálogo propio (`useConfirm`, no `window.confirm`); cancelar avisa que deja de aparecer en Explorar;
+    - "Volver a activar" no pide confirmación, porque no saca nada de circulación;
+    - si el cambio falla, el aviso queda en la sección y el estado no cambia;
+  - **`cardActions`:** un cancelado da `cancelled` ("Cancelado", deshabilitado) y no ofrece donar. Una inscripción existente sigue mostrando su estado;
+  - **etiquetas:** `volunteering/status.ts` con `Finalizado`/`Cancelado`, compartido con `CompanyDashboard`, que ya tenía ese mapa propio (regla 3). `NGODashboard` lo usa en vez de "Completado".
+- **Docs:** `API_CONTEXT.md` (el default de `status` y quién usa el `PUT`), `FRONTEND_CONTEXT.md` (ruta, `CreateVoluntariado`, `NGOProjectDetail`, `cardActions`) y `CLAUDE.md` (conteos y cobertura).
+
+### Verificación
+- **Rojo → verde:**
+  - backend: `projects-cancelled-hidden.test.js` (4 tests), con 2 rojos: sin `status` y con búsqueda u orden aparecía el cancelado. Los otros dos (pedido explícito y detalle) ya pasaban, como se esperaba;
+  - frontend: 10 rojos (`cardActions`, el botón "Cancelado", las etiquetas del panel y las 6 del estado en el detalle).
+- **Mutación:**
+  - frontend: 15 mutantes, 15 muertos;
+  - backend: 5 mutantes, 5 muertos, cada uno en su motor (la rama Postgres con `TEST_DB=postgres` y la de SQLite sin él).
+- **Backend:** `npm test` **936** (antes 932), `npm run test:pg` **938** (antes 934), `TZ=America/Argentina/Cordoba npm test` 936; sin rojos ni cancelados (Postgres 16 en Docker, ya detenido).
+- **Frontend:** `npm test` **1007**, `npm run typecheck` 0 errores. Cobertura local: sentencias 88,57 %, ramas 85,27 %, funciones 84,46 %, líneas 92,01 %.
+
+### Errores propios
+- **Ninguno que haya llegado a un commit.** El aviso de los tests (que el estado no tenía nombre para "cancelado" en tres lugares) salió de leer el código antes de escribirlo, no de un rojo inesperado.
+
+### ⚠️ NO verificado
+- **En producción:** no se probó (falta desplegar). **En Chrome local sí:**
+  - "Cancelar voluntariado" abrió el diálogo propio con el aviso de Explorar;
+  - al confirmar, la sección pasó a "Cancelado" con "Volver a activar", la base quedó en `cancelled` y `GET /api/projects` lo dejó de traer (11 de 12);
+  - el panel general lo muestra como "· Cancelado".
+  No se probó en Chrome finalizar ni volver a activar (sí en los tests).
+- **A los inscriptos de un voluntariado cancelado no les llega ningún aviso.** Lo ven al entrar al voluntariado ("Cancelado"). Una notificación sería una mejora aparte.
+- **El feed de seguidos** (`/api/follows/feed`) sigue trayendo un cancelado a quien lo sigue. Se muestra con "Cancelado" y sin inscribirse: es a propósito, pero no se probó con datos reales.
+- **"Finalizado" sigue apareciendo en Explorar** (con "Ver cómo salió"), como antes.
+- **Sin pushear ni desplegar** (§254, §255 y §256).
