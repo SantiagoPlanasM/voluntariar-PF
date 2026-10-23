@@ -32,14 +32,15 @@
 
 ### 2.1 ONGs (cuentas 1 y 2)
 1. Registrarse como ONG.
-2. **Mi ONG → "Cambiar foto"**: el logo.
-3. Editar perfil (lápiz): descripción, misión, ubicación y **categoría**.
-4. **Nuevo voluntariado**, dos por ONG:
+2. **Perfil → "Editar perfil" → "Cambiar foto"**: el logo.
+3. En el mismo "Editar perfil": descripción, misión, ubicación y **categoría**.
+4. **Vincular Mercado Pago** (el aviso "Configurar" del Panel, o Configuración → "Cuenta de Mercado Pago"): sin cuenta vinculada la ONG no recibe donaciones y el botón "Donar" no aparece (§215). El botón OAuth no se probó en vivo; la ONG SANTI se vinculó a mano con `scripts/vincular-mp-manual.js`.
+5. **Panel → "Crear voluntariado"** (en el celular, "Crear"), dos por ONG:
    - uno **fugaz** y uno **sostenido**;
    - con **imagen** (URL), **ubicación en el mapa**, roles y requisitos;
    - en la ONG 1, con **meta de financiamiento** (por ejemplo $50.000), para que se vea la barra;
    - en la ONG 2, sin meta (para mostrar "Recaudado en donaciones").
-5. En un proyecto de la ONG 1, **KPIs**: dos indicadores con valor y fecha.
+6. En un proyecto de la ONG 1, **KPIs**: dos indicadores con valor y fecha.
 
 ### 2.2 Empresa (cuenta 3)
 1. Registrarse como empresa, logo ("Cambiar foto"), industria y descripción.
@@ -48,21 +49,21 @@
 4. Mirar el **Panel** de la empresa: los KPIs de lo patrocinado.
 
 ### 2.3 Voluntarios (cuentas 4, 5 y 6)
-1. Registrarse, **"Cambiar foto"** y, en el perfil (lápiz), descripción, ubicación y **habilidades**.
-2. **Lucía y Martín: "Mi CV" → subir un PDF** (inventado).
-3. Seguir ONGs, proyectos y entre ellos (para que el feed "Siguiendo" y los contadores tengan datos).
+1. Registrarse y, en **Perfil → "Editar perfil"**: "Cambiar foto", "Sobre mí", ubicación y **habilidades**.
+2. **Lucía y Martín: Configuración (menú ☰ del perfil) → "Mi CV" → subir un PDF** (inventado).
+3. Seguir ONGs, proyectos y entre ellos (para que el **Inicio** y los contadores tengan datos).
 4. Inscribirse:
    - Lucía en un proyecto de la ONG 1;
    - Martín en el mismo proyecto;
    - Sofía en un proyecto de la ONG 2.
-5. Como **ONG 1**: aprobar a Lucía (y **cargarle horas**), dejar a Martín **pendiente** y abrir su **CV** con el ícono.
+5. Como **ONG 1**: en el detalle del voluntariado, aprobar a Lucía (y **cargarle horas**), dejar a Martín **pendiente** y abrir su CV con **"Ver CV"**.
    Como **ONG 2**: rechazar a Sofía.
 
 ### 2.4 Contenido y actividad
-1. **Lucía**: en Momentos, una publicación con 2 o 3 fotos del proyecto aprobado; un comentario y una **reseña** del proyecto.
+1. **Lucía**: **Crear → "Nueva publicación"** con 2 o 3 fotos del proyecto aprobado; un comentario y una **reseña** del proyecto.
 2. **ONG 1**: una publicación en Momentos desde su panel.
 3. **Mensajes**: Lucía ↔ ONG 1, y empresa ↔ ONG 1.
-4. **Donaciones** (con el **comprador de prueba**, iniciando sesión en el checkout; ver §173):
+4. **Donaciones** (con el **comprador de prueba**, iniciando sesión en el checkout; ver §173). Solo a proyectos de una ONG **con Mercado Pago vinculado** (paso 2.1.4):
    - una a un proyecto **con meta** de la ONG 1;
    - una a un proyecto **sin meta** de la ONG 2.
 
@@ -75,6 +76,6 @@
 - [ ] **Detalle** de los proyectos: la barra de financiamiento (con meta) y "Recaudado en donaciones" (sin meta).
 - [ ] **ONG 1 → campanita**: "Nueva solicitud de inscripción" y "Recibiste una donación".
 - [ ] **Perfil público** de Lucía: foto, habilidades, participaciones y Momentos.
-- [ ] **Chatbot** (el botón de abajo a la derecha): responde una pregunta frecuente.
-- [ ] `/privacidad` abre, y en el registro aparece el link.
+- [ ] **Asistente** (Mensajes → "Asistente VoluntariAR", arriba de todo): responde una pregunta frecuente con los nombres de pantalla actuales (§246).
+- [ ] **Configuración → "Privacidad y términos"** abre, y en el registro aparece el link.
 - [ ] **Borrar mi cuenta**: probalo con una cuenta descartable (no con las de la demo).

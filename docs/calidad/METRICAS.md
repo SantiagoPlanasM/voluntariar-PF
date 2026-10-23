@@ -55,6 +55,7 @@ exactamente los mismos números de la tabla (33/101 y 69/245) antes de medir el 
 | Backend (`backend/src`) | 33 | 101 | 3,06 | `index.js` (19: monta todas las rutas) | `db/index.js` (15), `middleware/auth.js` (13), `lib/inputs.js` (8) |
 | Frontend (`frontend/src`) | 69 | 245 | 3,55 | `app/routes.tsx` (30: todas las pantallas) | `lib/api.ts` (49), `lib/AuthContext.tsx` (38), `lib/format.ts` (28) |
 | Frontend, después del rediseño (`7b05f02`, §240) | 77 | 306 | 3,97 | `app/routes.tsx` (32), `ProjectDetails.tsx` (15) | `lib/api.ts` (49), `lib/AuthContext.tsx` (32), `lib/format.ts` (29), `app/ui/Button.tsx` (20) |
+| Frontend, corte del informe (`55ac491`, §249) | 78 | 308 | 3,95 | `app/routes.tsx` (33), `ProjectDetails.tsx` (15) | `lib/api.ts` (49), `lib/AuthContext.tsx` (32), `lib/format.ts` (29), `LoadError.tsx` (20) |
 
 **Lectura:**
 - Los módulos con mayor Ce son los puntos de armado (`index.js`, `routes.tsx`), lo esperable.
@@ -143,6 +144,26 @@ Fuentes: log del CI #36 (`7b05f02`, https://github.com/SantiagoPlanasM/voluntari
 - CI: 36 runs, 5 cancelados por un push posterior (#24, #25, #30, #31, #35), 3 fallidos (#4, #7, #34). Deploy: 29 runs; 6 salteados porque los disparó un CI que no terminó en verde (#17, #18, #23, #24 y #28 por CI cancelados; #27 por el CI #34 en rojo: **el rediseño con un test en rojo no se desplegó**).
 - La densidad de pruebas del frontend subió a 88,8 tests/KLOC: más tests sobre menos código. Ojo: 6.008 es el ncloc de la carpeta `backend/` entera (con scripts y migraciones), el mismo criterio que el 5,546 del CI #15.
 - Después del corte: el CI #37 (`b7e17c2`) dio verde en todos los tests y en SonarCloud, pero el paso `npm audit` del backend se colgó 10 minutos y lo cortó el límite de tiempo (run cancelado; no cuenta en la tasa).
+
+## 6. Corte final del informe: CI #41 (`55ac491`, 23/10/2026)
+
+Fuentes: log del CI #41 (https://github.com/SantiagoPlanasM/voluntariar-PF/actions/runs/39880981802, job en UTC), `gh run list` y la API pública de SonarCloud (análisis de `55ac491`), §249.
+
+| Métrica | CI #36 | CI #41 |
+|---|---|---|
+| Tests backend SQLite / Postgres | 930 / 932 | **932 / 934** |
+| Tests frontend | 939 (79 archivos) | **954** (81 archivos) |
+| Cobertura backend (líneas / ramas / funciones) | 93,22 / 85,45 / 90,21 | **93,23 / 85,50 / 90,21** |
+| Cobertura frontend (líneas / sentencias / ramas / funciones) | 90,78 / 87,20 / 83,48 / 83,28 | **90,81 / 87,23 / 83,46 / 83,34** |
+| ncloc / duplicación | 16.582 / 1,3 % | **16.606 / 1,3 %** (backend 6.010) |
+| Complejidad ciclomática / cognitiva | 4.331 / 2.813 | **4.340 / 2.815** |
+| Bugs / vulnerabilidades / code smells / aceptadas | 1 / 0 / 0 / 4 | **0 / 0 / 0 / 4** (A / A / A) |
+| Cobertura del código nuevo | 90,8 % (`b7e17c2`) | **90,8 %** |
+| Tasa del pipeline | CI 28/31 (90,3 %), Deploy 19/23 (82,6 %) | **CI 32/35 (91,4 %)**, **Deploy 23/27 (85,2 %)** |
+| Densidad de pruebas (tests/KLOC) | backend 154,6, frontend 88,8 | **backend 154,9, frontend 90,0** |
+| Defectos registrados | 21 | **29, todos corregidos** |
+
+**Lectura:** entre los dos cortes no hubo runs fallidos. El CI #37 quedó cancelado porque se colgó `npm audit` y no cuenta. Los 8 defectos de la sesión exploratoria entraron y se corrigieron con su test (§245–§248). La cobertura casi no se movió: los arreglos sumaron tests y código en proporción.
 
 ## ⚠️ No verificado
 

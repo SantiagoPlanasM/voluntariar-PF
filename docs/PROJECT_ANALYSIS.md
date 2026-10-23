@@ -7027,3 +7027,41 @@ El usuario pidió arreglar los cinco que seguían abiertos. Cada uno se hizo con
 - **Los íconos:** piden 3:1. Por ejemplo, la estrella vacía de las reseñas (`text-hairline`) se ve apenas. No se midieron.
 - **Un teléfono real y un lector de pantalla.**
 - **El CI y el deploy de estos commits** (no se pusheó).
+
+## 249. Informe del TP: corte en el CI #41 (`55ac491`); guion de la defensa y datos de demo al día con el rediseño
+
+### Qué se hizo
+- **Informe: el corte pasa del CI #36 al CI #41** (`55ac491`, Deploy #34), que es lo que está desplegado.
+  - **Carátula y "En números":** 932/934/954 tests, cobertura del backend 93,23 % y del frontend 90,81 %, código nuevo 90,8 % (análisis de `55ac491`) y 82 commits (`git rev-list --count 20d881a^..HEAD`).
+  - **Metas:** CI 32 de 35 (6 cancelados); la cobertura existente con backend 93,23/85,50/90,21 y frontend 90,81/87,23/83,46/83,34; smoke en 22 deploys.
+  - **Métricas:** 16.606 líneas, ciclomática 4.340 y cognitiva 2.815, tasas CI 91,4 % y Deploy 85,2 %, y densidad 154,9 y 90,0 tests/KLOC.
+  - **Sección 4:** 931 y 954 tests, 64 archivos de API y 81 de frontend.
+  - **Tablas de evolución:** una fila nueva en SonarCloud (`55ac491`) y otra en pruebas (CI #41). El pipeline pasa a 41 y 34 runs; el CI #37 cancelado por `npm audit` y el Deploy #30 salteado quedan explicados.
+  - **Anexo:** los enlaces al CI #41 y al Deploy #34.
+  - **Lo que queda con CI #36 o `7b05f02` es historial a propósito:** las filas de las tablas, la sección 7 (antes y después del rediseño) y el caso de los dos gates.
+- **`METRICAS.md`:** sección 6 (CI #36 contra CI #41) y la fila del acoplamiento en `55ac491` (78 módulos, 306 → 308 dependencias).
+- **`GUION_DEFENSA.md`** (no se había tocado desde §182):
+  - **El recorrido con los nombres de hoy:** Inicio sin pestañas, "Inscribirme", Mis voluntariados, el CV y "Borrar mi cuenta" en Configuración, el Asistente en Mensajes (reemplaza al botón flotante del chatbot), "Ver CV", "Crear" → "Nueva publicación" y "Patrocinar este proyecto".
+  - **Checklist:** la donación de prueba tiene que ser a una ONG con Mercado Pago vinculado; elegir el tema según el proyector; las capturas viejas no sirven.
+  - **"¿Adónde llega la plata?" estaba desactualizado:** decía que llegaba a la cuenta de la plataforma. Desde §215 llega a la cuenta de cada ONG. Ahora lo dice, con el límite de OAuth sin probar en vivo, y el trabajo futuro pasa a "probar OAuth en vivo".
+  - **Los números de calidad** pasan del 16/10 (782/784/694) a los del corte.
+- **`DEMO_DATOS.md`:** los pasos de carga con los nombres de hoy ("Editar perfil" en lugar del lápiz, "Crear voluntariado", Configuración → "Mi CV", "Ver CV", el Asistente) y un paso nuevo: **vincular Mercado Pago**. Sin ese paso, las donaciones del paso 2.4 no se pueden hacer.
+- PDF regenerado.
+
+### Verificación
+- **Fuentes:**
+  - el log del CI #41 (`gh run view 39880981802 --log`, los jobs en UTC);
+  - `gh run list` por workflow;
+  - la API pública de SonarCloud (`project_analyses` confirma que el último análisis es `55ac491`; `component_tree` para la cognitiva por archivo);
+  - el script de acoplamiento de §244.
+- **Los reemplazos del informe** se hicieron con un script que exige una sola aparición de cada texto. Las menciones que quedan de CI #36, `7b05f02` y 939 son historial.
+- **Cada nombre de pantalla o botón del guion y de los datos de demo se buscó en el código:** `SettingsScreen` (CV, borrar cuenta, privacidad, Mercado Pago), `MessagesScreen` (Asistente), `NGOProjectDetail` ("Ver CV"), `PostComposer` ("Nueva publicación"), `ProjectDetails` ("Patrocinar este proyecto"), `NGODashboard` ("Crear voluntariado"), `NGOOwnProfile` ("Editar perfil") y `navConfig` ("Perfil").
+- No se tocó código.
+
+### Errores propios
+- **El guion y los datos de demo no se actualizaron en §240** (el rediseño) **ni en §215** (el marketplace). Si se seguían al pie de la letra, la demo buscaba un chatbot flotante que ya no existe y una donación a una ONG sin Mercado Pago vinculado, que no tiene botón "Donar".
+
+### ⚠️ NO verificado
+- **El recorrido del guion no se hizo entero en producción.** Los nombres salen del código.
+- **El PDF** (20 páginas) sigue sin revisión visual completa.
+- **Los datos de demo de producción:** no se revisó qué hay cargado hoy en la base de Render.
