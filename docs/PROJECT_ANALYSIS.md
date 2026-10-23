@@ -22,7 +22,7 @@
 | §239–§243 | Rediseño del frontend (DESIGN 1.1) |
 | §244–§251 | Informe con el rediseño, sesión exploratoria, sus 8 defectos, contraste en 0, corte final y orden de la documentación |
 | §252–§254 | Mapas: el alta manda el lugar (pin y búsqueda de dirección), respaldo estable, mosaicos de OpenStreetMap, D30 (tarjeta del mapa en oscuro) y D31 (remotos en el mapa) |
-| §255–§256 | Administrar un voluntariado desde el panel: editarlo y finalizarlo, cancelarlo o volver a activarlo |
+| §255–§257 | Administrar un voluntariado desde el panel (editar; finalizar, cancelar o volver a activar) y D32 (el mapa no encuadraba los pines) |
 
 
 ## 1. Fortalezas
@@ -7359,3 +7359,37 @@ El usuario pidió arreglar los cinco que seguían abiertos. Cada uno se hizo con
 - **El feed de seguidos** (`/api/follows/feed`) sigue trayendo un cancelado a quien lo sigue. Se muestra con "Cancelado" y sin inscribirse: es a propósito, pero no se probó con datos reales.
 - **"Finalizado" sigue apareciendo en Explorar** (con "Ver cómo salió"), como antes.
 - **Sin pushear ni desplegar** (§254, §255 y §256).
+
+## 257. D32: el mapa de Explorar no encuadraba los pines (Issue #33)
+
+### Qué se hizo
+- **El despliegue de §254–§256:** pusheado con OK del usuario. CI #45 y Deploy #39 en verde: producción en `99d3b9d`. Corrige el "sin pushear ni desplegar" de §254–§256.
+  - D31 se verificó en producción: el mapa muestra 2 pines y "2 proyectos" (antes, "Test", remoto, también tenía pin). #32 cerrado.
+- **El usuario cargó el lugar de "Jornada de limpieza en el Lago" desde "Editar"** (la pantalla de §255), en producción.
+  - Se revisó con la API: -30.889557, -62.646618, que según la geocodificación inversa de OpenStreetMap cae en la Pedanía Concepción, departamento San Justo, Córdoba: la orilla sur de la laguna, junto a Miramar de Ansenuza. El resto de los campos quedó igual. En el detalle aparece "Cómo llegar".
+  - La ubicación quedó escrita en minúscula ("mar chiquita"), como la cargó el usuario.
+- **D32, visto al verificar eso:** la pastilla decía "2 proyectos", pero en el mapa se veía un solo pin. El mapa abría siempre en el centro de Córdoba con zoom 13; el de Mar Chiquita (a ~170 km) aparecía recién alejando 7 niveles.
+  - Ya pasaba antes, pero no se notaba: todos los pines caían en la ciudad, con coordenadas reales o con el punto de respaldo.
+  - Se registró antes de arreglarlo: [#33](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/33), severidad media, `encontrado:prod`.
+- **El arreglo** (`e95f7ce`): `fitToProjects` en `ProjectMap.tsx` encuadra todos los pines (`fitBounds`, padding de 40 px, **zoom 13 como máximo**, para no pegarse a un pin solo; sin pines no hace nada).
+  - **Mapa chico:** encuadra al abrir y cada vez que cambia la lista (filtros de Explorar), pero no al tocar un pin.
+  - **Mapa ampliado:** encuadra al abrir, salvo que se haya abierto desde un pin elegido (ahí respeta ese centro, como antes); con el filtro de categoría vuelve a encuadrar.
+- **Docs:** `REGISTRO_DEFECTOS.md` (32 defectos; producción 6; tasa de escapados **6 de 32 = 18,8 %**), `METRICAS.md`, `GUION_DEFENSA.md`, `FRONTEND_CONTEXT.md` y `CLAUDE.md` (1012).
+
+### Verificación
+- **Rojo → verde:** 5 tests nuevos en `ProjectMap.test.tsx`. Fallaron los 3 que esperan un encuadre (`fitBounds` nunca se llamaba); los otros 2 (sin proyectos y ampliado con pin elegido) son los casos en que no se encuadra y ya pasaban.
+  Después, por un mutante, uno de ellos también comprueba que un filtro encuadra aunque se haya abierto desde un pin.
+- **Mutación:** 10 mutantes, 10 muertos. Sobrevivió primero "no apagar la marca de la primera vez", que no era equivalente: abierto desde un pin, los filtros nunca reencuadraban. Se agregó el caso.
+- **Frontend:** `npm test` **1012** (antes 1007), `npm run typecheck` 0 errores.
+- **En Chrome local** (semilla, un proyecto con el lugar de Mar Chiquita puesto por la API local):
+  - el mapa chico abrió mostrando la laguna y la ciudad, con los 10 pines adentro una vez terminada la animación;
+  - el ampliado, también con los 10.
+
+### Errores propios
+- **El primer chequeo en Chrome dio 7 de 10 pines visibles** porque midió durante la animación del encuadre. Medido con el mapa quieto, entran los 10.
+- **Un fixture del test tenía `-64.646618 + 2`** (punto flotante: no da exactamente `-62.646618`), y los tests fallaron por eso, no por el código. Se cambió por el valor literal.
+
+### ⚠️ NO verificado
+- **D32 en producción:** falta pushear y desplegar `e95f7ce` (y estos docs). Después se cierra #33.
+- **En el mapa ampliado se vieron líneas finas entre mosaicos** en una captura. Puede ser la animación de entrada del modal (escala con `transform`) o el escalado del navegador; no se investigó.
+- **Celular:** el encuadre no se miró en una pantalla chica (el padding es fijo de 40 px).
