@@ -15,7 +15,7 @@ Todas las claves primarias son `TEXT` (UUID v4-like), no enteros autoincremental
 
 > **⚠️ `created_at` en SQLite tiene resolución de 1 segundo** (`datetime('now')`; en Postgres, microsegundos). Dos filas creadas dentro del mismo segundo **empatan**: `ORDER BY created_at DESC LIMIT 1` devuelve cualquiera de las dos (en la práctica la de menor `rowid`, o sea la más vieja). No usar `created_at` para identificar una fila recién insertada (usar su id) ni asumir un orden estricto entre filas del mismo segundo. Ver `PROJECT_ANALYSIS.md §40`.
 
-## 1. Todas las tablas (31)
+## 1. Todas las tablas (34)
 
 | # | Tabla | Propósito |
 |---|---|---|
@@ -50,6 +50,9 @@ Todas las claves primarias son `TEXT` (UUID v4-like), no enteros autoincremental
 | 29 | `posts` | Publicaciones ("Momentos"): fotos de un voluntariado, de quien participó o de la ONG dueña (`PROJECT_ANALYSIS.md §43`) |
 | 30 | `post_media` | Fotos de una publicación (URL + public_id de Cloudinary + orden) |
 | 31 | `post_likes` | Likes de publicaciones (PK compuesta `(post_id, user_id)`) |
+| 32 | `account_deletion_tokens` | Códigos de un solo uso para confirmar el borrado de la cuenta (solo el hash; `PROJECT_ANALYSIS.md §177`) |
+| 33 | `ngo_cuentas_mp` | Cuenta de Mercado Pago de cada ONG, con los tokens cifrados (marketplace, §216) |
+| 34 | `mp_oauth_states` | `state` de un solo uso del OAuth de Mercado Pago (§216) |
 
 ## 2. Detalle de columnas por tabla
 

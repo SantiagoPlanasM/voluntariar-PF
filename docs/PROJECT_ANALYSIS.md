@@ -20,7 +20,7 @@
 | §215–§227 | Marketplace de Mercado Pago: cada ONG cobra en su cuenta |
 | §228–§238 | SonarCloud en 0 issues, validaciones de entrada y los temas de la materia en el informe |
 | §239–§243 | Rediseño del frontend (DESIGN 1.1) |
-| §244–§250 | Informe con el rediseño, sesión exploratoria, sus 8 defectos, contraste en 0, corte final y orden de la documentación |
+| §244–§251 | Informe con el rediseño, sesión exploratoria, sus 8 defectos, contraste en 0, corte final y orden de la documentación |
 
 
 ## 1. Fortalezas
@@ -7118,3 +7118,44 @@ El usuario pidió arreglar los cinco que seguían abiertos. Cada uno se hizo con
 ### ⚠️ NO verificado
 - **El `README.md` principal no se revisó entero:** solo la sección de endpoints. Es del 17/10, así que no menciona el rediseño ni la sesión exploratoria.
 - **Partir la bitácora y mover los históricos a `docs/historico/`:** queda decidido para después de la entrega, no hecho.
+
+## 251. README principal revisado entero y lista de tablas de `DATABASE_CONTEXT.md`
+
+### Qué se hizo
+- **El pedido:** antes de pushear §250, el usuario pidió revisar el `README.md` entero, que era del 17/10.
+- **Lo que estaba mal o viejo:**
+  - **un dato falso:** "`PATCH /api/enrollments/:id/horas` — volunteer — registrar horas". La ruta exige el rol de ONG: las horas las certifica la ONG desde §22;
+  - **cifras viejas:** tests "369/371/314" del 13/10; "33 tablas" en un lugar y "31" en otro (son 34);
+  - **lo que faltaba:** no mencionaba el marketplace, el chat, el Asistente, las notificaciones, el modo oscuro, la CI/CD ni las variables de Mercado Pago;
+  - **la estructura del repo:** se llamaba `voluntariar-v2/`, no tenía `layout/`, `ui/` ni `volunteering/` del frontend, ni `donaciones.js`, `mercadopago.js` y los scripts nuevos del backend, ni `.github/`, `docs/` o `load/`;
+  - **el deploy:** el clon apuntaba a `TU_USUARIO/voluntariar-mvp`, los pasos de deploy repetían `git init`, y no decía que el auto-deploy está apagado y que despliega `deploy.yml`;
+  - **"Todas las validaciones corren en frontend y backend":** es inexacto, porque el servidor es el que manda.
+- **La reescritura conserva la estructura y ordena el contenido:**
+  - URLs de producción;
+  - descripción y roles al día; las empresas también pueden donar (`requireRole('volunteer', 'company')`);
+  - stack con versiones (React 18, React Router 7, Vite 6, Tailwind 4, TypeScript 7, Vitest 5, multer, ws) y las integraciones por REST;
+  - arquitectura, estructura, local con `db:reset`, `/health` con `commit`, y una sección nueva "Calidad y CI/CD";
+  - deploy con hooks y secrets; variables con las de Mercado Pago (`MP_TOKEN_KEY`, la misma en Render y en local);
+  - **la API como tabla de grupos de rutas** (prefijo, archivo, qué hace) en lugar de una lista parcial que se desactualizaba;
+  - la base con las 34 tablas agrupadas, las validaciones del servidor y un link al índice de `docs/`.
+- **`DATABASE_CONTEXT.md`:** la lista decía "Todas las tablas (31)" y le faltaban `account_deletion_tokens`, `ngo_cuentas_mp` y `mp_oauth_states`, que estaban documentadas más abajo. Ahora dice 34.
+
+### Verificación
+- **Cada dato nuevo se sacó del repo:**
+  - las versiones, de los `package.json`;
+  - las tablas, de los `CREATE TABLE` de `migrate.js` (34 distintas);
+  - los prefijos, de los `app.use('/api…')` de `src/index.js`;
+  - los roles de `enrollments.js` (horas → `ngo`) y de `donaciones.js` (`volunteer` y `company`);
+  - las rutas de foto, borrar cuenta, recomendaciones, Inicio y KPIs;
+  - las variables, de `render.yaml`; los secrets, de `deploy.yml`; el disparo manual de `load.yml`;
+  - la URL del sitio, de los docs; además se comprobó que responde 200.
+- **Los links relativos y las anclas del índice** del README apuntan a algo que existe.
+- **Los saltos de línea se conservaron:** el README es LF y `DATABASE_CONTEXT.md` CRLF.
+- No se tocó código.
+
+### Errores propios
+- **En §250 dije que el README principal "estaba más al día" mirando solo una sección.** Tenía un dato falso (quién carga las horas) y cifras de hace diez días.
+- **Las pasadas de documentación anteriores no detectaron las 31 tablas de `DATABASE_CONTEXT.md`.**
+
+### ⚠️ NO verificado
+- **El README en GitHub:** no se vio cómo se renderiza. Las anclas siguen la regla de GitHub, pero no se probaron allá.
