@@ -9,6 +9,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Modal } from './Modal';
 import { addBaseTiles, createPinIcon, DEFAULT_CENTER } from '../../lib/mapTiles';
+import { isRemote } from '../volunteering/isRemote';
 
 const DEFAULT_ZOOM = 13;
 
@@ -572,9 +573,11 @@ interface ProjectMapProps {
   onSelectProject?: (p: Project) => void;
 }
 
-export function ProjectMap({ projects, className = '', onSelectProject }: ProjectMapProps) {
+export function ProjectMap({ projects: allProjects, className = '', onSelectProject }: ProjectMapProps) {
   const navigate = useNavigate();
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  // Solo los que tienen un lugar físico: un remoto no tiene dónde ir (D31). También vale para el mapa ampliado.
+  const projects = useMemo(() => allProjects.filter(p => !isRemote(p)), [allProjects]);
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);

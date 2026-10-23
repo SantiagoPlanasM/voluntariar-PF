@@ -135,6 +135,30 @@ describe('<ProjectMap /> mosaicos y atribución', () => {
   });
 });
 
+// D31 (Issue #32, §254): un voluntariado remoto no está en ningún lugar, pero tenía pin (en el punto de respaldo) y
+// sumaba en "N proyectos en tu área". Se vio en producción con "Test" (modalidad remoto).
+describe('<ProjectMap /> los remotos no van al mapa', () => {
+  const remoto = { ...project('r1', 'Educación', -31.43, -64.21), modality: 'remoto' } as Project;
+  const remotoPorTexto = { ...project('r2', 'Salud', -31.44, -64.22), location: 'Remoto', modality: undefined } as unknown as Project;
+  const virtual = { ...project('r3', 'Salud', -31.45, -64.23), location: 'Virtual (Zoom)', modality: undefined } as unknown as Project;
+  const hibrido = { ...project('h1', 'Salud', -31.46, -64.24), modality: 'hibrido' } as Project;
+
+  test('mapa chico: sin pin para los remotos (por modalidad o por "remoto"/"virtual" en la ubicación); híbrido sí', () => {
+    const { container } = renderMap([P1, remoto, remotoPorTexto, virtual, hibrido]);
+    expect(pins(container)).toHaveLength(2);
+    expect(screen.getByText('2 proyectos')).toBeInTheDocument();
+  });
+
+  test('mapa ampliado: tampoco; el título y los conteos por categoría no los cuentan', () => {
+    renderMap([P1, P2, remoto, remotoPorTexto]);
+    fireEvent.click(screen.getByTitle('Abrir mapa ampliado (Pop-up)'));
+    expect(pins(modalRoot())).toHaveLength(2);
+    expect(screen.getByText('2 proyectos solidarios geolocalizados')).toBeInTheDocument();
+    expect(screen.getByTitle('Filtrar por Educación (1 proyectos)')).toBeInTheDocument();
+    expect(screen.getByTitle('Filtrar por Salud (1 proyectos)')).toBeInTheDocument();
+  });
+});
+
 describe('<ProjectMap /> mapa chico — marcadores', () => {
   test('un pin por proyecto, todos color tinta y ninguno seleccionado', () => {
     const { container } = renderMap([P1, P2]);

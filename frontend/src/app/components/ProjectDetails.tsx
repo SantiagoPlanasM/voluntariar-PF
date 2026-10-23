@@ -21,9 +21,7 @@ import { TypeBadge } from '../ui/TypeBadge';
 import { useToast } from '../ui/UiProvider';
 import { JoinButton } from './FeedPostCard';
 import { cardActions } from '../volunteering/cardActions';
-
-const isRemote = (p: ProjectDetail) =>
-  p.modality === 'remoto' || !!p.location?.toLowerCase().includes('remoto') || !!p.location?.toLowerCase().includes('virtual');
+import { isRemote } from '../volunteering/isRemote';
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
