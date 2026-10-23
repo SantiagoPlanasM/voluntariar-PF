@@ -19,11 +19,12 @@ El frontend se rehízo según `docs/DESIGN.md` v1.1 y `docs/PLAN_REDISENO_FRONTE
 - **`app/volunteering/`:**
   - `cardActions()`: función pura que decide los botones de una tarjeta o de la barra del voluntariado (Inscribirme / Postulado / Vas a ir / No seleccionado / Cupos completos / Ver cómo salió; Donar / Meta cumplida);
   - `VolunteeringTile`: la miniatura de Explorar, Mis voluntariados y "Para vos".
+  - `AppShell` monta `ScrollToTop`: una navegación nueva vuelve arriba; "atrás" (POP) y los links con `#ancla` no (D27, §247). Una URL sin pantalla cae en `NotFoundPage` (ruta `*` dentro de Root, con `LoadError`; D28). Notificaciones vacías: el texto depende del rol (`EMPTY_TEXT`, D26).
   - Explorar: "Para vos" muestra hasta 6 recomendaciones y la lista general saca **solo esas**. Antes sacaba las 8 que manda la API y 2 voluntariados no aparecían en ningún lado (D22, §246).
 - **Tokens en `styles/theme.css`:**
   - `ink`, `surface`, `canvas`, `hairline`, `brand` (azul, solo dinero), `people` (verde, personas), `critical`, `like` y `star`, con modo oscuro;
   - la paleta vieja de Tailwind (`blue`/`sky`/`indigo` y otras) está remapeada a la escala neutra, así que las pantallas que no se rehicieron toman los colores nuevos sin tocarlas;
-  - **ojo con `text-white`:** en oscuro varios tonos se vuelven claros (`violet-600` es `#f2f4f7`, `red-600` es `#ff6b5e`), pero el blanco no cambia. `styles/paletteContrast.test.ts` exige 4,5:1 a todo `text-white` sobre `bg-<color>-<tono>` en los dos modos. Para botones llenos usar tokens: `bg-ink text-on-ink`, `bg-people text-white`, `bg-critical text-on-ink` (§246);
+  - **ojo con `text-white`:** en oscuro varios tonos se vuelven claros (`violet-600` es `#f2f4f7`, `red-600` es `#ff6b5e`), pero el blanco no cambia. `styles/paletteContrast.test.ts` exige 4,5:1 a todo `text-white` sobre `bg-<color>-<tono>` en los dos modos. Para botones llenos usar tokens: `bg-ink text-on-ink`, `bg-people text-white`, `bg-critical text-on-ink` (§246). El mismo test mide los textos de color con su fondo y los textos sueltos contra `--surface` como **trinquete**: `KNOWN_PAIRS`/`KNOWN_TEXT` listan los casos conocidos de las pantallas sin rehacer; uno nuevo hace fallar el test, y al arreglar uno hay que sacarlo de la lista (§247). Pastillas de estado: `bg-people-soft text-people-text` (aprobado), `bg-surface-soft text-ink-soft` (pendiente), `bg-surface-soft text-critical` (rechazado);
   - fuente Plus Jakarta Sans servida desde `public/fonts`.
 - **Pantallas rehechas:**
   - Inicio, con voluntariados y publicaciones mezclados; ya no tiene pestañas, y `FeedTabs` se borró;

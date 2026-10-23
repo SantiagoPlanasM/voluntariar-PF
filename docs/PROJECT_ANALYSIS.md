@@ -6925,3 +6925,66 @@ Las secciones siguientes pasan de 4–7 a 5–8 (índice, títulos y la referenc
   - no ve las clases armadas con variables.
 - **Producción:** las respuestas nuevas llegan al próximo deploy, porque `migrate.js` corre al arrancar el servicio en Render (`startCommand: npm run db:migrate && npm start`). No se desplegó ni se verificó en producción.
 - **El CI de estos commits** (no se pusheó todavía).
+
+## 247. Los 5 defectos que quedaban de la sesión exploratoria (D25–D29, Issues #26–#30)
+
+### Qué se hizo
+El usuario pidió arreglar los cinco que seguían abiertos. Cada uno se hizo con un test que primero falló, y cada arreglo tiene su commit.
+
+- **D25 / H9 y D29 / H10, contraste de textos de color** (`aafbf43`):
+  - **el test:** `paletteContrast.test.ts` suma dos reglas. Una mide los pares `text-<c>-<n>` + `bg-<c>-<n>` del mismo string; la otra, los textos sueltos (`<p>`, `<span>`, `<h*>`, `<li>`, `<label>`, `<td>` sin fondo propio) contra `--surface`.
+  - **El barrido encontró 30 casos, no 2.** Casi todos están en las pantallas que no se rehicieron (§240). Arreglarlos todos es otro trabajo, así que el test quedó como **trinquete**: `KNOWN_PAIRS`/`KNOWN_TEXT` listan los conocidos, el test falla si aparece uno nuevo y también si uno de la lista ya no está (la lista solo baja).
+  - **El rojo:** los 6 casos de D25 y D29 (las pastillas Aprobado y Pendiente, y el texto vacío de KPIs y de Equipo).
+  - **El arreglo:** las pastillas usan los tokens de Mis voluntariados (`bg-people-soft text-people-text`, `bg-surface-soft text-ink-soft`, `bg-surface-soft text-critical`) y el texto vacío usa `text-ink-muted`.
+  - **Al arreglar,** el trinquete marcó que los `text-red-500` de NGOProjectDetail también habían desaparecido (eran de la pastilla "Rechazado"), y se sacaron de la lista. **Quedan 22 conocidos.**
+  - Los pares de tokens nuevos se suman al test de tokens, en los dos modos.
+- **D26 / H7, notificaciones vacías** (`a509301`):
+  - `EMPTY_TEXT` por rol: la ONG ve "Cuando alguien se postule, done o una empresa te proponga un patrocinio, aparece acá." y la empresa, "Cuando una ONG responda a tus propuestas de patrocinio, aparece acá.";
+  - el del voluntario no cambia (lo fija DESIGN.md);
+  - test nuevo: `NotificationsEmpty.test.tsx`.
+- **D27 / H1, scroll** (`793fcbc`):
+  - `ScrollToTop` en `AppShell`: `window.scrollTo(0, 0)` en cada navegación nueva, salvo "atrás" (POP) y los links con `#ancla`;
+  - no es `<ScrollRestoration>`, porque ese necesita un router de datos y los tests usan `MemoryRouter`;
+  - tests en `AppShell.test.tsx`.
+- **D28 / H3, página 404** (`8612ac5`):
+  - `NotFoundPage`, que reusa `LoadError` ("No encontramos esta página", "Volver" o "Ir al inicio"), como ruta `*` dentro de Root (con la navegación);
+  - tests en `routes.test.tsx`: la URL desconocida resuelve a la 404, las rutas existentes no, y la página lleva al inicio.
+- **Documentación:**
+  - `REGISTRO_DEFECTOS.md`: los 29 corregidos;
+  - `SESION_EXPLORATORIA.md` §7, `FRONTEND_CONTEXT.md` y `CLAUDE.md` (954 tests y la nota del trinquete);
+  - informe: los defectos, las exploratorias, el ciclo de vida, el análisis crítico (los 22 casos como deuda medida) y el trabajo futuro. PDF regenerado.
+
+### Verificación
+- **Rojo antes de cada arreglo, por la razón correcta:**
+  - D25/D29: los 6 casos listados como "nuevos";
+  - D26: los 3 textos;
+  - D27: `scrollTo` no se llamaba;
+  - D28: la URL resolvía a `undefined`. Primero se creó el componente sin la ruta, para que el rojo no fuera "el módulo no existe".
+- **Mutantes, con corrida de control antes:**
+  - D26: 3 de 4 muertos. Sobrevive "el texto por defecto es el de la ONG", **equivalente en la práctica**: ese texto solo se usa sin sesión, y sin sesión el pedido da 401 y no se llega al estado vacío;
+  - D27: 6 de 6 (sin componente, sin la excepción de POP, sin la del hash, `||` → `&&`, `scrollTo(0, 1)` y sin `pathname` en las dependencias);
+  - D28: 4 de 4 (sin ruta `*`, `*` a otra pantalla, el mensaje y el destino del link);
+  - D25/D29: son cambios de clases, así que no hay mutantes; el trinquete es su rojo.
+- **Frontend:**
+  - `npm test`/`test:coverage`: **954** en 81 archivos; cobertura 87,23 / 83,43 / 83,34 / 90,81;
+  - `npm run typecheck`: 0 errores;
+  - `npm run build`: bien.
+- **Backend:** no cambió en esta tanda (sigue 932/934 de §246).
+- **Mirado en Chrome** (local, base nueva con la semilla, servicios externos apagados, modo oscuro), lo que en §246 había quedado sin ver:
+  - la 404 dentro de la navegación;
+  - las pastillas Aprobado `rgb(108,194,135)` sobre `rgb(20,48,29)` y Pendiente;
+  - el texto vacío de KPIs legible;
+  - el de notificaciones de la ONG;
+  - "Enviar propuesta" de la empresa, ahora texto `rgb(11,13,16)` sobre `rgb(242,244,247)`.
+
+### Errores propios
+- **Volví a usar `sed -i`** sobre `AppShell.test.tsx`, que es CRLF, y lo pasó entero a LF: justo lo que CLAUDE.md dice que no haga. Se vio en el control de saltos de línea ("LF sueltos 211"). Se restauró con Node antes del commit y el diff quedó en las 54 líneas reales.
+- **El mensaje del commit `aafbf43` dice "24 casos conocidos"; son 22.** Conté antes de sacar los dos `text-red-500` que el trinquete marcó como arreglados. No reescribí el commit; queda anotado acá.
+- **En el test de D26 había cambiado también el texto del voluntario,** que no estaba roto y lo fija DESIGN.md. Lo vi en el primer rojo y lo volví al original antes de tocar el código.
+- **Un script de edición del registro falló** por los escapes en un heredoc (la misma trampa de §246). No escribió nada (el `rep` exige una coincidencia exacta) y se rehízo en un archivo.
+
+### ⚠️ NO verificado
+- **La regla de textos sueltos mide contra `--surface`:** un texto puede estar sobre otro fondo. Es una aproximación.
+- **Los 22 casos conocidos siguen sin arreglar,** a propósito: están en el trinquete.
+- **La restauración del scroll al ir "atrás":** se deja al navegador. No se probó en un navegador real si vuelve a la posición anterior.
+- **El CI y el deploy de estos commits:** se ven después del push.
