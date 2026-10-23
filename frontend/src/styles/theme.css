@@ -320,7 +320,7 @@
   --color-red-700: #ff8a80;
 }
 [data-theme='dark'] .bg-white { background-color: var(--surface); }
-[data-theme='dark'] .bg-white\/95, [data-theme='dark'] .bg-white\/90 { background-color: color-mix(in srgb, var(--surface) 92%, transparent); }
+[data-theme='dark'] .bg-white\/98, [data-theme='dark'] .bg-white\/95, [data-theme='dark'] .bg-white\/90 { background-color: color-mix(in srgb, var(--surface) 92%, transparent); }
 [data-theme='dark'] .border-white { border-color: var(--surface); }
 /* Sobre fotos el blanco no cambia: chips y botones flotantes. */
 [data-theme='dark'] .on-photo, [data-theme='dark'] .on-photo * { color: var(--on-photo); }

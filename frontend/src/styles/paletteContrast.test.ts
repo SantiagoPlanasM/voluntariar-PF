@@ -157,3 +157,36 @@ describe('contraste de text-white sobre los fondos de la paleta (claro y oscuro)
     expect(found).toEqual([]);
   });
 });
+
+// D30 (Issue #31, §253): en oscuro, `theme.css` pasa `bg-white` a la superficie oscura clase por clase, y cada opacidad
+// (`bg-white/95`, `/90`…) es una clase aparte. La tarjeta del mapa usaba `bg-white/98`, que no estaba: quedaba blanca
+// con el texto ya invertido (#f2f4f7 sobre blanco, 1,10:1). Los tests de arriba miran pares de la paleta, no esto.
+describe('superficies blancas con opacidad en modo oscuro', () => {
+  // Sobre una foto el blanco sigue blanco: los puntos del carrusel no se pasan a oscuro.
+  const SOBRE_FOTO = new Set(['components/PhotoCarousel.tsx: bg-white/50']);
+  const BS = String.fromCharCode(92); // la barra invertida del selector `.bg-white\/98`
+  const darkLines = css.split('\n').filter(l => l.startsWith("[data-theme='dark']"));
+  const hasDark = (n: string) => darkLines.some(l => l.includes(`.bg-white${BS}/${n}`));
+
+  test('cada bg-white/NN de los componentes tiene su versión oscura en theme.css', () => {
+    const missing: string[] = [];
+    let seen = 0;
+    for (const rel of readdirSync(join(SRC, 'app'), { recursive: true }) as string[]) {
+      if (!rel.endsWith('.tsx') || rel.includes('.test.')) continue;
+      const text = readFileSync(join(SRC, 'app', rel), 'utf8');
+      for (const m of text.matchAll(/(?<![\w:-])bg-white\/(\d+)/g)) {
+        const key = `${rel.replace(/\\/g, '/')}: bg-white/${m[1]}`;
+        seen++;
+        if (!SOBRE_FOTO.has(key) && !hasDark(m[1])) missing.push(key);
+      }
+    }
+    expect(seen).toBeGreaterThan(5); // si no encuentra ninguna, el test no probaría nada
+    expect([...new Set(missing)]).toEqual([]);
+  });
+
+  test('la detección ve las que ya están (95 y 90) y no inventa otras', () => {
+    expect(hasDark('95')).toBe(true);
+    expect(hasDark('90')).toBe(true);
+    expect(hasDark('5')).toBe(false);
+  });
+});
