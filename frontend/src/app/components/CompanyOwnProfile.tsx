@@ -200,7 +200,7 @@ export function CompanyOwnProfile() {
                 onChange={e => setForm(f => ({ ...f, mission: e.target.value }))} />
             </div>
 
-            {saveErr && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-xl">{saveErr}</p>}
+            {saveErr && <p className="text-sm bg-surface-soft text-critical px-3 py-2 rounded-xl">{saveErr}</p>}
 
             <button onClick={handleSave} disabled={saving}
               className="w-full py-3 bg-ink text-on-ink rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60 hover:opacity-90 transition-[opacity]">
@@ -225,7 +225,7 @@ export function CompanyOwnProfile() {
 
               {showPropose && (
                 <div className="p-4 bg-violet-50/50 border-b border-gray-100 space-y-2">
-                  {proposeErr && <p className="text-xs text-red-500">{proposeErr}</p>}
+                  {proposeErr && <p className="text-xs text-critical">{proposeErr}</p>}
                   {activeProjects.length === 0 ? (
                     <p className="text-xs text-gray-500">No hay proyectos activos disponibles para proponer ahora mismo.</p>
                   ) : (
@@ -254,7 +254,7 @@ export function CompanyOwnProfile() {
                 </div>
               )}
 
-              {withdrawError && <p role="alert" className="mx-4 mt-3 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{withdrawError}</p>}
+              {withdrawError && <p role="alert" className="mx-4 mt-3 text-sm bg-surface-soft text-critical rounded-xl px-3 py-2">{withdrawError}</p>}
               {patrociniosError ? (
                 <div className="p-4"><InlineError message={patrociniosError} onRetry={loadPatrocinios} /></div>
               ) : patrocinios.length === 0 ? (

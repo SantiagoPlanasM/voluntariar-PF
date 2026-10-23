@@ -48,7 +48,7 @@ export function NGOPatrocinios() {
         <h1 className="text-xl font-black text-gray-900">Propuestas de patrocinio</h1>
       </div>
 
-      {actionError && <p role="alert" className="mb-4 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{actionError}</p>}
+      {actionError && <p role="alert" className="mb-4 text-sm bg-surface-soft text-critical rounded-xl px-3 py-2">{actionError}</p>}
 
       {loadError ? (
         <InlineError message={loadError} onRetry={load} />

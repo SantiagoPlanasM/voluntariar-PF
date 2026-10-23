@@ -115,7 +115,7 @@ export function NGOEmpleados() {
                 {ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
               </select>
             </div>
-            {err && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-xl">{err}</p>}
+            {err && <p className="text-xs bg-surface-soft text-critical px-3 py-2 rounded-xl">{err}</p>}
             <button type="submit" disabled={saving}
               className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60 transition-colors">
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}

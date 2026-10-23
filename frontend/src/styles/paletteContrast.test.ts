@@ -63,32 +63,9 @@ function offenders(): string[] {
 // Las pantallas que no se rehicieron (§240) tienen más casos que los dos defectos. Arreglarlos todos es otro trabajo,
 // así que esto es un TRINQUETE: KNOWN_* es la lista de hoy; el test falla si aparece uno nuevo y también si uno de la
 // lista ya no está (hay que sacarlo, para que la lista solo baje).
-const KNOWN_PAIRS: string[] = [
-  'components/CompanyOwnProfile.tsx: text-red-500 sobre bg-red-50 en claro',
-  'components/CompanyOwnProfile.tsx: text-red-500 sobre bg-red-50 en oscuro',
-  'components/CompanyOwnProfile.tsx: text-red-600 sobre bg-red-50 en claro',
-  'components/CreateVoluntariado.tsx: text-blue-600 sobre bg-blue-50 en oscuro',
-  'components/CreateVoluntariado.tsx: text-blue-900 sobre bg-blue-50 en oscuro',
-  'components/CreateVoluntariado.tsx: text-emerald-600 sobre bg-emerald-50 en oscuro',
-  'components/CreateVoluntariado.tsx: text-gray-400 sobre bg-gray-200 en claro',
-  'components/CreateVoluntariado.tsx: text-red-500 sobre bg-red-50 en claro',
-  'components/CreateVoluntariado.tsx: text-red-500 sobre bg-red-50 en oscuro',
-  'components/FollowListModal.tsx: text-emerald-600 sobre bg-emerald-50 en oscuro',
-  'components/NGOEmpleados.tsx: text-red-500 sobre bg-red-50 en claro',
-  'components/NGOEmpleados.tsx: text-red-500 sobre bg-red-50 en oscuro',
-  'components/NGOKPIs.tsx: text-red-500 sobre bg-red-50 en claro',
-  'components/NGOKPIs.tsx: text-red-500 sobre bg-red-50 en oscuro',
-  'components/NGOPatrocinios.tsx: text-red-600 sobre bg-red-50 en claro',
-  'components/NGOProjectDetail.tsx: text-blue-600 sobre bg-blue-50 en oscuro',
-  'components/NGOProjectDetail.tsx: text-red-600 sobre bg-red-50 en claro',
-  'components/ProjectMap.tsx: text-emerald-600 sobre bg-emerald-50 en oscuro',
-];
-const KNOWN_TEXT: string[] = [
-  'components/CompanyOwnProfile.tsx: text-red-500 sobre surface en claro',
-  'components/CreateVoluntariado.tsx: text-red-500 sobre surface en claro',
-  'components/NGOKPIs.tsx: text-blue-600 sobre surface en oscuro',
-  'components/NGOKPIs.tsx: text-emerald-600 sobre surface en oscuro',
-];
+// §248: la lista llegó a 0 (los 22 casos se pasaron a tokens). Queda vacía: desde ahora es una regla estricta.
+const KNOWN_PAIRS: string[] = [];
+const KNOWN_TEXT: string[] = [];
 
 function lowContrastPairs(): { pairs: string[]; text: string[] } {
   const tok = (block: string) => new Map([...block.matchAll(/--([a-z-]+):\s*(#[0-9a-fA-F]{6})/g)].map(m => [m[1], m[2]]));
@@ -113,6 +90,19 @@ function lowContrastPairs(): { pairs: string[]; text: string[] } {
       if (bgOf(m[2]).length) continue;
       for (const f of fgOf(m[2])) for (const [mode, p, t] of modes) {
         if (p.get(f) && contrast(p.get(f)!, t.get('surface')!) < 4.5) text.add(`${name}: text-${f} sobre surface en ${mode}`);
+      }
+    }
+    // §248: tokens usados como color de texto (`text-people`, `text-brand`…), en cualquier string. Varios tokens son
+    // de RELLENO (botones) y tienen su versión para texto (`people-text`, `brand-text`): en oscuro, `text-people` sobre
+    // la tarjeta da 3,38:1. Fondo: el token `bg-<token>` del mismo string si hay; si no (o con opacidad, `bg-brand/20`),
+    // la tarjeta. Solo elementos HTML con texto: los íconos (`<Star>`, `<Heart>`, `<Loader2>`, con mayúscula) piden 3:1
+    // y no 4,5:1, y no entran.
+    for (const s of src.matchAll(/<(?:p|span|h[1-6]|li|label|td|div|button|a)\b[^>]*?className=(["'`])([^"'`]*)\1/g)) {
+      const fgT = [...s[2].matchAll(/(?<![\w:-])text-([a-z]+(?:-[a-z]+)*)(?![\w/-])/g)].map(m => m[1]).filter(k => lightT.has(k));
+      if (!fgT.length || bgOf(s[2]).length) continue;
+      const bgT = [...s[2].matchAll(/(?<![\w:-])bg-([a-z]+(?:-[a-z]+)*)(?![\w/-])/g)].map(m => m[1]).filter(k => lightT.has(k));
+      for (const f of fgT) for (const b of (bgT.length ? bgT : ['surface'])) for (const [mode, , t] of modes) {
+        if (contrast(t.get(f)!, t.get(b)!) < 4.5) text.add(`${name}: text-${f} sobre ${b} en ${mode}`);
       }
     }
   }
@@ -148,7 +138,11 @@ describe('contraste de text-white sobre los fondos de la paleta (claro y oscuro)
     const darkT = new Map([...lightT, ...tokens(blocks("[data-theme='dark']"))]);
     const pairs: [string, string][] = [['people', '#ffffff'], ['brand', '#ffffff'], ['ink', 'on-ink'], ['critical', 'on-ink'],
       // pastillas de estado y texto de ayuda (D25 y D29, §247): fondo, texto
-      ['people-soft', 'people-text'], ['surface-soft', 'ink-soft'], ['surface-soft', 'critical'], ['surface', 'ink-muted']];
+      ['people-soft', 'people-text'], ['surface-soft', 'ink-soft'], ['surface-soft', 'critical'], ['surface', 'ink-muted'],
+      // reemplazos de los 22 casos del trinquete (§248)
+      ['surface', 'critical'], ['surface', 'ink'], ['surface', 'people-text'], ['surface-soft', 'ink'], ['surface-soft', 'ink-muted'], ['surface', 'brand-text'],
+      // tarjetas elegidas e iniciales sobre los fondos suaves (los vio el barrido en el navegador, §248)
+      ['brand-soft', 'brand-text'], ['brand-soft', 'ink-soft'], ['people-soft', 'ink-soft']];
     for (const [mode, t] of [['claro', lightT], ['oscuro', darkT]] as const) {
       for (const [bg, fg] of pairs) {
         const ratio = contrast(t.get(bg)!, fg.startsWith('#') ? fg : t.get(fg)!);

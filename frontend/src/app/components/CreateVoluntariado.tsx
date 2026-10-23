@@ -202,7 +202,7 @@ export function CreateVoluntariado() {
                   active ? 'bg-blue-50 text-blue-700' : done ? 'text-emerald-600' : 'text-gray-400'
                 }`}>
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    done ? 'bg-people text-white' : active ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-400'
+                    done ? 'bg-people text-white' : active ? 'bg-blue-600 text-white' : 'bg-surface-soft text-ink-muted'
                   }`}>
                     {done ? <Check className="w-3 h-3" /> : <Icon className="w-3 h-3" />}
                   </div>
@@ -242,7 +242,7 @@ export function CreateVoluntariado() {
                         <Icon className={`w-4 h-4 ${selected ? 'text-white' : 'text-gray-500'}`} />
                       </div>
                       <p className={`font-bold text-sm ${selected ? (color === 'blue' ? 'text-brand-text' : 'text-people-text') : 'text-ink'}`}>{title}</p>
-                      <p className="text-xs text-gray-500 mt-1 leading-relaxed">{desc}</p>
+                      <p className="text-xs text-ink-soft mt-1 leading-relaxed">{desc}</p>
                     </button>
                   );
                 })}
@@ -318,7 +318,7 @@ export function CreateVoluntariado() {
                         }}
                         className={`p-3 sm:p-3.5 rounded-xl border-2 text-left transition-all flex flex-col justify-between ${
                           selected
-                            ? 'border-blue-600 bg-blue-50/70 text-blue-900 shadow-sm'
+                            ? 'border-ink bg-surface-soft text-ink shadow-sm'
                             : 'border-gray-200 bg-white hover:border-gray-300 text-gray-700'
                         }`}
                       >
@@ -444,7 +444,7 @@ export function CreateVoluntariado() {
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {SUGGESTED_ROLES.filter(r => !roles.includes(r)).map(r => (
                   <button key={r} type="button" onClick={() => addRole(r)}
-                    className="px-2.5 py-1 bg-blue-50 text-blue-600 text-xs rounded-full font-medium hover:bg-blue-100 transition-colors">
+                    className="px-2.5 py-1 bg-surface-soft text-ink-soft text-xs rounded-full font-medium hover:bg-surface-pressed transition-colors">
                     + {r}
                   </button>
                 ))}
@@ -460,7 +460,7 @@ export function CreateVoluntariado() {
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
-              {roleError && <p className="text-xs text-red-500 mb-2">{roleError}</p>}
+              {roleError && <p className="text-xs text-critical mb-2">{roleError}</p>}
               {roles.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {roles.map(r => (
@@ -485,7 +485,7 @@ export function CreateVoluntariado() {
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {SUGGESTED_REQS.filter(r => !requirements.includes(r)).map(r => (
                   <button key={r} type="button" onClick={() => addReq(r)}
-                    className="px-2.5 py-1 bg-emerald-50 text-emerald-600 text-xs rounded-full font-medium hover:bg-emerald-100 transition-colors">
+                    className="px-2.5 py-1 bg-people-soft text-people-text text-xs rounded-full font-medium hover:opacity-80 transition-opacity">
                     + {r}
                   </button>
                 ))}
@@ -501,7 +501,7 @@ export function CreateVoluntariado() {
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
-              {reqError && <p className="text-xs text-red-500 mb-2">{reqError}</p>}
+              {reqError && <p className="text-xs text-critical mb-2">{reqError}</p>}
               {requirements.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {requirements.map(r => (
@@ -540,7 +540,7 @@ export function CreateVoluntariado() {
         )}
 
         {errors._global && (
-          <p className="mt-4 text-sm text-red-500 bg-red-50 border border-red-100 px-4 py-3 rounded-xl">{errors._global}</p>
+          <p className="mt-4 text-sm bg-surface-soft text-critical border border-hairline px-4 py-3 rounded-xl">{errors._global}</p>
         )}
       </main>
 

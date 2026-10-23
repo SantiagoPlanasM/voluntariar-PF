@@ -105,14 +105,14 @@ export function NGOProjectDetail() {
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-white rounded-xl p-3 shadow-sm">
             <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><Users className="w-3.5 h-3.5" />Voluntarios</p>
-            <p className="text-lg font-bold text-people">{project.current_volunteers}/{project.volunteers_needed}</p>
+            <p className="text-lg font-bold text-people-text">{project.current_volunteers}/{project.volunteers_needed}</p>
             <div className="w-full h-1.5 bg-gray-100 rounded-full mt-1.5 overflow-hidden">
               <div className="h-full bg-people rounded-full" style={{ width: `${volPct}%` }} />
             </div>
           </div>
           <div className="bg-white rounded-xl p-3 shadow-sm">
             <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><DollarSign className="w-3.5 h-3.5" />Financiamiento</p>
-            <p className="text-lg font-bold text-brand">${project.current_funding.toLocaleString()}</p>
+            <p className="text-lg font-bold text-brand-text">${project.current_funding.toLocaleString()}</p>
             <div className="w-full h-1.5 bg-gray-100 rounded-full mt-1.5 overflow-hidden">
               <div className="h-full bg-brand rounded-full" style={{ width: `${fundPct}%` }} />
             </div>
@@ -143,7 +143,7 @@ export function NGOProjectDetail() {
               {filtered.map(e => (
                 <div key={e.id} className="p-4">
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-brand/20 flex items-center justify-center text-sm font-bold text-brand flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-brand-soft flex items-center justify-center text-sm font-bold text-brand-text flex-shrink-0">
                       {e.volunteer_name[0]}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -184,7 +184,7 @@ export function NGOProjectDetail() {
                         Aprobar
                       </button>
                       <button onClick={() => handle(e.id, 'rejected')} disabled={processing === e.id}
-                        className="flex-1 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-semibold hover:bg-red-100 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50">
+                        className="flex-1 py-2 bg-surface-soft text-critical rounded-xl text-xs font-semibold hover:bg-surface-pressed transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50">
                         <XCircle className="w-3.5 h-3.5" />Rechazar
                       </button>
                     </div>
@@ -202,7 +202,7 @@ export function NGOProjectDetail() {
                       />
                       <span className="text-xs text-gray-400">horas cumplidas</span>
                       <button onClick={() => handleSaveHours(e.id)} disabled={savingHours === e.id || hoursDraft[e.id] === undefined}
-                        className="ml-auto flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-semibold disabled:opacity-40 transition-colors">
+                        className="ml-auto flex items-center gap-1 px-2.5 py-1.5 bg-surface-soft hover:bg-surface-pressed text-ink-soft rounded-lg text-xs font-semibold disabled:opacity-40 transition-colors">
                         {savingHours === e.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
                         Guardar
                       </button>

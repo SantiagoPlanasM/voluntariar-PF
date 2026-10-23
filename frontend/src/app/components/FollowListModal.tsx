@@ -89,7 +89,7 @@ export function FollowListModal({ mode, load, emptyText, meId, onClose }: Props)
                     </p>
                   </div>
                   {vol.user_id === meId && (
-                    <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Tú</span>
+                    <span className="text-xs font-bold text-people-text bg-people-soft px-2 py-0.5 rounded-full">Tú</span>
                   )}
                 </Link>
               ))}

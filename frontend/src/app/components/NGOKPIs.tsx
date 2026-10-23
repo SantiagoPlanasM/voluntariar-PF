@@ -138,12 +138,12 @@ export function NGOKPIs() {
         {kpis.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-white rounded-2xl border border-gray-100 p-3 text-center col-span-2 sm:col-span-1">
-              <p className="text-2xl font-black text-blue-600">{kpis.length}</p>
+              <p className="text-2xl font-black text-ink">{kpis.length}</p>
               <p className="text-xs text-gray-500">KPIs totales</p>
             </div>
             {numericKPIs.slice(0, 3).map(k => (
               <div key={k.id} className="bg-white rounded-2xl border border-gray-100 p-3 text-center">
-                <p className="text-xl font-black text-emerald-600 truncate">{formatValor(k)}</p>
+                <p className="text-xl font-black text-people-text truncate">{formatValor(k)}</p>
                 <p className="text-xs text-gray-500 truncate">{k.nombre}</p>
               </div>
             ))}
@@ -208,7 +208,7 @@ export function NGOKPIs() {
               </div>
             </div>
 
-            {err && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-xl">{err}</p>}
+            {err && <p className="text-xs bg-surface-soft text-critical px-3 py-2 rounded-xl">{err}</p>}
 
             <button type="submit" disabled={saving}
               className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60 transition-colors">
@@ -261,7 +261,7 @@ export function NGOKPIs() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 mt-2 flex-wrap">
-                      <span className="text-xl font-black text-emerald-600">{formatValor(kpi)}</span>
+                      <span className="text-xl font-black text-people-text">{formatValor(kpi)}</span>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${TIPO_COLORS[kpi.tipo_valor]}`}>
                         {TIPO_LABELS[kpi.tipo_valor]}
                       </span>

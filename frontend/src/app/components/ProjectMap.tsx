@@ -539,7 +539,7 @@ function ProjectMapModal({
                         className="w-12 h-12 rounded-xl object-cover border border-gray-100 shrink-0"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                      <div className="w-12 h-12 rounded-xl bg-people-soft text-people-text flex items-center justify-center shrink-0">
                         <MapPin className="w-6 h-6" />
                       </div>
                     )}
@@ -778,7 +778,7 @@ export function ProjectMap({ projects, className = '', onSelectProject }: Projec
                       className="w-11 h-11 rounded-xl object-cover border border-gray-100 shrink-0"
                     />
                   ) : (
-                    <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                    <div className="w-11 h-11 rounded-xl bg-people-soft text-people-text flex items-center justify-center shrink-0">
                       <MapPin className="w-5 h-5" />
                     </div>
                   )}
