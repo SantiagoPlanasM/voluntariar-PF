@@ -6988,3 +6988,42 @@ El usuario pidió arreglar los cinco que seguían abiertos. Cada uno se hizo con
 - **Los 22 casos conocidos siguen sin arreglar,** a propósito: están en el trinquete.
 - **La restauración del scroll al ir "atrás":** se deja al navegador. No se probó en un navegador real si vuelve a la posición anterior.
 - **El CI y el deploy de estos commits:** se ven después del push.
+
+## 248. Contraste: los 22 casos conocidos a 0, y 5 más que vio el barrido en el navegador
+
+### Qué se hizo
+- **El pedido:** bajar a 0 los 22 casos que §247 dejó en la lista de conocidos (`KNOWN_PAIRS` y `KNOWN_TEXT` de `paletteContrast.test.ts`).
+- **El rojo primero:** se vaciaron las dos listas y el test falló con los 22 casos como "nuevos".
+- **El arreglo, todo a tokens** (`f0e25d3`, 8 componentes):
+  - los avisos de error (`text-red-500/600` + `bg-red-50`) pasan a `bg-surface-soft text-critical`, y el texto suelto a `text-critical`;
+  - las cajas y pastillas azules pasan a `bg-surface-soft text-ink-soft` (o `text-ink`) y las verdes a `bg-people-soft text-people-text`;
+  - el paso inactivo de "Nuevo voluntariado" pasa a `bg-surface-soft text-ink-muted`;
+  - los números de KPIs pasan a `text-ink` y `text-people-text`.
+  - Las dos listas quedan vacías: desde ahora el test es una regla estricta.
+- **El barrido en el navegador encontró 5 textos más que el test no veía:**
+  - **"23/50", "$8,500" y las iniciales del avatar** en el detalle del proyecto de la ONG: usaban `text-people` y `text-brand`, que son tokens de **relleno** (botones). En oscuro daban 3,38 y 3,55:1. El test se amplió con una regla para tokens usados como texto, limitada a elementos HTML (los íconos, `<Star>` o `<Heart>`, piden 3:1 y no entran), y su rojo fueron justo esos casos. Pasaron a `text-people-text` y `text-brand-text`.
+  - **Las iniciales en claro (3,41:1):** el fondo era `bg-brand/20`, con transparencia, y eso no se puede calcular de forma estática. Pasó a `bg-brand-soft`.
+  - **La descripción de la tarjeta de tipo elegida en "Nuevo voluntariado" (4,49:1 en claro):** `text-gray-500` sobre `bg-brand-soft`. Pasó a `text-ink-soft`.
+  - Para estos dos últimos el rojo fue el barrido en el navegador, no un test: el test de tokens solo comprueba que los pares nuevos (`brand-soft`/`brand-text`, `brand-soft`/`ink-soft`, `people-soft`/`ink-soft`) lleguen a 4,5:1.
+- **Documentación:** el análisis crítico y el trabajo futuro del informe, `SESION_EXPLORATORIA.md`, `FRONTEND_CONTEXT.md` y `CLAUDE.md`. PDF regenerado.
+
+### Verificación
+- **Frontend:**
+  - `npm test`/`test:coverage`: **954** en verde, en 81 archivos; cobertura 87,23 / 83,43 / 83,34 / 90,81;
+  - `npm run typecheck`: 0 errores;
+  - `npm run build`: bien.
+- **Barrido de contraste en Chrome** (local, base nueva con la semilla, servicios externos apagados): **23 pantallas** de ONG, voluntaria, empresa y la 404, cada una en oscuro y en claro, midiendo cada texto visible contra su fondo calculado. Resultado: **0 textos por debajo de 4,5:1** en el estado inicial de cada pantalla.
+- **Los saltos de línea de cada archivo se conservaron:** CRLF en 7 y LF en `NGOEmpleados`.
+- **Mutantes:** no hay, porque son cambios de clases. El rojo de cada caso es el test estático (22, y 3 de la regla de tokens) o el barrido en el navegador (2).
+
+### Errores propios
+- **El primer barrido de esta tanda medía mal el modo claro.** Cambiaba el atributo `data-theme` del iframe, que la app vuelve a poner según su preferencia, así que las dos pasadas medían el oscuro. Lo noté porque "23/50" dio el mismo valor en los dos modos, algo imposible. Se rehízo guardando la preferencia (`v_theme`) y recargando, y comprobando en cada pantalla qué tema quedó aplicado.
+- **Ese mismo error afecta la sesión exploratoria de §245.** Su barrido usaba la misma técnica, así que sus resultados "en claro" pueden haber sido en oscuro. Lo que se informó como "solo en oscuro" (H8) se confirmó con el test estático, que lee las dos paletas. Esta tanda vuelve a medir los dos modos bien.
+- **El test estático aproximaba `bg-brand/20` como si fuera la tarjeta.** Por eso no vio las iniciales en claro.
+- **Una llamada con 20 pantallas superó el límite de 45 s** de la herramienta del navegador. Se dividió en tandas.
+
+### ⚠️ NO verificado
+- **Estados que no son el inicial:** errores visibles, menús abiertos y el hover. El barrido mide la pantalla como carga, y el test estático no ve los `hover:`.
+- **Los íconos:** piden 3:1. Por ejemplo, la estrella vacía de las reseñas (`text-hairline`) se ve apenas. No se midieron.
+- **Un teléfono real y un lector de pantalla.**
+- **El CI y el deploy de estos commits** (no se pusheó).
