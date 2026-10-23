@@ -65,6 +65,13 @@ function groupOf(iso: string, now = Date.now()): Group {
   return now - t < 7 * 24 * 3600 * 1000 ? 'week' : 'before';
 }
 
+// Texto del estado vacío: los avisos que el backend crea para cada rol. La ONG veía el del voluntario (D26, §247).
+const EMPTY_TEXT: Record<string, string> = {
+  volunteer: 'Cuando una ONG responda o alguien te siga, aparece acá.',
+  ngo: 'Cuando alguien se postule, done o una empresa te proponga un patrocinio, aparece acá.',
+  company: 'Cuando una ONG responda a tus propuestas de patrocinio, aparece acá.',
+};
+
 // `inPanel`: dentro del panel de la ONG la pantalla es la misma; se conserva el parámetro por compatibilidad con la ruta.
 export function NotificationsScreen(_props: { inPanel?: boolean } = {}) {
   const { user } = useAuth();
@@ -145,7 +152,7 @@ export function NotificationsScreen(_props: { inPanel?: boolean } = {}) {
             <div className="text-center py-16 px-6 flex flex-col items-center gap-1">
               <Bell size={28} strokeWidth={1.75} className="text-ink-muted mb-1" aria-hidden="true" />
               <p className="text-[15px] font-semibold">No tenés notificaciones</p>
-              <p className="text-[13px] text-ink-muted max-w-xs">Cuando una ONG responda o alguien te siga, aparece acá.</p>
+              <p className="text-[13px] text-ink-muted max-w-xs">{EMPTY_TEXT[user?.role ?? ''] ?? EMPTY_TEXT.volunteer}</p>
             </div>
           ) : (
             (['today', 'week', 'before'] as Group[]).filter(g => groups[g].length > 0).map(g => (
