@@ -21,6 +21,7 @@
 | §228–§238 | SonarCloud en 0 issues, validaciones de entrada y los temas de la materia en el informe |
 | §239–§243 | Rediseño del frontend (DESIGN 1.1) |
 | §244–§251 | Informe con el rediseño, sesión exploratoria, sus 8 defectos, contraste en 0, corte final y orden de la documentación |
+| §252 | Mapas: el alta manda el lugar (pin y búsqueda de dirección), respaldo estable y mosaicos de OpenStreetMap |
 
 
 ## 1. Fortalezas
@@ -7159,3 +7160,55 @@ El usuario pidió arreglar los cinco que seguían abiertos. Cada uno se hizo con
 
 ### ⚠️ NO verificado
 - **El README en GitHub:** no se vio cómo se renderiza. Las anclas siguen la regla de GitHub, pero no se probaron allá.
+
+## 252. Mapas: el alta manda el lugar, respaldo estable por id y mosaicos de OpenStreetMap
+
+### Qué se hizo
+- **El pedido:** revisar los mapas: si anda la ubicación que se pone al crear un voluntariado y cómo se muestra (`ProjectMap.tsx` en Explorar y el detalle).
+- **Lo que se encontró leyendo el código:**
+  - **el alta no mandaba coordenadas nunca.** `CreateVoluntariado` mandaba solo el texto de la ubicación; el backend acepta `latitude`/`longitude` desde hace rato (`routes/projects.js`), pero ninguna pantalla las enviaba y no hay pantalla de edición. Solo los 12 proyectos de la semilla tenían coordenadas;
+  - **el respaldo inventaba el lugar:** buscaba palabras clave de la semilla ("centro" mandaba cualquier "Centro vecinal…" al microcentro, "salta" a la ciudad de Salta) y si no, usaba la posición del proyecto en la lista, así que el pin saltaba de lugar al filtrar;
+  - **los mosaicos salían de los servidores internos de Google** (`mt0..3.google.com/vt`), sin clave y con la atribución apagada (`attributionControl: false`): sus condiciones no lo permiten;
+  - "Cómo llegar" (detalle) solo aparece con coordenadas: en un voluntariado creado desde la app no aparecía nunca.
+- **Tres cambios, un commit cada uno** (más uno de corrección, ver "Errores propios"):
+  1. **Mosaicos** (`205d632`, corregido en `f0b5f92`): `lib/mapTiles.ts` con `addBaseTiles` para los dos mapas: **OpenStreetMap** (`tile.openstreetmap.org`, zoom hasta 19) con la atribución visible;
+  2. **Respaldo estable** (`ed7b4ec`): `getProjectCoords(p)` ya no recibe el índice; sin coordenadas, el punto sale de un hash FNV-1a del id (ángulo y radio de 1,5 a 4 km alrededor del centro de Córdoba). Siempre el mismo para ese proyecto, aunque se filtre. Fuera las palabras clave;
+  3. **Lugar en el alta** (`be5f9d5`): `LocationPicker.tsx` en el paso Detalles (presencial e híbrido; remoto no):
+     - "Buscar en el mapa" busca el texto de la ubicación con `geocodeAddress` (`lib/api.ts`): Nominatim de OpenStreetMap, en Argentina, en español, hasta 5 resultados, **sin el token de la sesión** (es un tercero). La política de Nominatim pide como máximo un pedido por segundo y nada de autocompletar: se busca solo al tocar el botón, deshabilitado mientras busca, y dos búsquedas quedan a 1 s como mínimo;
+     - también se puede tocar el mapa; el pin se arrastra para ajustar y "Quitar del mapa" lo borra. Coordenadas con 6 decimales;
+     - es **opcional**: sin punto, se publica igual (sin coordenadas, con el respaldo) y el resumen del paso 3 dice "Sin lugar marcado en el mapa". Si se cambia a remoto, el punto no se manda;
+     - `DEFAULT_CENTER` y `createPinIcon` pasan de `ProjectMap.tsx` a `lib/mapTiles.ts`, para que el selector no dependa del mapa de Explorar.
+- **Docs:** `FRONTEND_CONTEXT.md` (`ProjectMap`, `LocationPicker`, `CreateVoluntariado`), `DEMO_DATOS.md` (cómo marcar el lugar al crear) y `CLAUDE.md` (conteo y cobertura). `FRONTEND_CONTEXT.md` decía que `CreateVoluntariado` también editaba por `projectId`: no es así (no hay ningún `projectId` en el componente); se corrigió.
+
+### Verificación
+- **Tests primero, con rojo por la razón correcta:**
+  - mosaicos: el test vio la URL de Google;
+  - respaldo: 3 rojos (el punto de "Sarmiento", todos los ids en el mismo lugar, el pin que se movía al filtrar);
+  - selector y alta: se escribieron contra stubs vacíos (`geocodeAddress` que devolvía `[]`, `LocationPicker` que no dibujaba nada), no contra "el módulo no existe": 18 rojos de 19 (el que pasó, "una respuesta que no es lista da `[]`", lo cumplía el stub).
+- **24 tests nuevos:** 1 de mosaicos, 4 de respaldo, 6 de `geocodeAddress` (`geocode.test.ts`), 9 del selector (`LocationPicker.test.tsx`, Leaflet real en jsdom) y 4 del alta (`CreateVoluntariadoLocation.test.tsx`).
+- **Frontend:** `npm test` **978** (antes 954), `npm run typecheck` 0 errores, `npm audit` 0. Cobertura local: sentencias 88,22 %, ramas 85,13 %, funciones 83,98 %, líneas 91,78 %. No se tocó el backend: no hacía falta correr `npm test`/`test:pg`.
+- **Mutación sobre el código nuevo** (runner propio con corrida de control):
+  - mosaicos con OpenStreetMap: 5 mutantes, 5 muertos (el de `maxZoom` 20 sobrevivió primero; se agregó la aserción, porque en 20 OpenStreetMap no tiene mosaicos y el mapa queda gris);
+  - respaldo: 10 mutantes, 10 muertos ("ángulo fijo" y "radio fijo" sobrevivieron primero, no eran equivalentes: dejaban todos los pines en una línea o en un círculo; se agregó un test de dispersión);
+  - `geocodeAddress`, selector y alta: 33 mutantes, 33 muertos (el del zoom inicial sobrevivió primero; se agregó la aserción).
+- **En Chrome, con la base local de la semilla** (backend con Resend y Cloudinary vacíos, ONG Sustentando):
+  - se buscó "Parque Sarmiento, Córdoba": **Nominatim real** devolvió el de Córdoba y el de Río Cuarto;
+  - se eligió el primero, el pin quedó en el parque y se arrastró: el alta guardó `latitude -31.430335`, `longitude -64.179245` (las del pin arrastrado);
+  - en Explorar (modo mapa) aparece en ese lugar, con la tarjeta de ese proyecto; en el detalle aparece "Cómo llegar";
+  - mosaicos de OpenStreetMap y atribución "Leaflet | © OpenStreetMap" visibles en los dos mapas.
+
+### Errores propios
+- **Elegí CARTO sin probarlo en un navegador.** En Chrome sus mosaicos sin clave salen con la marca "API KEY REQUIRED". Los tests no lo podían ver (jsdom no baja imágenes). Se cambió a OpenStreetMap en `f0b5f92`, y el test ahora exige esa URL.
+- **Un commit salió con un error de tipos:** el `typecheck | tail` tapó el código de salida y el `&&` siguió. Se enmendó ese commit, que no estaba pusheado.
+- **Al pasar el selector a la suite completa, falló `A11yNames.test.tsx`:** reemplaza `ProjectMap` entero por un doble, y el selector importaba de ahí. Se movió lo común a `lib/mapTiles.ts`.
+- **El primer barrido de mutación de `LocationPicker.tsx` tuvo 11 mutantes "no aplica":** los escribí con CRLF y el archivo nuevo es LF. Se repitieron con LF: 11 muertos.
+- **Un comando quedó colgado 2 minutos:** un `cat >` sin entrada que esperaba stdin. Se cortó sin cambios.
+- **`DEMO_DATOS.md` (LF) quedó en CRLF después de editarlo:** se vio al revisar los saltos de línea antes del commit y se volvió a LF.
+
+### ⚠️ NO verificado
+- **Producción:** no se desplegó. Falta ver que Nominatim y los mosaicos de OpenStreetMap respondan con el dominio de Render. Su política pide un Referer válido, que el navegador manda.
+- **Los voluntariados de producción sin coordenadas:** cambian de lugar en el mapa (del punto por palabra clave o posición al punto por id). No se les cargó el lugar: habría que hacerlo a mano o agregar edición.
+- **Celular y táctil:** no se probó tocar el mapa ni arrastrar el pin con el dedo, ni el modo claro (se probó en oscuro).
+- **Volumen:** los mosaicos de OpenStreetMap son para uso moderado. Si la app tuviera mucho tráfico, habría que pasar a un proveedor con clave.
+- **El mapa no se puede usar con el teclado** (Leaflet), pero buscar la dirección y elegir el resultado sí.
+- **Defecto viejo que apareció en Chrome, sin corregir:** en modo oscuro, el título de la tarjeta del proyecto elegido en el mapa (chico y ampliado) sale en `#F2F4F7` sobre fondo blanco (`bg-white/98` no cambia con el tema y `text-gray-900` sí): no se lee. `paletteContrast.test.ts` no lo detecta. Queda para decidir con el usuario.

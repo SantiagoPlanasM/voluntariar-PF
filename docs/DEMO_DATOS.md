@@ -37,7 +37,7 @@
 4. **Vincular Mercado Pago** (el aviso "Configurar" del Panel, o Configuración → "Cuenta de Mercado Pago"): sin cuenta vinculada la ONG no recibe donaciones y el botón "Donar" no aparece (§215). El botón OAuth no se probó en vivo; la ONG SANTI se vinculó a mano con `scripts/vincular-mp-manual.js`.
 5. **Panel → "Crear voluntariado"** (en el celular, "Crear"), dos por ONG:
    - uno **fugaz** y uno **sostenido**;
-   - con **imagen** (URL), **ubicación en el mapa**, roles y requisitos;
+   - con **imagen** (URL), **ubicación en el mapa** (paso Detalles: escribir la dirección, "Buscar en el mapa" y elegir el resultado, o tocar el mapa; el pin se arrastra. Hasta §252 el alta no guardaba el lugar), roles y requisitos;
    - en la ONG 1, con **meta de financiamiento** (por ejemplo $50.000), para que se vea la barra;
    - en la ONG 2, sin meta (para mostrar "Recaudado en donaciones").
 6. En un proyecto de la ONG 1, **KPIs**: dos indicadores con valor y fecha.
