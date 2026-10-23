@@ -21,7 +21,7 @@
 | §228–§238 | SonarCloud en 0 issues, validaciones de entrada y los temas de la materia en el informe |
 | §239–§243 | Rediseño del frontend (DESIGN 1.1) |
 | §244–§251 | Informe con el rediseño, sesión exploratoria, sus 8 defectos, contraste en 0, corte final y orden de la documentación |
-| §252–§253 | Mapas: el alta manda el lugar (pin y búsqueda de dirección), respaldo estable, mosaicos de OpenStreetMap y D30 (tarjeta del mapa en oscuro) |
+| §252–§254 | Mapas: el alta manda el lugar (pin y búsqueda de dirección), respaldo estable, mosaicos de OpenStreetMap, D30 (tarjeta del mapa en oscuro) y D31 (remotos en el mapa) |
 
 
 ## 1. Fortalezas
@@ -7246,3 +7246,35 @@ El usuario pidió arreglar los cinco que seguían abiertos. Cada uno se hizo con
 - **Producción:** no se desplegó.
 - **El informe del TP** (HTML y PDF) sigue con el corte del CI #41: 29 defectos. D30 está en el registro y en las métricas como "después del corte"; queda para decidir si se actualiza el informe.
 - **Otro detalle visto en la captura, sin registrar:** en oscuro, el puntito de cada categoría en el encabezado del mapa ampliado es `#0F1419` (tinta) sobre el fondo oscuro, y casi no se ve. Es decorativo (el nombre de la categoría se lee). Tampoco se miró el punto actual del carrusel de fotos en oscuro (`bg-white` pasa a la superficie oscura).
+
+## 254. Mapas en producción y D31: los remotos tenían pin (Issue #32)
+
+### Qué se hizo
+- **El despliegue de §252–§253:** pusheado con OK del usuario. CI #44 y Deploy #38 en verde: producción en `6011584`, API y sitio. Corrige el "⚠️ NO verificado: no se desplegó" de §252 y §253.
+- **Verificación en producción, en Chrome,** con la sesión del usuario (él inició sesión; yo no escribí contraseñas):
+  - **Mapa de Explorar** (como voluntario): mosaicos de OpenStreetMap con la atribución, y la tarjeta de D30 con el fondo oscuro;
+  - **alta como ONG SANTI, sin publicar:** se buscó "Miramar, Mar Chiquita" y Nominatim respondió; se eligió el resultado de Miramar de Ansenuza (Córdoba) y el pin quedó en la costanera. El borrador no se guardó;
+  - **primer resultado de otra provincia:** la búsqueda trajo primero el partido de Mar Chiquita de Buenos Aires. El usuario decidió no priorizar Córdoba (opción 3, descartada).
+- **Datos de producción:** los 3 voluntariados no tienen coordenadas y caen en el punto de respaldo dentro de la ciudad de Córdoba. "Jornada de limpieza en el Lago" dice "Mar Chiquita" y queda a unos 180 km del punto.
+  - **El usuario pidió cargarle el lugar** (Ex-Hotel Mar Chiquita, Miramar de Ansenuza: -30.921014, -62.687917) con un `PUT` parcial de la ONG dueña. Se revisó que el `PUT` es parcial y no notifica.
+  - **El clasificador de permisos del entorno bloqueó el pedido** por modificar un recurso compartido. No se intentó esquivar: queda para que el usuario lo haga o lo autorice.
+- **D31, registrado antes de arreglarlo:** [#32](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/32), severidad baja, label `encontrado:prod`.
+  - **El defecto:** "Test" (remoto) tenía pin en el mapa de Explorar y sumaba en "3 proyectos en tu área". `ExploreScreen` le pasa al mapa todos los proyectos filtrados y `ProjectMap` no descartaba los remotos.
+  - **El arreglo** (`e113674`): `isRemote` pasa de `ProjectDetails.tsx` a `app/volunteering/isRemote.ts` (regla 3: un solo criterio). `ProjectMap` filtra los remotos al entrar, y eso alcanza al mapa chico, al ampliado y a todos los conteos.
+- **Docs:**
+  - `REGISTRO_DEFECTOS.md`: 31 defectos; producción 5; tasa de escapados **5 de 31 = 16,1 %** (sube: D31 se encontró en producción);
+  - `METRICAS.md` (después del corte), `GUION_DEFENSA.md` (31 defectos), `FRONTEND_CONTEXT.md` y `CLAUDE.md` (982 tests).
+
+### Verificación
+- **Rojo → verde:** los dos tests nuevos de `ProjectMap.test.tsx` fallaron con 5 y 4 pines y pasan con 2. Cubren el mapa chico y el ampliado: modalidad remoto, "Remoto" y "Virtual" en la ubicación, y que un híbrido sí aparezca.
+- **Mutación:** 9 mutantes, 9 muertos (el filtro, el filtro al revés, el ampliado y la pastilla con la lista completa, y cada condición de `isRemote`). El runner solo corrió `ProjectMap.test.tsx`: los nombres que le puse a los tests de `ProjectDetails` no existían.
+- **Frontend:** `npm test` **982** (antes 980), `npm run typecheck` 0 errores.
+
+### Errores propios
+- **D31 lo cargué primero con `encontrado:exploratoria`.** Lo encontré en producción, así que se cambió a `encontrado:prod` y suma a la tasa de escapados (D30, encontrado en local, queda como estaba).
+- **El runner de mutación recibió nombres de tests que no existen** (`ProjectDetails.test.tsx`), y vitest los ignoró sin avisar. Los mutantes murieron igual, pero `isRemote` en el detalle solo lo cubrió la suite completa, no la mutación.
+
+### ⚠️ NO verificado
+- **D31 en producción:** falta pushear y desplegar `e113674` (y estos docs).
+- **El lugar de "Jornada de limpieza en el Lago" sigue sin cargar** (el pedido quedó bloqueado; ver arriba).
+- **"Prueba cuenta 2" (Carlos Paz)** es de otra ONG: no se le puede cargar el lugar con la sesión de ONG SANTI.
