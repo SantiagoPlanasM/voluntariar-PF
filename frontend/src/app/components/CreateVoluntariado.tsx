@@ -6,6 +6,7 @@ import {
   Zap, Sprout, MapPin, Users, DollarSign, ClipboardList, Laptop, Globe,
 } from 'lucide-react';
 import { api } from '../../lib/api';
+import { LocationPicker } from './LocationPicker';
 
 const CATEGORIES = ['Medio Ambiente', 'Educación', 'Salud', 'Animales', 'Alimentación', 'Tecnología', 'Arte y Cultura', 'Deportes'];
 const ROLE_RE    = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\-\/]{2,40}$/;
@@ -39,6 +40,8 @@ export function CreateVoluntariado() {
     duration: '', hours_per_week: '',
     volunteers_needed: '', funding_goal: '', cost_per_person: '',
   });
+  // Lugar en el mapa (opcional). Antes no se mandaba nunca: el mapa ponía el voluntariado en un punto inventado.
+  const [coords, setCoords]       = useState<{ lat: number; lng: number } | null>(null);
   const [roles, setRoles]         = useState<string[]>([]);
   const [requirements, setReqs]     = useState<string[]>([]);
   const [newRole, setNewRole]       = useState('');
@@ -134,6 +137,9 @@ export function CreateVoluntariado() {
         category: form.category,
         location: form.modality === 'remoto' && !form.location.trim() ? 'Remoto' : form.location.trim(),
         modality: form.modality,
+        // Remoto no tiene lugar: si había un punto marcado antes de cambiar la modalidad, no se manda.
+        latitude: form.modality !== 'remoto' && coords ? coords.lat : undefined,
+        longitude: form.modality !== 'remoto' && coords ? coords.lng : undefined,
         type: form.type,
         duration: form.type === 'fugaz' ? form.duration.trim() : undefined,
         hours_per_week: form.type === 'sostenido' ? Number.parseInt(form.hours_per_week) : undefined,
@@ -366,6 +372,9 @@ export function CreateVoluntariado() {
                   <p className={hint}>Indicá el punto de encuentro físico y la plataforma virtual.</p>
                 ) : null}
                 {err('location')}
+                {form.modality !== 'remoto' && (
+                  <LocationPicker query={form.location} value={coords} onChange={setCoords} />
+                )}
               </div>
 
               {form.type === 'fugaz' ? (
@@ -533,6 +542,7 @@ export function CreateVoluntariado() {
                     }
                   </span>
                 </p>
+                {form.modality !== 'remoto' && <p>{coords ? 'Lugar marcado en el mapa' : 'Sin lugar marcado en el mapa'}</p>}
                 <p>{form.volunteers_needed ? `${form.volunteers_needed} voluntarios` : '—'} · {roles.length} roles · {requirements.length} requisitos</p>
               </div>
             </div>

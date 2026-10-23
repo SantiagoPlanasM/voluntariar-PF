@@ -8,10 +8,8 @@ import { Project } from '../../lib/api';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Modal } from './Modal';
-import { addBaseTiles } from '../../lib/mapTiles';
+import { addBaseTiles, createPinIcon, DEFAULT_CENTER } from '../../lib/mapTiles';
 
-// Coordenadas base de Córdoba Capital
-const DEFAULT_CENTER = { lat: -31.4201, lng: -64.1888 };
 const DEFAULT_ZOOM = 13;
 
 // Colores vivos y definidos según categoría para pines y filtros
@@ -58,28 +56,6 @@ export function getProjectCoords(p: Project): { lat: number; lng: number } {
     lat: DEFAULT_CENTER.lat + radius * Math.sin(rad),
     lng: DEFAULT_CENTER.lng + radius * Math.cos(rad),
   };
-}
-
-function createPinIcon(bg: string, isSelected: boolean) {
-  const html = `
-    <div class="group relative cursor-pointer transform transition-transform duration-200 ${isSelected ? 'scale-125 z-50' : 'hover:scale-110'}">
-      <div style="background-color: ${bg}; border-color: #ffffff;"
-           class="w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 text-white">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
-          <circle cx="12" cy="10" r="3"></circle>
-        </svg>
-      </div>
-      <div style="border-top-color: ${bg};"
-           class="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[6px] mx-auto -mt-[1px]"></div>
-    </div>
-  `;
-  return L.divIcon({
-    html,
-    className: 'custom-map-pin',
-    iconSize: [32, 38],
-    iconAnchor: [16, 38],
-  });
 }
 
 type MappedProject = { project: Project; coords: { lat: number; lng: number }; colors: { bg: string } };

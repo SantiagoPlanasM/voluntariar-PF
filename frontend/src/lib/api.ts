@@ -459,3 +459,29 @@ export interface VolunteerProfileData {
   stats: { total_enrollments: number; approved_enrollments: number; total_horas: number };
   participaciones: VolunteerParticipation[];
 }
+
+/** Una dirección encontrada por el buscador del alta de voluntariados. */
+export interface GeocodeResult { label: string; lat: number; lng: number }
+
+export const GEOCODER_URL = 'https://nominatim.openstreetmap.org/search';
+const GEOCODE_ERROR = 'No pudimos buscar la dirección. Marcá el lugar tocando el mapa.';
+
+/** Busca una dirección en Nominatim (OpenStreetMap) para marcarla en el mapa. Es un servicio externo: no pasa por
+ *  `req()` (ni BASE ni el token de la sesión, que no se le manda a un tercero). Su política pide como máximo un pedido
+ *  por segundo y nada de autocompletar: se llama solo al tocar "Buscar en el mapa" (LocationPicker lo espacia). */
+export async function geocodeAddress(q: string): Promise<GeocodeResult[]> {
+  const qs = new URLSearchParams({ q: q.trim(), format: 'jsonv2', countrycodes: 'ar', limit: '5', 'accept-language': 'es' });
+  let data: unknown;
+  try {
+    const res = await fetch(`${GEOCODER_URL}?${qs}`);
+    if (!res.ok) throw new Error(String(res.status));
+    data = await res.json();
+  } catch {
+    throw new Error(GEOCODE_ERROR);
+  }
+  if (!Array.isArray(data)) return [];
+  return data
+    .map((d: { display_name?: string; lat?: string; lon?: string }) =>
+      ({ label: String(d.display_name ?? ''), lat: Number(d.lat), lng: Number(d.lon) }))
+    .filter(r => Number.isFinite(r.lat) && Number.isFinite(r.lng));
+}
