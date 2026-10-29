@@ -37,6 +37,7 @@
 | §270 | Los avisos de entrevistas y del acuerdo de patrocinio llevan a su pantalla |
 | §271 | Íconos de los avisos nuevos, calendario para la ONG y horas y estado real en el perfil público |
 | §272 | Cambiar la contraseña desde Configuración |
+| §273 | La falla intermitente del runner en el CI: el arranque no escribe por stdout en los tests |
 
 
 ## 1. Fortalezas
@@ -7784,3 +7785,19 @@ Pedido del usuario ("no tiene para cambiar contraseña o cosas así"). No había
 - **No avisa por mail** del cambio (sería lo ideal por seguridad).
 - **La pantalla real** y el autocompletado del gestor de contraseñas del navegador.
 - **Sin desplegar.**
+
+## 273. La falla intermitente del runner en el CI: el arranque ya no escribe por stdout en los tests
+
+### Qué pasaba
+- **3.ª vez** (run 40834285059, el push de §271–§272) del mismo error interno del runner de Node en "Backend · Postgres 16 · America/Argentina/Cordoba": `Unable to deserialize cloned data due to invalid or unsupported version`, en `faqs-ui-names.test.js` (974 de 975). Las veces anteriores: CI #42 (`health-commit`) y #47 (`faqs-ui-names`), §259. Como las otras veces, relanzar el job pasó, y el Deploy salió en verde (producción en `d3c511c`). El usuario había decidido investigarlo "solo si se repite".
+
+### Hipótesis y arreglo
+- **Hipótesis:** `node --test` lee los resultados serializados de cada archivo por el **stdout del proceso hijo**, y el servidor y el adaptador imprimían por ahí sus mensajes de arranque, con emojis: "🚀 Voluntariar API…", "🗄️ Conectado a SQLite" y "🐘 Conectado a PostgreSQL". Este último sale **asincrónico**, después de una consulta, en cualquier momento del archivo. Con carga, se intercalaría en el medio de un mensaje del runner y lo corrompería. Cuadra con que falle en el job más lento.
+- **Arreglo:** `src/index.js` (el `listen`) y `src/db/index.js` (los dos "Conectado a…") no imprimen con `NODE_ENV=test` o con `NODE_TEST_CONTEXT` (lo pone Node en cada archivo de `node --test`, también en los que usan la base sin levantar el servidor). Fuera de los tests imprimen igual que antes (comprobado con `require('./src/db')`).
+
+### Verificación
+- **`quiet-stdout.test.js`** (nuevo): levanta el servidor de prueba mirando lo que pasa por stdout y exige que no aparezca ningún mensaje de arranque. En rojo antes (capturó "Conectado a SQLite"), en verde después.
+- **Suites:** `npm test` **974/974**, con TZ de Córdoba **974/974**, `npm run test:pg` **976/976**, y Postgres **con TZ de Córdoba** (la combinación del job que fallaba) **976/976**. Mensajes de arranque en la salida completa: **0** (antes, uno o más por archivo; con solo `NODE_ENV` quedaban 3, de archivos que usan la base sin el servidor).
+
+### ⚠️ NO verificado
+- **Que esta fuera la causa:** no se pudo reproducir la falla en local. Se va a ver en las próximas corridas del CI. Si vuelve a aparecer, la hipótesis está mal y hay que buscar otra (por ejemplo, la versión de Node 22 del runner).
