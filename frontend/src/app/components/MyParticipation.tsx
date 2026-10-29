@@ -17,6 +17,7 @@ import { useConfirm, useToast } from '../ui/UiProvider';
 import { VolunteeringTile } from '../volunteering/VolunteeringTile';
 import { userMessage } from '../../lib/format';
 import { interviewWhen } from './InterviewPanel';
+import { googleCalendarUrl, icsHref, interviewEvent, toIcs } from '../../lib/calendar';
 
 type TabKey = 'upcoming' | 'applications' | 'following' | 'done';
 
@@ -165,6 +166,13 @@ export function MyParticipation() {
               className="text-brand-text underline break-all">{iv.link}</a>
           )}
           {iv.note && <span className="text-ink-muted italic">{iv.note}</span>}
+          {/* §268: agregar al calendario (Google, o el .ics para cualquier otro). */}
+          <span className="flex flex-wrap gap-x-3 gap-y-1 mt-0.5">
+            <a href={googleCalendarUrl(interviewEvent(iv, item.title, item.ngo_name))} target="_blank" rel="noopener noreferrer"
+              className="font-semibold text-brand-text underline">Agregar a Google Calendar</a>
+            <a href={icsHref(toIcs(interviewEvent(iv, item.title, item.ngo_name), iv.id))} download="entrevista.ics"
+              className="font-semibold text-brand-text underline">Descargar .ics</a>
+          </span>
         </div>
       )}
     </li>

@@ -55,6 +55,17 @@ describe('Mis voluntariados: la entrevista', () => {
     expect(link.parentElement?.closest('a')).toBeNull(); // no queda adentro del enlace al voluntariado
   });
 
+  test('agregar al calendario (§268): Google Calendar en otra pestaña y el .ics para descargar', async () => {
+    mount([item({ interview: interview() })]);
+    const fila = await filaDe('Huerta comunitaria');
+    const google = within(fila).getByRole('link', { name: 'Agregar a Google Calendar' });
+    expect(google).toHaveAttribute('target', '_blank');
+    expect(new URL(google.getAttribute('href')!).searchParams.get('dates')).toBe('20300310T210000Z/20300310T220000Z');
+    const ics = within(fila).getByRole('link', { name: 'Descargar .ics' });
+    expect(ics).toHaveAttribute('download', 'entrevista.ics');
+    expect(decodeURIComponent(ics.getAttribute('href')!)).toContain('SUMMARY:Entrevista: Huerta comunitaria (ONG Verde)');
+  });
+
   test('entrevista cancelada: sigue "Pendiente" y sin datos de la entrevista', async () => {
     mount([item({ interview: interview({ status: 'cancelled' }) })]);
     const fila = await filaDe('Huerta comunitaria');
