@@ -7898,3 +7898,28 @@ Pedido del usuario: lo propuesto en §272 y no hecho. Hasta ahora, quien se olvi
 ### ⚠️ NO verificado
 - Que el recorrido del guion entre en 15 minutos con lo nuevo: no se ensayó.
 - Nada de §274–§276 está desplegado todavía.
+
+## 277. Etiquetas visibles en los campos de contraseña (visto en producción)
+
+§274–§276 quedaron desplegados: CI 40959500305 (9 jobs en verde, también Postgres · Córdoba: segunda corrida limpia desde el arreglo de §273) y Deploy 40960408026 (smoke y E2E en verde). `/health` daba `8f3087c`, `POST /api/auth/forgot-password` sin email respondía 400 y `/restablecer` respondía 200. Las secciones §274–§276 dicen "sin desplegar" en NO verificado: ya no vale.
+
+### Qué se vio en Chrome (producción, modo oscuro)
+- **Login:** "¿Olvidaste tu contraseña?" alineado a la derecha debajo del campo, y el ojo dentro del campo. El modal de recuperar la contraseña, con su título, el texto, el email y los dos botones.
+- **Configuración → Cambiar contraseña:** el ojo de cada campo está alineado y funciona (el de "nueva" cambió solo ese campo a texto; leído en la página).
+- **El defecto:** en Configuración y en `/restablecer`, **los campos eran rectángulos vacíos iguales**, sin etiqueta visible ni texto de ejemplo. El nombre era solo un `aria-label`, que sirve al lector de pantalla pero no se ve, así que no se sabía cuál era la actual, cuál la nueva y cuál la repetición. Venía de §272, y `/restablecer` (§275) copió el patrón. Los tests no lo veían porque buscan los campos por su nombre accesible, y un `aria-label` alcanza para eso.
+
+### Qué se hizo
+- `PasswordSection` y `ResetPasswordPage`: un `<label htmlFor>` visible arriba de cada campo, con el estilo de las etiquetas del login, y sin `aria-label` (el nombre accesible sale de la etiqueta y es el mismo texto).
+
+### Verificación
+- **Rojo → verde:** un test por pantalla exige que cada campo tenga **una** etiqueta asociada con su texto y que no tenga `aria-label`. En rojo antes: "expected +0 to be 1".
+- **Mutación (script, control en verde):** 5 mutantes (sacar una etiqueta, desconectarla, volver a poner el `aria-label`, otro texto), **5 muertos**.
+- **Frontend:** **1097/1097**, `npm run typecheck` 0 errores.
+
+### Errores propios
+- En §275 copié a `/restablecer` el patrón de §272 sin mirarlo en pantalla, y los tests que escribí tampoco lo podían ver. Se vio recién en Chrome.
+
+### ⚠️ NO verificado
+- El celular: la extensión de Chrome no puede abrir la barra de dispositivos de DevTools ni achicar la ventana maximizada.
+- El tema claro (no se cambió, para no tocar la preferencia guardada de la sesión del usuario).
+- El circuito completo de recuperar la contraseña con el mail real.
