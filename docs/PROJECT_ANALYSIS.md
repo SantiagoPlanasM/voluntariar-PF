@@ -33,6 +33,7 @@
 | §265 | Patrocinio como acuerdo, etapa 3: la pantalla del acuerdo (`SponsorshipAgreementScreen`) |
 | §266 | Patrocinio como acuerdo, etapa 4: "Patrocinado por" en público, y el despliegue de §263–§266 |
 | §267 | Despliegue de §263–§266 y prueba en Chrome (local) de entrevistas y patrocinio |
+| §268–§269 | "Agregar al calendario" la entrevista y certificado de participación para imprimir |
 
 
 ## 1. Fortalezas
@@ -7695,3 +7696,22 @@ Cierra `docs/PLAN_PATROCINIO.md`. El usuario pidió desplegar §263–§266 junt
 - **En producción:** todo lo de arriba fue en local. No se probó un acuerdo ni una entrevista contra la base real.
 - **El celular** (una sola columna, el formulario en línea en una pantalla chica): solo vi el escritorio, a 1366 px.
 - **Los avisos de la app y los mails:** no abrí la pantalla de notificaciones, y los mails estaban apagados.
+
+## 268–269. "Agregar al calendario" la entrevista y certificado de participación
+
+Dos funciones chicas, propuestas a pedido del usuario ("cosas a agregarle"), que se lucen en la demo y no tocan el backend. Se eligieron por no tener riesgo para lo que ya anda antes del congelamiento del 3/11.
+
+### Qué se hizo
+- **§268, `lib/calendar.ts`** (nuevo, sin dependencias). Pasa la fecha y hora de la entrevista (Argentina, UTC-3) a UTC, con una hora de duración. Arma el `.ics` (RFC 5545: CRLF, `UID`, `DTSTAMP`, y escapa `\`, `;`, `,` y los saltos) y el link de Google Calendar. En "Mis voluntariados", debajo de una entrevista programada, aparecen "Agregar a Google Calendar" (otra pestaña) y "Descargar .ics" (`<a download>` con un `data:`). Los voluntariados no tienen fecha propia (solo duración), así que el calendario va solo en las entrevistas.
+- **§269, `CertificatePage.tsx`** (nueva, `/certificado/:enrollmentId`). Usa los datos de `GET /enrollments/my`. Solo da certificado para una postulación propia, aprobada, en un voluntariado `completed` (en uno cancelado, no). Muestra el nombre, el voluntariado, la ONG, las horas verificadas y la fecha de emisión, con "Imprimir o guardar como PDF" (`window.print`). El acceso "Certificado" está en Realizados.
+- **Docs:** `FRONTEND_CONTEXT`, `GUION_DEFENSA` (el recorrido de la voluntaria) y `CLAUDE.md` (1066).
+
+### Verificación
+- **§268:** `calendar.test.ts`, 6 tests, en rojo contra un módulo vacío (no "el módulo no existe"). Cubren UTC, el cruce de medianoche, lugar y descripción, el `.ics` línea por línea, el escape de la barra y Google Calendar. Más 1 test en `MyParticipationInterview` (los dos links). Mutación: **12 mutantes, 12 muertos**.
+- **§269:** `CertificatePage.test.tsx`, 6 tests, en rojo contra un componente vacío. Cubren el certificado completo con imprimir, singular y sin horas, los cuatro casos sin certificado (pendiente, activo, cancelado, ajeno), sin sesión, y el acceso solo en los finalizados. Mutación: **10 mutantes, 10 muertos**.
+- **Frontend:** `npm test` **1066/1066**; `npm run typecheck` 0 errores. El backend no cambió.
+
+### ⚠️ NO verificado
+- **El `.ics` en un calendario real** (Google, Outlook, el del celular): solo el formato, contra la RFC.
+- **La impresión real** del certificado (márgenes, una sola hoja, el modo oscuro del navegador): solo jsdom.
+- **Sin desplegar** (commits locales, junto con §267 y la guía de la defensa).
