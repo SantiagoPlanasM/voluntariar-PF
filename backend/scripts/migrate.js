@@ -485,6 +485,24 @@ async function migrate() {
   await addColumnIfNotExists('reuniones', 'lugar', 'TEXT');
   await addColumnIfNotExists('reuniones', 'nota', 'TEXT');
   await addColumnIfNotExists('reuniones', 'updated_at', NOW);
+  // Agregadas 2026-10-29 (patrocinio como acuerdo negociado, PROJECT_ANALYSIS.md §263, docs/PLAN_PATROCINIO.md):
+  // `version` sube con cada cambio de los puntos; cada parte acepta una versión (etapa 2).
+  await addColumnIfNotExists('empresa_voluntariados', 'version', 'INTEGER NOT NULL DEFAULT 1');
+  await addColumnIfNotExists('empresa_voluntariados', 'acepta_empresa_version', 'INTEGER');
+  await addColumnIfNotExists('empresa_voluntariados', 'acepta_ong_version', 'INTEGER');
+  await db.query(`CREATE TABLE IF NOT EXISTS patrocinio_puntos (
+      id          ${UUID_PK},
+      empresa_id  TEXT NOT NULL,
+      project_id  TEXT NOT NULL,
+      lado        TEXT NOT NULL CHECK(lado IN ('empresa','ong')),
+      tipo        TEXT NOT NULL CHECK(tipo IN ('dinero','insumos','voluntarios','difusion','otro')),
+      detalle     TEXT NOT NULL,
+      monto       REAL CHECK(monto IS NULL OR monto > 0),
+      autor_id    TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at  ${NOW},
+      updated_at  ${NOW},
+      FOREIGN KEY (empresa_id, project_id) REFERENCES empresa_voluntariados(empresa_id, project_id) ON DELETE CASCADE
+    )`);
 
   // ── Índices ───────────────────────────────────────────────────────────────
   console.log('\n🔍 Creando índices...');
@@ -527,6 +545,7 @@ async function migrate() {
     `CREATE INDEX IF NOT EXISTS idx_empleados_ngo      ON empleados(ngo_id)`,
     // Patrocinios (Empresa × Proyecto)
     `CREATE INDEX IF NOT EXISTS idx_empresa_vol_estado ON empresa_voluntariados(estado)`,
+    `CREATE INDEX IF NOT EXISTS idx_patrocinio_puntos_acuerdo ON patrocinio_puntos(empresa_id, project_id)`,
     // Seguidores entre Voluntarios
     `CREATE INDEX IF NOT EXISTS idx_vol_follows_follower  ON volunteer_follows(follower_id)`,
     `CREATE INDEX IF NOT EXISTS idx_vol_follows_following ON volunteer_follows(following_id)`,
