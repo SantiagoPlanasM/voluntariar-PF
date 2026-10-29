@@ -78,7 +78,9 @@
 - [ ] **"Patrocinado por"** en el proyecto con el acuerdo aceptado, y el proyecto en la pestaña Patrocinios del **perfil público de la empresa**. Sin montos a la vista.
 - [ ] **Martín → Mis voluntariados → Postulaciones**: el chip **"Entrevista"** con la fecha, la hora y el link o el lugar.
 - [ ] **ONG 1 → campanita**: "Nueva solicitud de inscripción" y "Recibiste una donación".
-- [ ] **Perfil público** de Lucía: foto, habilidades, participaciones y Momentos.
+- [ ] **Perfil público** de Lucía: foto, habilidades, participaciones (con las horas de cada voluntariado, §271) y Momentos.
+- [ ] **ONG 1 → una entrevista agendada → "Agregar al calendario"** (Google Calendar o `.ics`, §271).
 - [ ] **Asistente** (Mensajes → "Asistente VoluntariAR", arriba de todo): responde una pregunta frecuente con los nombres de pantalla actuales (§246).
 - [ ] **Configuración → "Privacidad y términos"** abre, y en el registro aparece el link.
 - [ ] **Borrar mi cuenta**: probalo con una cuenta descartable (no con las de la demo).
+- [ ] **Contraseñas** (§272–§275), con la cuenta descartable: Configuración → **"Cambiar contraseña"** (el ojo de cada campo muestra lo escrito) y, sin sesión, **"¿Olvidaste tu contraseña?"** en el login. El mail llega a la **casilla de prueba** (`EMAIL_REDIRECT_TO`), no a la de la cuenta; el link lleva a `/restablecer` y vence en 1 hora.

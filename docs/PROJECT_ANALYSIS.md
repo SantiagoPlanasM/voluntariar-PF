@@ -7878,3 +7878,23 @@ Pedido del usuario: lo propuesto en §272 y no hecho. Hasta ahora, quien se olvi
 - **El tiempo de respuesta en producción** con y sin cuenta: se diseñó para que sea igual, pero no se midió.
 - **Las sesiones abiertas** siguen valiendo después del cambio (los JWT no se revocan), como en §272.
 - **Sin desplegar.**
+
+## 276. Guion de la defensa y datos de demo al día (§271–§275)
+
+### Qué se hizo
+- **`GUION_DEFENSA.md`:**
+  - se sumó la regla "sin deploys del 3 al 5/11";
+  - en la demo: "Agregar al calendario" en la entrevista de la ONG (§271), y "Cambiar contraseña" y "¿Olvidaste tu contraseña?" en el último bloque;
+  - una pregunta esperable nueva (recuperar la contraseña, con su límite: las sesiones abiertas no se cierran);
+  - los números de "Qué contar de lo técnico" (994/996/1095 y la cobertura local del 29/10). Antes decía 969/971/1053 y una cobertura de otro corte.
+- **`DEMO_DATOS.md`:** en el checklist, las horas por voluntariado en el perfil público, el calendario de la ONG y la prueba de las contraseñas con la cuenta descartable (el mail llega a la casilla de prueba).
+
+### Verificación
+- **Cobertura del backend** (`node --test --experimental-test-coverage --test-coverage-include="src/**"`): líneas 92,70 %, ramas 86,24 %, funciones 91,61 %. `npm audit`: **0** en los dos paquetes.
+
+### Errores propios
+- Esa corrida con cobertura contó **995** tests y `npm test` cuenta **994**. No se investigó la diferencia de uno; en los documentos quedó el número de `npm test`.
+
+### ⚠️ NO verificado
+- Que el recorrido del guion entre en 15 minutos con lo nuevo: no se ensayó.
+- Nada de §274–§276 está desplegado todavía.
