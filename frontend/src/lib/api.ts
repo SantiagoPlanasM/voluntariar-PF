@@ -326,6 +326,14 @@ export interface Enrollment {
   id: string; user_id: string; project_id: string;
   status: 'pending' | 'approved' | 'rejected'; message?: string;
   hours_logged?: number; created_at: string;
+  /** GET /enrollments/my y /enrollments/project/:id (§261): la entrevista programada, si no la última; null si nunca hubo. */
+  interview?: Interview | null;
+}
+/** Entrevista de la ONG con quien se postuló (§261). `date` es AAAA-MM-DD y `time` HH:MM, hora de Argentina. */
+export interface Interview {
+  id: string; enrollment_id: string; date: string; time: string;
+  link: string | null; place: string | null; note: string | null;
+  status: 'scheduled' | 'done' | 'cancelled';
 }
 export interface EnrollmentWithProject extends Enrollment {
   title: string; image?: string; category: string; type: string;

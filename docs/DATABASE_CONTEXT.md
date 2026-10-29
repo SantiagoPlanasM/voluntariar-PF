@@ -159,9 +159,9 @@ id · user_id (NOT NULL FK→users CASCADE) · project_id (FK→projects, ON DEL
 > Desde `PROJECT_ANALYSIS.md §170` la usa `routes/donaciones.js` (Mercado Pago). **Ojo con el `DEFAULT 'completada'`**: todo `INSERT` pone `'pendiente'` explícito, y solo `applyPayment` la pasa a `completada` (CAS + `recaudado` en una transacción). `monto` es `REAL` (`float4` en Postgres): por eso las donaciones son en pesos enteros.
 
 ### `reuniones`
-id · empleado_id (FK→empleados, ON DELETE SET NULL) · user_id (NOT NULL FK→users CASCADE) · project_id (NOT NULL FK→projects CASCADE) · fecha (NOT NULL) · horario (NOT NULL) · link · estado (CHECK IN `programada`,`realizada`,`cancelada`, default `programada`) · created_at.
+id · empleado_id (FK→empleados, ON DELETE SET NULL) · user_id (NOT NULL FK→users CASCADE) · project_id (NOT NULL FK→projects CASCADE) · fecha (NOT NULL, AAAA-MM-DD) · horario (NOT NULL, HH:MM) · link · estado (CHECK IN `programada`,`realizada`,`cancelada`, default `programada`) · created_at · **desde §261:** `enrollment_id` (FK→enrollments, ON DELETE CASCADE) · `lugar` · `nota` · `updated_at`.
 
-> También sin endpoints propios implementados — tabla de esquema "adelantada" a funcionalidad no construida aún.
+> Desde §261 la usan las **entrevistas** (`POST`/`PATCH /api/enrollments/:id/entrevista`): una fila por entrevista, atada a la postulación. `user_id` y `project_id` los llena el backend desde la postulación. Índice único parcial `idx_reuniones_una_programada` sobre `enrollment_id` `WHERE estado = 'programada'`: una sola programada por postulación. `empleado_id` sigue sin usarse.
 
 ### `comments`
 id · project_id (NOT NULL FK→projects CASCADE) · user_id (NOT NULL FK→users CASCADE) · comment (NOT NULL) · created_at.
@@ -337,6 +337,7 @@ Borrar un `user` en cascada elimina: su perfil de ONG/empresa/voluntario, todos 
 | `idx_donaciones_external` | donaciones(external_id) | buscar por preferencia de Mercado Pago (§170) |
 | `idx_reuniones_project` | reuniones(project_id) | reuniones de un proyecto |
 | `idx_reuniones_user` | reuniones(user_id) | reuniones de un usuario |
+| `idx_reuniones_una_programada` | reuniones(enrollment_id) WHERE estado = 'programada' (UNIQUE) | una sola entrevista programada por postulación (§261) |
 | `idx_empleados_ngo` | empleados(ngo_id) | empleados de una ONG |
 | `idx_posts_created` | posts(created_at) | feed de publicaciones por fecha |
 | `idx_posts_project` | posts(project_id) | galería de un proyecto |
@@ -397,7 +398,7 @@ sequenceDiagram
 ## 10. Problemas detectados
 
 1. **Sin migraciones incrementales**: `migrate.js` solo sabe crear tablas nuevas (`CREATE TABLE IF NOT EXISTS`). Agregar una columna a una tabla existente en una base ya desplegada requiere escribir un `ALTER TABLE` manual fuera de este script, y no hay ningún mecanismo (tabla de versión, `schema_migrations`) que registre qué cambios ya se aplicaron.
-2. **`reuniones` es una tabla "huérfana"** (`donaciones` ya tiene API desde §170): existe en el esquema con FKs, CHECKs e índices completos, pero **ningún endpoint del backend la usa**. Indican funcionalidad planificada pero no construida — cualquier IA que trabaje sobre este proyecto no debe asumir que existe un flujo de donaciones o de reuniones solo porque la tabla está.
+2. ~~**`reuniones` es una tabla "huérfana"**~~ — resuelto en §261 (entrevistas; `donaciones` ya tiene API desde §170). Texto original: existe en el esquema con FKs, CHECKs e índices completos, pero **ningún endpoint del backend la usa**. Indican funcionalidad planificada pero no construida — cualquier IA que trabaje sobre este proyecto no debe asumir que existe un flujo de donaciones o de reuniones solo porque la tabla está.
 3. **`cupos_ocupados` no tiene un CHECK que lo limite a `<= cupos`** — la integridad depende enteramente de que el código de aplicación (`enrollments.js`) incremente/decremente correctamente; una escritura directa a la base (o un bug futuro) podría dejar cupos negativos "lógicos" (cupos ocupados mayor a cupos totales) sin que la base de datos lo impida.
 4. **Sin soft-delete** en ninguna tabla: todo borrado es físico y en cascada. Borrar una ONG borra permanentemente todo su historial de proyectos, inscripciones, comentarios y calificaciones — sin papelera de reciclaje ni auditoría.
 5. **Falta de índices en columnas de búsqueda de texto libre** (ver §6).

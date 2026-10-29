@@ -19,7 +19,7 @@
 2. **El dinero entra, pero no se ve en público.** Un punto de tipo `dinero` lleva monto (en pesos), visible solo para
    la empresa y la ONG del acuerdo. Al cerrarse, en público se muestra solo "Patrocinado por X": ni puntos ni montos.
 3. **Pagar el patrocinio por Mercado Pago:** no, por ahora.
-4. **Entrevistas:** después del patrocinio, en `PLAN_ENTREVISTAS.md`.
+4. **Entrevistas:** antes que el patrocinio (cambio de orden del usuario, 2026-10-29), en `PLAN_ENTREVISTAS.md`.
 5. **Plazo:** puede ir después de la defensa (5/11). Elección de cómo seguir: a criterio de Claude (ver "Orden").
 
 ## Reglas del acuerdo

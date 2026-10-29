@@ -41,6 +41,8 @@
 | PATCH | `/api/enrollments/:id` | Sí | ngo (dueño) | `routes/enrollments.js` |
 | DELETE | `/api/enrollments/:id` | Sí | dueño de la inscripción | `routes/enrollments.js` |
 | PATCH | `/api/enrollments/:id/horas` | Sí | ngo (dueño del proyecto) | `routes/enrollments.js` |
+| POST | `/api/enrollments/:id/entrevista` | Sí | ngo (dueño del proyecto) | `routes/enrollments.js` |
+| PATCH | `/api/enrollments/:id/entrevista` | Sí | ngo (dueño del proyecto) | `routes/enrollments.js` |
 | GET | `/api/ngos` | No | — | `routes/ngos.js` |
 | GET | `/api/ngos/me` | Sí | ngo | `routes/ngos.js` |
 | GET | `/api/ngos/:id` | No | — | `routes/ngos.js` |
@@ -257,7 +259,7 @@
 - **Respuesta 201:** `{ enrollment, message }`. **Errores:** `400` solo si falta `project_id`; `404` "Proyecto no encontrado o inactivo" (no existe o no está `active`); `409` "El proyecto no tiene cupos disponibles" y `409` "Ya estás inscripto en este proyecto" (también si dos altas iguales llegan a la vez: `isUniqueViolation`). *(Esta doc decía 400 para ya inscripto, sin cupos y no activo.)*
 
 ### `GET /api/enrollments/my` — Auth
-- **Respuesta 200:** `{ enrollments: Enrollment[] }` del usuario logueado, con datos del proyecto embebidos (JOIN).
+- **Respuesta 200:** `{ enrollments: Enrollment[] }` del usuario logueado, con datos del proyecto embebidos (JOIN) y `interview` (ver "Entrevistas" abajo).
 
 ### `GET /api/enrollments/project/:projectId` — Auth, role `ngo` (dueño del proyecto)
 - **Query:** `status` opcional (`pending`/`approved`/`rejected`): filtra por estado; sin él, todas.
@@ -275,6 +277,25 @@
 - Cancela/borra la inscripción. Si estaba `approved`, decrementa `cupos_ocupados` (sin bajar de 0). Borrado y decremento en **una transacción**; el `DELETE` exige que el estado siga siendo el leído (compare-and-swap).
 - **Concurrencia:** varias cancelaciones simultáneas del mismo registro → una sola responde 200 y decrementa; las demás **404** (antes todas respondían 200 y cada una restaba un cupo).
 - **Respuesta 200:** `{ message: 'Inscripción cancelada' }`. **404** si ya no existe. **409** si el estado cambió justo antes de borrar.
+
+### Entrevistas (§261, `docs/PLAN_ENTREVISTAS.md`)
+Una entrevista es una fila de `reuniones` atada a una postulación (`enrollment_id`). Formato: `interview = { id, enrollment_id, date, time, link, place, note, status }`, con `date` AAAA-MM-DD, `time` HH:MM (hora de Argentina, UTC-3) y `status` `scheduled`/`done`/`cancelled` (en la base: `programada`/`realizada`/`cancelada`). Las dos listas de postulaciones (`/my` y `/project/:projectId`) suman `interview`: la programada si hay; si no, la última; `null` si nunca hubo.
+
+#### `POST /api/enrollments/:id/entrevista` — Auth, role `ngo` (dueño del proyecto)
+- **Body:** `{ date, time, link?, place?, note? }`. Validación (400, mensajes literales): fecha real AAAA-MM-DD ("La fecha tiene que ser AAAA-MM-DD"), hora HH:MM de 00:00 a 23:59 ("La hora tiene que ser HH:MM"), fecha y hora futuras ("La entrevista tiene que ser en el futuro"), link o lugar, al menos uno ("Indicá un link o un lugar para la entrevista"), link `https://` (hasta 500), lugar hasta 200, nota hasta 500 (`checkText`). Textos vacíos → `null`.
+- **404** si la postulación no existe o no es de un proyecto de la ONG; **403** si no es una ONG.
+- **409** "Solo se puede agendar una entrevista con la postulación pendiente": el `INSERT … SELECT … WHERE status='pending'` no inserta si la postulación ya se decidió, aunque cambie entre la lectura y el alta.
+- **409** "Ya hay una entrevista programada para esta postulación": índice único parcial `idx_reuniones_una_programada` (con dos pedidos a la vez, pasa uno).
+- Avisa a quien se postuló (in-app `interview_scheduled` + mail `interviewScheduledEmail`), después del alta.
+- **Respuesta 201:** `{ interview }`.
+
+#### `PATCH /api/enrollments/:id/entrevista` — Auth, role `ngo` (dueño del proyecto)
+- Actúa sobre la entrevista **programada** de la postulación; sin programada (o de otra ONG) → **404** "No hay una entrevista programada para esta postulación".
+- `{ status: 'cancelled' }` la cancela (aviso `interview_cancelled`). `{ status: 'done' }` la marca realizada solo si ya pasó la fecha y hora (si no, **409** "La entrevista todavía no pasó"; sin aviso). Otro `status` → **400** "status tiene que ser cancelled o done".
+- **Sin `status`**, reprograma: mismo body y mismas validaciones que el alta, reemplaza los cinco campos (aviso `interview_rescheduled`).
+- `UPDATE … WHERE estado='programada'` (compare-and-swap): si otro pedido la cambió, **409**. Avisos solo in-app.
+- **Respuesta 200:** `{ interview }`.
+- **Automático:** aprobar o rechazar la postulación (`PATCH /api/enrollments/:id`) cancela la programada en la misma transacción (la realizada queda); cancelar la postulación la borra (`DELETE`) y con ella sus entrevistas (`ON DELETE CASCADE`).
 
 ### `PATCH /api/enrollments/:id/horas` — Auth, role `ngo` (dueño del proyecto)
 - **Decisión de diseño (ver `PROJECT_ANALYSIS.md §21-22`):** originalmente el código dejaba que el propio voluntario auto-reportara sus horas (con la documentación de esta misma sección diciendo lo contrario) y no tenía ninguna UI que lo usara. Se decidió que las horas queden **verificadas por la ONG dueña del proyecto**, no auto-reportadas — patrón estándar en plataformas de voluntariado, y más confiable para las estadísticas del proyecto.
@@ -694,7 +715,7 @@ Si el intercambio falla, el `state` igual queda usado.
 
 ## Endpoints ausentes (funcionalidad de esquema sin API)
 
-La tabla `reuniones` **existe en el esquema de base de datos pero no tienen ningún endpoint que las lea o escriba**. *(`donaciones` dejó de estar en esta lista con §170: ver "Donaciones" arriba.)* Cualquier tarea futura que mencione "reuniones/videollamadas" requiere **construir la API desde cero**, no modificar una existente. *(`voluntario_habilidades` dejó de estar en esta lista — ya tiene API completa, ver sección "Voluntarios" arriba y `PROJECT_ANALYSIS.md §17`. El perfil de `empresas` tampoco — ver sección "Empresas" arriba. `empresa_voluntariados` tampoco — ver sección "Patrocinio" arriba y `PROJECT_ANALYSIS.md §26`. `ngo_follows`/`project_follows`/`volunteer_follows` tampoco — ya tienen API completa, ver sección "Follows y Feed personalizado" arriba y `PROJECT_ANALYSIS.md §28`.)*
+Hoy no queda ninguna tabla sin API. *(`reuniones` dejó de estar en esta lista con §261: la usan las entrevistas, ver "Entrevistas" arriba; solo las atadas a una postulación. `donaciones` dejó de estar con §170: ver "Donaciones" arriba.* *`voluntario_habilidades` dejó de estar en esta lista — ya tiene API completa, ver sección "Voluntarios" arriba y `PROJECT_ANALYSIS.md §17`. El perfil de `empresas` tampoco — ver sección "Empresas" arriba. `empresa_voluntariados` tampoco — ver sección "Patrocinio" arriba y `PROJECT_ANALYSIS.md §26`. `ngo_follows`/`project_follows`/`volunteer_follows` tampoco — ya tienen API completa, ver sección "Follows y Feed personalizado" arriba y `PROJECT_ANALYSIS.md §28`.)*
 
 ## Endpoints duplicados o inconsistentes detectados
 

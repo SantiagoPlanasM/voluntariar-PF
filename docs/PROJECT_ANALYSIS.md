@@ -26,6 +26,7 @@
 | §258 | Puesta al día: estado verificado, `npm audit` del backend, test lento del tope de 500, informe congelado |
 | §259 | Despliegue de §258 (CI #47, Deploy en verde) y segunda falla del runner de Node en el CI |
 | §260 | Decisiones del usuario: lugar obligatorio en un presencial, umbral de `email-redos` a 1500 ms, la falla del runner se investiga solo si se repite |
+| §261 | Entrevistas, backend: la ONG agenda, reprograma, cancela o marca realizada una entrevista ante una postulación pendiente |
 
 
 ## 1. Fortalezas
@@ -7487,3 +7488,32 @@ Tres decisiones que el usuario tenía abiertas (regla 16), tomadas el 2026-10-29
 - **La regla en la interfaz real:** solo con tests en jsdom; no vi el mensaje ni el scroll al campo en un navegador.
 - **Los datos de producción:** no revisé cuántos presenciales hay sin pin. Editar cualquiera de ellos ahora pide marcarlo.
 - **`email-redos` con 1500 ms en el CI:** se verá en el próximo push.
+
+## 261. Entrevistas (backend): la ONG agenda una entrevista ante una postulación pendiente
+
+Plan: `docs/PLAN_ENTREVISTAS.md` (decisión del usuario del 2026-10-29: "agendar ante una postulación"; el usuario pasó las entrevistas antes que el patrocinio porque son más cortas). §260 ya está desplegado: CI y Deploy en verde, `/health` en `d282dce` y el bundle con el mensaje nuevo.
+
+### Qué se hizo (4 commits, uno por pedazo)
+- **Esquema (`4ca5511`):** `reuniones` (existía sin ningún endpoint) suma `enrollment_id` (FK a `enrollments`, `ON DELETE CASCADE`), `lugar`, `nota` y `updated_at`, con `addColumnIfNotExists` (regla 12), más el índice único parcial `idx_reuniones_una_programada` (una sola programada por postulación).
+- **Agendar (`cd02560`):** `POST /api/enrollments/:id/entrevista` (ONG dueña). Fecha real y hora futuras de Argentina (UTC-3), link `https://` o lugar, nota. El `INSERT … SELECT … WHERE status='pending'` no agenda si la postulación se decidió en el medio. Aviso in-app y mail nuevo (`interviewScheduledEmail`).
+- **Cambiar (`6f1738e`):** `PATCH /api/enrollments/:id/entrevista`: reprogramar (sin `status`), `cancelled` o `done` (solo si ya pasó). Compare-and-swap sobre `estado`. Aprobar o rechazar la postulación cancela la programada dentro de la transacción que ya existía (`tx.*`). Estado en inglés en la API (`scheduled`/`done`/`cancelled`, regla 11).
+- **Listas (`63968b6`):** `GET /api/enrollments/my` y `/project/:projectId` suman `interview` (la programada; si no, la última; si no, `null`), con una subconsulta por id que anda igual en los dos motores (sin `LATERAL`).
+- **Tipos:** `Interview` y `Enrollment.interview` en `frontend/src/lib/api.ts` (regla 6). Sin pantallas todavía.
+- **Docs:** `API_CONTEXT` (las dos rutas; ya no quedan tablas sin API), `DATABASE_CONTEXT` (columnas, índice, la "tabla huérfana" resuelta), `AI_RULES` regla 14 (decía que `reuniones` no tenía endpoints), los dos planes y `CLAUDE.md` (951/953).
+
+### Verificación
+- **`test/integration/entrevistas.test.js`, 15 tests**, escritos antes de cada pedazo y vistos en rojo: esquema (3; el rojo fue "no existe la columna", que es débil), agendar (5), cambiar (6, uno ya pasaba por la cascada del esquema) y listas (1). Cubren las 11 validaciones con su mensaje literal, permisos (otra ONG 404, voluntario 403), solo pendiente (409), duplicado y **dos pedidos a la vez** (uno 201 y otro 409), "realizada" antes de tiempo (409) y la cancelación automática al aprobar y al rechazar.
+- **En cada pedazo**, el archivo en SQLite, Postgres 16 (Docker) y `TZ=America/Argentina/Cordoba`.
+- **Suites completas** (una detrás de otra): `npm test` **951/951**, con TZ de Córdoba **951/951**, `npm run test:pg` **953/953**; 0 fallidos y 0 cancelados.
+- **Mutación (a mano, sobre el código nuevo):** 14 mutantes; **13 muertos, 0 sobrevivientes**, y 1 no se aplicó (el de la expresión de la hora: el texto no coincidió por el escape; lo cubren los casos `25:00` y `9:00`). Corrida de control sin mutar: verde.
+- **Frontend:** `npm run typecheck` 0 errores con los tipos nuevos.
+
+### Errores propios
+- **El primer borrador del test levantaba dos servidores en el mismo archivo:** `src/db` queda en la caché de `require` y el segundo habría usado la base del primero. Lo vi antes de correrlo; quedó un solo servidor para todo el archivo.
+- **Devolví el estado en español** (`programada`) en el primer pedazo; lo corregí antes del tercero (regla 11).
+
+### ⚠️ NO verificado
+- **El mail de la entrevista:** solo se arma; Resend real no se prueba (en los tests no hay clave).
+- **Sin pantallas:** la ONG todavía no puede agendar desde la app (etapa 2 del plan).
+- **Sin desplegar:** los commits están locales.
+- **Reprogramar y cancelar avisan solo en la app** (sin mail), y no hay recordatorio el día anterior (ver el plan).

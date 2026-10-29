@@ -1,7 +1,8 @@
 # PLAN_ENTREVISTAS.md — Entrevistas de la ONG con quienes se postulan (2026-10-29)
 
-> **Estado:** plan, sin código todavía. Decisión del usuario del 2026-10-29: "agendar ante una postulación". Va
-> **después** de `PLAN_PATROCINIO.md`. Lo hecho se registra en `PROJECT_ANALYSIS.md`.
+> **Estado (2026-10-29):** backend hecho y probado (§261, sin desplegar); falta el frontend (etapa 2). Decisión del usuario del 2026-10-29: "agendar ante una postulación". Va
+> **antes** que `PLAN_PATROCINIO.md` (el usuario cambió el orden: es más corto). Lo hecho se registra en `PROJECT_ANALYSIS.md`.
+> Cambio respecto de este plan: el estado sale en inglés en la API (`scheduled`/`done`/`cancelled`, regla 11).
 
 ## Qué hay hoy
 - Una postulación (`enrollments`) está en `pending`, `approved`, `rejected` o `cancelled`. La ONG dueña la aprueba o
