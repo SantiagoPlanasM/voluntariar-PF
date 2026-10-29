@@ -21,6 +21,7 @@
 | GET | `/api/auth/me` | Sí | cualquiera | `routes/auth.js` |
 | PUT | `/api/auth/me` | Sí | cualquiera | `routes/auth.js` |
 | PUT | `/api/auth/me/photo` | Sí | cualquiera | `routes/auth.js` |
+| PUT | `/api/auth/me/password` | Sí | cualquiera | `routes/auth.js` |
 | POST | `/api/auth/me/delete-request` | Sí | cualquiera | `routes/auth.js` |
 | POST | `/api/auth/delete-account` | No (código del email) | — | `routes/auth.js` |
 | GET | `/api/projects` | Opcional | — | `routes/projects.js` |
@@ -148,6 +149,12 @@
 - Si el código vale, en **una transacción** corrige los contadores (seguidores de ONG, proyectos y voluntarios; `cupos_ocupados` de sus inscripciones aprobadas) y borra el usuario. El resto cae por `ON DELETE CASCADE`: perfil, inscripciones, mensajes, notificaciones, Momentos, follows y, **si es ONG, sus proyectos con las inscripciones de otros**. Después del COMMIT, en lo posible, borra el CV y las fotos de Momentos en Cloudinary.
 - **Respuesta 200:** `{ deleted: true }`.
 - **Errores:** `400` "El link no es válido o ya se usó…" (forma incorrecta, inexistente o ya usado) · `400` "El link venció…" (y se descarta) · `500` "No pudimos borrar la cuenta…": no se borra nada y el mismo link sirve para reintentar.
+
+### `PUT /api/auth/me/password` — Auth (§272)
+- **Body:** `{ current_password, new_password }` (textos; si no, **400** "Contraseña actual y nueva requeridas").
+- La actual equivocada: **400** "La contraseña actual no es correcta" (400 y no 401, para que el frontend no cierre la sesión). La nueva, las reglas del registro (`validatePassword`: mínimo 8, una mayúscula, un número, hasta 72 bytes) y distinta de la actual (**400** "La nueva contraseña tiene que ser distinta de la actual").
+- **5 intentos con la actual equivocada en 15 minutos por usuario:** **429** (en memoria, por proceso, como el login). Se limpia al cambiarla bien.
+- **200:** `{ message: "Contraseña actualizada" }`. **Límite conocido:** los JWT ya emitidos (otras sesiones) siguen valiendo hasta que vencen; no hay revocación. No avisa por mail.
 
 ### `PUT /api/auth/me/photo` — Auth (cualquier rol)
 > Agregado en `PROJECT_ANALYSIS.md §162` (`PLAN_FALTANTE.md`, Etapa 1). Foto de perfil subida como archivo a Cloudinary (`lib/storage.js`).

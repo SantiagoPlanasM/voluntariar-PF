@@ -36,6 +36,7 @@
 | §268–§269 | "Agregar al calendario" la entrevista y certificado de participación para imprimir |
 | §270 | Los avisos de entrevistas y del acuerdo de patrocinio llevan a su pantalla |
 | §271 | Íconos de los avisos nuevos, calendario para la ONG y horas y estado real en el perfil público |
+| §272 | Cambiar la contraseña desde Configuración |
 
 
 ## 1. Fortalezas
@@ -7758,3 +7759,28 @@ Dos funciones chicas, propuestas a pedido del usuario ("cosas a agregarle"), que
 ### ⚠️ NO verificado
 - **Los íconos y los colores en la pantalla real.**
 - **Sin desplegar** al escribir esto.
+
+## 272. Cambiar la contraseña desde Configuración
+
+Pedido del usuario ("no tiene para cambiar contraseña o cosas así"). No había forma de cambiarla ni de recuperarla. Se hizo **cambiarla**; recuperarla por mail ("¿Olvidaste tu contraseña?") queda propuesta para otra sesión, porque usa mails y conviene probarla con tiempo.
+
+### Qué se hizo
+- **Backend:** `PUT /api/auth/me/password` (`{ current_password, new_password }`). Verifica la actual con bcrypt, exige las reglas del registro (`validatePassword`, sin duplicarlas) y que sea distinta de la actual. Tiene un **límite de 5 intentos fallidos por usuario cada 15 minutos** (`createLimiter`, como el login) y responde 400, no 401, con la actual equivocada (un 401 cierra la sesión en el frontend).
+- **Frontend:** `PasswordSection.tsx` en Configuración, para los tres roles: actual, nueva y repetirla. Chequea solo que la repetición coincida; el resto lo dice el backend. `api.auth.changePassword` está registrado en el test de contrato.
+- **Docs:** `API_CONTEXT`, `FRONTEND_CONTEXT` y `CLAUDE.md` (973/975, 1078).
+
+### Verificación
+- **Backend, `password-change.test.js`, 4 tests** (rojo antes: 404). Cubren:
+  - el cambio, con el login que entra con la nueva y no con la vieja;
+  - las 7 validaciones con su mensaje, sin cambiar nada;
+  - sin sesión, 401;
+  - 5 fallos y el sexto en 429 aunque sea el correcto.
+- **Frontend:** `PasswordSection.test.tsx` (4 tests, rojo contra un componente vacío), más 1 en `SettingsScreen.test` (los tres roles la ven) y el contrato.
+- **Mutación (a mano, backend y frontend):** 13 mutantes, **13 muertos**. Corrida de control: verde.
+- **Suites:** backend `npm test` **973/973**, con TZ de Córdoba **973/973**, `npm run test:pg` **975/975**; frontend **1078/1078**, `npm run typecheck` 0 errores. La mutación del frontend corrió mientras corría la suite de Postgres: las dos dieron verde.
+
+### ⚠️ NO verificado
+- **Las sesiones abiertas en otros dispositivos siguen valiendo** después del cambio: los JWT no se pueden revocar (límite conocido, documentado en `API_CONTEXT`). Arreglarlo implica una versión de sesión en `users` y tocar `requireAuth`; no antes de la defensa.
+- **No avisa por mail** del cambio (sería lo ideal por seguridad).
+- **La pantalla real** y el autocompletado del gestor de contraseñas del navegador.
+- **Sin desplegar.**
