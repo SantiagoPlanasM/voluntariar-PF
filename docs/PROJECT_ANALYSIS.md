@@ -25,6 +25,7 @@
 | §255–§257 | Administrar un voluntariado desde el panel (editar; finalizar, cancelar o volver a activar) y D32 (el mapa no encuadraba los pines) |
 | §258 | Puesta al día: estado verificado, `npm audit` del backend, test lento del tope de 500, informe congelado |
 | §259 | Despliegue de §258 (CI #47, Deploy en verde) y segunda falla del runner de Node en el CI |
+| §260 | Decisiones del usuario: lugar obligatorio en un presencial, umbral de `email-redos` a 1500 ms, la falla del runner se investiga solo si se repite |
 
 
 ## 1. Fortalezas
@@ -7458,3 +7459,31 @@ El usuario pidió arreglar los cinco que seguían abiertos. Cada uno se hizo con
 - **La causa de la falla del runner** (ver arriba). Si se repite, investigarla antes de la defensa: un CI rojo frena el deploy.
 - **Los 20 s del tope de 500 en el CI:** el job del frontend pasó en el CI #47, pero es una sola corrida.
 - **`multer` 2.5.0 con una subida real a Cloudinary:** sigue sin probarse en vivo.
+
+## 260. Decisiones pendientes: lugar obligatorio en un presencial y umbral de `email-redos`
+
+Tres decisiones que el usuario tenía abiertas (regla 16), tomadas el 2026-10-29.
+
+### Qué se hizo
+- **Lugar obligatorio en un presencial (solo en el formulario).** `CreateVoluntariado` no deja pasar del paso 2 un voluntariado **presencial** sin pin en el mapa: muestra "Marcá el lugar en el mapa: buscá la dirección o tocá el mapa" debajo del mapa (error `coords`, con su `field-coords` para el scroll). Vale para el alta y para la edición: un presencial cargado antes de §252 (como pasó con la Jornada del Lago) pide el pin al guardar. **El híbrido sigue opcional** (puede no tener un único lugar) y el **backend no cambia**: la API sigue aceptando un presencial sin coordenadas (decisión del usuario: no romper los datos viejos ni los tests de la API).
+- **`email-redos.test.js`: umbral de 500 a 1500 ms** (`LIMIT_MS`). Con 500 fallaba a veces en local con la suite completa (2 de 5 en Windows, §238), sin el defecto. El defecto original tardaba 3,4 s: 1500 lo sigue detectando.
+- **La falla del runner de Node en el CI (§259):** se investiga solo si se repite.
+- **Docs:** `FRONTEND_CONTEXT.md` (el pin ya no es opcional en un presencial) y `CLAUDE.md` (1013 tests en el frontend, el umbral nuevo).
+
+### Verificación
+- **Rojo → verde (frontend):** el test nuevo "presencial sin marcar el lugar: no deja pasar del paso Detalles y no publica" falló sin la regla (no encontraba el mensaje) y pasa con ella. El que decía "sin marcar el lugar se puede publicar igual" pasó a probar el híbrido. En Editar, el proyecto de prueba ahora tiene lugar y `SIN_LUGAR` es el caso viejo: test nuevo "un presencial sin lugar abre sin pin y no deja guardar hasta marcarlo".
+- **Tests que recorrían los 3 pasos con un presencial sin pin** (`CreateVoluntariadoLimits` ×2, `A11yNames` ×1, 7 de `CreateVoluntariadoEdit`) se rompieron, como se esperaba: los de Limits y A11yNames eligen híbrido (miran topes y nombres, no el mapa) y los de Editar usan un proyecto con lugar.
+- **Mutación (a mano, sobre la regla nueva):** 7 mutantes (`=== 'presencial'` → `!== 'remoto'`, `&&` → `||`, `!coords` → `coords`, condición → `true`/`false`, mensaje vacío, sin `{err('coords')}`): **7 muertos, 0 sobrevivientes**. Corrida de control sin mutar: verde.
+- **`email-redos` con el umbral nuevo contra el defecto:** con el regex viejo y sin el tope de 254 puestos a mano en `auth.js` (y restaurado con `git checkout`), los 2 tests fallan: el pedido tardó **3687 y 3894 ms** (> 1500). Sin el defecto, pasan.
+- **Backend** (una suite detrás de otra): `npm test` **936/936**, `TZ=America/Argentina/Cordoba npm test` **936/936**, `npm run test:pg` **938/938**; 0 fallidos y 0 cancelados.
+- **Frontend:** `npm test` **1013/1013** (ver errores propios); `npm run typecheck` 0 errores.
+
+### Errores propios
+- **Corrí las suites del backend mientras corría vitest** con los tests del formulario: el backend dio verde igual, pero no fue "sin carga" como pide §258.
+- **La primera corrida completa del frontend** dio 1 rojo en `regexLineales.test.ts` ("acepta exactamente lo mismo que el regex viejo…", 5,05 s contra el límite de 5 s): un test pesado que no se tocó. La siguiente, 1013/1013. Si se repite, es otro candidato al límite propio, como los del tope de 500 (§258).
+- **Un script de reemplazo falló con el escape de la barra** de `/Lugar marcado\. Arrastrá/` (no encontraba el texto). Había alcanzado a cambiar bien `CreateVoluntariadoLimits` y no tocó `CreateVoluntariadoEdit`, que se cambió después con `Edit`.
+
+### ⚠️ NO verificado
+- **La regla en la interfaz real:** solo con tests en jsdom; no vi el mensaje ni el scroll al campo en un navegador.
+- **Los datos de producción:** no revisé cuántos presenciales hay sin pin. Editar cualquiera de ellos ahora pide marcarlo.
+- **`email-redos` con 1500 ms en el CI:** se verá en el próximo push.
