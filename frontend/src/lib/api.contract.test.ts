@@ -21,6 +21,8 @@ const CASES: Case[] = [
   ['auth.updateMe', () => api.auth.updateMe({ bio: 'hola' }), 'PUT', '/auth/me', { bio: 'hola' }],
   ['auth.requestDeletion', () => api.auth.requestDeletion(), 'POST', '/auth/me/delete-request'],
   ['auth.deleteAccount', () => api.auth.deleteAccount('tok'), 'POST', '/auth/delete-account', { token: 'tok' }],
+  ['auth.forgotPassword (§275)', () => api.auth.forgotPassword('a@b.com'), 'POST', '/auth/forgot-password', { email: 'a@b.com' }],
+  ['auth.resetPassword (§275)', () => api.auth.resetPassword('tok', 'Nueva1234'), 'POST', '/auth/reset-password', { token: 'tok', new_password: 'Nueva1234' }],
   // projects
   ['projects.list sin filtros', () => api.projects.list(), 'GET', '/projects'],
   ['projects.list con filtros', () => api.projects.list({ category: 'Salud', limit: '5' }), 'GET', '/projects?category=Salud&limit=5'],

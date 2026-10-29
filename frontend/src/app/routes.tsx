@@ -9,6 +9,7 @@ import { VolunteerProfile } from './components/VolunteerProfile';
 import { VolunteerPublicProfile } from './components/VolunteerPublicProfile';
 import { DonationReturn } from './components/DonationReturn';
 import { DeleteAccountPage } from './components/DeleteAccountPage';
+import { ResetPasswordPage } from './components/ResetPasswordPage';
 import { PrivacyPage } from './components/PrivacyPage';
 import { NGODashboard } from './components/NGODashboard';
 import { NGOProjectDetail } from './components/NGOProjectDetail';
@@ -58,6 +59,7 @@ export const router = createBrowserRouter([
       { path: 'volunteer/:id',   Component: VolunteerPublicProfile },
       { path: 'donaciones/vuelta', Component: DonationReturn },   // vuelta desde Mercado Pago (§172)
       { path: 'cuenta/borrar',   Component: DeleteAccountPage },   // link del email para borrar la cuenta (§178)
+      { path: 'restablecer',     Component: ResetPasswordPage },   // link del email de "¿Olvidaste tu contraseña?" (§275)
       { path: 'privacidad',      Component: PrivacyPage },            // privacidad y términos (§179)
       { path: 'settings',        Component: SettingsScreen },         // configuración: CV, tema, cerrar sesión, borrar cuenta (§240)
       { path: '*',               Component: NotFoundPage },           // URL que no existe: antes, la pantalla de desarrollador de React Router (D28, §247)

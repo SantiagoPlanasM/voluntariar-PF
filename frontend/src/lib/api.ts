@@ -81,6 +81,11 @@ export const api = {
     requestDeletion: () => req<{ sent: boolean }>('/auth/me/delete-request', { method: 'POST' }),
     deleteAccount: (token: string) =>
       req<{ deleted: boolean }>('/auth/delete-account', { method: 'POST', body: JSON.stringify({ token }) }),
+    // "¿Olvidaste tu contraseña?" (§275): el pedido responde igual haya o no cuenta; el link del email lleva a /restablecer.
+    forgotPassword: (email: string) =>
+      req<{ sent: boolean }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+    resetPassword: (token: string, new_password: string) =>
+      req<{ message: string }>('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, new_password }) }),
   },
   projects: {
     list: (p?: Record<string, string>) => {

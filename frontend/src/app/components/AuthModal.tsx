@@ -6,6 +6,8 @@ import { useNavigate } from 'react-router';
 import { Modal } from './Modal';
 import { Logo } from '../ui/Logo';
 import { PasswordInput } from '../ui/PasswordInput';
+import { api } from '../../lib/api';
+import { userMessage } from '../../lib/format';
 
 type Tab = 'login' | 'register';
 
@@ -60,6 +62,66 @@ function PasswordStrength({ password }: { password: string }) {
   );
 }
 
+// Clases de los campos y botones (las usan el acceso y el formulario de recuperar la contraseña).
+const inp = (hasError: boolean) =>
+  `w-full h-12 px-3.5 rounded-[10px] bg-surface-soft text-[15px] text-ink placeholder:text-ink-muted border-[1.5px] outline-none transition-colors focus:bg-surface ${
+    hasError ? 'border-critical' : 'border-transparent focus:border-ink'
+  }`;
+const lbl = 'text-xs font-semibold text-ink-soft';
+const primaryBtn = 'h-12 rounded-[10px] bg-ink text-on-ink text-[15px] font-bold transition-[transform,opacity] active:scale-[0.98] disabled:opacity-60 mt-1';
+const linkBtn = 'font-semibold text-ink underline underline-offset-2';
+
+// "¿Olvidaste tu contraseña?" (§275). El aviso es el mismo haya o no una cuenta con ese email: el backend tampoco lo
+// dice. El link del email lleva a /restablecer (ResetPasswordPage).
+function ForgotPasswordForm({ initialEmail, onBack }: { initialEmail: string; onBack: () => void }) {
+  const [email, setEmail] = useState(initialEmail);
+  const [error, setError] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const emailErr = validateEmail(email);
+    if (emailErr) { setError(emailErr); return; }
+    setError('');
+    setSending(true);
+    try {
+      await api.auth.forgotPassword(email.trim());
+      setSent(true);
+    } catch (err) {
+      setError(userMessage(err, 'No pudimos mandar el pedido. Revisá tu conexión y probá de nuevo.'));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-3.5">
+      <h2 className="text-[17px] font-bold text-ink">Recuperar la contraseña</h2>
+      {sent ? (
+        <p role="status" className="text-[15px] leading-snug text-ink-soft">
+          Si hay una cuenta con ese email, te mandamos un link para elegir una contraseña nueva. Vence en 1 hora; si no
+          lo ves, revisá el correo no deseado.
+        </p>
+      ) : (
+        <form onSubmit={submit} className="flex flex-col gap-3.5" noValidate>
+          <p className="text-[15px] leading-snug text-ink-soft">Escribí el email de tu cuenta y te mandamos un link para elegir una contraseña nueva.</p>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="forgot-email" className={lbl}>Email</label>
+            <input id="forgot-email" className={inp(!!error)} type="email" aria-label="Email" autoComplete="email" placeholder="nombre@correo.com"
+              value={email} onChange={e => { setEmail(e.target.value); setError(''); }} />
+          </div>
+          {error && <p role="alert" className="text-[13px] font-medium text-critical">{error}</p>}
+          <button type="submit" disabled={sending} className={primaryBtn}>{sending ? 'Mandando…' : 'Mandarme el link'}</button>
+        </form>
+      )}
+      <p className="text-center text-[13px]">
+        <button type="button" onClick={onBack} className={linkBtn}>Volver a iniciar sesión</button>
+      </p>
+    </div>
+  );
+}
+
 const ROLES = [
   { id: 'volunteer' as const, label: 'Voluntario', icon: User,      hint: 'Me sumo, dono y cuento lo que hice' },
   { id: 'ngo'       as const, label: 'ONG',        icon: Heart,     hint: 'Publico voluntariados y recibo ayuda' },
@@ -74,6 +136,7 @@ export function AuthModal() {
   const [error, setError]     = useState('');
   const [fieldErrors, setFieldErrors] = useState({ name: '', email: '', password: '' });
   const [form, setForm]       = useState({ name: '', email: '', password: '' });
+  const [forgot, setForgot]   = useState<{ email: string } | null>(null);   // §275: "¿Olvidaste tu contraseña?"
 
   useEffect(() => {
     if (showAuthModal) {
@@ -85,6 +148,7 @@ export function AuthModal() {
   useEffect(() => {
     setError(''); setFieldErrors({ name: '', email: '', password: '' });
     setForm({ name: '', email: '', password: '' });
+    setForgot(null);
   }, [tab, showAuthModal]);
 
   if (!showAuthModal) return null;
@@ -134,14 +198,8 @@ export function AuthModal() {
     } catch (err: any) { setError(err.message); }
   };
 
-  const inp = (hasError: boolean) =>
-    `w-full h-12 px-3.5 rounded-[10px] bg-surface-soft text-[15px] text-ink placeholder:text-ink-muted border-[1.5px] outline-none transition-colors focus:bg-surface ${
-      hasError ? 'border-critical' : 'border-transparent focus:border-ink'
-    }`;
-  const lbl = 'text-xs font-semibold text-ink-soft';
-
   return (
-    <Modal onClose={closeAuthModal} label={tab === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
+    <Modal onClose={closeAuthModal} label={forgot ? 'Recuperar la contraseña' : tab === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
       overlayClassName="fixed inset-0 bg-[var(--scrim)] z-50 flex items-end sm:items-center justify-center animate-fadeIn"
       className="bg-surface text-ink w-full sm:max-w-md rounded-t-[24px] sm:rounded-2xl shadow-[var(--elev-sheet)] sm:shadow-[var(--elev-popover)] overflow-hidden max-h-[95dvh] overflow-y-auto animate-sheetUp sm:animate-riseIn">
 
@@ -162,6 +220,7 @@ export function AuthModal() {
         </div>
 
         <div className="px-5 pt-2 pb-6">
+          {forgot ? <ForgotPasswordForm initialEmail={forgot.email} onBack={() => setForgot(null)} /> : <>
           <div role="tablist" aria-label="Acceso" className="flex h-11 p-1 rounded-[10px] bg-surface-soft mb-5">
             {(['login', 'register'] as Tab[]).map(t => (
               <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
@@ -221,13 +280,17 @@ export function AuthModal() {
                 placeholder={tab === 'register' ? 'Mínimo 8 caracteres, 1 mayúscula y 1 número' : 'Tu contraseña'}
                 value={form.password} onChange={e => setField('password', e.target.value)} />
               {tab === 'register' && <PasswordStrength password={form.password} />}
+              {tab === 'login' && (
+                <button type="button" onClick={() => setForgot({ email: form.email })} className={`self-end text-[13px] ${linkBtn}`}>
+                  ¿Olvidaste tu contraseña?
+                </button>
+              )}
               {fieldErrors.password && <p role="alert" className="text-[13px] text-critical">{fieldErrors.password}</p>}
             </div>
 
             {error && <p role="alert" className="text-[13px] font-medium text-critical">{error}</p>}
 
-            <button type="submit" disabled={loading}
-              className="h-12 rounded-[10px] bg-ink text-on-ink text-[15px] font-bold transition-[transform,opacity] active:scale-[0.98] disabled:opacity-60 mt-1">
+            <button type="submit" disabled={loading} className={primaryBtn}>
               {loading ? 'Un momento…' : tab === 'login' ? 'Ingresar' : 'Crear cuenta'}
             </button>
             {/* §179: en otra pestaña, para no perder lo que ya se escribió en el formulario. */}
@@ -241,11 +304,11 @@ export function AuthModal() {
 
           <p className="text-center text-[13px] text-ink-muted mt-4">
             {tab === 'login' ? '¿No tenés cuenta?' : '¿Ya tenés cuenta?'}{' '}
-            <button type="button" onClick={() => setTab(tab === 'login' ? 'register' : 'login')}
-              className="font-semibold text-ink underline underline-offset-2">
+            <button type="button" onClick={() => setTab(tab === 'login' ? 'register' : 'login')} className={linkBtn}>
               {tab === 'login' ? 'Creá una gratis' : 'Ingresá'}
             </button>
           </p>
+          </>}
         </div>
     </Modal>
   );
