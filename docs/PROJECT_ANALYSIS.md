@@ -34,6 +34,7 @@
 | §266 | Patrocinio como acuerdo, etapa 4: "Patrocinado por" en público, y el despliegue de §263–§266 |
 | §267 | Despliegue de §263–§266 y prueba en Chrome (local) de entrevistas y patrocinio |
 | §268–§269 | "Agregar al calendario" la entrevista y certificado de participación para imprimir |
+| §270 | Los avisos de entrevistas y del acuerdo de patrocinio llevan a su pantalla |
 
 
 ## 1. Fortalezas
@@ -7715,3 +7716,22 @@ Dos funciones chicas, propuestas a pedido del usuario ("cosas a agregarle"), que
 - **El `.ics` en un calendario real** (Google, Outlook, el del celular): solo el formato, contra la RFC.
 - **La impresión real** del certificado (márgenes, una sola hoja, el modo oscuro del navegador): solo jsdom.
 - **Sin desplegar** (commits locales, junto con §267 y la guía de la defensa).
+
+## 270. Los avisos de entrevistas y del acuerdo de patrocinio llevan a su pantalla
+
+### Qué se hizo
+- **Hueco propio de §261–§264, encontrado revisando lo hecho:** los avisos nuevos (`interview_scheduled`, `interview_rescheduled`, `interview_cancelled`, `sponsorship_message`, `sponsorship_accepted_by_other`, `sponsorship_closed`, `sponsorship_rejected`) se listaban, pero al tocarlos no llevaban a ningún lado: `notificationHref` no conocía esos tipos.
+- **`notificationHref(n, role)`:** las entrevistas van a "Mis voluntariados" y los avisos del acuerdo a su pantalla. Es la de la ONG o la de la empresa según el rol de quien lo recibe, que ahora pasa `NotificationsScreen`. Sin `empresa_id` en el aviso, va a la lista de patrocinios de cada uno; sin rol, a ningún lado.
+- **Docs:** `FRONTEND_CONTEXT` y `CLAUDE.md` (1070).
+
+### Verificación
+- **`NotificationsLinks.test.tsx`, +3 tests** (en rojo antes), y **`NGONotifications.test.tsx`, +1** (la pantalla completa: el aviso del acuerdo enlaza a `/ngo/patrocinios/e1/p1`).
+- **Mutación:** 7 mutantes. En la primera corrida sobrevivió "la pantalla no le pasa el rol": faltaba el test de la pantalla, que se agregó. En la segunda, **7 muertos y 0 sobrevivientes**.
+- **Frontend:** `npm test` **1070/1070**; `npm run typecheck` 0 errores.
+
+### Errores propios
+- **El hueco mismo:** en §261–§264 agregué tipos de aviso nuevos sin revisar a dónde llevaban en la pantalla de notificaciones.
+
+### ⚠️ NO verificado
+- **Los íconos de esos avisos:** usan la campana genérica (no tienen ícono propio en `KIND`). Visualmente, sin ver.
+- **Sin desplegar.**
