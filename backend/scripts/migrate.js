@@ -479,6 +479,12 @@ async function migrate() {
   // la que se creó la preferencia. NULL = cobrada con la cuenta de la aplicación (donaciones de antes de §217). La
   // conciliación y el webhook solo aceptan un pago leído con ESA misma cuenta.
   await addColumnIfNotExists('donaciones', 'cobrador_mp_user_id', 'TEXT');
+  // Agregadas 2026-10-29 (entrevistas, PROJECT_ANALYSIS.md §261, docs/PLAN_ENTREVISTAS.md): una entrevista es una
+  // reunión atada a una postulación. Cancelar la postulación la borra (DELETE), y con ella sus entrevistas.
+  await addColumnIfNotExists('reuniones', 'enrollment_id', 'TEXT REFERENCES enrollments(id) ON DELETE CASCADE');
+  await addColumnIfNotExists('reuniones', 'lugar', 'TEXT');
+  await addColumnIfNotExists('reuniones', 'nota', 'TEXT');
+  await addColumnIfNotExists('reuniones', 'updated_at', NOW);
 
   // ── Índices ───────────────────────────────────────────────────────────────
   console.log('\n🔍 Creando índices...');
@@ -515,6 +521,8 @@ async function migrate() {
     // Reuniones
     `CREATE INDEX IF NOT EXISTS idx_reuniones_project  ON reuniones(project_id)`,
     `CREATE INDEX IF NOT EXISTS idx_reuniones_user     ON reuniones(user_id)`,
+    // Una sola entrevista programada por postulación (§261); las canceladas y realizadas no cuentan.
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_reuniones_una_programada ON reuniones(enrollment_id) WHERE estado = 'programada'`,
     // Empleados
     `CREATE INDEX IF NOT EXISTS idx_empleados_ngo      ON empleados(ngo_id)`,
     // Patrocinios (Empresa × Proyecto)
