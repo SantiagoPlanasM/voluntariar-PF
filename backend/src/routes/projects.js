@@ -789,6 +789,15 @@ router.get('/:id', optionalAuth, async (req, res) => {
       [req.params.id]
     );
 
+    // "Patrocinado por" (§266): solo las empresas con el acuerdo ACEPTADO, y solo id, nombre y logo (regla 8:
+    // los puntos y los montos del acuerdo son privados de las partes).
+    const sponsors = await db.all(
+      `SELECT e.id, e.nombre AS name, e.foto_perfil AS logo FROM empresa_voluntariados ev
+       JOIN empresas e ON e.id = ev.empresa_id
+       WHERE ev.project_id = $1 AND ev.estado = 'aceptado' ORDER BY e.nombre`,
+      [req.params.id]
+    );
+
     // ¿Quien pide es la ONG dueña? Lo usa ProjectDetails para ofrecer "Ver en panel ONG" solo a ella (antes se
     // ofrecía a cualquier ONG y el panel daba 403; REVISION F16). Consulta aparte: n.user_id no hace falta en
     // la respuesta.
@@ -801,6 +810,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
         comments,
         ratings,
         kpis,
+        sponsors,
         avg_rating: Math.round(avgRating * 10) / 10,
         my_enrollment: myEnrollment,
         can_manage: canManage,

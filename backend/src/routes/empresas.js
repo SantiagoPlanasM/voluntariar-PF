@@ -99,7 +99,18 @@ router.get('/:id', async (req, res) => {
     );
     if (!empresa) return res.status(404).json({ error: 'Empresa no encontrada' });
 
-    res.json({ empresa: fmtEmpresa(empresa) });
+    // "Patrocinado por" en el perfil público (§266): los voluntariados con el acuerdo ACEPTADO, sin puntos ni montos.
+    const sponsored = await db.all(
+      `SELECT p.id, p.titulo AS title, p.foto_perfil AS image, n.nombre AS ngo_name
+       FROM empresa_voluntariados ev
+       JOIN projects p ON p.id = ev.project_id
+       JOIN ngos n ON n.id = p.ngo_id
+       WHERE ev.empresa_id = $1 AND ev.estado = 'aceptado'
+       ORDER BY ev.updated_at DESC, p.id`,
+      [empresa.id]
+    );
+
+    res.json({ empresa: { ...fmtEmpresa(empresa), sponsored_projects: sponsored } });
   } catch (err) {
     console.error('GET /empresas/:id error:', err);
     res.status(500).json({ error: 'Error al obtener empresa' });

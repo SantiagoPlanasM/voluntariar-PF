@@ -308,6 +308,17 @@ export function ProjectDetails() {
                   {avg ? <><Star size={14} className="fill-star text-star" aria-hidden="true" />{avg} · {project.ratings.length} {project.ratings.length === 1 ? 'reseña' : 'reseñas'}</> : 'Nuevo, sin reseñas'}
                 </span>
               </div>
+              {!!project.sponsors?.length && (
+                // "Patrocinado por" (§266): solo las empresas con el acuerdo aceptado; los montos no son públicos.
+                <section aria-label="Patrocinado por" className="flex items-center gap-2 flex-wrap text-[13px]">
+                  <span className="text-ink-muted">Patrocinado por</span>
+                  {project.sponsors.map(s => (
+                    <Link key={s.id} to={`/company/${s.id}`} className="inline-flex items-center gap-1.5 font-semibold">
+                      <Avatar src={s.logo ?? undefined} name={s.name} kind="org" size={22} />{s.name}
+                    </Link>
+                  ))}
+                </section>
+              )}
               <div className="flex flex-wrap gap-1.5">
                 {project.category && <Chip>{project.category}</Chip>}
                 <TypeBadge type={project.type} variant="soft" className="!h-7" />

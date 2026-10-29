@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useNavigate, Link } from 'react-router';
 import { useState, useEffect } from 'react';
 import { api, Empresa } from '../../lib/api';
 import { useLatestRequest } from '../../lib/useLatestRequest';
@@ -60,9 +60,27 @@ export function CompanyPublicProfile() {
             ) : undefined}
           />
           <ProfileTabs label="Contenido de la empresa" value="patrocinios" onChange={() => {}} tabs={[{ key: 'patrocinios', label: 'Patrocinios' }]} />
-          {/* Patrocinios: sin API pública todavía, ver CompanyOwnProfile.tsx */}
+          {/* §266: los voluntariados con el acuerdo de patrocinio aceptado (sin montos: son privados de las partes). */}
           <div className="p-4 pb-8" role="tabpanel">
-            <p className="text-[15px] text-ink-soft text-center py-8">Los voluntariados que patrocina se van a ver acá próximamente.</p>
+            {empresa.sponsored_projects?.length ? (
+              <ul className="flex flex-col gap-2">
+                {empresa.sponsored_projects.map(p => (
+                  <li key={p.id}>
+                    <Link to={`/project/${p.id}`} className="flex items-center gap-3 min-h-[64px]">
+                      {p.image
+                        ? <img src={p.image} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0 bg-surface-soft" />
+                        : <span className="w-12 h-12 rounded-xl bg-surface-soft flex-shrink-0" aria-hidden="true" />}
+                      <span className="min-w-0 flex flex-col">
+                        <span className="text-[15px] font-semibold truncate">{p.title}</span>
+                        <span className="text-[13px] text-ink-muted truncate">{p.ngo_name}</span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-[15px] text-ink-soft text-center py-8">Todavía no patrocina voluntariados.</p>
+            )}
           </div>
         </div>
       </div>

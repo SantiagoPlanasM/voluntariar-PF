@@ -343,6 +343,8 @@ export interface ProjectDetail extends Project {
   can_manage?: boolean;
   /** §217: true solo si la ONG tiene su cuenta de Mercado Pago vinculada y activa (si no, no recibe donaciones). */
   accepts_donations?: boolean;
+  /** §266: las empresas con el acuerdo de patrocinio aceptado (público: sin puntos ni montos). */
+  sponsors?: { id: string; name: string; logo: string | null }[];
 }
 export interface Enrollment {
   id: string; user_id: string; project_id: string;
@@ -391,6 +393,8 @@ export interface Empresa {
   id: string; user_id: string; name: string; logo?: string;
   cover_image?: string; category?: string; description?: string;
   mission?: string; industry?: string; location?: string; followers: number;
+  /** GET /empresas/:id (§266): los voluntariados que patrocina con el acuerdo aceptado. */
+  sponsored_projects?: { id: string; title: string; image: string | null; ngo_name: string }[];
 }
 export interface Faq {
   id: string; categoria?: string; pregunta: string; respuesta: string;
