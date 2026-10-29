@@ -7822,3 +7822,59 @@ Pedido del usuario: el botón para mostrar la contraseña, propuesto en §272 y 
 ### ⚠️ NO verificado
 - **La pantalla real:** que el ojo quede bien alineado en los tres campos, en claro, en oscuro y en el celular. No se puede ver la interfaz desde acá.
 - **Sin desplegar.**
+
+## 275. "¿Olvidaste tu contraseña?": recuperarla por email
+
+Pedido del usuario: lo propuesto en §272 y no hecho. Hasta ahora, quien se olvidaba la contraseña no podía volver a entrar.
+
+### Qué se hizo
+- **Backend (`routes/auth.js`):**
+  - **`POST /api/auth/forgot-password { email }`:** **no revela si el email tiene cuenta.** Con un email válido responde siempre `200 { sent: true }`, y el código y el email se hacen **después de responder**, para que tampoco se note por el tiempo ni por un envío que falla. El único error que no depende del email es **503 sin Resend**, igual para todos: para eso se agregó `email.isConfigured()`, que se consulta antes de buscar la cuenta. Límites: **3 por email por hora** (cuentan aunque la cuenta no exista; si no, el 429 diría cuáles existen) y **20 por IP por hora**.
+  - **`POST /api/auth/reset-password { token, new_password }`:** valida la forma del código y las reglas del registro **antes de gastar el código**. Después, en una transacción, consume el código con **compare-and-swap** (`DELETE … WHERE token_hash` y mira `changes`), fija la contraseña y borra los demás códigos del usuario. No inicia sesión.
+  - **Tabla `password_reset_tokens`** (la 37; igual que `account_deletion_tokens`): solo el hash sha256 del código, que vence en 1 hora (ISO calculado en JS) y sirve una vez; un pedido nuevo invalida el anterior. Plantilla `passwordResetEmail` con el nombre escapado.
+- **Frontend:**
+  - en el login, **"¿Olvidaste tu contraseña?"** cambia el contenido del modal por `ForgotPasswordForm` (en `AuthModal.tsx`, para reusar su `validateEmail` y sus clases, que pasaron a nivel de módulo). El email arranca con lo escrito y el aviso es el mismo haya o no cuenta;
+  - **`/restablecer?token=…`** (`ResetPasswordPage`): la contraseña nueva dos veces con `PasswordInput` (§274) y, al salir bien, "Iniciar sesión";
+  - `api.auth.forgotPassword` y `resetPassword` registrados en el test de contrato.
+- **Docs:** `API_CONTEXT`, `DATABASE_CONTEXT` (el título decía "34 tablas" con 36 en la lista: ahora 37), `FRONTEND_CONTEXT`, `BACKEND_CONTEXT` y `CLAUDE.md` (994/996, 1095 y la cobertura).
+
+### Verificación
+- **Backend, rojo → verde:** `password-reset.test.js` (14) y `password-reset-limit.test.js` (3; cada archivo es un proceso, así el límite por IP de uno no afecta al otro), los 16 primeros en rojo con 404. Cubren:
+  - el link a `/restablecer` y que solo se guarde el hash, por 1 hora;
+  - el email sin mayúsculas ni espacios;
+  - la misma respuesta sin cuenta, sin email ni fila;
+  - 400 por email inválido y 503 sin Resend para todos;
+  - el código descartado si el email falla, y que un pedido nuevo invalide el anterior;
+  - el cambio, con login con la nueva y no con la vieja, y el link que no sirve más;
+  - las reglas sin gastar el link, el link vencido y los códigos con otra forma;
+  - **cinco pedidos a la vez → una sola contraseña**;
+  - que se borren los demás códigos y que la respuesta no traiga token;
+  - los dos límites, con cuenta y sin cuenta por igual.
+- **Unitarios:** `isConfigured()` (2) y `passwordResetEmail` (2, con escape). **Se escribieron después del código**, sin su rojo; los cubre la mutación.
+- **Mutación del backend (script, control en verde):** 21 mutantes. En la primera pasada hubo 17 muertos y 4 vivos:
+  - **"revela cuentas"** (tirar un error en el trabajo de después de responder) es **equivalente**: la respuesta al cliente es idéntica y solo cambia un log, que es justo lo que busca el diseño;
+  - **"acepta un código con otra forma"** es **equivalente**: el chequeo de tipo sigue y un texto con otra forma no se encuentra, con el mismo 400;
+  - **"no borra los otros códigos"** no era equivalente (en Postgres dos pedidos a la vez pueden dejar dos): se agregó un test y **murió**;
+  - **"sin compare-and-swap"** sobrevive en SQLite, donde las transacciones no llegan a pisarse, y **muere contra Postgres 3 de 3 veces** (regla 22).
+  
+  Resultado: **19 muertos y 2 equivalentes**.
+- **Frontend, rojo → verde:** `ForgotPassword.test.tsx` (5, en rojo: "Unable to find … '¿Olvidaste tu contraseña?'"), `ResetPasswordPage.test.tsx` (4) y 2 casos de contrato. Los 4 de la pantalla y los 2 de contrato tuvieron un **rojo débil** ("el módulo no existe", "no es una función").
+- **Mutación del frontend (script, control en verde):** 20 mutantes, 3 vivos en la primera pasada:
+  - que el botón "¿Olvidaste…?" fuera `type="submit"` (intentaría iniciar sesión);
+  - que el formulario no se limpie al cerrar y reabrir el modal;
+  - que no se recorte el email: **equivalente**, porque la validación del frontend y el backend recortan igual.
+  
+  Con 2 tests nuevos, **19 muertos y 1 equivalente**.
+- **Suites:** backend `npm test` **994/994**, con TZ de Córdoba **994/994**, `npm run test:pg` **996/996**, y Postgres con TZ de Córdoba **996/996**. Frontend **1095/1095** (97 archivos), `npm run typecheck` 0 errores, contraste en verde. Cobertura local del frontend: sentencias 89,21 %, ramas 85,97 %, funciones 85,57 %, líneas 92,54 %.
+
+### Errores propios
+- **Borré el código sin commitear de `routes/auth.js` al deshacer un mutante a mano:** usé `git checkout -- src/routes/auth.js`, que lo devolvió al último commit y se llevó los dos endpoints nuevos. Por suerte había copiado el archivo antes de mutarlo y lo restauré desde esa copia: el diff quedó igual (93 líneas) y los 16 tests pasaron. **No volver a usar `git checkout --` para deshacer un mutante**: restaurar siempre desde la copia (como hacen los scripts).
+- Un `node -e` con escapes de comillas y backticks para editar `AuthModal.tsx` falló en la shell. No escribió nada, porque tiró antes de guardar, y se rehízo con `Edit`. La memoria del proyecto ya decía que no se usara.
+
+### ⚠️ NO verificado
+- **El email real:** los tests usan un doble de `sendEmail`. En producción, con `EMAIL_REDIRECT_TO` activo, **todos los mails de recuperación llegan a la casilla de prueba**, no a la persona: para la demo sirve, para usuarios reales hace falta un dominio verificado en Resend.
+- **Las pantallas reales** (el modal en "Recuperar la contraseña" y `/restablecer`) en claro, en oscuro y en el celular.
+- **Que el envío después de responder no se pierda si el proceso se reinicia justo ahí:** el pedido quedaría sin email (la persona puede volver a pedirlo).
+- **El tiempo de respuesta en producción** con y sin cuenta: se diseñó para que sea igual, pero no se midió.
+- **Las sesiones abiertas** siguen valiendo después del cambio (los JWT no se revocan), como en §272.
+- **Sin desplegar.**

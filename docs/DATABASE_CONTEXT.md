@@ -15,7 +15,7 @@ Todas las claves primarias son `TEXT` (UUID v4-like), no enteros autoincremental
 
 > **⚠️ `created_at` en SQLite tiene resolución de 1 segundo** (`datetime('now')`; en Postgres, microsegundos). Dos filas creadas dentro del mismo segundo **empatan**: `ORDER BY created_at DESC LIMIT 1` devuelve cualquiera de las dos (en la práctica la de menor `rowid`, o sea la más vieja). No usar `created_at` para identificar una fila recién insertada (usar su id) ni asumir un orden estricto entre filas del mismo segundo. Ver `PROJECT_ANALYSIS.md §40`.
 
-## 1. Todas las tablas (34)
+## 1. Todas las tablas (37)
 
 | # | Tabla | Propósito |
 |---|---|---|
@@ -55,6 +55,7 @@ Todas las claves primarias son `TEXT` (UUID v4-like), no enteros autoincremental
 | 34 | `mp_oauth_states` | `state` de un solo uso del OAuth de Mercado Pago (§216) |
 | 35 | `patrocinio_puntos` | Puntos de un acuerdo de patrocinio: lo que aporta la empresa y lo que pide u ofrece la ONG (§263) |
 | 36 | `patrocinio_mensajes` | La charla de un acuerdo de patrocinio entre la empresa y la ONG (§264) |
+| 37 | `password_reset_tokens` | Códigos de un solo uso de "¿Olvidaste tu contraseña?" (solo el hash; §275) |
 
 ## 2. Detalle de columnas por tabla
 
@@ -198,6 +199,9 @@ ngo_id (**PK**, FK→ngos CASCADE) · mp_user_id (NOT NULL **UNIQUE**: una cuent
 
 ### `mp_oauth_states` (§216)
 state_hash (**PK**, sha256 del `state`; el `state` en claro nunca se guarda) · ngo_id (NOT NULL FK→ngos CASCADE) · expires_at (TEXT ISO, 10 minutos) · created_at. De un solo uso y a lo sumo uno por ONG (`POST /connect` borra el anterior).
+
+### `password_reset_tokens` (§275)
+token_hash (**PK**, sha256 del código del email; el código en claro nunca se guarda) · user_id (NOT NULL FK→users **CASCADE**) · expires_at (TEXT ISO calculado en JS, 1 hora) · created_at. Igual que `account_deletion_tokens`. Un pedido nuevo borra los anteriores del usuario y usar uno borra todos (en Postgres, dos pedidos a la vez pueden dejar dos). Índice `idx_password_reset_user`.
 
 ### Tablas intermedias N:M
 

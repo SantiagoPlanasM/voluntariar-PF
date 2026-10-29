@@ -12,7 +12,7 @@ backend/
 │   ├── index.js            # bootstrap: cors, json parser, montaje de rutas, 404, error handler (lib/errorHandler.js), listen
 │   ├── db/index.js         # adaptador dual SQLite/Postgres — único punto de acceso a datos
 │   ├── lib/
-│   │   ├── email.js          # cliente mínimo de Resend (fetch nativo, sin SDK)
+│   │   ├── email.js          # cliente mínimo de Resend (fetch nativo, sin SDK); isConfigured() para el 503 de §275
 │   │   ├── emailTemplates.js # plantillas HTML de los emails transaccionales
 │   │   ├── inputs.js         # checkText()/firstError(): textos libres del body (tipo, vacío, largo máximo; §76)
 │   │   ├── errorHandler.js   # manejador global de errores: 400/413/415/403 con mensaje fijo en español, resto 500 genérico

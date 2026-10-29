@@ -24,6 +24,8 @@
 | PUT | `/api/auth/me/password` | Sí | cualquiera | `routes/auth.js` |
 | POST | `/api/auth/me/delete-request` | Sí | cualquiera | `routes/auth.js` |
 | POST | `/api/auth/delete-account` | No (código del email) | — | `routes/auth.js` |
+| POST | `/api/auth/forgot-password` | No | — | `routes/auth.js` |
+| POST | `/api/auth/reset-password` | No (código del email) | — | `routes/auth.js` |
 | GET | `/api/projects` | Opcional | — | `routes/projects.js` |
 | GET | `/api/projects/recommended` | Sí | volunteer | `routes/projects.js` |
 | GET | `/api/projects/:id` | Opcional | — | `routes/projects.js` |
@@ -149,6 +151,16 @@
 - Si el código vale, en **una transacción** corrige los contadores (seguidores de ONG, proyectos y voluntarios; `cupos_ocupados` de sus inscripciones aprobadas) y borra el usuario. El resto cae por `ON DELETE CASCADE`: perfil, inscripciones, mensajes, notificaciones, Momentos, follows y, **si es ONG, sus proyectos con las inscripciones de otros**. Después del COMMIT, en lo posible, borra el CV y las fotos de Momentos en Cloudinary.
 - **Respuesta 200:** `{ deleted: true }`.
 - **Errores:** `400` "El link no es válido o ya se usó…" (forma incorrecta, inexistente o ya usado) · `400` "El link venció…" (y se descarta) · `500` "No pudimos borrar la cuenta…": no se borra nada y el mismo link sirve para reintentar.
+
+### "¿Olvidaste tu contraseña?" (§275)
+**`POST /api/auth/forgot-password`** — Sin sesión. Body `{ email }`.
+- **No revela si el email tiene cuenta:** con un email válido la respuesta es siempre **200** `{ sent: true }`. El código y el email se hacen **después de responder**, así tampoco se nota por el tiempo ni por un envío que falla. Si hay una cuenta, le manda el link `APP_URL/restablecer?token=<código>`, que vence en **1 hora** y sirve **una vez**; un pedido nuevo invalida el anterior. En la base se guarda solo el hash sha256 del código (`password_reset_tokens`). Si el email no sale, el código se descarta (y queda en el log).
+- **Errores:** `400` "Email inválido" (forma o tipo, con el mismo `validateEmail` del registro) · **`503`** sin Resend (`email.isConfigured()`), para todos por igual · `429` con `Retry-After`: más de **3 pedidos por email por hora** ("Pediste recuperar la contraseña muchas veces seguidas…"; cuenta exista o no la cuenta, y con el email normalizado) o más de **20 por IP por hora** ("Demasiados intentos…"). En memoria y por proceso, como el login.
+
+**`POST /api/auth/reset-password`** — Sin sesión (el link puede abrirse en otro dispositivo). Body `{ token, new_password }`.
+- Valida la forma del código y después las reglas del registro (`validatePassword`) **antes de gastar el código**: con una contraseña que no cumple, el link sigue sirviendo. Fija la contraseña en una transacción que **consume el código con compare-and-swap** (`DELETE … WHERE token_hash`, mira `changes`) y borra los demás códigos del usuario: cinco pedidos a la vez con el mismo link la cambian una sola vez (probado en Postgres).
+- **Respuesta 200:** `{ message: "Contraseña actualizada" }`. **No inicia sesión** (no devuelve token).
+- **Errores:** `400` "El link no es válido o ya se usó. Pedí uno nuevo desde "¿Olvidaste tu contraseña?"." (forma incorrecta, inexistente, ya usado o ganado por otro pedido) · `400` "El link venció…" (y se descarta) · `400` con el mensaje de las reglas de la contraseña. **Límite conocido:** como en `PUT /me/password`, los JWT ya emitidos siguen valiendo hasta que vencen.
 
 ### `PUT /api/auth/me/password` — Auth (§272)
 - **Body:** `{ current_password, new_password }` (textos; si no, **400** "Contraseña actual y nueva requeridas").
