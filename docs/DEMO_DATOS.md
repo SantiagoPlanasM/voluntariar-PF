@@ -37,7 +37,7 @@
 4. **Vincular Mercado Pago** (el aviso "Configurar" del Panel, o Configuración → "Cuenta de Mercado Pago"): sin cuenta vinculada la ONG no recibe donaciones y el botón "Donar" no aparece (§215). El botón OAuth no se probó en vivo; la ONG SANTI se vinculó a mano con `scripts/vincular-mp-manual.js`.
 5. **Panel → "Crear voluntariado"** (en el celular, "Crear"), dos por ONG:
    - uno **fugaz** y uno **sostenido**;
-   - con **imagen** (URL), **ubicación en el mapa** (paso Detalles: escribir la dirección, "Buscar en el mapa" y elegir el resultado, o tocar el mapa; el pin se arrastra. Hasta §252 el alta no guardaba el lugar), roles y requisitos;
+   - con **imagen** (URL), **ubicación en el mapa** (paso Detalles: escribir la dirección, "Buscar en el mapa" y elegir el resultado, o tocar el mapa; el pin se arrastra. **Desde §260 es obligatoria en un presencial**: sin el pin no deja seguir), roles y requisitos;
    - en la ONG 1, con **meta de financiamiento** (por ejemplo $50.000), para que se vea la barra;
    - en la ONG 2, sin meta (para mostrar "Recaudado en donaciones").
 6. En un proyecto de la ONG 1, **KPIs**: dos indicadores con valor y fecha.
@@ -45,8 +45,9 @@
 ### 2.2 Empresa (cuenta 3)
 1. Registrarse como empresa, logo ("Cambiar foto"), industria y descripción.
 2. Desde el detalle de un proyecto de la ONG 1: **"Patrocinar este proyecto"** → proponer, con mensaje.
-3. Entrar como ONG 1 → **Patrocinios** → aceptar. (Dejá otra propuesta **pendiente** en la ONG 2, para mostrar los dos estados.)
-4. Mirar el **Panel** de la empresa: los KPIs de lo patrocinado.
+3. **El acuerdo** (§263–§266): como empresa, Perfil → el patrocinio → **"Ver acuerdo"** y cargar puntos de su lado (uno de **Dinero** con monto, uno de **Voluntarios de la empresa**). Como ONG 1, **Patrocinios → "Ver acuerdo: puntos y charla"**: un punto de su lado (por ejemplo **Difusión**: el logo en las remeras) y un mensaje en la **charla**; la empresa contesta.
+4. **Cerrar el acuerdo:** la empresa toca **"Estoy de acuerdo"** y después la ONG también (en el acuerdo o con "Aceptar" en Patrocinios). Tiene que decir **"Acuerdo cerrado: Aceptado"**. Si alguien cambia un punto en el medio, hay que volver a aceptar. (Dejá otra propuesta **pendiente** en la ONG 2, para mostrar los dos estados.)
+5. Mirar el **Panel** de la empresa: los KPIs de lo patrocinado.
 
 ### 2.3 Voluntarios (cuentas 4, 5 y 6)
 1. Registrarse y, en **Perfil → "Editar perfil"**: "Cambiar foto", "Sobre mí", ubicación y **habilidades**.
@@ -56,7 +57,7 @@
    - Lucía en un proyecto de la ONG 1;
    - Martín en el mismo proyecto;
    - Sofía en un proyecto de la ONG 2.
-5. Como **ONG 1**: en el detalle del voluntariado, aprobar a Lucía (y **cargarle horas**), dejar a Martín **pendiente** y abrir su CV con **"Ver CV"**.
+5. Como **ONG 1**: en el detalle del voluntariado, aprobar a Lucía (y **cargarle horas**), dejar a Martín **pendiente**, abrir su CV con **"Ver CV"** y **"Agendar entrevista"** para Martín (fecha futura, un link `https://…` o un lugar, y una nota). No lo apruebes: al aprobar o rechazar, la entrevista se cancela sola.
    Como **ONG 2**: rechazar a Sofía.
 
 ### 2.4 Contenido y actividad
@@ -74,6 +75,8 @@
 - [ ] **Portada** sin sesión: números reales (proyectos, voluntarios, ONGs; §129) y proyectos activos.
 - [ ] **Explorar**: el mapa con los pines y la búsqueda.
 - [ ] **Detalle** de los proyectos: la barra de financiamiento (con meta) y "Recaudado en donaciones" (sin meta).
+- [ ] **"Patrocinado por"** en el proyecto con el acuerdo aceptado, y el proyecto en la pestaña Patrocinios del **perfil público de la empresa**. Sin montos a la vista.
+- [ ] **Martín → Mis voluntariados → Postulaciones**: el chip **"Entrevista"** con la fecha, la hora y el link o el lugar.
 - [ ] **ONG 1 → campanita**: "Nueva solicitud de inscripción" y "Recibiste una donación".
 - [ ] **Perfil público** de Lucía: foto, habilidades, participaciones y Momentos.
 - [ ] **Asistente** (Mensajes → "Asistente VoluntariAR", arriba de todo): responde una pregunta frecuente con los nombres de pantalla actuales (§246).
