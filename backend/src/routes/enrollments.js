@@ -23,6 +23,27 @@ class NoCapacityError extends Error {}
 
 const router = express.Router();
 
+// Estado en inglés en la API (regla 11); en la base, en español.
+const INTERVIEW_STATUS = { programada: 'scheduled', realizada: 'done', cancelada: 'cancelled' };
+const fmtInterview = (r) => ({
+  id: r.id, enrollment_id: r.enrollment_id, date: r.fecha, time: r.horario,
+  link: r.link, place: r.lugar, note: r.nota, status: INTERVIEW_STATUS[r.estado],
+});
+
+// La entrevista que muestran las listas de postulaciones (§261): la programada si hay; si no, la última. Subconsulta
+// por id (no LATERAL) para que ande igual en SQLite y en Postgres.
+const INTERVIEW_COLS = `r.id AS i_id, r.fecha AS i_fecha, r.horario AS i_horario, r.link AS i_link, r.lugar AS i_lugar,
+              r.nota AS i_nota, r.estado AS i_estado`;
+const INTERVIEW_JOIN = `LEFT JOIN reuniones r ON r.id = (
+         SELECT r2.id FROM reuniones r2 WHERE r2.enrollment_id = e.id
+         ORDER BY CASE WHEN r2.estado = 'programada' THEN 0 ELSE 1 END, r2.created_at DESC, r2.id DESC LIMIT 1)`;
+/** Saca las columnas i_* de la fila y las devuelve como `interview` (o null). */
+function withInterview({ i_id, i_fecha, i_horario, i_link, i_lugar, i_nota, i_estado, ...row }) {
+  const interview = i_id ? fmtInterview({ id: i_id, enrollment_id: row.id, fecha: i_fecha, horario: i_horario,
+    link: i_link, lugar: i_lugar, nota: i_nota, estado: i_estado }) : null;
+  return { ...row, interview };
+}
+
 // Tope de horas cargables a una inscripción: holgado (unas 40 h semanales durante 5 años), solo para
 // rechazar valores absurdos o mal tipeados.
 const MAX_HORAS = 10000;
@@ -106,17 +127,19 @@ router.get('/my', requireAuth, async (req, res) => {
               p.titulo AS title, p.foto_perfil AS image, p.tipo AS type,
               p.ubicacion AS location, p.status AS project_status,
               n.nombre AS ngo_name, n.foto_perfil AS ngo_logo,
-              COALESCE(c.nombre, '') AS category
+              COALESCE(c.nombre, '') AS category,
+              ${INTERVIEW_COLS}
        FROM enrollments e
        JOIN projects p ON p.id = e.project_id
        JOIN ngos n ON n.id = p.ngo_id
        LEFT JOIN project_categorias pc ON pc.project_id = p.id
        LEFT JOIN categorias c ON c.id = pc.categoria_id
+       ${INTERVIEW_JOIN}
        WHERE e.user_id = $1
        ORDER BY e.created_at DESC`,
       [req.user.id]
     );
-    res.json({ enrollments });
+    res.json({ enrollments: enrollments.map(withInterview) });
   } catch (err) {
     console.error('GET /enrollments/my error:', err);
     res.status(500).json({ error: 'Error al obtener inscripciones' });
@@ -139,10 +162,11 @@ router.get('/project/:projectId', requireAuth, requireRole('ngo'), async (req, r
              e.horas_realizadas AS hours_logged, e.created_at, e.updated_at,
              u.name AS volunteer_name, u.email AS volunteer_email,
              u.avatar AS volunteer_avatar, u.bio AS volunteer_bio,
-             v.cv_url
+             v.cv_url, ${INTERVIEW_COLS}
       FROM enrollments e
       JOIN users u ON u.id = e.user_id
       LEFT JOIN voluntarios v ON v.user_id = e.user_id
+      ${INTERVIEW_JOIN}
       WHERE e.project_id = $1
     `;
     const params = [req.params.projectId];
@@ -151,7 +175,7 @@ router.get('/project/:projectId', requireAuth, requireRole('ngo'), async (req, r
 
     // has_cv (§168): true solo si la ONG puede abrir el CV con GET /api/voluntarios/:userId/cv (inscripción
     // pendiente o aprobada, §165). cv_url es el public_id de un PDF privado: no sale de acá.
-    const enrollments = (await db.all(sql, params)).map(({ cv_url, ...e }) => ({
+    const enrollments = (await db.all(sql, params)).map(withInterview).map(({ cv_url, ...e }) => ({
       ...e,
       has_cv: Boolean(cv_url) && (e.status === 'pending' || e.status === 'approved'),
     }));
@@ -310,13 +334,6 @@ router.delete('/:id', requireAuth, async (req, res) => {
 // (UTC-3 todo el año, sin horario de verano): "futura" se compara contra ese instante.
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
-
-// Estado en inglés en la API (regla 11); en la base, en español.
-const INTERVIEW_STATUS = { programada: 'scheduled', realizada: 'done', cancelada: 'cancelled' };
-const fmtInterview = (r) => ({
-  id: r.id, enrollment_id: r.enrollment_id, date: r.fecha, time: r.horario,
-  link: r.link, place: r.lugar, note: r.nota, status: INTERVIEW_STATUS[r.estado],
-});
 
 /** Valida fecha, hora, link, lugar y nota del body. Devuelve { error } o { value } (textos vacíos → null). */
 function parseInterview({ date, time, link, place, note }) {

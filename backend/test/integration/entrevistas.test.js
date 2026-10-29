@@ -227,6 +227,27 @@ describe('Entrevistas: agendar', () => {
     assert.deepEqual(await estadoEnBase(e.id), []);
   });
 
+  // Las dos listas de postulaciones suman `interview`: la programada si hay, si no la última; null si nunca hubo.
+  test('las listas de postulaciones muestran la entrevista (la ONG y quien se postuló), o null', async () => {
+    const e = await postulacion(lucia);
+    const sin = await postulacion(lucia);
+    assert.equal((await agendar(e.id)).status, 201);
+    assert.equal((await cambiar(e.id, { status: 'cancelled' })).status, 200);
+    assert.equal((await agendar(e.id, { ...VALIDA, date: '2031-01-02' })).status, 201); // la nueva gana a la cancelada
+
+    const mias = (await call('/api/enrollments/my', { token: lucia })).body.enrollments;
+    const mia = mias.find((x) => x.id === e.id);
+    assert.deepEqual([mia.interview?.date, mia.interview?.status, mia.interview?.link], ['2031-01-02', 'scheduled', VALIDA.link]);
+    assert.equal(mias.find((x) => x.id === sin.id).interview, null);
+
+    const deLaOng = (await call(`/api/enrollments/project/${e.project_id}`, { token: ngo1 })).body.enrollments;
+    assert.deepEqual([deLaOng.length, deLaOng[0].interview?.date, deLaOng[0].interview?.status], [1, '2031-01-02', 'scheduled']);
+
+    assert.equal((await cambiar(e.id, { status: 'cancelled' })).status, 200);
+    const despues = (await call('/api/enrollments/my', { token: lucia })).body.enrollments.find((x) => x.id === e.id);
+    assert.equal(despues.interview?.status, 'cancelled', 'sin programada, se ve la última');
+  });
+
   test('una sola programada: la segunda da 409, y con dos pedidos a la vez pasa uno solo', async () => {
     const e = await postulacion();
     assert.equal((await agendar(e.id)).status, 201);
