@@ -117,6 +117,11 @@ export const api = {
     cancel: (id: string) => req<{ message: string }>(`/enrollments/${id}`, { method: 'DELETE' }),
     logHours: (id: string, horas: number) =>
       req<{ message: string; horas: number }>(`/enrollments/${id}/horas`, { method: 'PATCH', body: JSON.stringify({ horas }) }),
+    /** §261: la ONG dueña agenda (POST) o cambia (PATCH: reprogramar, o status cancelled/done) la entrevista. */
+    scheduleInterview: (id: string, body: InterviewInput) =>
+      req<{ interview: Interview }>(`/enrollments/${id}/entrevista`, { method: 'POST', body: JSON.stringify(body) }),
+    updateInterview: (id: string, body: InterviewInput | { status: 'cancelled' | 'done' }) =>
+      req<{ interview: Interview }>(`/enrollments/${id}/entrevista`, { method: 'PATCH', body: JSON.stringify(body) }),
   },
   ngos: {
     list: () => req<{ ngos: NGO[] }>('/ngos'),
@@ -335,6 +340,8 @@ export interface Interview {
   link: string | null; place: string | null; note: string | null;
   status: 'scheduled' | 'done' | 'cancelled';
 }
+/** Lo que manda el formulario de la entrevista (los campos vacíos no se mandan). */
+export interface InterviewInput { date: string; time: string; link?: string; place?: string; note?: string }
 export interface EnrollmentWithProject extends Enrollment {
   title: string; image?: string; category: string; type: string;
   location: string; project_status: string; ngo_name: string; ngo_logo?: string;

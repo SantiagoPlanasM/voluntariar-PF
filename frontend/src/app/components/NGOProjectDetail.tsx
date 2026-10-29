@@ -6,6 +6,7 @@ import { openCv } from '../../lib/cv';
 import { userMessage } from '../../lib/format';
 import { useLatestRequest } from '../../lib/useLatestRequest';
 import { MomentsFeed } from './MomentsFeed';
+import { InterviewPanel } from './InterviewPanel';
 import { LoadError, describeLoadError } from './LoadError';
 import { useConfirm } from '../ui/UiProvider';
 import { PROJECT_STATUS_LABEL } from '../volunteering/status';
@@ -259,6 +260,8 @@ export function NGOProjectDetail() {
                       </button>
                     </div>
                   )}
+                  <InterviewPanel enrollment={e}
+                    onChange={iv => setEnrollments(prev => prev.map(x => (x.id === e.id ? { ...x, interview: iv } : x)))} />
                   {e.status === 'approved' && (
                     <div className="flex items-center gap-2 mt-3 ml-13">
                       <Clock3 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />

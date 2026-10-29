@@ -42,6 +42,8 @@ const CASES: Case[] = [
   ['enrollments.updateStatus', () => api.enrollments.updateStatus('e1', 'approved'), 'PATCH', '/enrollments/e1', { status: 'approved' }],
   ['enrollments.cancel', () => api.enrollments.cancel('e1'), 'DELETE', '/enrollments/e1'],
   ['enrollments.logHours (campo "horas")', () => api.enrollments.logHours('e1', 6), 'PATCH', '/enrollments/e1/horas', { horas: 6 }],
+  ['enrollments.scheduleInterview (§261)', () => api.enrollments.scheduleInterview('e1', { date: '2030-03-10', time: '18:00', place: 'Sede' }), 'POST', '/enrollments/e1/entrevista', { date: '2030-03-10', time: '18:00', place: 'Sede' }],
+  ['enrollments.updateInterview (§261)', () => api.enrollments.updateInterview('e1', { status: 'cancelled' }), 'PATCH', '/enrollments/e1/entrevista', { status: 'cancelled' }],
   // ngos
   ['ngos.list', () => api.ngos.list(), 'GET', '/ngos'],
   ['ngos.me', () => api.ngos.me(), 'GET', '/ngos/me'],

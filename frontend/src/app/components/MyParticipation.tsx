@@ -6,7 +6,7 @@
 // "Cancelar postulación" está en el menú "···" de cada fila y pide confirmación en un diálogo propio.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Check, Clock, MoreHorizontal } from 'lucide-react';
+import { CalendarClock, Check, Clock, MoreHorizontal } from 'lucide-react';
 import { api, EnrollmentWithProject, Project } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { ReviewsModal } from './ReviewsModal';
@@ -16,6 +16,7 @@ import { Button } from '../ui/Button';
 import { useConfirm, useToast } from '../ui/UiProvider';
 import { VolunteeringTile } from '../volunteering/VolunteeringTile';
 import { userMessage } from '../../lib/format';
+import { interviewWhen } from './InterviewPanel';
 
 type TabKey = 'upcoming' | 'applications' | 'following' | 'done';
 
@@ -26,8 +27,14 @@ const STATUS: Record<string, { label: string; tone: 'soft' | 'ok' }> = {
   cancelled: { label: 'Cancelado',       tone: 'soft' },
 };
 
-function StatusChip({ status }: { status: string }) {
+function StatusChip({ status, interview }: { status: string; interview?: boolean }) {
   const s = STATUS[status] || STATUS.rejected;
+  // Pendiente con entrevista programada: el chip "Entrevista" de DESIGN.md (§262).
+  if (status === 'pending' && interview) return (
+    <span className="h-7 px-2.5 rounded-full text-xs font-semibold inline-flex items-center gap-1 flex-shrink-0 bg-surface-soft text-ink-soft">
+      <CalendarClock size={14} strokeWidth={1.75} aria-hidden="true" />Entrevista
+    </span>
+  );
   return (
     <span className={`h-7 px-2.5 rounded-full text-xs font-semibold inline-flex items-center gap-1 flex-shrink-0 ${s.tone === 'ok' ? 'bg-people-soft text-people-text' : 'bg-surface-soft text-ink-soft'}`}>
       {status === 'approved' && <Check size={14} strokeWidth={2.25} aria-hidden="true" />}
@@ -113,8 +120,10 @@ export function MyParticipation() {
     { key: 'done', label: 'Realizados', n: done.length },
   ];
 
-  const row = (item: EnrollmentWithProject, opts: { menu?: boolean; review?: boolean; hours?: boolean } = {}) => (
-    <li key={item.id} className="relative flex items-center gap-3 min-h-[72px]">
+  const row = (item: EnrollmentWithProject, opts: { menu?: boolean; review?: boolean; hours?: boolean } = {}) => {
+    const iv = item.status === 'pending' && item.interview?.status === 'scheduled' ? item.interview : null;
+    return (
+    <li key={item.id} className="relative flex flex-wrap items-center gap-3 min-h-[72px]">
       <Link to={`/project/${item.project_id}`} className="flex items-center gap-3 flex-1 min-w-0">
         {item.image
           ? <img src={item.image} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0 bg-surface-soft" />
@@ -130,7 +139,7 @@ export function MyParticipation() {
       {opts.review ? (
         <button type="button" onClick={() => setReviewTarget({ id: item.project_id, title: item.title })} className="h-11 px-1 text-[13px] font-semibold flex-shrink-0">Dejá tu reseña</button>
       ) : (
-        <StatusChip status={item.status} />
+        <StatusChip status={item.status} interview={!!iv} />
       )}
       {opts.menu && item.status === 'pending' && (
         <div className="relative flex-shrink-0 -mr-3">
@@ -146,8 +155,21 @@ export function MyParticipation() {
           )}
         </div>
       )}
+      {iv && (
+        // Fuera del <Link> de la fila: el link de la videollamada no puede ir adentro de otro enlace.
+        <div className="basis-full pl-[68px] -mt-1 pb-1 flex flex-col gap-0.5 text-[13px]">
+          <span className="font-semibold">Entrevista: {interviewWhen(iv)}</span>
+          {iv.place && <span className="text-ink-soft">{iv.place}</span>}
+          {iv.link && (
+            <a href={iv.link} target="_blank" rel="noopener noreferrer" aria-label="Abrir el link de la entrevista"
+              className="text-brand-text underline break-all">{iv.link}</a>
+          )}
+          {iv.note && <span className="text-ink-muted italic">{iv.note}</span>}
+        </div>
+      )}
     </li>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen bg-canvas md:bg-canvas-soft pb-6">
