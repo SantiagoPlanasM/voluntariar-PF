@@ -3,8 +3,12 @@ const express = require('express');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { sendEmail } = require('../lib/email');
-const { newEnrollmentEmail, enrollmentApprovedEmail, enrollmentRejectedEmail } = require('../lib/emailTemplates');
+const {
+  newEnrollmentEmail, enrollmentApprovedEmail, enrollmentRejectedEmail, interviewScheduledEmail,
+} = require('../lib/emailTemplates');
 const { isUniqueViolation } = require('../lib/dbErrors');
+const { checkText, firstError } = require('../lib/inputs');
+const crypto = require('node:crypto');
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
@@ -293,6 +297,91 @@ router.delete('/:id', requireAuth, async (req, res) => {
     res.json({ message: 'Inscripción cancelada' });
   } catch (err) {
     res.status(500).json({ error: 'Error al cancelar' });
+  }
+});
+
+// ── Entrevistas (§261, docs/PLAN_ENTREVISTAS.md) ──────────────────────────
+// Una entrevista es una fila de `reuniones` atada a la postulación. La fecha y la hora son las de Argentina
+// (UTC-3 todo el año, sin horario de verano): "futura" se compara contra ese instante.
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const fmtInterview = (r) => ({
+  id: r.id, enrollment_id: r.enrollment_id, date: r.fecha, time: r.horario,
+  link: r.link, place: r.lugar, note: r.nota, status: r.estado,
+});
+
+/** Valida fecha, hora, link, lugar y nota del body. Devuelve { error } o { value } (textos vacíos → null). */
+function parseInterview({ date, time, link, place, note }) {
+  const realDate = typeof date === 'string' && DATE_RE.test(date)
+    && new Date(`${date}T00:00:00Z`).toISOString().startsWith(date); // descarta 2030-02-30
+  if (!realDate) return { error: 'La fecha tiene que ser AAAA-MM-DD' };
+  if (typeof time !== 'string' || !TIME_RE.test(time)) return { error: 'La hora tiene que ser HH:MM' };
+  if (Date.parse(`${date}T${time}:00-03:00`) <= Date.now()) return { error: 'La entrevista tiene que ser en el futuro' };
+  const error = firstError(
+    checkText(link, { label: 'El link', max: 500 }),
+    checkText(place, { label: 'El lugar', max: 200 }),
+    checkText(note, { label: 'La nota', max: 500 }),
+  );
+  if (error) return { error };
+  const clean = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+  const value = { date, time, link: clean(link), place: clean(place), note: clean(note) };
+  if (!value.link && !value.place) return { error: 'Indicá un link o un lugar para la entrevista' };
+  if (value.link && !value.link.startsWith('https://')) return { error: 'El link tiene que empezar con https://' };
+  return { value };
+}
+
+// ── POST /api/enrollments/:id/entrevista ──────────────────────────────────
+router.post('/:id/entrevista', requireAuth, requireRole('ngo'), async (req, res) => {
+  try {
+    const { error, value } = parseInterview(req.body || {});
+    if (error) return res.status(400).json({ error });
+
+    const ngo = await db.get('SELECT id FROM ngos WHERE user_id=$1', [req.user.id]);
+    const enrollment = await db.get(
+      `SELECT e.id, e.user_id, e.project_id, e.status, p.titulo, n.nombre AS ngo_name,
+              u.email AS volunteer_email, u.name AS volunteer_name
+       FROM enrollments e
+       JOIN projects p ON p.id = e.project_id
+       JOIN ngos n ON n.id = p.ngo_id
+       JOIN users u ON u.id = e.user_id
+       WHERE e.id = $1 AND p.ngo_id = $2`,
+      [req.params.id, ngo?.id]
+    );
+    if (!enrollment) return res.status(404).json({ error: 'Inscripción no encontrada o sin permiso' });
+
+    // Inserta solo si la postulación SIGUE pendiente (si la aprobaron entre la lectura y acá, no entra nada); el
+    // índice único parcial deja una sola programada aunque lleguen dos pedidos a la vez.
+    const id = crypto.randomUUID();
+    const ins = await db.run(
+      `INSERT INTO reuniones (id, enrollment_id, user_id, project_id, fecha, horario, link, lugar, nota)
+       SELECT $1, e.id, e.user_id, e.project_id, $2, $3, $4, $5, $6
+       FROM enrollments e WHERE e.id = $7 AND e.status = 'pending'`,
+      [id, value.date, value.time, value.link, value.place, value.note, enrollment.id]
+    );
+    if (ins.changes === 0)
+      return res.status(409).json({ error: 'Solo se puede agendar una entrevista con la postulación pendiente' });
+    const interview = fmtInterview(await db.get('SELECT * FROM reuniones WHERE id=$1', [id]));
+
+    const [y, m, d] = value.date.split('-');
+    await db.run(
+      `INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,'interview_scheduled',$2,$3,$4)`,
+      [enrollment.user_id, `Entrevista para "${enrollment.titulo}"`,
+       `${enrollment.ngo_name} te propone una entrevista el ${d}/${m}/${y} a las ${value.time}.`,
+       JSON.stringify({ project_id: enrollment.project_id, enrollment_id: enrollment.id })]
+    ).catch(() => {});
+    const { subject, html } = interviewScheduledEmail({
+      volunteerName: enrollment.volunteer_name, projectTitle: enrollment.titulo, ngoName: enrollment.ngo_name,
+      ...value, appUrl: APP_URL,
+    });
+    sendEmail({ to: enrollment.volunteer_email, subject, html }).catch(() => {});
+
+    res.status(201).json({ interview });
+  } catch (err) {
+    if (isUniqueViolation(err))
+      return res.status(409).json({ error: 'Ya hay una entrevista programada para esta postulación' });
+    console.error('POST /enrollments/:id/entrevista error:', err);
+    res.status(500).json({ error: 'Error al agendar la entrevista' });
   }
 });
 

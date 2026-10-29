@@ -67,6 +67,24 @@ function enrollmentApprovedEmail({ volunteerName, projectTitle, ngoName, appUrl 
   };
 }
 
+/** Se manda a quien se postuló cuando la ONG le agenda una entrevista (§261). `date` es AAAA-MM-DD. */
+function interviewScheduledEmail({ volunteerName, projectTitle, ngoName, date, time, link, place, appUrl }) {
+  const [y, m, d] = date.split('-');
+  const where = [place && `Lugar: ${esc(place)}`, link && `Link: <a href="${esc(link)}">${esc(link)}</a>`].filter(Boolean);
+  return {
+    subject: `Entrevista para "${projectTitle}"`,
+    html: wrapper(
+      'Te agendaron una entrevista',
+      `<p>Hola ${esc(volunteerName) || ''},</p>
+       <p><strong>${esc(ngoName)}</strong> te propone una entrevista por tu postulación a
+       <strong>"${esc(projectTitle)}"</strong> el <strong>${d}/${m}/${y} a las ${esc(time)}</strong>.</p>
+       <p>${where.join('<br>')}</p>`,
+      'Ver mis voluntariados',
+      appUrl ? `${appUrl}/participation` : undefined
+    ),
+  };
+}
+
 /** Se manda al voluntario cuando su inscripción es rechazada. */
 function enrollmentRejectedEmail({ volunteerName, projectTitle, ngoName, appUrl }) {
   return {
@@ -134,7 +152,7 @@ function accountDeletionEmail({ name, link }) {
 }
 
 module.exports = {
-  newEnrollmentEmail, enrollmentApprovedEmail, enrollmentRejectedEmail,
+  newEnrollmentEmail, enrollmentApprovedEmail, enrollmentRejectedEmail, interviewScheduledEmail,
   sponsorProposalEmail, sponsorDecisionEmail, accountDeletionEmail,
   esc, // lo reusa lib/email.js para el aviso del modo prueba
 };
