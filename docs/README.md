@@ -34,6 +34,12 @@ describen el estado actual (cada uno lo dice en su primera línea).
 | [`GUION_DEFENSA.md`](GUION_DEFENSA.md) | Checklist, recorrido de 15 minutos, preguntas esperables y plan B |
 | [`DEMO_DATOS.md`](DEMO_DATOS.md) | Qué datos cargar en producción y en qué orden |
 
+## Vigentes: lo que sigue
+
+| Documento | Para qué |
+|---|---|
+| [`PLAN_PATROCINIO.md`](PLAN_PATROCINIO.md) | El patrocinio como acuerdo negociado (puntos de cada parte, charla, aceptación por versión); sin código todavía (29/10) |
+
 ## Vigentes: TP de Calidad ([`calidad/`](calidad/))
 
 | Documento | Para qué |
