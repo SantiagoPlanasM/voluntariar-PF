@@ -96,6 +96,8 @@ describe('ExploreScreen: error al cargar el catálogo', () => {
 describe('ExploreScreen: tope del catálogo', () => {
   const many = (n: number) => Array.from({ length: n }, (_, i) => project(`p${i}`, `Proyecto ${i}`));
   const notice = /Se muestran los primeros 500 voluntariados/;
+  // Dibujan ~500 tarjetas en jsdom: 0,7 s solos, pero más de 5 s con la suite entera en paralelo (§258).
+  const LENTO = { timeout: 20_000 };
 
   test('pide hasta el tope del backend (500), no 200', async () => {
     mount();
@@ -103,13 +105,13 @@ describe('ExploreScreen: tope del catálogo', () => {
     expect(api.projects.list).toHaveBeenCalledWith(expect.objectContaining({ limit: '500' }));
   });
 
-  test('si la respuesta viene llena (500), avisa que puede haber más', async () => {
+  test('si la respuesta viene llena (500), avisa que puede haber más', LENTO, async () => {
     vi.mocked(api.projects.list).mockReset().mockResolvedValue({ projects: many(500) } as never);
     mount();
     await waitFor(() => expect(screen.getByText(notice)).toBeInTheDocument());
   });
 
-  test('con menos que el tope no hay aviso', async () => {
+  test('con menos que el tope no hay aviso', LENTO, async () => {
     vi.mocked(api.projects.list).mockReset().mockResolvedValue({ projects: many(499) } as never);
     mount();
     await waitFor(() => expect(screen.getByText('Proyecto 0')).toBeInTheDocument());
