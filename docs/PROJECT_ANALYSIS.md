@@ -7801,3 +7801,24 @@ Pedido del usuario ("no tiene para cambiar contraseña o cosas así"). No había
 
 ### ⚠️ NO verificado
 - **Que esta fuera la causa:** no se pudo reproducir la falla en local. Se va a ver en las próximas corridas del CI. Si vuelve a aparecer, la hipótesis está mal y hay que buscar otra (por ejemplo, la versión de Node 22 del runner).
+
+## 274. Mostrar la contraseña también en "Cambiar contraseña"
+
+Pedido del usuario: el botón para mostrar la contraseña, propuesto en §272 y no hecho. Al revisar resultó que el login y el registro (`AuthModal`) **ya lo tenían** (con `aria-pressed`, cubierto por `A11yNames.test`); faltaba solo en los tres campos de Configuración.
+
+### Qué se hizo
+- **`app/ui/PasswordInput.tsx` (nuevo):** el campo con el botón del ojo, sacado de `AuthModal` para no copiarlo (regla 3). El botón es `type="button"`, se llama siempre "Mostrar…" y el estado va en `aria-pressed`. `toggleLabel` le da un nombre propio a cada uno cuando hay varios en pantalla: "Mostrar contraseña actual", "Mostrar contraseña nueva" y "Mostrar la repetición de la contraseña nueva". Le suma `pr-12` a las clases que recibe, para que lo escrito no quede debajo del ícono.
+- **`AuthModal`:** usa `PasswordInput` (mismo nombre, "Mostrar contraseña", y mismas clases que antes); se fue su estado `showPass`. **`PasswordSection`:** los tres campos con su botón.
+- **Docs:** `FRONTEND_CONTEXT` (kit de `app/ui` y `PasswordSection`) y `CLAUDE.md` (1082 y la cobertura).
+
+### Verificación
+- **Rojo → verde:** 2 tests nuevos en `PasswordSection.test.tsx` (cada campo se muestra y se oculta por separado; mostrar no cambia lo que se guarda), en rojo antes: "Unable to find … 'Mostrar contraseña actual'". Los de `AuthModal` y `A11yNames` siguieron en verde sin tocarlos.
+- **Mutación sobre `PasswordInput` (script, corrida de control en verde):** primera pasada, 9 mutantes y **2 vivos**: que el botón sea `type="submit"` (tocar el ojo en el login mandaría el formulario) y que se pierda el `pr-12`. Ninguno era equivalente: se agregó `PasswordInput.test.tsx` (2 tests: el ojo dentro de un `<form>` no lo envía; las clases suman `pr-12`). Segunda pasada: **9 de 9 muertos**.
+- **Suites:** frontend **1082/1082** (95 archivos), `npm run typecheck` 0 errores. Cobertura local: sentencias 89,05 %, ramas 85,85 %, funciones 85,38 %, líneas 92,42 %. Solo frontend: el backend no cambió.
+
+### Errores propios
+- En la lista de pendientes había anotado "mostrar contraseña" como algo que no existía, sin mirar `AuthModal`: ya estaba en el login y el registro. Se vio al buscar los campos.
+
+### ⚠️ NO verificado
+- **La pantalla real:** que el ojo quede bien alineado en los tres campos, en claro, en oscuro y en el celular. No se puede ver la interfaz desde acá.
+- **Sin desplegar.**
