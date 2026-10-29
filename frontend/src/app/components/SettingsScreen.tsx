@@ -7,6 +7,7 @@ import { useAuth } from '../../lib/AuthContext';
 import { useTheme, ThemeChoice } from '../../lib/useTheme';
 import { CvSection } from './CvSection';
 import { DeleteAccountSection } from './DeleteAccountSection';
+import { PasswordSection } from './PasswordSection';
 import { useConfirm } from '../ui/UiProvider';
 
 const THEMES: { key: ThemeChoice; label: string }[] = [
@@ -86,6 +87,7 @@ export function SettingsScreen() {
           </button>
         </Group>
 
+        <PasswordSection />
         <DeleteAccountSection />
       </div>
     </div>

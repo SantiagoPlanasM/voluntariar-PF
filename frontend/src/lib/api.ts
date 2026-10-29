@@ -72,6 +72,9 @@ export const api = {
     me: () => req<{ user: User; profile?: { has_cv?: boolean } | null }>('/auth/me'),
     updateMe: (b: { name?: string; bio?: string; location?: string; avatar?: string }) =>
       req<{ user: User }>('/auth/me', { method: 'PUT', body: JSON.stringify(b) }),
+    /** §272: cambiar la contraseña (la actual tiene que ser la correcta). */
+    changePassword: (current_password: string, new_password: string) =>
+      req<{ message: string }>('/auth/me/password', { method: 'PUT', body: JSON.stringify({ current_password, new_password }) }),
     // Foto de perfil (multipart, campo `photo`): va a users.avatar y, para ONG y empresa, también al logo (§162).
     uploadPhoto: (form: FormData) => upload<{ user: User }>('/auth/me/photo', form, 'PUT'),
     // Borrar la propia cuenta (§177–§178): el pedido manda un email con un link; el link lleva a /cuenta/borrar.

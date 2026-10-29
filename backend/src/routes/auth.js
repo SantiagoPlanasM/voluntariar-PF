@@ -278,6 +278,39 @@ router.put('/me', requireAuth, async (req, res) => {
   }
 });
 
+// ── PUT /api/auth/me/password ──────────────────────────────────────────────
+// Cambiar la contraseña (§272): la actual tiene que ser la correcta y la nueva cumple las reglas del registro. Una
+// actual equivocada da 400, no 401: el frontend cierra la sesión ante un 401. Límite de intentos fallidos por usuario,
+// para que no se pueda adivinar la actual con una sesión robada. Límite conocido: los JWT ya emitidos (otros
+// dispositivos) siguen valiendo hasta que vencen; no hay revocación de sesiones.
+const PASSWORD_FAILS_PER_USER = createLimiter({ max: 5, windowMs: 15 * 60 * 1000 });
+router.put('/me/password', requireAuth, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body || {};
+    if (typeof current_password !== 'string' || typeof new_password !== 'string' || !current_password)
+      return res.status(400).json({ error: 'Contraseña actual y nueva requeridas' });
+    const wait = PASSWORD_FAILS_PER_USER.blocked(req.user.id);
+    if (wait) return tooMany(res, wait);
+
+    const user = await db.get('SELECT password FROM users WHERE id=$1', [req.user.id]);
+    if (!user || !(await bcrypt.compare(current_password, user.password))) {
+      PASSWORD_FAILS_PER_USER.hit(req.user.id);
+      return res.status(400).json({ error: 'La contraseña actual no es correcta' });
+    }
+    const passErr = validatePassword(new_password);
+    if (passErr) return res.status(400).json({ error: passErr });
+    if (new_password === current_password)
+      return res.status(400).json({ error: 'La nueva contraseña tiene que ser distinta de la actual' });
+
+    await db.run('UPDATE users SET password=$1 WHERE id=$2', [await bcrypt.hash(new_password, 10), req.user.id]);
+    PASSWORD_FAILS_PER_USER.reset(req.user.id);
+    res.json({ message: 'Contraseña actualizada' });
+  } catch (err) {
+    console.error('PUT /auth/me/password error:', err);
+    res.status(500).json({ error: 'Error al cambiar la contraseña' });
+  }
+});
+
 // ── PUT /api/auth/me/photo ─────────────────────────────────────────────────
 // Foto de perfil subida como archivo (multipart, campo `photo`), a Cloudinary (lib/storage.js). Un solo endpoint
 // para los tres roles: la foto va siempre a users.avatar (la que muestran chat, Momentos, comentarios y reseñas) y,

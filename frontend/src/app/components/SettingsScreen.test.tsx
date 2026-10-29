@@ -54,6 +54,15 @@ describe('SettingsScreen', () => {
     expect(screen.getByRole('link', { name: 'Volver' })).toHaveAttribute('href', ruta);
   });
 
+  test('los tres roles tienen "Cambiar contraseña" (§272)', () => {
+    for (const role of ['volunteer', 'ngo', 'company']) {
+      as(role);
+      const { unmount } = mount();
+      expect(screen.getByRole('button', { name: 'Cambiar contraseña' })).toBeInTheDocument();
+      unmount();
+    }
+  });
+
   test('voluntario: ve su CV y no la cuenta de Mercado Pago', () => {
     as('volunteer');
     mount();

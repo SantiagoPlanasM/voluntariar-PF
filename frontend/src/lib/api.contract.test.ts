@@ -17,6 +17,7 @@ const CASES: Case[] = [
     { name: 'Ana', email: 'a@b.com', password: 'Password1', role: 'volunteer' }],
   ['auth.login', () => api.auth.login({ email: 'a@b.com', password: 'x' }), 'POST', '/auth/login', { email: 'a@b.com', password: 'x' }],
   ['auth.me', () => api.auth.me(), 'GET', '/auth/me'],
+  ['auth.changePassword (§272)', () => api.auth.changePassword('a', 'b'), 'PUT', '/auth/me/password', { current_password: 'a', new_password: 'b' }],
   ['auth.updateMe', () => api.auth.updateMe({ bio: 'hola' }), 'PUT', '/auth/me', { bio: 'hola' }],
   ['auth.requestDeletion', () => api.auth.requestDeletion(), 'POST', '/auth/me/delete-request'],
   ['auth.deleteAccount', () => api.auth.deleteAccount('tok'), 'POST', '/auth/delete-account', { token: 'tok' }],
