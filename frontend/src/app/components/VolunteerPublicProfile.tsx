@@ -164,8 +164,13 @@ export function VolunteerPublicProfile() {
                       <span className="min-w-0 flex-1 flex flex-col gap-0.5">
                         <span className="text-[15px] font-semibold leading-snug line-clamp-2">{p.titulo}</span>
                         <span className="text-[13px] text-ink-muted truncate">{p.ngo_name}</span>
+                        {/* §271: las horas que cargó la ONG en ese voluntariado */}
+                        {Number(p.horas_realizadas) > 0 && <span className="text-[13px] font-semibold text-people-text">{Math.round(Number(p.horas_realizadas))} h verificadas</span>}
                       </span>
-                      <span className="text-[13px] text-ink-muted flex-shrink-0">{p.project_status === 'active' ? 'Activo' : 'Finalizado'}</span>
+                      <span className="text-[13px] text-ink-muted flex-shrink-0">
+                        {/* Antes un voluntariado cancelado decía "Finalizado" (§271). */}
+                        {p.project_status === 'active' ? 'Activo' : p.project_status === 'cancelled' ? 'Cancelado' : 'Finalizado'}
+                      </span>
                     </Link>
                   </li>
                 ))}
