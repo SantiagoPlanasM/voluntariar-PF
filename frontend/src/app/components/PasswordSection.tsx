@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { api } from '../../lib/api';
 import { userMessage } from '../../lib/format';
+import { PasswordInput } from '../ui/PasswordInput';
 
 const btn = 'h-11 px-3.5 rounded-[10px] text-[15px] font-semibold inline-flex items-center justify-center disabled:opacity-40';
 const field = 'w-full h-11 px-3 rounded-[10px] bg-surface-soft border border-hairline text-[15px] focus:outline-none focus:ring-2 focus:ring-blue-500';
@@ -41,9 +42,9 @@ export function PasswordSection() {
           className={`${btn} self-start -ml-3.5 text-ink hover:bg-surface-soft`}>Cambiar contraseña</button>
       ) : (
         <div role="group" aria-label="Cambiar contraseña" className="flex flex-col gap-2">
-          <input type="password" aria-label="Contraseña actual" autoComplete="current-password" value={form.current} onChange={set('current')} className={field} />
-          <input type="password" aria-label="Contraseña nueva" autoComplete="new-password" maxLength={72} value={form.next} onChange={set('next')} className={field} />
-          <input type="password" aria-label="Repetí la contraseña nueva" autoComplete="new-password" maxLength={72} value={form.repeat} onChange={set('repeat')} className={field} />
+          <PasswordInput aria-label="Contraseña actual" toggleLabel="Mostrar contraseña actual" autoComplete="current-password" value={form.current} onChange={set('current')} className={field} />
+          <PasswordInput aria-label="Contraseña nueva" toggleLabel="Mostrar contraseña nueva" autoComplete="new-password" maxLength={72} value={form.next} onChange={set('next')} className={field} />
+          <PasswordInput aria-label="Repetí la contraseña nueva" toggleLabel="Mostrar la repetición de la contraseña nueva" autoComplete="new-password" maxLength={72} value={form.repeat} onChange={set('repeat')} className={field} />
           <p className="text-[13px] text-ink-muted">Mínimo 8 caracteres, con una mayúscula y un número.</p>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => void save()} disabled={saving || !form.current || !form.next || !form.repeat}

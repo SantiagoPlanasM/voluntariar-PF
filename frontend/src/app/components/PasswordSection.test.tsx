@@ -53,4 +53,36 @@ describe('Configuración: cambiar la contraseña', () => {
     expect(screen.getByLabelText('Contraseña actual')).toHaveAttribute('autocomplete', 'current-password');
     expect(screen.getByLabelText('Contraseña nueva')).toHaveAttribute('autocomplete', 'new-password');
   });
+
+  // §274: cada campo tiene su botón para mostrar lo escrito, con un nombre propio (son tres en la misma pantalla).
+  test('cada campo se puede mostrar y volver a ocultar por separado', () => {
+    abrir();
+    const campos = [
+      ['Contraseña actual', 'Mostrar contraseña actual'],
+      ['Contraseña nueva', 'Mostrar contraseña nueva'],
+      ['Repetí la contraseña nueva', 'Mostrar la repetición de la contraseña nueva'],
+    ] as const;
+    for (const [campo, boton] of campos) {
+      expect(screen.getByRole('button', { name: boton })).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByLabelText(campo)).toHaveAttribute('type', 'password');
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar contraseña nueva' }));
+    expect(screen.getByLabelText('Contraseña nueva')).toHaveAttribute('type', 'text');
+    expect(screen.getByRole('button', { name: 'Mostrar contraseña nueva' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByLabelText('Contraseña actual')).toHaveAttribute('type', 'password');
+    expect(screen.getByLabelText('Repetí la contraseña nueva')).toHaveAttribute('type', 'password');
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar contraseña nueva' }));
+    expect(screen.getByLabelText('Contraseña nueva')).toHaveAttribute('type', 'password');
+  });
+
+  test('mostrar la contraseña no borra lo escrito ni la manda: lo que se guarda es lo mismo', async () => {
+    const change = vi.spyOn(api.auth, 'changePassword').mockResolvedValue({ message: 'Contraseña actualizada' });
+    abrir();
+    completar('Password1', 'NuevaClave2', 'NuevaClave2');
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar contraseña actual' }));
+    expect(screen.getByLabelText('Contraseña actual')).toHaveValue('Password1');
+    expect(change).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar contraseña' }));
+    await waitFor(() => expect(change).toHaveBeenCalledWith('Password1', 'NuevaClave2'));
+  });
 });

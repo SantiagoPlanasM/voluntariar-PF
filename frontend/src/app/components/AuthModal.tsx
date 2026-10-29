@@ -1,10 +1,11 @@
 // src/app/components/AuthModal.tsx
 import { useState, useEffect } from 'react';
-import { X, Eye, EyeOff, User, Heart, Building2, Check } from 'lucide-react';
+import { X, User, Heart, Building2, Check } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useNavigate } from 'react-router';
 import { Modal } from './Modal';
 import { Logo } from '../ui/Logo';
+import { PasswordInput } from '../ui/PasswordInput';
 
 type Tab = 'login' | 'register';
 
@@ -70,7 +71,6 @@ export function AuthModal() {
   const navigate = useNavigate();
   const [tab, setTab]         = useState<Tab>('login');
   const [role, setRole]       = useState<'volunteer' | 'ngo' | 'company'>('volunteer');
-  const [showPass, setShowPass] = useState(false);
   const [error, setError]     = useState('');
   const [fieldErrors, setFieldErrors] = useState({ name: '', email: '', password: '' });
   const [form, setForm]       = useState({ name: '', email: '', password: '' });
@@ -217,17 +217,9 @@ export function AuthModal() {
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor="auth-pass" className={lbl}>Contraseña</label>
-              <div className="relative">
-                <input id="auth-pass" className={inp(!!fieldErrors.password) + ' pr-12'}
-                  type={showPass ? 'text' : 'password'} aria-label="Contraseña"
-                  placeholder={tab === 'register' ? 'Mínimo 8 caracteres, 1 mayúscula y 1 número' : 'Tu contraseña'}
-                  value={form.password} onChange={e => setField('password', e.target.value)} />
-                <button type="button" onClick={() => setShowPass(!showPass)}
-                  aria-label="Mostrar contraseña" aria-pressed={showPass}
-                  className="absolute right-0.5 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center text-ink-muted hover:text-ink">
-                  {showPass ? <EyeOff size={18} strokeWidth={1.75} aria-hidden="true" /> : <Eye size={18} strokeWidth={1.75} aria-hidden="true" />}
-                </button>
-              </div>
+              <PasswordInput id="auth-pass" className={inp(!!fieldErrors.password)} aria-label="Contraseña"
+                placeholder={tab === 'register' ? 'Mínimo 8 caracteres, 1 mayúscula y 1 número' : 'Tu contraseña'}
+                value={form.password} onChange={e => setField('password', e.target.value)} />
               {tab === 'register' && <PasswordStrength password={form.password} />}
               {fieldErrors.password && <p role="alert" className="text-[13px] text-critical">{fieldErrors.password}</p>}
             </div>
