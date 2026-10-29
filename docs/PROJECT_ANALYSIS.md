@@ -30,6 +30,7 @@
 | §262 | Entrevistas, pantallas: panel de la ONG (`InterviewPanel`) y chip "Entrevista" en Mis voluntariados |
 | §263 | Patrocinio como acuerdo, etapa 1: puntos de cada parte y versión (`routes/patrocinios.js`) |
 | §264 | Patrocinio como acuerdo, etapa 2: aceptación de las dos partes por versión, rechazar y la charla |
+| §265 | Patrocinio como acuerdo, etapa 3: la pantalla del acuerdo (`SponsorshipAgreementScreen`) |
 
 
 ## 1. Fortalezas
@@ -7611,3 +7612,35 @@ Sigue a §263 (sin desplegar; el usuario pidió seguir con la etapa siguiente).
 ### ⚠️ NO verificado
 - **La pantalla `NGOPatrocinios`** descarta la respuesta del `PATCH`. Si los puntos cambiaron (hoy no hay pantalla para cambiarlos), mostraría la propuesta como pendiente sin explicar que falta la empresa. Se resuelve en la etapa 3.
 - **Sin desplegar.** En producción, la migración les pone la aceptación de la empresa a las propuestas pendientes; no lo probé contra la base real.
+
+## 265. Patrocinio como acuerdo negociado, etapa 3: la pantalla
+
+Sigue a §264 (sin desplegar).
+
+### Qué se hizo
+- **`SponsorshipAgreementScreen.tsx`** (nueva): la misma pantalla para la empresa y la ONG, en `/company/patrocinios/:empresaId/:projectId` y `/ngo/patrocinios/:empresaId/:projectId`. Tiene:
+  - las dos columnas de puntos, con tipo, detalle y monto en pesos;
+  - agregar, editar y borrar puntos solo en la columna propia y con el acuerdo abierto;
+  - la barra de aceptación por versión, con "Estoy de acuerdo" y "Rechazar acuerdo" (con confirmación);
+  - la charla, con el mensaje de la propuesta primero.
+
+  Cerrado, todo queda de solo lectura. Un 409 (el acuerdo cambió o se cerró) muestra el mensaje y recarga.
+- **Accesos:** "Ver acuerdo: puntos y charla" en cada pendiente de `NGOPatrocinios` y "Ver acuerdo" en cada patrocinio del perfil de la empresa. `NGOPatrocinios` ahora muestra el mensaje cuando "Aceptar" no cierra porque falta la empresa (era el NO verificado de §264).
+- **`api.sponsorships.*`** (7 métodos), registrados en `api.contract.test.ts`.
+- **Docs:** `FRONTEND_CONTEXT`, el plan, el índice y `CLAUDE.md` (1049).
+
+### Verificación
+- **`SponsorshipAgreementScreen.test.tsx`, 13 tests:** columnas y permisos; el monto solo con dinero y como número; el error del backend; editar precargado; borrar con confirmación; la barra; aceptar con la versión vigente; 409 que recarga; "ya aceptaste"; rechazar; "Volver" no hace nada; la charla; el mensaje vacío; el acuerdo cerrado; el 404.
+- **`NGOPatrocinios.test.tsx`:** +3 tests (el acceso, el aviso de "falta la empresa", sin aviso al cerrar). Los 5 tests de antes tuvieron que envolverse en `MemoryRouter` por el `Link` nuevo. **`CompanyOwnProfile.test.tsx`:** el acceso.
+- **Frontend:** `npm test` **1049/1049**; `npm run typecheck` 0 errores.
+- **Mutación (a mano, la pantalla y el aviso de `NGOPatrocinios`):** 20 mutantes. En la primera corrida sobrevivieron 2: borrar y rechazar **sin confirmar**. Faltaba probar que "Volver" no haga nada; se agregó el test. En la segunda corrida, **20 muertos y 0 sobrevivientes**. Corrida de control: verde.
+- El backend no cambió desde §264 (966/966/968).
+
+### Errores propios
+- **El rojo de la pantalla fue débil:** escribí los tests y el componente seguidos, sin correr los tests antes ("el módulo no existe"). La mutación es la que muestra que los tests prueban algo.
+- **Un script de reemplazo con un string de varias líneas** se rompió y hubo que corregirlo antes de aplicarlo. No llegó a cambiar ningún archivo.
+
+### ⚠️ NO verificado
+- **La pantalla real** (las dos columnas, una sola en el celular, el formulario en línea, la charla): solo jsdom.
+- **La charla no se actualiza sola:** el mensaje de la otra parte aparece al recargar o al hacer un cambio (no hay sondeo ni sockets). Llega el aviso en la app.
+- **Sin desplegar.**
