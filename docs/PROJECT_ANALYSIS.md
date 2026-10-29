@@ -27,6 +27,7 @@
 | §259 | Despliegue de §258 (CI #47, Deploy en verde) y segunda falla del runner de Node en el CI |
 | §260 | Decisiones del usuario: lugar obligatorio en un presencial, umbral de `email-redos` a 1500 ms, la falla del runner se investiga solo si se repite |
 | §261 | Entrevistas, backend: la ONG agenda, reprograma, cancela o marca realizada una entrevista ante una postulación pendiente |
+| §262 | Entrevistas, pantallas: panel de la ONG (`InterviewPanel`) y chip "Entrevista" en Mis voluntariados |
 
 
 ## 1. Fortalezas
@@ -7517,3 +7518,28 @@ Plan: `docs/PLAN_ENTREVISTAS.md` (decisión del usuario del 2026-10-29: "agendar
 - **Sin pantallas:** la ONG todavía no puede agendar desde la app (etapa 2 del plan).
 - **Sin desplegar:** los commits están locales.
 - **Reprogramar y cancelar avisan solo en la app** (sin mail), y no hay recordatorio el día anterior (ver el plan).
+
+## 262. Entrevistas (pantallas): panel de la ONG y "Mis voluntariados"
+
+Sigue a §261 (backend). Decisión del usuario: desplegar backend y pantallas juntos.
+
+### Qué se hizo
+- **`InterviewPanel.tsx`** (nuevo), dentro de cada postulación de `NGOProjectDetail`. Pendiente sin programada: "Agendar entrevista", que abre un formulario en línea (fecha, hora, link, lugar, nota) y manda solo lo cargado. Programada: el resumen, "Reprogramar" (precargado), "Cancelar entrevista" (con `useConfirm`) y "Marcar realizada" si ya pasó. Realizada: "Entrevista realizada". El mensaje del backend se muestra tal cual.
+- **`MyParticipation.tsx`:** si la postulación está pendiente y tiene una programada, el chip dice "Entrevista" y debajo aparecen fecha, hora, lugar, nota y link. Van **fuera** del `<Link>` de la fila, porque un enlace no puede ir dentro de otro (la fila pasó a `flex-wrap`). Vuelve el chip de `DESIGN.md`.
+- **`api.ts`:** `scheduleInterview`, `updateInterview` e `InterviewInput`; los dos métodos registrados en `api.contract.test.ts` (el test exige cada método nuevo).
+- **Docs:** `FRONTEND_CONTEXT`, `DESIGN.md` (el chip volvió), el plan y `CLAUDE.md` (1027).
+
+### Verificación
+- **Tests nuevos:** `NGOProjectDetailInterview.test.tsx` (10) y `MyParticipationInterview.test.tsx` (3), más 2 casos en el test de contrato. Rojo antes del código: 7 fallaban (los 3 que pasaban comprueban que nada cambie con una entrevista cancelada o una postulación aceptada).
+- **Mutación (a mano, sobre el código nuevo):** en la primera corrida, 12 mutantes y **3 sobrevivientes**: cancelar sin confirmar, ofrecer agendar fuera de una pendiente y no ocultar la sección en una aprobada. Eran huecos reales: se agregaron 3 tests (elegir "Volver" no cancela; una aprobada sin entrevista no muestra la sección; una aprobada con la entrevista realizada la muestra sin ofrecer otra). En la segunda corrida, **12 muertos y 0 sobrevivientes**. Corrida de control: verde.
+- **Frontend:** `npm test` **1027/1027**; `npm run typecheck` 0 errores.
+- El backend no cambió desde §261 (951/951/953).
+
+### Errores propios
+- **En los tests escribí la fecha como "10 mar"**, pero `formatDateOnly` da "10 de mar de 2030", y **pasé los argumentos de `ApiError` al revés** (`(mensaje, código)`). Eran errores del test, no del código.
+- **El mock de `useAuth` devolvía un usuario nuevo en cada render**, y `MyParticipation` recarga cuando cambia `user`: la pantalla recargaba sin parar y los tests fallaban al azar. Quedó un objeto fijo (`vi.hoisted`). El primer intento fue esperar con `waitFor` y no era la causa.
+- **Un heredoc de bash se cortó** con los dos tests nuevos; se escribieron con `Write`.
+
+### ⚠️ NO verificado
+- **La interfaz real** (el formulario en línea, el chip, el link en el celular): solo jsdom.
+- **Los selectores nativos de fecha y hora** (`type="date"`/`"time"`): varían por navegador; el test les escribe el valor directo.

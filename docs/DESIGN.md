@@ -796,7 +796,8 @@ La cuarta pestaña. Pestañas arriba: **Próximos · Postulaciones · Seguidos �
 - **Seguidos:** grilla de 2 columnas como en Explorar.
 - **Realizados:** lista con "Dejá tu reseña" si todavía no la dejó.
 
-> **Corregido en 1.1:** el estado "Entrevista" no existe en el backend (`enrollments.status` es
+> **Desde §262 el chip "Entrevista" volvió:** ahora el backend tiene entrevistas (una postulación pendiente con una programada lo muestra). Lo que sigue es la nota de 1.1, cuando no existía:
+> **Corregido en 1.1:** el estado "Entrevista" no existía en el backend (`enrollments.status` es
 > `pending`, `approved`, `rejected` o `cancelled`); queda fuera hasta que se agregue. "Cancelar
 > postulación" va en el menú "···" de cada fila, con confirmación, y no como botón rojo en cada
 > tarjeta (hoy hay un "Cancelar" rojo por inscripción).

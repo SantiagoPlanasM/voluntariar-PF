@@ -1,6 +1,6 @@
 # PLAN_ENTREVISTAS.md — Entrevistas de la ONG con quienes se postulan (2026-10-29)
 
-> **Estado (2026-10-29):** backend hecho y probado (§261, sin desplegar); falta el frontend (etapa 2). Decisión del usuario del 2026-10-29: "agendar ante una postulación". Va
+> **Estado (2026-10-29):** hecho: backend (§261) y pantallas (§262). Decisión del usuario del 2026-10-29: "agendar ante una postulación". Va
 > **antes** que `PLAN_PATROCINIO.md` (el usuario cambió el orden: es más corto). Lo hecho se registra en `PROJECT_ANALYSIS.md`.
 > Cambio respecto de este plan: el estado sale en inglés en la API (`scheduled`/`done`/`cancelled`, regla 11).
 
