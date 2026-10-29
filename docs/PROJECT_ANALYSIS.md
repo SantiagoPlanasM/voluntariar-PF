@@ -32,6 +32,7 @@
 | §264 | Patrocinio como acuerdo, etapa 2: aceptación de las dos partes por versión, rechazar y la charla |
 | §265 | Patrocinio como acuerdo, etapa 3: la pantalla del acuerdo (`SponsorshipAgreementScreen`) |
 | §266 | Patrocinio como acuerdo, etapa 4: "Patrocinado por" en público, y el despliegue de §263–§266 |
+| §267 | Despliegue de §263–§266 y prueba en Chrome (local) de entrevistas y patrocinio |
 
 
 ## 1. Fortalezas
@@ -7670,3 +7671,27 @@ Cierra `docs/PLAN_PATROCINIO.md`. El usuario pidió desplegar §263–§266 junt
 ### ⚠️ NO verificado
 - **La interfaz real** del bloque "Patrocinado por" y de la lista del perfil.
 - **El despliegue de §263–§266:** se verifica después del push (CI, Deploy, `/health` y la migración de producción, que les pone la aceptación de la empresa a las propuestas pendientes).
+
+## 267. Despliegue de §263–§266 y prueba en Chrome de entrevistas y patrocinio
+
+### Despliegue (corrige el NO verificado de §266)
+- Push de los 9 commits de §263–§266. CI (run 40828796419) y Deploy en verde **al primer intento**. Producción: `/health` en `6d32419`; `GET /api/patrocinios/x/y` sin sesión da 401; `GET /api/projects/:id` trae `sponsors` (vacío: en producción no hay acuerdos aceptados); el bundle trae "Estoy de acuerdo".
+- **La migración de producción** (la aceptación de la empresa en las propuestas pendientes) corrió con el deploy, porque el server arrancó. **No miré la base real.**
+
+### Prueba en Chrome (local, no en producción)
+- Backend local con SQLite en la carpeta temporal, migrada y sembrada, y `RESEND_API_KEY` vacía (sin mails reales); Vite en 5173. Los datos se cargaron por la API local con `curl`: un voluntariado de la ONG 1, una propuesta de TechCorp con 2 puntos de la empresa y 1 de la ONG, un mensaje, la postulación de María y una entrevista. Las sesiones, con las credenciales del seed puestas en `localStorage`.
+- **Acuerdo (empresa, modo oscuro):** dos columnas, monto "$ 200.000", editar y borrar solo en la columna propia, barra y charla. "Agregar punto" abrió el formulario en línea; el punto nuevo apareció y la versión pasó de 4 a 5. "Estoy de acuerdo" cambió a "Ya aceptaste esta versión".
+- **ONG:** "Ver acuerdo: puntos y charla" en la pendiente. "Aceptar", con la empresa al día, **cerró el acuerdo** (pasó al historial como "Aceptado").
+- **Público:** el detalle del voluntariado muestra "Patrocinado por TechCorp".
+- **Entrevista (panel de la ONG):** el resumen con fecha, lugar, link, nota, "Reprogramar" y "Cancelar entrevista". "Reprogramar" abrió el formulario precargado, con los selectores nativos de fecha (dd/mm/aaaa) y de hora; cambiar a 19:30 y guardar se reflejó en el resumen.
+- **María, en "Mis voluntariados" → Postulaciones:** el chip "Entrevista" con "10 de nov de 2026 · 19:30", el lugar, el link y la nota, en modo oscuro y en modo claro.
+- **Modo claro, acuerdo cerrado:** "Acuerdo cerrado: Aceptado" y todo de solo lectura.
+- **Al terminar:** pestaña cerrada y procesos de 3001 y 5173 apagados.
+
+### Errores propios
+- **Los textos con acentos o "¿" que mandé con `curl` desde Git Bash** se guardaron mal ("C�rdoba", "�Pueden"): era la codificación de la línea de comandos, no la app. Escritos desde la interfaz, se guardan bien ("¿alcanza?").
+
+### ⚠️ NO verificado
+- **En producción:** todo lo de arriba fue en local. No se probó un acuerdo ni una entrevista contra la base real.
+- **El celular** (una sola columna, el formulario en línea en una pantalla chica): solo vi el escritorio, a 1366 px.
+- **Los avisos de la app y los mails:** no abrí la pantalla de notificaciones, y los mails estaban apagados.
