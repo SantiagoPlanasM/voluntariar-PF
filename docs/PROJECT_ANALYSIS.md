@@ -35,6 +35,7 @@
 | §267 | Despliegue de §263–§266 y prueba en Chrome (local) de entrevistas y patrocinio |
 | §268–§269 | "Agregar al calendario" la entrevista y certificado de participación para imprimir |
 | §270 | Los avisos de entrevistas y del acuerdo de patrocinio llevan a su pantalla |
+| §271 | Íconos de los avisos nuevos, calendario para la ONG y horas y estado real en el perfil público |
 
 
 ## 1. Fortalezas
@@ -7735,3 +7736,25 @@ Dos funciones chicas, propuestas a pedido del usuario ("cosas a agregarle"), que
 ### ⚠️ NO verificado
 - **Los íconos de esos avisos:** usan la campana genérica (no tienen ícono propio en `KIND`). Visualmente, sin ver.
 - **Sin desplegar.**
+
+## 271. Íconos de los avisos nuevos, calendario para la ONG y el perfil público del voluntario
+
+§268–§270 quedaron desplegados: CI (run 40831695352) y Deploy en verde al primer intento, `/health` en `d17d901`, y `/certificado/x` responde 200 (la página de React).
+
+### Qué se hizo (pedido del usuario: "la 1, la 2 y la 3", la 3 sin links a los certificados)
+1. **Íconos propios en la pantalla de notificaciones** (`KIND`): un calendario para las entrevistas y un apretón de manos para el acuerdo. El acuerdo cerrado va en verde, como una aceptación. Antes mostraban la campana genérica (el NO verificado de §270).
+2. **"Agregar al calendario" también para la ONG** (`InterviewPanel`): Google Calendar y `.ics` con el título "Entrevista con {nombre}". Reusa `lib/calendar.ts` (§268).
+3. **El perfil público del voluntario ya mostraba** el total de horas verificadas, la cantidad de voluntariados y la lista con sus nombres (no hacía falta construirlo). Se sumaron las **horas de cada voluntariado** de la lista, y que uno **cancelado diga "Cancelado"**: antes decía "Finalizado", un defecto chico encontrado al mirarlo. Sin links a los certificados, como pidió el usuario (el certificado es de quien participó).
+
+### Verificación
+- Tests nuevos, todos vistos en rojo: el ícono del acuerdo (`NGONotifications`), los dos links del calendario de la ONG (`NGOProjectDetailInterview`) y `VolunteerPublicParticipations.test.tsx` (horas y estado de tres voluntariados).
+- **Mutación (a mano):** 6 mutantes, **6 muertos**. Corrida de control: verde.
+- **Frontend:** `npm test` **1072/1072**; `npm run typecheck` 0 errores; el test de contraste de la paleta sigue en verde con los colores de los íconos.
+
+### Errores propios
+- **La primera versión del calendario de la ONG** tenía una función autoejecutada dentro del JSX; pasó a una constante antes del `return`.
+- **El test del perfil no cargó** ("no tests") porque el mock usaba una función definida afuera; se pasó a `vi.hoisted`.
+
+### ⚠️ NO verificado
+- **Los íconos y los colores en la pantalla real.**
+- **Sin desplegar** al escribir esto.
