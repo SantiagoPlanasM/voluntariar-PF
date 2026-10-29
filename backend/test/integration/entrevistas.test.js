@@ -110,7 +110,7 @@ describe('Entrevistas: agendar', () => {
     assert.deepEqual(
       { ...r.body.interview, id: undefined },
       { id: undefined, enrollment_id: e.id, date: '2030-03-10', time: '18:00', link: VALIDA.link, place: 'Sede de la ONG',
-        note: 'Charla corta', status: 'programada' });
+        note: 'Charla corta', status: 'scheduled' });
     const notifs = (await call('/api/notifications', { token: maria })).body.notifications;
     assert.ok(notifs.some((n) => n.type === 'interview_scheduled'), JSON.stringify(notifs.map((n) => n.type)));
   });
@@ -151,6 +151,80 @@ describe('Entrevistas: agendar', () => {
       const r = await agendar(e.id);
       assert.deepEqual([r.status, r.body.error], [409, 'Solo se puede agendar una entrevista con la postulación pendiente']);
     }
+  });
+
+  // PATCH /api/enrollments/:id/entrevista — sobre la entrevista PROGRAMADA de la postulación.
+  // Criterio: { status: 'cancelled' } la cancela (aviso); { status: 'done' } la marca realizada solo si ya pasó la
+  // fecha (409 si no); sin status, reprograma con las mismas validaciones del alta (aviso). Sin programada: 404.
+  // Solo la ONG dueña. Y al aprobar o rechazar la postulación, la programada se cancela sola.
+  const cambiar = (id, body, token = ngo1) => call(`/api/enrollments/${id}/entrevista`, { token, method: 'PATCH', body });
+  const estadoEnBase = async (enrollmentId) =>
+    (await db.all('SELECT estado FROM reuniones WHERE enrollment_id=$1 ORDER BY created_at, id', [enrollmentId])).map((r) => r.estado);
+
+  test('reprogramar: cambia fecha, hora, link y lugar, valida igual que el alta y avisa', async () => {
+    const e = await postulacion(juan);
+    assert.equal((await agendar(e.id)).status, 201);
+    const r = await cambiar(e.id, { date: '2030-04-01', time: '09:15', place: 'Plaza San Martín' });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.deepEqual([r.body.interview.date, r.body.interview.time, r.body.interview.link, r.body.interview.place, r.body.interview.status],
+      ['2030-04-01', '09:15', null, 'Plaza San Martín', 'scheduled']);
+    const bad = await cambiar(e.id, { date: '2020-01-01', time: '09:15', place: 'x' });
+    assert.deepEqual([bad.status, bad.body.error], [400, 'La entrevista tiene que ser en el futuro']);
+    const notifs = (await call('/api/notifications', { token: juan })).body.notifications;
+    assert.ok(notifs.some((n) => n.type === 'interview_rescheduled'));
+  });
+
+  test('cancelar: queda cancelada, avisa, y se puede agendar otra', async () => {
+    const e = await postulacion(lucia);
+    assert.equal((await agendar(e.id)).status, 201);
+    const r = await cambiar(e.id, { status: 'cancelled' });
+    assert.deepEqual([r.status, r.body.interview?.status], [200, 'cancelled']);
+    assert.deepEqual(await estadoEnBase(e.id), ['cancelada']);
+    const notifs = (await call('/api/notifications', { token: lucia })).body.notifications;
+    assert.ok(notifs.some((n) => n.type === 'interview_cancelled'));
+    assert.equal((await agendar(e.id)).status, 201);
+  });
+
+  test('marcar realizada: antes de la fecha 409; después, realizada', async () => {
+    const e = await postulacion();
+    assert.equal((await agendar(e.id)).status, 201);
+    const early = await cambiar(e.id, { status: 'done' });
+    assert.deepEqual([early.status, early.body.error], [409, 'La entrevista todavía no pasó']);
+    await db.run(`UPDATE reuniones SET fecha='2021-05-05' WHERE enrollment_id=$1`, [e.id]); // ya pasó
+    const r = await cambiar(e.id, { status: 'done' });
+    assert.deepEqual([r.status, r.body.interview?.status], [200, 'done']);
+  });
+
+  test('sin entrevista programada 404; status inválido 400; otra ONG 404; un voluntario 403', async () => {
+    const e = await postulacion(juan);
+    assert.equal((await cambiar(e.id, { status: 'cancelled' })).status, 404);
+    assert.equal((await agendar(e.id)).status, 201);
+    const bad = await cambiar(e.id, { status: 'scheduled' });
+    assert.deepEqual([bad.status, bad.body.error], [400, 'status tiene que ser cancelled o done']);
+    assert.equal((await cambiar(e.id, { status: 'cancelled' }, ngo2)).status, 404);
+    assert.equal((await cambiar(e.id, { status: 'cancelled' }, juan)).status, 403);
+    assert.deepEqual(await estadoEnBase(e.id), ['programada']);
+  });
+
+  test('aprobar o rechazar la postulación cancela la entrevista programada (la realizada queda)', async () => {
+    for (const status of ['approved', 'rejected']) {
+      const e = await postulacion(lucia);
+      assert.equal((await agendar(e.id)).status, 201);
+      assert.equal((await call(`/api/enrollments/${e.id}`, { token: ngo1, method: 'PATCH', body: { status } })).status, 200);
+      assert.deepEqual(await estadoEnBase(e.id), ['cancelada'], status);
+    }
+    const e = await postulacion();
+    assert.equal((await agendar(e.id)).status, 201);
+    await db.run(`UPDATE reuniones SET estado='realizada' WHERE enrollment_id=$1`, [e.id]);
+    assert.equal((await call(`/api/enrollments/${e.id}`, { token: ngo1, method: 'PATCH', body: { status: 'approved' } })).status, 200);
+    assert.deepEqual(await estadoEnBase(e.id), ['realizada']);
+  });
+
+  test('cancelar la postulación (la borra) borra su entrevista', async () => {
+    const e = await postulacion(juan);
+    assert.equal((await agendar(e.id)).status, 201);
+    assert.equal((await call(`/api/enrollments/${e.id}`, { token: juan, method: 'DELETE' })).status, 200);
+    assert.deepEqual(await estadoEnBase(e.id), []);
   });
 
   test('una sola programada: la segunda da 409, y con dos pedidos a la vez pasa uno solo', async () => {

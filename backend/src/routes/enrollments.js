@@ -217,6 +217,11 @@ router.patch('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
       } else if (status === 'rejected' && oldStatus === 'approved') {
         await tx.run(RELEASE_SLOT_SQL, [enrollment.project_id]);
       }
+      // Decidida la postulación, una entrevista que seguía programada ya no va (§261); la realizada queda.
+      await tx.run(
+        `UPDATE reuniones SET estado='cancelada', updated_at=CURRENT_TIMESTAMP WHERE enrollment_id=$1 AND estado='programada'`,
+        [req.params.id]
+      );
       return 'applied';
     }).catch((err) => {
       if (err instanceof NoCapacityError) return 'full';
@@ -306,9 +311,11 @@ router.delete('/:id', requireAuth, async (req, res) => {
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+// Estado en inglés en la API (regla 11); en la base, en español.
+const INTERVIEW_STATUS = { programada: 'scheduled', realizada: 'done', cancelada: 'cancelled' };
 const fmtInterview = (r) => ({
   id: r.id, enrollment_id: r.enrollment_id, date: r.fecha, time: r.horario,
-  link: r.link, place: r.lugar, note: r.nota, status: r.estado,
+  link: r.link, place: r.lugar, note: r.nota, status: INTERVIEW_STATUS[r.estado],
 });
 
 /** Valida fecha, hora, link, lugar y nota del body. Devuelve { error } o { value } (textos vacíos → null). */
@@ -382,6 +389,67 @@ router.post('/:id/entrevista', requireAuth, requireRole('ngo'), async (req, res)
       return res.status(409).json({ error: 'Ya hay una entrevista programada para esta postulación' });
     console.error('POST /enrollments/:id/entrevista error:', err);
     res.status(500).json({ error: 'Error al agendar la entrevista' });
+  }
+});
+
+// ── PATCH /api/enrollments/:id/entrevista ─────────────────────────────────
+// Sobre la entrevista PROGRAMADA de la postulación: { status: 'cancelled' } la cancela, { status: 'done' } la marca
+// realizada (si ya pasó), y sin status la reprograma con los mismos datos y validaciones que el alta.
+router.patch('/:id/entrevista', requireAuth, requireRole('ngo'), async (req, res) => {
+  try {
+    const body = req.body || {};
+    const { status } = body;
+    if (status !== undefined && !['cancelled', 'done'].includes(status))
+      return res.status(400).json({ error: 'status tiene que ser cancelled o done' });
+    let value;
+    if (status === undefined) {
+      const parsed = parseInterview(body);
+      if (parsed.error) return res.status(400).json({ error: parsed.error });
+      value = parsed.value;
+    }
+
+    const ngo = await db.get('SELECT id FROM ngos WHERE user_id=$1', [req.user.id]);
+    const current = await db.get(
+      `SELECT r.*, p.titulo, n.nombre AS ngo_name
+       FROM reuniones r
+       JOIN enrollments e ON e.id = r.enrollment_id
+       JOIN projects p ON p.id = e.project_id
+       JOIN ngos n ON n.id = p.ngo_id
+       WHERE r.enrollment_id = $1 AND r.estado = 'programada' AND p.ngo_id = $2`,
+      [req.params.id, ngo?.id]
+    );
+    if (!current) return res.status(404).json({ error: 'No hay una entrevista programada para esta postulación' });
+    if (status === 'done' && Date.parse(`${current.fecha}T${current.horario}:00-03:00`) > Date.now())
+      return res.status(409).json({ error: 'La entrevista todavía no pasó' });
+
+    // Compare-and-swap sobre el estado: si otro pedido la cambió en el medio, no se pisa.
+    const swap = status === undefined
+      ? await db.run(
+        `UPDATE reuniones SET fecha=$1, horario=$2, link=$3, lugar=$4, nota=$5, updated_at=CURRENT_TIMESTAMP
+         WHERE id=$6 AND estado='programada'`,
+        [value.date, value.time, value.link, value.place, value.note, current.id])
+      : await db.run(
+        `UPDATE reuniones SET estado=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2 AND estado='programada'`,
+        [status === 'done' ? 'realizada' : 'cancelada', current.id]);
+    if (swap.changes === 0)
+      return res.status(409).json({ error: 'La entrevista cambió mientras la editabas. Actualizá la pantalla.' });
+    const interview = fmtInterview(await db.get('SELECT * FROM reuniones WHERE id=$1', [current.id]));
+
+    if (status !== 'done') {
+      const [y, m, d] = interview.date.split('-');
+      const [type, text] = status === 'cancelled'
+        ? ['interview_cancelled', `${current.ngo_name} canceló la entrevista por "${current.titulo}".`]
+        : ['interview_rescheduled', `${current.ngo_name} cambió la entrevista: ${d}/${m}/${y} a las ${interview.time}.`];
+      await db.run(
+        `INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,$2,$3,$4,$5)`,
+        [current.user_id, type, `Entrevista para "${current.titulo}"`, text,
+         JSON.stringify({ project_id: current.project_id, enrollment_id: req.params.id })]
+      ).catch(() => {});
+    }
+    res.json({ interview });
+  } catch (err) {
+    console.error('PATCH /enrollments/:id/entrevista error:', err);
+    res.status(500).json({ error: 'Error al actualizar la entrevista' });
   }
 });
 
