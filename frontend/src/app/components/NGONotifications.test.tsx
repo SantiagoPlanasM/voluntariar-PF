@@ -67,3 +67,12 @@ describe('notificaciones en el panel de la ONG', () => {
     expect(await screen.findByText('Recibiste una donación')).toBeInTheDocument();
   });
 });
+
+// §270: un aviso del acuerdo de patrocinio lleva a la pantalla del acuerdo de la ONG (la pantalla le pasa el rol).
+test('un mensaje del acuerdo lleva al acuerdo, en el panel de la ONG', async () => {
+  vi.mocked(api.notifications.list).mockResolvedValue({ notifications: [{ ...donationNotice, id: 'n2', type: 'sponsorship_message',
+    title: 'Mensaje sobre "Lago"', data: JSON.stringify({ project_id: 'p1', empresa_id: 'e1' }) }], unread: 1 } as never);
+  render(<MemoryRouter><NotificationsScreen inPanel /></MemoryRouter>);
+  const link = (await screen.findByText('Mensaje sobre "Lago"')).closest('a');
+  expect(link).toHaveAttribute('href', '/ngo/patrocinios/e1/p1');
+});

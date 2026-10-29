@@ -41,3 +41,23 @@ describe('notificationHref', () => {
     expect(notificationHref({ type: 'new_follower', data: { follower_id: 'u3' } })).toBe('/volunteer/u3');
   });
 });
+
+// §270: los avisos de entrevistas (§261) y del acuerdo de patrocinio (§264) no llevaban a ningún lado.
+describe('notificationHref: entrevistas y acuerdo de patrocinio', () => {
+  it('las entrevistas llevan a Mis voluntariados', () => {
+    for (const t of ['interview_scheduled', 'interview_rescheduled', 'interview_cancelled'])
+      expect(notificationHref(n(t, { project_id: 'p1', enrollment_id: 'e1' }))).toBe('/participation');
+  });
+  it('los del acuerdo llevan a la pantalla del acuerdo, la de la ONG o la de la empresa según quién lo recibe', () => {
+    for (const t of ['sponsorship_message', 'sponsorship_accepted_by_other', 'sponsorship_closed', 'sponsorship_rejected']) {
+      const data = { project_id: 'p1', empresa_id: 'e/1' };
+      expect(notificationHref(n(t, data), 'ngo')).toBe('/ngo/patrocinios/e%2F1/p1');
+      expect(notificationHref(n(t, data), 'company')).toBe('/company/patrocinios/e%2F1/p1');
+    }
+  });
+  it('sin los ids o sin el rol, a la lista de patrocinios de cada uno (o a ningún lado)', () => {
+    expect(notificationHref(n('sponsorship_message', { project_id: 'p1' }), 'ngo')).toBe('/ngo/patrocinios');
+    expect(notificationHref(n('sponsorship_message', { project_id: 'p1' }), 'company')).toBe('/company/profile');
+    expect(notificationHref(n('sponsorship_message', { project_id: 'p1', empresa_id: 'e1' }))).toBeNull();
+  });
+});

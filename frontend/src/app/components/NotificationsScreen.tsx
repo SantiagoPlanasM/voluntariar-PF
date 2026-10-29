@@ -24,7 +24,8 @@ const KIND: Record<string, { icon: typeof Bell; badge: string }> = {
 // leía el formato de SQLite (UTC sin zona) como hora local: 3 h de desfase en Córdoba (REVISION F11).
 
 /** A dónde lleva cada notificación, según su tipo y los ids que guardó el backend en `data`. Sin destino → null. */
-export function notificationHref(n: Pick<AppNotification, 'type' | 'data'>): string | null {
+/** `role`: el de quien la recibe. Los avisos del acuerdo de patrocinio van a la pantalla de la ONG o a la de la empresa. */
+export function notificationHref(n: Pick<AppNotification, 'type' | 'data'>, role?: string): string | null {
   let d: Record<string, unknown> = {};
   if (typeof n.data === 'string' && n.data) { try { d = JSON.parse(n.data) ?? {}; } catch { d = {}; } }
   else if (n.data && typeof n.data === 'object') d = n.data;
@@ -47,6 +48,20 @@ export function notificationHref(n: Pick<AppNotification, 'type' | 'data'>): str
       return project ? `/project/${project}` : '/company/profile';
     case 'sponsor_rejected':
       return '/company/profile';
+    case 'interview_scheduled':  // al voluntario: la entrevista se ve en sus postulaciones (§261)
+    case 'interview_rescheduled':
+    case 'interview_cancelled':
+      return '/participation';
+    case 'sponsorship_message':  // a la otra parte del acuerdo de patrocinio (§264): al acuerdo
+    case 'sponsorship_accepted_by_other':
+    case 'sponsorship_closed':
+    case 'sponsorship_rejected': {
+      const base = role === 'ngo' ? '/ngo/patrocinios' : role === 'company' ? '/company/patrocinios' : null;
+      if (!base) return null;
+      const empresa = id('empresa_id');
+      if (empresa && project) return `${base}/${empresa}/${project}`;
+      return role === 'ngo' ? '/ngo/patrocinios' : '/company/profile';
+    }
     case 'new_project':
       return project ? `/project/${project}` : null;
     default:
@@ -163,7 +178,7 @@ export function NotificationsScreen(_props: { inPanel?: boolean } = {}) {
                     const isUnread = !n.read && n.read !== 1;
                     const kind = KIND[n.type];
                     const Icon = kind?.icon ?? Bell;
-                    const href = notificationHref(n);
+                    const href = notificationHref(n, user?.role);
                     const rowClass = `px-4 py-2.5 flex gap-3 items-start ${isUnread ? 'bg-canvas-soft' : ''}`;
                     const content = (
                       <>
