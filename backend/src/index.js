@@ -109,6 +109,8 @@ const server = http.createServer(app);
 initWebSocket(server); // chat en tiempo real, mismo puerto, path /ws
 
 server.listen(PORT, () => {
+  // En los tests, nada por stdout: el runner de node --test lee sus resultados por ahí (§273).
+  if (process.env.NODE_ENV === 'test' || process.env.NODE_TEST_CONTEXT) return;
   console.log(`\n🚀 Voluntariar API → http://localhost:${PORT}`);
   console.log(`   WebSocket (chat) → ws://localhost:${PORT}/ws`);
   console.log(`   Entorno: ${process.env.NODE_ENV || 'development'}`);

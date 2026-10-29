@@ -1,5 +1,8 @@
 // src/db/index.js
 require('dotenv').config();
+// En los tests, nada por stdout (§273): el runner de node --test lee sus resultados por ahí. NODE_TEST_CONTEXT lo
+// pone Node en cada archivo que corre node --test (también los que usan la base sin levantar el servidor).
+const quiet = process.env.NODE_ENV === 'test' || !!process.env.NODE_TEST_CONTEXT;
 const { AsyncLocalStorage } = require('node:async_hooks');
 
 // ── db.transaction(async (tx) => { ... }) ──────────────────────────────────
@@ -60,7 +63,7 @@ if (USE_POSTGRES) {
 
   // Test de conexión al arrancar
   pool.query('SELECT 1').then(() => {
-    console.log('🐘 Conectado a PostgreSQL');
+    if (!quiet) console.log('🐘 Conectado a PostgreSQL');
   }).catch(err => {
     console.error('❌ Error conectando a PostgreSQL:', err.message);
   });
@@ -149,7 +152,7 @@ if (USE_POSTGRES) {
   sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('foreign_keys = ON');
 
-  console.log('🗄️  Conectado a SQLite (local)');
+  if (!quiet) console.log('🗄️  Conectado a SQLite (local)');
 
   const { isReadQuery, translatePg, remapParams } = require('./sqlTranslate');
 
