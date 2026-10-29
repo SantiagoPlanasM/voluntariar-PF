@@ -1,4 +1,5 @@
 // src/app/components/NGOPatrocinios.test.tsx
+import { MemoryRouter } from 'react-router';
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { NGOPatrocinios } from './NGOPatrocinios';
@@ -31,7 +32,7 @@ describe('<NGOPatrocinios />', () => {
 
   test('muestra las propuestas pendientes con el mensaje de la empresa', async () => {
     vi.mocked(api.ngos.patrocinios.list).mockResolvedValue({ patrocinios: [pendiente] });
-    render(<NGOPatrocinios />);
+    render(<MemoryRouter><NGOPatrocinios /></MemoryRouter>);
 
     await waitFor(() => expect(screen.getByText('TechCorp')).toBeInTheDocument());
     expect(screen.getByText('Queremos sumarnos')).toBeInTheDocument();
@@ -44,7 +45,7 @@ describe('<NGOPatrocinios />', () => {
       .mockResolvedValueOnce({ patrocinios: [{ ...pendiente, estado: 'aceptado' }] });
     vi.mocked(api.ngos.patrocinios.decide).mockResolvedValue({ message: 'ok' });
 
-    render(<NGOPatrocinios />);
+    render(<MemoryRouter><NGOPatrocinios /></MemoryRouter>);
     await waitFor(() => expect(screen.getByText('TechCorp')).toBeInTheDocument());
 
     fireEvent.click(screen.getByText('Aceptar'));
@@ -56,7 +57,7 @@ describe('<NGOPatrocinios />', () => {
     vi.mocked(api.ngos.patrocinios.list).mockResolvedValue({ patrocinios: [pendiente] });
     vi.mocked(api.ngos.patrocinios.decide).mockResolvedValue({ message: 'ok' });
 
-    render(<NGOPatrocinios />);
+    render(<MemoryRouter><NGOPatrocinios /></MemoryRouter>);
     await waitFor(() => expect(screen.getByText('TechCorp')).toBeInTheDocument());
 
     fireEvent.click(screen.getByText('Rechazar'));
@@ -65,7 +66,7 @@ describe('<NGOPatrocinios />', () => {
 
   test('sin propuestas, muestra el estado vacío', async () => {
     vi.mocked(api.ngos.patrocinios.list).mockResolvedValue({ patrocinios: [] });
-    render(<NGOPatrocinios />);
+    render(<MemoryRouter><NGOPatrocinios /></MemoryRouter>);
     await waitFor(() => expect(screen.getByText(/Todavía no recibiste propuestas/)).toBeInTheDocument());
   });
 
@@ -74,9 +75,37 @@ describe('<NGOPatrocinios />', () => {
       { ...pendiente, estado: 'aceptado', project_id: 'proj-a' },
       { ...pendiente, estado: 'rechazado', project_id: 'proj-r' },
     ] });
-    render(<NGOPatrocinios />);
+    render(<MemoryRouter><NGOPatrocinios /></MemoryRouter>);
     const aceptado = await screen.findByText('Aceptado');
     expect(aceptado.className).toContain('bg-emerald-50 text-emerald-700');
     expect(screen.getByText('Rechazado').className).toContain('bg-red-50 text-red-600');
+  });
+});
+
+// §265: cada pendiente lleva a su acuerdo; si la ONG acepta y falta la empresa (cambiaron los puntos, §264), se avisa.
+describe('<NGOPatrocinios />: el acuerdo', () => {
+  beforeEach(() => {
+    vi.mocked(api.ngos.patrocinios.list).mockReset().mockResolvedValue({ patrocinios: [pendiente] });
+    vi.mocked(api.ngos.patrocinios.decide).mockReset();
+  });
+
+  test('"Ver acuerdo" lleva a la pantalla del acuerdo', async () => {
+    render(<MemoryRouter><NGOPatrocinios /></MemoryRouter>);
+    expect(await screen.findByRole('link', { name: 'Ver acuerdo: puntos y charla' })).toHaveAttribute('href', '/ngo/patrocinios/emp-1/proj-1');
+  });
+
+  test('aceptar sin la empresa al día: avisa que falta la empresa', async () => {
+    vi.mocked(api.ngos.patrocinios.decide).mockResolvedValue({ message: 'Aceptaste esta versión del acuerdo; falta que la empresa la acepte' });
+    render(<MemoryRouter><NGOPatrocinios /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: /Aceptar/ }));
+    expect(await screen.findByRole('status')).toHaveTextContent('falta que la empresa la acepte');
+  });
+
+  test('aceptar y cerrar: sin aviso extra', async () => {
+    vi.mocked(api.ngos.patrocinios.decide).mockResolvedValue({ message: 'Propuesta aceptada' });
+    render(<MemoryRouter><NGOPatrocinios /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: /Aceptar/ }));
+    await waitFor(() => expect(api.ngos.patrocinios.decide).toHaveBeenCalled());
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });

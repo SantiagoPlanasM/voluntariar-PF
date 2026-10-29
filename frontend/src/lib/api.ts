@@ -162,6 +162,23 @@ export const api = {
         req<{ message: string }>(`/empresas/me/patrocinios/${projectId}`, { method: 'DELETE' }),
     },
   },
+  // El acuerdo de patrocinio (§263–§265): lo usan las dos partes, cada una sobre su lado.
+  sponsorships: {
+    get: (empresaId: string, projectId: string) =>
+      req<{ agreement: SponsorshipAgreement }>(`/patrocinios/${empresaId}/${projectId}`),
+    addPoint: (empresaId: string, projectId: string, point: SponsorshipPointInput) =>
+      req<{ agreement: SponsorshipAgreement }>(`/patrocinios/${empresaId}/${projectId}/puntos`, { method: 'POST', body: JSON.stringify(point) }),
+    updatePoint: (empresaId: string, projectId: string, pointId: string, point: Partial<SponsorshipPointInput>) =>
+      req<{ agreement: SponsorshipAgreement }>(`/patrocinios/${empresaId}/${projectId}/puntos/${pointId}`, { method: 'PATCH', body: JSON.stringify(point) }),
+    deletePoint: (empresaId: string, projectId: string, pointId: string) =>
+      req<{ agreement: SponsorshipAgreement }>(`/patrocinios/${empresaId}/${projectId}/puntos/${pointId}`, { method: 'DELETE' }),
+    accept: (empresaId: string, projectId: string, version: number) =>
+      req<{ agreement: SponsorshipAgreement }>(`/patrocinios/${empresaId}/${projectId}/aceptar`, { method: 'POST', body: JSON.stringify({ version }) }),
+    reject: (empresaId: string, projectId: string) =>
+      req<{ agreement: SponsorshipAgreement }>(`/patrocinios/${empresaId}/${projectId}/rechazar`, { method: 'POST' }),
+    sendMessage: (empresaId: string, projectId: string, body: string) =>
+      req<{ agreement: SponsorshipAgreement }>(`/patrocinios/${empresaId}/${projectId}/mensajes`, { method: 'POST', body: JSON.stringify({ body }) }),
+  },
   // Donaciones con Mercado Pago (§170–§172). `get` con `paymentId` concilia con Mercado Pago (lo que trae la URL de vuelta).
   donaciones: {
     create: (b: { project_id: string; amount: number }) =>
@@ -389,6 +406,8 @@ export interface SponsorshipPoint {
   id: string; side: 'company' | 'ngo'; type: 'money' | 'supplies' | 'volunteers' | 'outreach' | 'other';
   detail: string; amount: number | null; created_at: string; updated_at: string;
 }
+/** Lo que manda el formulario de un punto (`amount` solo en `money`). */
+export interface SponsorshipPointInput { type: SponsorshipPoint['type']; detail: string; amount?: number }
 export interface SponsorshipAgreement {
   company_id: string; project_id: string; company_name: string; ngo_name: string; project_title: string;
   status: 'propuesto' | 'aceptado' | 'rechazado'; version: number; message: string | null;

@@ -108,6 +108,8 @@ describe('<CompanyOwnProfile />', () => {
     await waitFor(() => expect(screen.getByText('Banco de Alimentos')).toBeInTheDocument());
     expect(screen.getByText('Sustentando')).toBeInTheDocument();
     expect(screen.getByText('Aceptado')).toBeInTheDocument();
+    // §265: cada patrocinio lleva a su acuerdo.
+    expect(screen.getByRole('link', { name: 'Ver acuerdo' })).toHaveAttribute('href', '/company/patrocinios/emp-1/proj-9');
   });
 
   test('proponer patrocinio: envía project_id y mensaje, y refresca la lista', async () => {

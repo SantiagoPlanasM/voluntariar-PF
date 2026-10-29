@@ -42,6 +42,13 @@ const CASES: Case[] = [
   ['enrollments.updateStatus', () => api.enrollments.updateStatus('e1', 'approved'), 'PATCH', '/enrollments/e1', { status: 'approved' }],
   ['enrollments.cancel', () => api.enrollments.cancel('e1'), 'DELETE', '/enrollments/e1'],
   ['enrollments.logHours (campo "horas")', () => api.enrollments.logHours('e1', 6), 'PATCH', '/enrollments/e1/horas', { horas: 6 }],
+  ['sponsorships.get (§263)', () => api.sponsorships.get('e1', 'p1'), 'GET', '/patrocinios/e1/p1', undefined],
+  ['sponsorships.addPoint', () => api.sponsorships.addPoint('e1', 'p1', { type: 'money', detail: 'x', amount: 5 }), 'POST', '/patrocinios/e1/p1/puntos', { type: 'money', detail: 'x', amount: 5 }],
+  ['sponsorships.updatePoint', () => api.sponsorships.updatePoint('e1', 'p1', 'pt', { detail: 'y' }), 'PATCH', '/patrocinios/e1/p1/puntos/pt', { detail: 'y' }],
+  ['sponsorships.deletePoint', () => api.sponsorships.deletePoint('e1', 'p1', 'pt'), 'DELETE', '/patrocinios/e1/p1/puntos/pt', undefined],
+  ['sponsorships.accept (§264)', () => api.sponsorships.accept('e1', 'p1', 3), 'POST', '/patrocinios/e1/p1/aceptar', { version: 3 }],
+  ['sponsorships.reject', () => api.sponsorships.reject('e1', 'p1'), 'POST', '/patrocinios/e1/p1/rechazar', undefined],
+  ['sponsorships.sendMessage', () => api.sponsorships.sendMessage('e1', 'p1', 'hola'), 'POST', '/patrocinios/e1/p1/mensajes', { body: 'hola' }],
   ['enrollments.scheduleInterview (§261)', () => api.enrollments.scheduleInterview('e1', { date: '2030-03-10', time: '18:00', place: 'Sede' }), 'POST', '/enrollments/e1/entrevista', { date: '2030-03-10', time: '18:00', place: 'Sede' }],
   ['enrollments.updateInterview (§261)', () => api.enrollments.updateInterview('e1', { status: 'cancelled' }), 'PATCH', '/enrollments/e1/entrevista', { status: 'cancelled' }],
   // ngos

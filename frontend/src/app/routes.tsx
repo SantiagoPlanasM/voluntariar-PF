@@ -16,6 +16,7 @@ import { CreateVoluntariado } from './components/CreateVoluntariado';
 import { NGOOwnProfile } from './components/NGOOwnProfile';
 import { MercadoPagoReturn } from './components/MercadoPagoReturn';
 import { NGOPatrocinios } from './components/NGOPatrocinios';
+import { SponsorshipAgreementScreen } from './components/SponsorshipAgreementScreen';
 import { CompanyOwnProfile } from './components/CompanyOwnProfile';
 import { CompanyDashboard } from './components/CompanyDashboard';
 import { CompanyPublicProfile } from './components/CompanyPublicProfile';
@@ -73,6 +74,7 @@ export const router = createBrowserRouter([
       // §218: vuelta de Mercado Pago al vincular la cuenta (MP_OAUTH_REDIRECT_URI = <APP_URL>/ngo/mercadopago/vuelta).
       { path: 'mercadopago/vuelta',               Component: MercadoPagoReturn },
       { path: 'patrocinios',                      Component: NGOPatrocinios },
+      { path: 'patrocinios/:empresaId/:projectId', Component: SponsorshipAgreementScreen }, // el acuerdo (§265)
       { path: 'momentos',                         Component: NGOMoments },
       { path: 'empleados/:id',                    Component: NGOEmpleados },
       { path: 'kpis/:projectId',                  Component: NGOKPIs },
@@ -89,6 +91,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true,               Component: CompanyOwnProfile },
       { path: 'dashboard',         Component: CompanyDashboard },
+      { path: 'patrocinios/:empresaId/:projectId', Component: SponsorshipAgreementScreen }, // el acuerdo (§265)
       { path: 'profile',           Component: CompanyOwnProfile },
       { path: 'messages',          Component: MessagesScreen },
       { path: 'messages/asistente', Component: AssistantScreen },

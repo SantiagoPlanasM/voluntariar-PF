@@ -273,6 +273,9 @@ export function CompanyOwnProfile() {
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-gray-900 truncate">{p.project_title}</p>
                         <p className="text-xs text-gray-400 truncate">{p.ngo_name}</p>
+                        <Link to={`/company/patrocinios/${p.empresa_id}/${p.project_id}`} className="text-xs font-semibold text-brand-text underline">
+                          Ver acuerdo
+                        </Link>
                       </div>
                       <span className={`text-xs font-bold px-2 py-1 rounded-full flex-shrink-0 ${SPONSORSHIP_BADGE[p.estado]}`}>
                         {SPONSORSHIP_LABEL[p.estado]}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import { Loader2, Check, X as XIcon, Handshake } from 'lucide-react';
 import { api, Patrocinio } from '../../lib/api';
 import { userMessage } from '../../lib/format';
@@ -11,6 +12,7 @@ export function NGOPatrocinios() {
   const [decidingKey, setDecidingKey] = useState<string | null>(null);
   const [loadError, setLoadError] = useState('');
   const [actionError, setActionError] = useState('');
+  const [notice, setNotice] = useState('');
 
   useEffect(() => { void load(); }, []);
 
@@ -27,7 +29,12 @@ export function NGOPatrocinios() {
     const key = `${empresaId}-${projectId}`;
     setDecidingKey(key);
     setActionError('');
-    try { await api.ngos.patrocinios.decide(empresaId, projectId, estado); await load(); }
+    try {
+      const { message } = await api.ngos.patrocinios.decide(empresaId, projectId, estado);
+      // §264: si los puntos cambiaron, aceptar no cierra el acuerdo: falta la empresa. Se avisa en vez de no mostrar nada.
+      setNotice(estado === 'aceptado' && message.startsWith('Aceptaste esta versión') ? message : '');
+      await load();
+    }
     catch (e) { setActionError(userMessage(e, 'No se pudo guardar tu decisión. Revisá tu conexión y probá de nuevo.')); }
     finally { setDecidingKey(null); }
   };
@@ -48,6 +55,7 @@ export function NGOPatrocinios() {
         <h1 className="text-xl font-black text-gray-900">Propuestas de patrocinio</h1>
       </div>
 
+      {notice && <p role="status" className="mb-4 text-sm bg-surface-soft text-ink rounded-xl px-3 py-2">{notice}</p>}
       {actionError && <p role="alert" className="mb-4 text-sm bg-surface-soft text-critical rounded-xl px-3 py-2">{actionError}</p>}
 
       {loadError ? (
@@ -77,6 +85,9 @@ export function NGOPatrocinios() {
                         </div>
                       </div>
                       {p.mensaje && <p className="text-sm text-gray-600 bg-gray-50 rounded-xl px-3 py-2 mb-3">{p.mensaje}</p>}
+                      <Link to={`/ngo/patrocinios/${p.empresa_id}/${p.project_id}`} className="text-xs font-semibold text-brand-text underline mb-3 inline-block">
+                        Ver acuerdo: puntos y charla
+                      </Link>
                       <div className="flex gap-2">
                         <button onClick={() => decide(p.empresa_id, p.project_id, 'aceptado')} disabled={decidingKey === key}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold disabled:opacity-60 transition-colors">
