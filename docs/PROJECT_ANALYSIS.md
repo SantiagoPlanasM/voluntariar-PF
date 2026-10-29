@@ -23,6 +23,7 @@
 | §244–§251 | Informe con el rediseño, sesión exploratoria, sus 8 defectos, contraste en 0, corte final y orden de la documentación |
 | §252–§254 | Mapas: el alta manda el lugar (pin y búsqueda de dirección), respaldo estable, mosaicos de OpenStreetMap, D30 (tarjeta del mapa en oscuro) y D31 (remotos en el mapa) |
 | §255–§257 | Administrar un voluntariado desde el panel (editar; finalizar, cancelar o volver a activar) y D32 (el mapa no encuadraba los pines) |
+| §258 | Puesta al día: estado verificado, `npm audit` del backend, test lento del tope de 500, informe congelado |
 
 
 ## 1. Fortalezas
@@ -7393,3 +7394,39 @@ El usuario pidió arreglar los cinco que seguían abiertos. Cada uno se hizo con
 - **D32 en producción:** falta pushear y desplegar `e95f7ce` (y estos docs). Después se cierra #33.
 - **En el mapa ampliado se vieron líneas finas entre mosaicos** en una captura. Puede ser la animación de entrada del modal (escala con `transform`) o el escalado del navegador; no se investigó.
 - **Celular:** el encuadre no se miró en una pantalla chica (el padding es fijo de 40 px).
+
+## 258. Puesta al día: estado verificado, `npm audit` del backend y cierre de §254–§257
+
+### Qué se hizo
+- **El despliegue de §257:** CI #46 y Deploy #40 en verde el 2026-10-23 (`gh run list`): producción en `e48b20c`. #33 cerrado el mismo día. Corrige el "falta pushear y desplegar" de §257, y con §257 quedan corregidos también los de §254–§256.
+- **El CI #42 (`733e9fe`, solo docs) falló una vez** en "Backend Postgres Córdoba": `health-commit.test.js` cortó con un error interno del runner de Node (`Unable to deserialize cloned data due to invalid or unsupported version`), no con una aserción. El reintento (intento 2 del mismo run) pasó y el Deploy #36 salió en verde. Quedaba sin documentar. No se repitió en los CI #43–#46.
+- **`npm audit` del backend dejó de dar 0:** 3 avisos nuevos, todos de denegación de servicio:
+  - `body-parser` < 1.20.9 (alto, GHSA-27r3-jxmh-p828; lo trae `express`);
+  - `multer` 2.0.0–2.4.0 (alto, GHSA-q7qp-rjg7-q26m);
+  - `qs` 6.7.0–6.16.0 (moderado, GHSA-6pq8-jhm2-2vcw).
+  Con OK del usuario, `npm audit fix` (`10d92f4`): `body-parser` 1.20.9, `qs` 6.16.2 y `multer` 2.5.0. Solo cambió `package-lock.json`; `package.json` no. El frontend sigue en 0.
+- **El informe del TP queda congelado** en el corte del CI #41 (29 defectos), por decisión del usuario: lo presenta el lunes como está. Lo posterior (D30–D32, 6 de 32 escapados) vive en `REGISTRO_DEFECTOS.md` y `METRICAS.md`. `docs/README.md` decía "Los 29 defectos" del registro: ahora 32, y aclara que el informe está congelado.
+- **Docs:** `CLAUDE.md` (el aviso del audit y el test lento) y `docs/README.md`.
+
+### Verificación
+- **Backend, con las dependencias nuevas** (una suite detrás de otra, con la máquina sin otra carga): `npm test` **936/936**, `TZ=America/Argentina/Cordoba npm test` **936/936**, `npm run test:pg` **938/938** (Postgres 16 en Docker, ya detenido); 0 fallidos y 0 cancelados en las tres. `npm audit`: 0 en los dos paquetes.
+- **Antes del arreglo**, el mismo estado de `e48b20c`: SQLite 936/936 y Postgres 938/938.
+- **Frontend:** con el cambio de abajo, `npm test` **1012/1012** dos veces seguidas; `npm run typecheck` 0 errores.
+- **Scripts del CI:** `node --test ".github/scripts/*.test.js"` 38/38.
+
+### El test lento del tope de 500 (`17bf509`)
+- **Lo que pasaba:** en la suite completa, los dos tests del tope de `ExploreScreen` ("si la respuesta viene llena (500)…" y "con menos que el tope…") cortaban por el límite de 5 s de vitest. Fallaron en las tres corridas completas del día, también con la máquina sin otra suite en marcha (1 rojo). En el CI del 23/10 pasaron.
+- **Por qué:** dibujan 499–500 tarjetas en jsdom. Solos tardan 0,65–0,85 s, pero con los 12 workers en paralelo pasan los 5 s. En el CI el archivo entero tarda 7,3 s; acá llegó a 24 s.
+- **No es un defecto de la app** (no se registró en `REGISTRO_DEFECTOS.md`, a diferencia de D21, que sí lo era). Decisión del usuario: darles **20 s solo a esos dos tests** (`{ timeout: 20_000 }`), no subir el límite global.
+- Es un cambio de test: no hay código nuevo que mutar. El rojo sin el límite es el que se vio en las corridas de hoy.
+
+### Errores propios
+- **Corrí el frontend en paralelo con la suite del backend** y salieron 4 rojos, todos por el límite de 5 s (`A11yNames` de `CreateVoluntariado`, `ReviewsModal` y los dos del tope). Esa corrida no servía para decidir nada. Repetida sin carga, quedaron solo los del tope, que eran el problema real (ver arriba).
+- **La primera corrida con la TZ de Córdoba,** también en paralelo, terminó con una aserción fallida que no llegué a identificar (miré solo la cola de la salida). Repetida sola, 936/936. Por el patrón, probablemente sea el umbral de tiempo de `email-redos.test.js`, pero **no está confirmado**.
+- **Un log de la segunda corrida quedó un momento fuera del repo** (`../../tz.log`, en la carpeta del Escritorio) por una ruta relativa mal puesta; se movió a la carpeta temporal.
+
+### ⚠️ NO verificado
+- **El arreglo del audit en producción:** falta pushear `10d92f4`, `17bf509` y estos docs, y desplegar a mano los dos servicios (el auto-deploy está apagado).
+- **`multer` 2.5.0 con una subida real a Cloudinary:** los tests de subida usan dobles (no suben nada). El cambio es de versión menor.
+- **Los 20 s del tope en el CI:** se verá en el próximo push. En local, con 20 s, no volvió a fallar en 2 corridas: es poca muestra.
+- **`A11yNames` y `ReviewsModal`** solo fallaron en la corrida con carga. Si vuelven a aparecer sin carga, son los próximos candidatos.

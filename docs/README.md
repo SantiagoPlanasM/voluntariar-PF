@@ -38,10 +38,10 @@ describen el estado actual (cada uno lo dice en su primera línea).
 
 | Documento | Para qué |
 |---|---|
-| [`calidad/informe/`](calidad/informe/) | **El entregable**: informe en HTML y PDF |
+| [`calidad/informe/`](calidad/informe/) | **El entregable**: informe en HTML y PDF (congelado en el corte del CI #41, con 29 defectos; lo posterior está en el registro y en `METRICAS.md`) |
 | [`calidad/PLAN_PRUEBAS.md`](calidad/PLAN_PRUEBAS.md) | Plan versionado: objetivos, riesgos, criterios, ISO 25010, plantillas |
 | [`calidad/DISENO_CASOS.md`](calidad/DISENO_CASOS.md) | Técnicas de diseño de casos (equivalencia, límites, decisión, estados, caja blanca) |
-| [`calidad/REGISTRO_DEFECTOS.md`](calidad/REGISTRO_DEFECTOS.md) | Los 29 defectos, con su Issue, su test y su commit |
+| [`calidad/REGISTRO_DEFECTOS.md`](calidad/REGISTRO_DEFECTOS.md) | Los 32 defectos, con su Issue, su test y su commit |
 | [`calidad/SESION_EXPLORATORIA.md`](calidad/SESION_EXPLORATORIA.md) | La sesión exploratoria #1 y qué se hizo con sus hallazgos |
 | [`calidad/METRICAS.md`](calidad/METRICAS.md) | Métricas de producto, proceso y proyecto, interpretadas |
 | [`calidad/TRIAGE_SONAR.md`](calidad/TRIAGE_SONAR.md) | Qué se arregló y qué se aceptó de SonarCloud, y por qué |
