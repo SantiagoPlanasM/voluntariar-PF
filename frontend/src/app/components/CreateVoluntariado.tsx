@@ -171,6 +171,9 @@ export function CreateVoluntariado() {
     if (s === 2) {
       if (form.modality !== 'remoto' && !form.location.trim())
         e.location = 'Obligatorio. Indicá la dirección o sede del voluntariado';
+      // Presencial sin pin no aparece en el mapa de Explorar (§260); el híbrido puede no tener un único lugar.
+      if (form.modality === 'presencial' && !coords)
+        e.coords = 'Marcá el lugar en el mapa: buscá la dirección o tocá el mapa';
       if (form.type === 'fugaz' && !form.duration.trim())
         e.duration = 'Indicá la duración del evento';
       if (form.type === 'sostenido') {
@@ -461,7 +464,10 @@ export function CreateVoluntariado() {
                 ) : null}
                 {err('location')}
                 {form.modality !== 'remoto' && (
-                  <LocationPicker query={form.location} value={coords} onChange={setCoords} />
+                  <div id="field-coords">
+                    <LocationPicker query={form.location} value={coords} onChange={setCoords} />
+                    {err('coords')}
+                  </div>
                 )}
               </div>
 

@@ -240,6 +240,7 @@ describe('todo botón y campo tiene nombre accesible', () => {
     fireEvent.click(screen.getByRole('button', { name: /Continuar/ }));
     expect(unnamed()).toEqual([]);
     expect(screen.getByRole('spinbutton', { name: 'Horas por semana' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Híbrido/ })); // un presencial pide el pin en el mapa (§260)
     fill('Ubicación', 'Córdoba');
     fill('Horas por semana', '4');
     fill('Voluntarios necesarios', '10');

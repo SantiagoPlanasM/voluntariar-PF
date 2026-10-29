@@ -3,6 +3,7 @@
 // El alta no mandaba coordenadas (solo el texto de la ubicación): el backend las acepta desde hace rato
 // (`latitude`/`longitude`, routes/projects.js), pero todo voluntariado creado desde la app quedaba sin ellas y el mapa
 // lo dibujaba en un punto inventado. Ahora el paso Detalles tiene un selector (buscar la dirección o tocar el mapa).
+// Desde §260, en un presencial marcar el lugar es obligatorio (sin pin no aparece en Explorar); en un híbrido, no.
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
@@ -63,9 +64,19 @@ describe('Crear voluntariado: lugar en el mapa', () => {
     expect(create.mock.calls[0][0]).toMatchObject({ location: 'Parque Sarmiento', latitude: -31.4287, longitude: -64.1756 });
   });
 
-  test('sin marcar el lugar se puede publicar igual: van sin coordenadas y el resumen lo avisa', async () => {
+  test('presencial sin marcar el lugar: no deja pasar del paso Detalles y no publica (§260)', () => {
     hastaDetalles();
     fill('Ubicación', 'Parque Sarmiento');
+    click(/Continuar/);
+    expect(screen.getByText('Marcá el lugar en el mapa: buscá la dirección o tocá el mapa')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Publicar Voluntariado/ })).not.toBeInTheDocument();
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  test('híbrido sin marcar el lugar se puede publicar: van sin coordenadas y el resumen lo avisa', async () => {
+    hastaDetalles();
+    click(/Híbrido/);
+    fill('Ubicación', 'Parque Sarmiento y Google Meet');
     click(/Continuar/);
     expect(screen.getByText('Sin lugar marcado en el mapa')).toBeInTheDocument();
     click(/Publicar Voluntariado/);

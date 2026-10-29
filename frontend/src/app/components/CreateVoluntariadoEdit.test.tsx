@@ -32,9 +32,11 @@ const PROJECT = {
   full_description: 'Llevar guantes', category: 'Medio Ambiente', location: 'Mar Chiquita', modality: 'presencial',
   type: 'fugaz', duration: '1 jornada', hours_per_week: null, volunteers_needed: 10, current_volunteers: 2,
   funding_goal: 0, current_funding: 0, cost_per_person: 0, roles_needed: ['Logística'], requirements: ['Ropa cómoda'],
-  latitude: null, longitude: null, status: 'active', followers: 0, comments: [], ratings: [], kpis: [], avg_rating: 0,
-  can_manage: true,
+  latitude: -30.921014, longitude: -62.687917, status: 'active', followers: 0, comments: [], ratings: [], kpis: [],
+  avg_rating: 0, can_manage: true,
 };
+// Un presencial cargado antes de que el alta mandara el lugar (§252): sin pin.
+const SIN_LUGAR = { ...PROJECT, latitude: null, longitude: null };
 
 const mount = (project: Record<string, unknown> = PROJECT) => {
   get.mockResolvedValue({ project: project as never });
@@ -74,7 +76,7 @@ describe('Editar voluntariado: precarga', () => {
     expect(screen.getByLabelText('Ubicación')).toHaveValue('Mar Chiquita');
     expect(screen.getByLabelText('Duración del evento')).toHaveValue('1 jornada');
     expect(screen.getByLabelText('Voluntarios necesarios')).toHaveValue(10);
-    expect(screen.getByText(/Tocá el mapa para marcar el lugar exacto/)).toBeInTheDocument();
+    expect(screen.getByText(/Lugar marcado\. Arrastrá el pin/)).toBeInTheDocument();
     continuar();
     expect(screen.getByLabelText('Descripción completa')).toHaveValue('Llevar guantes');
     expect(screen.getByRole('button', { name: 'Quitar rol Logística' })).toBeInTheDocument();
@@ -82,15 +84,19 @@ describe('Editar voluntariado: precarga', () => {
     expect(screen.getByRole('button', { name: /Guardar cambios/ })).toBeInTheDocument();
   });
 
-  test('con lugar en el mapa, abre con el punto marcado', async () => {
-    mount({ ...PROJECT, latitude: -30.921014, longitude: -62.687917 });
+  test('un presencial sin lugar abre sin pin y no deja guardar hasta marcarlo (§260)', async () => {
+    mount(SIN_LUGAR);
     await screen.findByRole('heading', { name: 'Editar voluntariado' });
     continuar();
-    expect(screen.getByText(/Lugar marcado\. Arrastrá el pin/)).toBeInTheDocument();
+    expect(screen.getByText(/Tocá el mapa para marcar el lugar exacto/)).toBeInTheDocument();
+    continuar();
+    expect(screen.getByText('Marcá el lugar en el mapa: buscá la dirección o tocá el mapa')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Guardar cambios/ })).not.toBeInTheDocument();
+    expect(update).not.toHaveBeenCalled();
   });
 
   test('un remoto abre como remoto (sin mapa) y, sin cambios, no manda nada', async () => {
-    mount({ ...PROJECT, modality: 'remoto', location: 'Remoto' });
+    mount({ ...SIN_LUGAR, modality: 'remoto', location: 'Remoto' });
     await screen.findByRole('heading', { name: 'Editar voluntariado' });
     continuar();
     expect(screen.getByLabelText('Plataforma o medio digital')).toHaveValue('Remoto');
@@ -133,7 +139,7 @@ describe('Editar voluntariado: guardar manda solo lo que cambió', () => {
 
   test('cargarle el lugar en el mapa manda solo latitude y longitude', async () => {
     geocode.mockResolvedValue([{ label: 'Ex-Hotel Mar Chiquita, Miramar de Ansenuza, Córdoba', lat: -30.921014, lng: -62.687917 }]);
-    mount();
+    mount(SIN_LUGAR);
     await screen.findByRole('heading', { name: 'Editar voluntariado' });
     continuar();
     click('Buscar en el mapa');
@@ -144,7 +150,7 @@ describe('Editar voluntariado: guardar manda solo lo que cambió', () => {
   });
 
   test('pasar a remoto borra el lugar (null, no "sin tocar")', async () => {
-    mount({ ...PROJECT, latitude: -30.921014, longitude: -62.687917 });
+    mount();
     await screen.findByRole('heading', { name: 'Editar voluntariado' });
     continuar();
     click(/Remoto/);

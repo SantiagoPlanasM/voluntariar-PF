@@ -60,6 +60,7 @@ describe('Crear voluntariado: los topes del backend también en el formulario', 
     fill('Título del voluntariado', 'Limpieza del río');
     fill('Descripción corta', 'Juntamos residuos en la costanera');
     fireEvent.click(screen.getByRole('button', { name: /Continuar/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Híbrido/ })); // un presencial pide el pin en el mapa (§260)
     fill('Ubicación', 'Córdoba');
     fill('Horas por semana', '4');
     fill('Voluntarios necesarios', '10');
@@ -86,6 +87,7 @@ describe('Crear voluntariado: cada etiqueta está asociada a su campo', () => {
     expect(screen.getByLabelText('Horas por semana *')).toHaveAttribute('id', 'crear-horas');
     expect(screen.getByLabelText('Voluntarios necesarios *')).toHaveAttribute('id', 'crear-voluntarios');
 
+    fireEvent.click(screen.getByRole('button', { name: /Híbrido/ })); // un presencial pide el pin en el mapa (§260)
     fill('Ubicación', 'Córdoba');
     fill('Horas por semana', '4');
     fill('Voluntarios necesarios', '10');
