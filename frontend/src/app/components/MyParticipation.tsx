@@ -138,7 +138,13 @@ export function MyParticipation() {
         </span>
       </Link>
       {opts.review ? (
-        <button type="button" onClick={() => setReviewTarget({ id: item.project_id, title: item.title })} className="h-11 px-1 text-[13px] font-semibold flex-shrink-0">Dejá tu reseña</button>
+        <span className="flex items-center gap-3 flex-shrink-0">
+          {/* §269: el certificado, solo si el voluntariado terminó bien (no en uno cancelado). */}
+          {item.project_status === 'completed' && (
+            <Link to={`/certificado/${item.id}`} aria-label={`Certificado de ${item.title}`} className="h-11 px-1 inline-flex items-center text-[13px] font-semibold">Certificado</Link>
+          )}
+          <button type="button" onClick={() => setReviewTarget({ id: item.project_id, title: item.title })} className="h-11 px-1 text-[13px] font-semibold">Dejá tu reseña</button>
+        </span>
       ) : (
         <StatusChip status={item.status} interview={!!iv} />
       )}

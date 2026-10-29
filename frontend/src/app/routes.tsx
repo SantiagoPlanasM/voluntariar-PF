@@ -22,6 +22,7 @@ import { CompanyDashboard } from './components/CompanyDashboard';
 import { CompanyPublicProfile } from './components/CompanyPublicProfile';
 import { ExploreScreen } from './components/ExploreScreen';
 import { MyParticipation } from './components/MyParticipation';
+import { CertificatePage } from './components/CertificatePage';
 import { NotificationsScreen } from './components/NotificationsScreen';
 import { NGOPublicProfile } from './components/NGOPublicProfile';
 import { NGOEmpleados } from './components/NGOEmpleados';
@@ -46,6 +47,7 @@ export const router = createBrowserRouter([
       { path: 'profile',         Component: VolunteerProfile },
       { path: 'explore',         Component: ExploreScreen },
       { path: 'participation',   Component: MyParticipation },
+      { path: 'certificado/:enrollmentId', Component: CertificatePage }, // certificado de participación (§269)
       { path: 'notifications',   Component: NotificationsScreen },
       { path: 'momentos',        Component: MomentsPage },
       { path: 'messages',        Component: MessagesScreen },
