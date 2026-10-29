@@ -29,6 +29,7 @@
 | §261 | Entrevistas, backend: la ONG agenda, reprograma, cancela o marca realizada una entrevista ante una postulación pendiente |
 | §262 | Entrevistas, pantallas: panel de la ONG (`InterviewPanel`) y chip "Entrevista" en Mis voluntariados |
 | §263 | Patrocinio como acuerdo, etapa 1: puntos de cada parte y versión (`routes/patrocinios.js`) |
+| §264 | Patrocinio como acuerdo, etapa 2: aceptación de las dos partes por versión, rechazar y la charla |
 
 
 ## 1. Fortalezas
@@ -7573,3 +7574,40 @@ Plan: `docs/PLAN_PATROCINIO.md` (decisiones del usuario del 2026-10-29). §261�
 - **Sin pantallas ni avisos:** etapas 2 y 3.
 - **Sin desplegar:** los commits están locales.
 - **El bloqueo de la fila con dos cambios a la vez**, que solo existe en Postgres: el test lo cubre, pero con dos pedidos y en local.
+
+## 264. Patrocinio como acuerdo negociado, etapa 2: aceptación por versión y la charla
+
+Sigue a §263 (sin desplegar; el usuario pidió seguir con la etapa siguiente).
+
+### Qué se hizo
+- **Aceptación por versión** (`acceptVersion` en `routes/patrocinios.js`): el acuerdo pasa a `aceptado` cuando las dos partes aceptaron la versión **vigente**. Si un punto cambia, la versión sube y las aceptaciones anteriores dejan de contar. Ruta nueva `POST …/aceptar` (`{ version }`; una versión vieja da 409). En una transacción: guardar la aceptación y cerrar, los dos pasos con compare-and-swap.
+- **Lo que ya existía sigue andando igual:** proponer cuenta como que la empresa acepta (`acepta_empresa_version = 1` en el alta; al volver a proponer, versión nueva aceptada por la empresa). El `PATCH` de siempre de la ONG con `aceptado` pasa a ser "aceptar mi parte": sin cambios en los puntos, cierra como antes ("Propuesta aceptada", el mismo aviso y el mismo mail); si hubo cambios, queda esperando a la empresa (200, mensaje nuevo, aviso). `migrate.js` les pone la aceptación de la empresa a las propuestas pendientes de antes de §264 (una sola vez: después ya no es `NULL`).
+- **Rechazar desde cualquiera de las dos** (`POST …/rechazar`).
+- **La charla:** tabla nueva `patrocinio_mensajes` (36 tablas) y `POST …/mensajes` (1 a 1000 caracteres, solo con el acuerdo abierto, aviso a la otra parte). El acuerdo devuelve `accepted` y `messages`.
+- **`created_at` con milisegundos desde el código**, en mensajes y puntos: SQLite guarda segundos, y dos altas en el mismo segundo se ordenaban por el id, que es al azar. Lo vi antes de que fallara un test.
+- **Tipos** (`accepted`, `messages`, `SponsorshipMessage`) y **docs**: `API_CONTEXT` (las tres rutas y el cambio del `PATCH`), `DATABASE_CONTEXT` (36 tablas), `README.md`, el plan, el índice y `CLAUDE.md` (966/968).
+
+### Verificación
+- **`patrocinio-acuerdo-etapa2.test.js`, 8 tests**, escritos antes y vistos en rojo (8 de 8). Cubren:
+  - el flujo de siempre sin cambios;
+  - un punto que anula las aceptaciones;
+  - la ONG que acepta y espera, y la empresa que cierra;
+  - versión vieja (409) e inválida (400);
+  - rechazar desde cada lado, y que después aceptar, rechazar, escribir o cambiar un punto den 409;
+  - volver a proponer;
+  - la charla (orden, lado, nombre, avisos, que no cambia la versión, validación, otra ONG 404);
+  - **las dos aceptando la misma versión a la vez**: se cierra una sola vez, con un único aviso de cierre (en Postgres, 4 corridas seguidas).
+- **Un test de §263 cambió a propósito:** cerraba el acuerdo con el `PATCH` de la ONG después de cambiar un punto; ahora la empresa también tiene que aceptar la versión 2. Los tests de siempre de patrocinio (`sponsorship-proposal`, `follows-sponsorship-concurrency`) pasan **sin cambios**.
+- **Suites completas** (una detrás de otra): `npm test` **966/966**, con TZ de Córdoba **966/966**, `npm run test:pg` **968/968**; 0 fallidos y 0 cancelados.
+- **Mutación (a mano, `patrocinios.js`, `ngos.js`, `empresas.js`), contra los 4 archivos de patrocinio:** 20 mutantes, **18 muertos y 2 sobrevivientes, los dos equivalentes**:
+  - el chequeo de estado al cerrar: el `UPDATE` anterior, en la misma transacción, ya lo exige y bloquea la fila;
+  - no borrar la aceptación de la ONG al volver a proponer: la versión sube, así que la aceptación vieja no coincide y no cuenta.
+  Corrida de control: verde.
+
+### Errores propios
+- **El conteo de avisos del test de concurrencia usaba `data LIKE …`:** en Postgres `data` es JSONB y falló (`operator does not exist: jsonb ~~ unknown`). Quedó `CAST(data AS TEXT)`. Era del test, no de la ruta.
+- **Generar el script de mutación desde la línea de comandos** se rompió dos veces con los escapes; quedó en un archivo aparte.
+
+### ⚠️ NO verificado
+- **La pantalla `NGOPatrocinios`** descarta la respuesta del `PATCH`. Si los puntos cambiaron (hoy no hay pantalla para cambiarlos), mostraría la propuesta como pendiente sin explicar que falta la empresa. Se resuelve en la etapa 3.
+- **Sin desplegar.** En producción, la migración les pone la aceptación de la empresa a las propuestas pendientes; no lo probé contra la base real.

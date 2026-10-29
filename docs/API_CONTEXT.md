@@ -402,9 +402,9 @@ Una entrevista es una fila de `reuniones` atada a una postulación (`enrollment_
 ---
 
 ## Acuerdo de patrocinio (§263, `docs/PLAN_PATROCINIO.md`) — `routes/patrocinios.js`
-Etapa 1: la propuesta de siempre (`empresa_voluntariados`, abajo) suma **puntos** de cada parte y una **versión**. La aceptación por versión y la charla son la etapa 2; hoy la ONG sigue cerrando el acuerdo con el `PATCH` de abajo.
+La propuesta de siempre (`empresa_voluntariados`, abajo) suma **puntos** de cada parte y una **versión** (etapa 1, §263), y desde §264 **la aceptación por versión y la charla**: el acuerdo pasa a `aceptado` cuando **las dos partes aceptaron la versión vigente**. Proponer cuenta como que la empresa acepta, y el `PATCH` de la ONG de abajo es "aceptar mi parte": sin cambios en los puntos, se cierra como siempre.
 - Lo ven y lo tocan **solo las dos partes** (la empresa de la propuesta y la ONG dueña del proyecto); cualquier otro usuario, o un acuerdo que no existe: **404** "Acuerdo no encontrado" (no se revela que existe). Sin sesión: 401.
-- `agreement = { company_id, project_id, company_name, ngo_name, project_title, status, version, message, my_side, points[] }`; `status` con los valores de siempre (`propuesto`/`aceptado`/`rechazado`); `my_side` `company` o `ngo`; `points[] = { id, side, type, detail, amount, created_at, updated_at }`, primero los de la empresa. `type`: `money`, `supplies`, `volunteers`, `outreach`, `other` (en la base: `dinero`, `insumos`, `voluntarios`, `difusion`, `otro`). **`amount`** solo en `money` (número > 0, hasta 1.000.000.000): privado de las partes, no sale en ningún endpoint público.
+- `agreement = { company_id, project_id, company_name, ngo_name, project_title, status, version, message, my_side, accepted: { company, ngo }, points[], messages[] }`; `accepted.*` es `true` si esa parte aceptó la versión **vigente** (una aceptación de una versión anterior no cuenta); `messages[] = { id, side, author_name, body, created_at }`, en orden; `status` con los valores de siempre (`propuesto`/`aceptado`/`rechazado`); `my_side` `company` o `ngo`; `points[] = { id, side, type, detail, amount, created_at, updated_at }`, primero los de la empresa. `type`: `money`, `supplies`, `volunteers`, `outreach`, `other` (en la base: `dinero`, `insumos`, `voluntarios`, `difusion`, `otro`). **`amount`** solo en `money` (número > 0, hasta 1.000.000.000): privado de las partes, no sale en ningún endpoint público.
 
 ### `GET /api/patrocinios/:empresaId/:projectId` — Auth, una de las partes
 - **200:** `{ agreement }`.
@@ -417,7 +417,19 @@ Etapa 1: la propuesta de siempre (`empresa_voluntariados`, abajo) suma **puntos*
 - Un punto del otro lado o que no existe: **404** "Punto no encontrado". `PATCH` es parcial (`type`, `detail`, `amount`) y valida el resultado combinado; pasar de `money` a otro tipo sin mandar `amount` borra el monto.
 - **200:** `{ agreement }`.
 
-**Reglas de los tres cambios:** solo con el acuerdo `propuesto` (si no, **409** "El acuerdo ya está cerrado: no se puede cambiar"). Dentro de `db.transaction`, primero `UPDATE … SET version = version + 1 … AND estado = 'propuesto'` (si no cambia nada, 409: cubre también un acuerdo que se cierra en el medio) y después el cambio del punto. En Postgres ese `UPDATE` bloquea la fila: dos cambios a la vez se ordenan y la versión sube dos veces. Sin avisos todavía (etapa 2).
+**Reglas de los tres cambios:** solo con el acuerdo `propuesto` (si no, **409** "El acuerdo ya está cerrado: no se puede cambiar"). Dentro de `db.transaction`, primero `UPDATE … SET version = version + 1 … AND estado = 'propuesto'` (si no cambia nada, 409: cubre también un acuerdo que se cierra en el medio) y después el cambio del punto. En Postgres ese `UPDATE` bloquea la fila: dos cambios a la vez se ordenan y la versión sube dos veces. Los cambios de puntos no avisan (sería mucho ruido); la charla, aceptar y rechazar sí.
+
+### `POST /api/patrocinios/:empresaId/:projectId/aceptar` — Auth, una de las partes (§264)
+- **Body:** `{ version }` (entero ≥ 1: la versión que vio quien acepta; si no, **400** "version inválida").
+- Versión que ya no es la vigente: **409** "El acuerdo cambió: revisalo de nuevo". Cerrado: **409** "El acuerdo ya está cerrado: no se puede cambiar".
+- En una transacción (`acceptVersion`, la usa también el `PATCH` de la ONG): guarda la aceptación solo si la versión sigue vigente y el acuerdo `propuesto`; después lo cierra si las dos coinciden (compare-and-swap: con dos aceptaciones a la vez, se cierra una sola vez).
+- Aviso a la otra parte: `sponsorship_closed` si este pedido lo cerró; si no, `sponsorship_accepted_by_other`. **200:** `{ agreement }`.
+
+### `POST /api/patrocinios/:empresaId/:projectId/rechazar` — Auth, una de las partes (§264)
+- `propuesto` → `rechazado` (compare-and-swap; cerrado: 409). Aviso `sponsorship_rejected`. **200:** `{ agreement }`. La empresa puede volver a proponer (`POST /api/empresas/me/patrocinios`): versión nueva, aceptada por la empresa y no por la ONG.
+
+### `POST /api/patrocinios/:empresaId/:projectId/mensajes` — Auth, una de las partes (§264)
+- **Body:** `{ body }` (`checkText`, obligatorio, hasta 1000; se guarda sin espacios en los bordes). Solo con el acuerdo `propuesto` (`INSERT … SELECT … WHERE estado = 'propuesto'`; cerrado: 409): después es de solo lectura. No cambia la versión. Aviso `sponsorship_message` a la otra parte. **201:** `{ agreement }`.
 
 ## Patrocinio (Empresa ↔ Proyecto) — `routes/empresas.js` + `routes/ngos.js`
 
@@ -440,6 +452,7 @@ Etapa 1: la propuesta de siempre (`empresa_voluntariados`, abajo) suma **puntos*
 - Todas las propuestas de patrocinio (cualquier estado) sobre los proyectos de la ONG logueada, con datos de la empresa ya resueltos.
 
 ### `PATCH /api/ngos/me/patrocinios/:empresaId/:projectId` — Auth, role `ngo`
+- **Desde §264, `aceptado` = aceptar la versión vigente del acuerdo** (`acceptVersion`): si la empresa también la aceptó, se cierra como siempre (200 "Propuesta aceptada", aviso `sponsor_accepted` y mail); si no (cambiaron los puntos después de proponer), queda `propuesto`, responde **200** "Aceptaste esta versión del acuerdo; falta que la empresa la acepte" y avisa a la empresa (`sponsorship_accepted_by_other`). `rechazado` sigue igual.
 - **Body:** `{ estado: 'aceptado' | 'rechazado' }`.
 - Autorización por `JOIN` a `projects.ngo_id` en el `WHERE` (nunca se confía en los IDs de la URL sin validar dueño) → `404` si la propuesta no existe o no es de un proyecto propio.
 - `409` si la propuesta ya fue decidida antes (no se puede revertir una decisión por acá).

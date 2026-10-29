@@ -393,7 +393,11 @@ export interface SponsorshipAgreement {
   company_id: string; project_id: string; company_name: string; ngo_name: string; project_title: string;
   status: 'propuesto' | 'aceptado' | 'rechazado'; version: number; message: string | null;
   my_side: 'company' | 'ngo'; points: SponsorshipPoint[];
+  /** §264: si cada parte aceptó la versión VIGENTE. */
+  accepted: { company: boolean; ngo: boolean };
+  messages: SponsorshipMessage[];
 }
+export interface SponsorshipMessage { id: string; side: 'company' | 'ngo'; author_name: string; body: string; created_at: string }
 export interface Patrocinio {
   empresa_id: string; project_id: string;
   estado: 'propuesto' | 'aceptado' | 'rechazado';

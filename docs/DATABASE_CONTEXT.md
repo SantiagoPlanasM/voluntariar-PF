@@ -54,6 +54,7 @@ Todas las claves primarias son `TEXT` (UUID v4-like), no enteros autoincremental
 | 33 | `ngo_cuentas_mp` | Cuenta de Mercado Pago de cada ONG, con los tokens cifrados (marketplace, §216) |
 | 34 | `mp_oauth_states` | `state` de un solo uso del OAuth de Mercado Pago (§216) |
 | 35 | `patrocinio_puntos` | Puntos de un acuerdo de patrocinio: lo que aporta la empresa y lo que pide u ofrece la ONG (§263) |
+| 36 | `patrocinio_mensajes` | La charla de un acuerdo de patrocinio entre la empresa y la ONG (§264) |
 
 ## 2. Detalle de columnas por tabla
 
@@ -167,6 +168,9 @@ id · empleado_id (FK→empleados, ON DELETE SET NULL) · user_id (NOT NULL FK�
 ### `patrocinio_puntos`
 id · empresa_id · project_id (FK compuesta a `empresa_voluntariados`, ON DELETE CASCADE) · lado (CHECK IN `empresa`,`ong`) · tipo (CHECK IN `dinero`,`insumos`,`voluntarios`,`difusion`,`otro`) · detalle (NOT NULL, hasta 300 por la API) · monto (REAL, CHECK NULL o > 0; solo en `dinero`, privado de las partes) · autor_id (FK→users, SET NULL) · created_at · updated_at. Índice `idx_patrocinio_puntos_acuerdo` (empresa_id, project_id). Se crea en la parte de migraciones aditivas de `migrate.js`, después de las columnas de `empresa_voluntariados` (§263).
 
+### `patrocinio_mensajes`
+id · empresa_id · project_id (FK compuesta a `empresa_voluntariados`, ON DELETE CASCADE) · lado (CHECK IN `empresa`,`ong`) · autor_id (FK→users, SET NULL) · cuerpo (NOT NULL, hasta 1000 por la API) · created_at (lo pone el código, con milisegundos: SQLite guarda segundos y el orden de la charla no puede depender del id). Índice `idx_patrocinio_mensajes_acuerdo` (§264).
+
 ### `comments`
 id · project_id (NOT NULL FK→projects CASCADE) · user_id (NOT NULL FK→users CASCADE) · comment (NOT NULL) · created_at.
 
@@ -204,7 +208,7 @@ state_hash (**PK**, sha256 del `state`; el `state` en claro nunca se guarda) · 
 | `project_categorias` | (project_id, categoria_id) | — |
 | `project_roles` | (project_id, rol_id) | `cantidad` (DEFAULT 1, CHECK > 0) |
 | `voluntario_habilidades` | (user_id, habilidad_id) | `nivel` (CHECK IN `basico`,`intermedio`,`avanzado`, default `basico`) |
-| `empresa_voluntariados` | (empresa_id, project_id) | desde §263: `version` (INTEGER NOT NULL DEFAULT 1, sube con cada cambio de los puntos), `acepta_empresa_version` y `acepta_ong_version` (INTEGER, la etapa 2 del acuerdo) · `aporte` (REAL, DEFAULT 0, CHECK ≥ 0), `estado` (CHECK IN `propuesto`,`aceptado`,`rechazado`, default `propuesto` — agregada 2026-09 vía `ALTER TABLE`, ver `PROJECT_ANALYSIS.md §26`), `mensaje`, `created_at`, `updated_at` |
+| `empresa_voluntariados` | (empresa_id, project_id) | desde §263: `version` (INTEGER NOT NULL DEFAULT 1, sube con cada cambio de los puntos), `acepta_empresa_version` y `acepta_ong_version` (INTEGER: la versión que aceptó cada parte; el acuerdo se cierra cuando las dos coinciden con `version`, §264. Proponer guarda `acepta_empresa_version`; `migrate.js` se la pone a las pendientes de antes, una sola vez) · `aporte` (REAL, DEFAULT 0, CHECK ≥ 0), `estado` (CHECK IN `propuesto`,`aceptado`,`rechazado`, default `propuesto` — agregada 2026-09 vía `ALTER TABLE`, ver `PROJECT_ANALYSIS.md §26`), `mensaje`, `created_at`, `updated_at` |
 | `ngo_follows` | (user_id, ngo_id) | `created_at` |
 | `project_follows` | (user_id, project_id) | `created_at` |
 | `volunteer_follows` | (follower_id, following_id) | `created_at`, CHECK `follower_id != following_id` (no autoseguirse) |
@@ -294,7 +298,7 @@ erDiagram
 
 ## 4. Claves primarias
 
-Las 22 tablas con entidad propia usan `id TEXT PRIMARY KEY` con un default de base (un UUID: `gen_random_uuid()` en Postgres, una expresión equivalente en SQLite). **Ese default no se usa para las altas que devuelven la fila:** el código genera el id con `crypto.randomUUID()`, inserta y relee por ese id (`AI_RULES.md` regla 23, `PROJECT_ANALYSIS.md §40`). Las 10 tablas N:M (`ngo_categorias`, `empresa_categorias`, `project_categorias`, `project_roles`, `voluntario_habilidades`, `empresa_voluntariados`, `ngo_follows`, `project_follows`, `volunteer_follows`, `post_likes`) usan **clave primaria compuesta** sobre las dos FKs (sin columna `id` propia).
+Las 23 tablas con entidad propia usan `id TEXT PRIMARY KEY` con un default de base (un UUID: `gen_random_uuid()` en Postgres, una expresión equivalente en SQLite). **Ese default no se usa para las altas que devuelven la fila:** el código genera el id con `crypto.randomUUID()`, inserta y relee por ese id (`AI_RULES.md` regla 23, `PROJECT_ANALYSIS.md §40`). Las 10 tablas N:M (`ngo_categorias`, `empresa_categorias`, `project_categorias`, `project_roles`, `voluntario_habilidades`, `empresa_voluntariados`, `ngo_follows`, `project_follows`, `volunteer_follows`, `post_likes`) usan **clave primaria compuesta** sobre las dos FKs (sin columna `id` propia).
 
 ## 5. Claves foráneas (resumen de política de borrado)
 

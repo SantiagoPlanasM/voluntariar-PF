@@ -1,6 +1,6 @@
 # PLAN_PATROCINIO.md — El patrocinio como acuerdo negociado (2026-10-29)
 
-> **Estado (2026-10-29):** etapa 1 hecha (§263: puntos y versión, sin desplegar); faltan la 2 (charla y aceptación), la 3 (pantalla) y la 4 (público). Decisiones del usuario del 2026-10-29. Lo hecho se registra en
+> **Estado (2026-10-29):** etapas 1 (§263: puntos y versión) y 2 (§264: charla y aceptación por versión) hechas, sin desplegar; faltan la 3 (pantalla) y la 4 (público). Decisiones del usuario del 2026-10-29. Lo hecho se registra en
 > `PROJECT_ANALYSIS.md`; este documento solo ordena el trabajo. Las entrevistas para ONG van después, en otro plan.
 
 ## Qué hay hoy (§26, §33, §77, §140, §153)
