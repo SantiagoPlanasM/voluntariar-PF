@@ -119,8 +119,14 @@ describe('Acuerdo de patrocinio: puntos', () => {
     const toMoney = await call(`${url}/puntos/${pid}`, { token: company, method: 'PATCH', body: { type: 'money' } });
     assert.deepEqual([toMoney.status, toMoney.body.error], [400, 'Un punto de dinero necesita un monto mayor a 0']);
 
+    const money = await call(`${url}/puntos/${pid}`, { token: company, method: 'PATCH', body: { type: 'money', amount: 50000 } });
+    assert.deepEqual([money.status, money.body.agreement?.points[0].amount], [200, 50000]);
+    const back = await call(`${url}/puntos/${pid}`, { token: company, method: 'PATCH', body: { type: 'supplies' } });
+    assert.deepEqual([back.status, back.body.agreement?.points[0].amount], [200, null], 'pasar a otro tipo borra el monto');
+    assert.equal(back.body.agreement.version, 5);
+
     const del = await call(`${url}/puntos/${pid}`, { token: company, method: 'DELETE' });
-    assert.deepEqual([del.status, del.body.agreement.points, del.body.agreement.version], [200, [], 4]);
+    assert.deepEqual([del.status, del.body.agreement.points, del.body.agreement.version], [200, [], 6]);
     assert.equal((await call(`${url}/puntos/${pid}`, { token: company, method: 'DELETE' })).status, 404);
   });
 

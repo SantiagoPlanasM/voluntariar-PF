@@ -136,7 +136,6 @@ router.post('/:empresaId/:projectId/puntos', requireAuth, agreementParty, async 
   const { type, detail, amount } = req.body || {};
   const error = pointError({ type, detail, amount });
   if (error) return res.status(400).json({ error });
-  if (req.agreement.estado !== 'propuesto') return res.status(409).json({ error: CLOSED });
   const a = req.agreement;
   await changePoints(req, res, 201, async (tx) => {
     const n = await tx.get(
@@ -168,7 +167,6 @@ router.patch('/:empresaId/:projectId/puntos/:puntoId', requireAuth, agreementPar
     if (merged.type !== 'money' && body.amount === undefined) merged.amount = null; // pasar a otro tipo borra el monto
     const error = pointError(merged);
     if (error) return res.status(400).json({ error });
-    if (a.estado !== 'propuesto') return res.status(409).json({ error: CLOSED });
     await changePoints(req, res, 200, async (tx) => {
       await tx.run(
         `UPDATE patrocinio_puntos SET tipo = $1, detalle = $2, monto = $3, updated_at = CURRENT_TIMESTAMP
@@ -188,7 +186,6 @@ router.delete('/:empresaId/:projectId/puntos/:puntoId', requireAuth, agreementPa
     const a = req.agreement;
     const current = await ownPoint(db, a, req.params.puntoId);
     if (!current) return res.status(404).json({ error: 'Punto no encontrado' });
-    if (a.estado !== 'propuesto') return res.status(409).json({ error: CLOSED });
     await changePoints(req, res, 200, async (tx) => {
       const del = await tx.run('DELETE FROM patrocinio_puntos WHERE id = $1 AND lado = $2', [current.id, a.side]);
       if (del.changes === 0) throw new AgreementError(404, 'Punto no encontrado'); // lo borró otro pedido
