@@ -24,6 +24,7 @@
 | §252–§254 | Mapas: el alta manda el lugar (pin y búsqueda de dirección), respaldo estable, mosaicos de OpenStreetMap, D30 (tarjeta del mapa en oscuro) y D31 (remotos en el mapa) |
 | §255–§257 | Administrar un voluntariado desde el panel (editar; finalizar, cancelar o volver a activar) y D32 (el mapa no encuadraba los pines) |
 | §258 | Puesta al día: estado verificado, `npm audit` del backend, test lento del tope de 500, informe congelado |
+| §259 | Despliegue de §258 (CI #47, Deploy en verde) y segunda falla del runner de Node en el CI |
 
 
 ## 1. Fortalezas
@@ -7430,3 +7431,30 @@ El usuario pidió arreglar los cinco que seguían abiertos. Cada uno se hizo con
 - **`multer` 2.5.0 con una subida real a Cloudinary:** los tests de subida usan dobles (no suben nada). El cambio es de versión menor.
 - **Los 20 s del tope en el CI:** se verá en el próximo push. En local, con 20 s, no volvió a fallar en 2 corridas: es poca muestra.
 - **`A11yNames` y `ReviewsModal`** solo fallaron en la corrida con carga. Si vuelven a aparecer sin carga, son los próximos candidatos.
+
+## 259. Despliegue de §258 y segunda falla del runner de Node en el CI
+
+### Qué se hizo
+- **Push de `10d92f4`, `17bf509` y `5885385`** (§258) el 2026-10-29. CI #47 (run 40815109569): en el primer intento falló un solo job, "Backend · Postgres 16 · America/Argentina/Cordoba", con 937 de 938. El que falló fue `test/integration/faqs-ui-names.test.js`, que no rompió una aserción: cortó con el mismo error interno del runner que en el CI #42 (`Unable to deserialize cloned data due to invalid or unsupported version`, en `node:internal/test_runner/runner`). El reintento del job fallido pasó y el CI quedó en verde.
+- **El workflow `Deploy`** (run 40815908488) se disparó solo al quedar verde el CI, llamó a los deploy hooks de los dos servicios y corrió el smoke y el E2E de Mercado Pago: todo en verde. Con el CI en rojo (primer intento) el Deploy había quedado `skipped`, como corresponde.
+- **`CLAUDE.md` estaba desactualizado:** decía "Auto-deploy apagado: después de cada push hay que desplegar los dos servicios a mano". El auto-deploy de Render sigue apagado, pero desde que existe `.github/workflows/deploy.yml` (§184 en adelante) despliega el workflow, con los deploy hooks, después de un CI en verde de un push a `main`. Corregido.
+
+### La falla del runner: lo que se sabe
+- **2 veces en 6 corridas** (CI #42 y #47), las dos en el mismo job (Postgres · Córdoba) y en archivos distintos (`health-commit.test.js` y `faqs-ui-names.test.js`). Las dos pasaron al relanzar.
+- **No parece venir de una salida de procesos hijos al canal del runner:** `faqs-ui-names` corre `migrate.js` con `stdio: 'pipe'` y `health-commit` no lanza procesos hijos.
+- **La causa no está identificada.** La hipótesis es un problema del runner de Node 22 al leer los mensajes serializados de un archivo de test, pero no se reprodujo en local ni se buscó el issue en el repo de Node.
+
+### Verificación
+- `gh run view 40815109569`: verde tras el reintento; log del intento 1 revisado (`--log-failed`): `tests 938`, `pass 937`, `fail 1`, `cancelled 0`, el error de arriba.
+- `gh run view 40815908488`: Deploy en verde (deploy, espera del commit en `/health`, smoke y E2E).
+- Producción: `GET /health` devuelve `commit: 588538586fdafef13c541d831d65b6d97707e9bf`; el sitio responde 200 y `GET /api/projects` devuelve los voluntariados.
+- Cambio solo de docs: no se corrieron las suites locales.
+
+### Errores propios
+- **Le dije al usuario que tenía que desplegar a mano**, siguiendo el `CLAUDE.md` sin mirar `deploy.yml`. El workflow ya lo hacía solo.
+- **Busqué `/api/health`** en producción, y la ruta es `/health`.
+
+### ⚠️ NO verificado
+- **La causa de la falla del runner** (ver arriba). Si se repite, investigarla antes de la defensa: un CI rojo frena el deploy.
+- **Los 20 s del tope de 500 en el CI:** el job del frontend pasó en el CI #47, pero es una sola corrida.
+- **`multer` 2.5.0 con una subida real a Cloudinary:** sigue sin probarse en vivo.
