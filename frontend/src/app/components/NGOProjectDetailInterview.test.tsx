@@ -93,6 +93,14 @@ describe('Panel de la ONG: una entrevista programada', () => {
     expect(within(fila()).queryByRole('button', { name: 'Agendar entrevista' })).not.toBeInTheDocument();
   });
 
+  test('agregar al calendario (§271): Google Calendar con el nombre de quien se postuló, y el .ics', async () => {
+    mount(enrollment({ interview: interview() }));
+    const google = await within(await screen.findByRole('region', { name: 'Entrevista con Ana Gómez' })).findByRole('link', { name: 'Agregar a Google Calendar' });
+    const q = new URL(google.getAttribute('href')!).searchParams;
+    expect([q.get('text'), q.get('dates')]).toEqual(['Entrevista con Ana Gómez', '20300310T210000Z/20300310T220000Z']);
+    expect(within(fila()).getByRole('link', { name: 'Descargar .ics' })).toHaveAttribute('download', 'entrevista.ics');
+  });
+
   test('pasada la fecha, "Marcar realizada" manda done', async () => {
     const update = vi.spyOn(api.enrollments, 'updateInterview').mockResolvedValue({ interview: interview({ date: '2021-05-05', status: 'done' }) });
     mount(enrollment({ interview: interview({ date: '2021-05-05' }) }));

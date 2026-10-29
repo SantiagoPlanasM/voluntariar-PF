@@ -2,7 +2,7 @@
 // que dice de qué tipo es cada una. Las no leídas llevan fondo suave y un punto. El destino de cada notificación
 // (el voluntariado, el perfil) necesita que el backend la mande en `data`: hoy la lista solo trae título y texto.
 import { useEffect, useMemo, useState } from 'react';
-import { Bell, Check, UserPlus, X } from 'lucide-react';
+import { Bell, CalendarClock, Check, Handshake, UserPlus, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { api, AppNotification } from '../../lib/api';
 import { parseBackendDate, timeAgo, userMessage } from '../../lib/format';
@@ -18,6 +18,14 @@ const KIND: Record<string, { icon: typeof Bell; badge: string }> = {
   new_enrollment:      { icon: UserPlus, badge: 'bg-ink text-on-ink' },
   new_follower:        { icon: UserPlus, badge: 'bg-ink text-on-ink' },
   new_project:         { icon: Bell,     badge: 'bg-ink text-on-ink' },
+  // §271: entrevistas (§261) y acuerdo de patrocinio (§264); el acuerdo cerrado, en verde como una aceptación.
+  interview_scheduled:   { icon: CalendarClock, badge: 'bg-ink text-on-ink' },
+  interview_rescheduled: { icon: CalendarClock, badge: 'bg-ink text-on-ink' },
+  interview_cancelled:   { icon: CalendarClock, badge: 'bg-ink-muted text-white' },
+  sponsorship_message:           { icon: Handshake, badge: 'bg-ink text-on-ink' },
+  sponsorship_accepted_by_other: { icon: Handshake, badge: 'bg-ink text-on-ink' },
+  sponsorship_closed:            { icon: Handshake, badge: 'bg-people text-white' },
+  sponsorship_rejected:          { icon: Handshake, badge: 'bg-ink-muted text-white' },
 };
 
 // "Hace cuánto": el timeAgo compartido (lib/format.ts). Antes había una copia acá con `new Date(fecha)`, que

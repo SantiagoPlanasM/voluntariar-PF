@@ -8,6 +8,7 @@ import { CalendarClock, Loader2 } from 'lucide-react';
 import { api, EnrollmentWithVolunteer, Interview, InterviewInput } from '../../lib/api';
 import { formatDateOnly, userMessage } from '../../lib/format';
 import { useConfirm } from '../ui/UiProvider';
+import { googleCalendarUrl, icsHref, interviewEvent, toIcs } from '../../lib/calendar';
 
 /** true si la fecha y hora (de Argentina, UTC-3) ya pasaron. */
 export const interviewPassed = (iv: Interview) => Date.parse(`${iv.date}T${iv.time}:00-03:00`) <= Date.now();
@@ -28,6 +29,8 @@ export function InterviewPanel({ enrollment, onChange }: {
   const [error, setError] = useState('');
   const iv = enrollment.interview;
   const scheduled = iv?.status === 'scheduled' ? iv : null;
+  // §271: la entrevista en el calendario de la ONG, con el nombre de quien se postuló.
+  const calendarEvent = scheduled && { ...interviewEvent(scheduled, '', ''), title: `Entrevista con ${enrollment.volunteer_name}` };
 
   if (enrollment.status !== 'pending' && iv?.status !== 'done') return null;
 
@@ -86,6 +89,12 @@ export function InterviewPanel({ enrollment, onChange }: {
               className="text-xs text-brand-text underline break-all">{scheduled.link}</a>
           )}
           {scheduled.note && <p className="text-xs text-ink-muted italic">{scheduled.note}</p>}
+          {calendarEvent && (
+            <p className="text-xs flex flex-wrap gap-x-3">
+              <a href={googleCalendarUrl(calendarEvent)} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-text underline">Agregar a Google Calendar</a>
+              <a href={icsHref(toIcs(calendarEvent, scheduled.id))} download="entrevista.ics" className="font-semibold text-brand-text underline">Descargar .ics</a>
+            </p>
+          )}
           <div className="flex flex-wrap gap-2 mt-1">
             <button type="button" disabled={busy} onClick={() => setForm({ ...EMPTY, date: scheduled.date, time: scheduled.time,
               link: scheduled.link ?? '', place: scheduled.place ?? '', note: scheduled.note ?? '' })}

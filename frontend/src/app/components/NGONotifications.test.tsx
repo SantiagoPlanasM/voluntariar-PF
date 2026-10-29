@@ -75,4 +75,6 @@ test('un mensaje del acuerdo lleva al acuerdo, en el panel de la ONG', async () 
   render(<MemoryRouter><NotificationsScreen inPanel /></MemoryRouter>);
   const link = (await screen.findByText('Mensaje sobre "Lago"')).closest('a');
   expect(link).toHaveAttribute('href', '/ngo/patrocinios/e1/p1');
+  // §271: ícono propio (apretón de manos), no la campana genérica
+  expect(link!.querySelector('.lucide-handshake')).not.toBeNull();
 });
