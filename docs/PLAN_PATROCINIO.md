@@ -16,15 +16,15 @@
 1. El patrocinio pasa a ser un **acuerdo que se negocia**: la empresa y la ONG cargan **puntos** (a la izquierda lo
    que aporta la empresa; a la derecha lo que pide u ofrece la ONG), los editan antes de aceptar y **se hablan dentro
    del acuerdo** (no por el chat 1 a 1).
-2. **Sin montos en público.** Al cerrarse se muestra "Patrocinado por X"; los puntos quedan entre las partes.
-   *(Interpretación de "sin monto": a confirmar si además el tipo "dinero" no lleva monto ni siquiera en privado.)*
+2. **El dinero entra, pero no se ve en público.** Un punto de tipo `dinero` lleva monto (en pesos), visible solo para
+   la empresa y la ONG del acuerdo. Al cerrarse, en público se muestra solo "Patrocinado por X": ni puntos ni montos.
 3. **Pagar el patrocinio por Mercado Pago:** no, por ahora.
-4. **Entrevistas:** después del patrocinio (agendar ante una postulación pendiente, con la tabla `reuniones`).
+4. **Entrevistas:** después del patrocinio, en `PLAN_ENTREVISTAS.md`.
 5. **Plazo:** puede ir después de la defensa (5/11). Elección de cómo seguir: a criterio de Claude (ver "Orden").
 
 ## Reglas del acuerdo
 - **Puntos:** cada uno tiene `lado` (`empresa` u `ong`), `tipo` (`dinero`, `insumos`, `voluntarios`, `difusion`,
-  `otro`) y `detalle` (texto de hasta 300). Cada parte **edita solo su lado**; para pedirle un cambio a la otra se usa
+  `otro`), `detalle` (texto de hasta 300) y, solo si es `dinero`, `monto` (obligatorio, > 0; en otro tipo, 400). Cada parte **edita solo su lado**; para pedirle un cambio a la otra se usa
   la charla (así queda claro quién propuso qué).
 - **Mientras está en `propuesto`** se pueden agregar, editar y borrar puntos y escribir en la charla. Con el acuerdo
   `aceptado` o `rechazado`, nada se edita (409), y la charla queda de solo lectura.
@@ -46,7 +46,7 @@
 - `empresa_voluntariados`: `version INTEGER NOT NULL DEFAULT 1`, `acepta_empresa_version INTEGER`,
   `acepta_ong_version INTEGER`.
 - `patrocinio_puntos`: `id` (UUID de `crypto.randomUUID()`), `empresa_id`, `project_id` (FK compuesta a
-  `empresa_voluntariados`, `ON DELETE CASCADE`), `lado`, `tipo`, `detalle`, `autor_id` (FK `users`, `SET NULL`),
+  `empresa_voluntariados`, `ON DELETE CASCADE`), `lado`, `tipo`, `detalle`, `monto` (REAL, nulo salvo en `dinero`), `autor_id` (FK `users`, `SET NULL`),
   `created_at`, `updated_at`.
 - `patrocinio_mensajes`: `id`, `empresa_id`, `project_id` (misma FK), `autor_id`, `cuerpo` (hasta 1000),
   `created_at`. Orden por `created_at, id`.
