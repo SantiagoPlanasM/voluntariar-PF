@@ -14,6 +14,7 @@ import { PasswordInput } from '../ui/PasswordInput';
 const NETWORK_ERROR = 'No pudimos conectarnos. Revisá tu conexión y probá de nuevo.';
 const btn = 'h-11 px-4 rounded-[10px] text-[15px] font-semibold inline-flex items-center justify-center disabled:opacity-40';
 const field = 'w-full h-11 px-3 rounded-[10px] bg-surface-soft border border-hairline text-[15px] focus:outline-none focus:ring-2 focus:ring-blue-500';
+const lbl = 'text-xs font-semibold text-ink-soft -mb-2';   // etiqueta visible arriba de cada campo (§277), como en el login
 
 export function ResetPasswordPage() {
   const { openAuthModal } = useAuth();
@@ -64,9 +65,11 @@ export function ResetPasswordPage() {
     </>);
   } else {
     content = card(<KeyRound className="w-10 h-10 text-ink" aria-hidden="true" />, 'Elegí una contraseña nueva', <>
-      <PasswordInput aria-label="Contraseña nueva" toggleLabel="Mostrar contraseña nueva" autoComplete="new-password" maxLength={72}
+      <label htmlFor="reset-next" className={lbl}>Contraseña nueva</label>
+      <PasswordInput id="reset-next" toggleLabel="Mostrar contraseña nueva" autoComplete="new-password" maxLength={72}
         value={form.next} onChange={e => setForm(f => ({ ...f, next: e.target.value }))} className={field} />
-      <PasswordInput aria-label="Repetí la contraseña nueva" toggleLabel="Mostrar la repetición de la contraseña nueva" autoComplete="new-password" maxLength={72}
+      <label htmlFor="reset-repeat" className={lbl}>Repetí la contraseña nueva</label>
+      <PasswordInput id="reset-repeat" toggleLabel="Mostrar la repetición de la contraseña nueva" autoComplete="new-password" maxLength={72}
         value={form.repeat} onChange={e => setForm(f => ({ ...f, repeat: e.target.value }))} className={field} />
       <p className="text-[13px] text-ink-muted">Mínimo 8 caracteres, con una mayúscula y un número.</p>
       {error && <p role="alert" className="text-[13px] font-medium text-critical">{error}</p>}

@@ -54,6 +54,17 @@ describe('Configuración: cambiar la contraseña', () => {
     expect(screen.getByLabelText('Contraseña nueva')).toHaveAttribute('autocomplete', 'new-password');
   });
 
+  // §277: visto en producción, los tres campos eran iguales y vacíos (el nombre era solo un aria-label, que no se ve).
+  test('cada campo tiene su etiqueta visible', () => {
+    abrir();
+    for (const texto of ['Contraseña actual', 'Contraseña nueva', 'Repetí la contraseña nueva']) {
+      const input = screen.getByLabelText(texto) as HTMLInputElement;
+      expect(input.labels?.length).toBe(1);
+      expect(input.labels?.[0]).toHaveTextContent(texto);
+      expect(input).not.toHaveAttribute('aria-label');
+    }
+  });
+
   // §274: cada campo tiene su botón para mostrar lo escrito, con un nombre propio (son tres en la misma pantalla).
   test('cada campo se puede mostrar y volver a ocultar por separado', () => {
     abrir();
