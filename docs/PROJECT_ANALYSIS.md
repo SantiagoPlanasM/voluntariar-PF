@@ -31,6 +31,7 @@
 | §263 | Patrocinio como acuerdo, etapa 1: puntos de cada parte y versión (`routes/patrocinios.js`) |
 | §264 | Patrocinio como acuerdo, etapa 2: aceptación de las dos partes por versión, rechazar y la charla |
 | §265 | Patrocinio como acuerdo, etapa 3: la pantalla del acuerdo (`SponsorshipAgreementScreen`) |
+| §266 | Patrocinio como acuerdo, etapa 4: "Patrocinado por" en público, y el despliegue de §263–§266 |
 
 
 ## 1. Fortalezas
@@ -7644,3 +7645,28 @@ Sigue a §264 (sin desplegar).
 - **La pantalla real** (las dos columnas, una sola en el celular, el formulario en línea, la charla): solo jsdom.
 - **La charla no se actualiza sola:** el mensaje de la otra parte aparece al recargar o al hacer un cambio (no hay sondeo ni sockets). Llega el aviso en la app.
 - **Sin desplegar.**
+
+## 266. Patrocinio como acuerdo negociado, etapa 4: "Patrocinado por" en público
+
+Cierra `docs/PLAN_PATROCINIO.md`. El usuario pidió desplegar §263–§266 juntos.
+
+### Qué se hizo
+- **Backend:** `GET /api/projects/:id` suma `sponsors` (`id`, `name`, `logo`) y `GET /api/empresas/:id` suma `sponsored_projects` (`id`, `title`, `image`, `ngo_name`). Los dos traen solo los acuerdos **aceptados** y columnas elegidas (regla 8): ni puntos ni montos.
+- **Frontend:** "Patrocinado por" en el detalle del voluntariado, con el logo y el nombre de cada empresa, que llevan a su perfil. La pestaña Patrocinios del perfil público de la empresa lista los voluntariados que patrocina; antes decía "próximamente". Tipos en `api.ts`.
+- **Docs:** `API_CONTEXT`, `FRONTEND_CONTEXT`, el plan (cerrado), el índice y `CLAUDE.md` (969/971, 1053).
+
+### Verificación
+- **Backend, `patrocinio-publico.test.js` (3 tests, rojo antes: los campos no existían):**
+  - aceptado y sin sesión: la empresa con exactamente `id`, `name` y `logo`, y el monto (`123456`) **no aparece en la respuesta cruda**;
+  - pendiente, rechazado o sin propuesta: `sponsors` vacío;
+  - el perfil lista el aceptado y no el pendiente, con exactamente sus cuatro campos y sin el monto.
+- **Frontend, `PatrocinioPublico.test.tsx` (4 tests, 3 en rojo antes):** los enlaces del detalle, que no aparece sin patrocinadores, la lista del perfil y el vacío.
+- **Mutación (a mano, 7 mutantes en las dos rutas y las dos pantallas):** **7 muertos, 0 sobrevivientes**. Corrida de control: verde.
+- **Suites completas:** backend `npm test` **969/969**, con TZ de Córdoba **969/969**, `npm run test:pg` **971/971**; frontend **1053/1053**, `npm run typecheck` 0 errores.
+
+### Errores propios
+- **En el test puse "TechCorp Argentina"**; en el seed la empresa se llama "TechCorp". Era del test.
+
+### ⚠️ NO verificado
+- **La interfaz real** del bloque "Patrocinado por" y de la lista del perfil.
+- **El despliegue de §263–§266:** se verifica después del push (CI, Deploy, `/health` y la migración de producción, que les pone la aceptación de la empresa a las propuestas pendientes).

@@ -191,6 +191,7 @@
 - **Errores:** `401` sin token, `403` si el rol no es `volunteer`.
 
 ### `GET /api/projects/:id` — Auth opcional
+- **Desde §266 suma `sponsors: [{ id, name, logo }]`:** las empresas con el acuerdo de patrocinio **aceptado**, por nombre. Pendientes y rechazados no aparecen; los puntos y montos del acuerdo nunca salen acá.
 - **Respuesta 200:** `{ project }` con roles, requisitos, categoría, `comments` (todos, del más nuevo al más viejo), `ratings`, `kpis`, rating promedio, (si hay sesión) `my_enrollment`, y **`can_manage: boolean`**: `true` solo si quien pide es la ONG dueña (consulta aparte a `ngos`, sin exponer el `user_id` de la ONG). Lo usa `ProjectDetails` para mostrar "Ver en panel ONG" (`PROJECT_ANALYSIS.md §73`). **`accepts_donations: boolean`** (§217): `true` solo si la ONG tiene su cuenta de Mercado Pago vinculada y activa (`sellerAccounts.acceptsDonations`); el botón "Donar" depende de esto. Solo lo trae este endpoint, no los listados.
 - **Reseñas (`ratings`):** `{ id, project_id, user_id, rating, comment, created_at, user_name, user_avatar }` (`RATINGS_SELECT`, el mismo que el feed). `user_avatar` es la foto de quien calificó, o `null` (`PROJECT_ANALYSIS.md §133`). Vienen ordenadas `r.created_at DESC, r.id`: de la más nueva a la más vieja, con desempate fijo (§122).
 - **`my_enrollment`** (`null` sin sesión o sin inscripción) sale con los **nombres de columna crudos**: `{ id, user_id, project_id, status, mensaje, horas_realizadas, created_at, updated_at }` (no `message`/`hours_logged` como en `/api/enrollments/*`). El frontend solo lee `status`.
@@ -363,6 +364,7 @@ Una entrevista es una fila de `reuniones` atada a una postulación (`enrollment_
 - **Errores:** `403` si el rol no es `company`, `404` si no tiene perfil de empresa (no debería pasar en la práctica — se crea en el registro).
 
 ### `GET /api/empresas/:id` — Público
+- **Desde §266 suma `empresa.sponsored_projects: [{ id, title, image, ngo_name }]`:** los voluntariados con el acuerdo aceptado, el más reciente primero. Sin puntos ni montos.
 - Perfil público de una empresa por id. Columnas seleccionadas explícitamente (no `SELECT *`), por si en el futuro se agregan columnas sensibles a `empresas`.
 - **Errores:** `404` si no existe.
 

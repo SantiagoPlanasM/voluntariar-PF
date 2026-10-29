@@ -38,7 +38,7 @@ describen el estado actual (cada uno lo dice en su primera línea).
 
 | Documento | Para qué |
 |---|---|
-| [`PLAN_PATROCINIO.md`](PLAN_PATROCINIO.md) | El patrocinio como acuerdo negociado (puntos de cada parte, charla, aceptación por versión); etapas 1 a 3 hechas (§263–§265) |
+| [`PLAN_PATROCINIO.md`](PLAN_PATROCINIO.md) | El patrocinio como acuerdo negociado (puntos de cada parte, charla, aceptación por versión); hecho (§263–§266) |
 | [`PLAN_ENTREVISTAS.md`](PLAN_ENTREVISTAS.md) | Entrevistas que la ONG agenda ante una postulación pendiente (tabla `reuniones`); hecho (§261–§262) |
 
 ## Vigentes: TP de Calidad ([`calidad/`](calidad/))
