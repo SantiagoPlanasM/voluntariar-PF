@@ -28,6 +28,7 @@
 | §260 | Decisiones del usuario: lugar obligatorio en un presencial, umbral de `email-redos` a 1500 ms, la falla del runner se investiga solo si se repite |
 | §261 | Entrevistas, backend: la ONG agenda, reprograma, cancela o marca realizada una entrevista ante una postulación pendiente |
 | §262 | Entrevistas, pantallas: panel de la ONG (`InterviewPanel`) y chip "Entrevista" en Mis voluntariados |
+| §263 | Patrocinio como acuerdo, etapa 1: puntos de cada parte y versión (`routes/patrocinios.js`) |
 
 
 ## 1. Fortalezas
@@ -7543,3 +7544,32 @@ Sigue a §261 (backend). Decisión del usuario: desplegar backend y pantallas ju
 ### ⚠️ NO verificado
 - **La interfaz real** (el formulario en línea, el chip, el link en el celular): solo jsdom.
 - **Los selectores nativos de fecha y hora** (`type="date"`/`"time"`): varían por navegador; el test les escribe el valor directo.
+
+## 263. Patrocinio como acuerdo negociado, etapa 1: puntos y versión
+
+Plan: `docs/PLAN_PATROCINIO.md` (decisiones del usuario del 2026-10-29). §261–§262 (entrevistas) quedaron desplegadas: CI y Deploy en verde a la primera, `/health` en `09d9a78`, la ruta nueva responde 401 sin sesión y el bundle trae "Agendar entrevista".
+
+### Qué se hizo
+- **Esquema:** `empresa_voluntariados` suma `version`, `acepta_empresa_version` y `acepta_ong_version`. Tabla nueva `patrocinio_puntos` (35 tablas), con FK compuesta a la propuesta (`ON DELETE CASCADE`), `CHECK` de lado, tipo y monto, más un índice. Se crea en la parte aditiva de `migrate.js`, porque depende de las columnas de arriba.
+- **`routes/patrocinios.js`** (nuevo, `/api/patrocinios`): `GET` del acuerdo y alta, edición y baja de puntos. Solo las dos partes; cada una toca su lado; solo con el acuerdo `propuesto`. Cada cambio sube la versión **en la misma transacción**, con un `UPDATE … AND estado = 'propuesto'` que hace de chequeo de "cerrado" y de bloqueo. El monto va solo en `money` y no es público. Campos en inglés; el `status` mantiene los valores en español que ya usa la API de patrocinios (no se cambió para no romperla).
+- **Tipos:** `SponsorshipAgreement` y `SponsorshipPoint` en `api.ts` (regla 6). Sin pantallas todavía.
+- **Docs:** `API_CONTEXT`, `DATABASE_CONTEXT` (35 tablas, 22 con entidad propia), `README.md` (decía 34), el plan, el índice de `docs/` y `CLAUDE.md` (958/960).
+
+### Verificación
+- **`test/integration/patrocinio-acuerdo.test.js`, 7 tests**, escritos antes y vistos en rojo (404: la ruta no existía). Cubren: quién lo ve (empresa, ONG; otra ONG, un voluntario y un acuerdo inexistente 404; sin sesión 401), alta de cada lado con su versión, las 9 validaciones con su mensaje literal (sin subir la versión), editar y borrar solo lo propio, pasar de dinero a otro tipo, acuerdo aceptado o rechazado (409 en los tres cambios), el tope de 20 por lado y **dos cambios a la vez** (los dos entran y la versión sube dos veces).
+- **Suites completas** (una detrás de otra): `npm test` **958/958**, con TZ de Córdoba **958/958**, `npm run test:pg` **960/960**; 0 fallidos y 0 cancelados. Después del arreglo de abajo: el archivo con TZ de Córdoba 7/7, SQLite 958/958 y Postgres 960/960.
+- **Mutación (a mano, `patrocinios.js`):** 15 mutantes. En la primera corrida sobrevivieron 3:
+  - **el monto como texto** (`typeof` quitado): **equivalente**, porque `Number.isFinite('500')` ya es `false`;
+  - **sacar el chequeo de cerrado de la transacción**: lo tapaba un chequeo previo duplicado. Se sacó el duplicado y quedó uno solo, el de la transacción, que también cubre un cierre en el medio del pedido;
+  - **no borrar el monto al pasar a otro tipo**: faltaba el test; se agregó.
+
+  En la segunda corrida, **14 muertos y 1 sobreviviente (el equivalente)**. Corrida de control: verde.
+- **Frontend:** `npm run typecheck` 0 errores con los tipos nuevos.
+
+### Errores propios
+- **El primer código chequeaba "cerrado" dos veces** (antes y dentro de la transacción). Lo mostró la mutación: el segundo chequeo era el que importaba y los tests no lo veían.
+
+### ⚠️ NO verificado
+- **Sin pantallas ni avisos:** etapas 2 y 3.
+- **Sin desplegar:** los commits están locales.
+- **El bloqueo de la fila con dos cambios a la vez**, que solo existe en Postgres: el test lo cubre, pero con dos pedidos y en local.

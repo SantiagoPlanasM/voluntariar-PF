@@ -401,6 +401,24 @@ Una entrevista es una fila de `reuniones` atada a una postulación (`enrollment_
 
 ---
 
+## Acuerdo de patrocinio (§263, `docs/PLAN_PATROCINIO.md`) — `routes/patrocinios.js`
+Etapa 1: la propuesta de siempre (`empresa_voluntariados`, abajo) suma **puntos** de cada parte y una **versión**. La aceptación por versión y la charla son la etapa 2; hoy la ONG sigue cerrando el acuerdo con el `PATCH` de abajo.
+- Lo ven y lo tocan **solo las dos partes** (la empresa de la propuesta y la ONG dueña del proyecto); cualquier otro usuario, o un acuerdo que no existe: **404** "Acuerdo no encontrado" (no se revela que existe). Sin sesión: 401.
+- `agreement = { company_id, project_id, company_name, ngo_name, project_title, status, version, message, my_side, points[] }`; `status` con los valores de siempre (`propuesto`/`aceptado`/`rechazado`); `my_side` `company` o `ngo`; `points[] = { id, side, type, detail, amount, created_at, updated_at }`, primero los de la empresa. `type`: `money`, `supplies`, `volunteers`, `outreach`, `other` (en la base: `dinero`, `insumos`, `voluntarios`, `difusion`, `otro`). **`amount`** solo en `money` (número > 0, hasta 1.000.000.000): privado de las partes, no sale en ningún endpoint público.
+
+### `GET /api/patrocinios/:empresaId/:projectId` — Auth, una de las partes
+- **200:** `{ agreement }`.
+
+### `POST /api/patrocinios/:empresaId/:projectId/puntos` — Auth, una de las partes
+- **Body:** `{ type, detail, amount? }`, siempre del lado de quien lo manda. 400 (literales): "Tipo de punto inválido", "El detalle es obligatorio", "El detalle no puede estar vacío", "El detalle puede tener hasta 300 caracteres", "Un punto de dinero necesita un monto mayor a 0", "El monto puede ser hasta 1.000.000.000", "Solo un punto de dinero lleva monto". **409** "Hasta 20 puntos por lado".
+- **201:** `{ agreement }` (completo, con la versión nueva).
+
+### `PATCH` / `DELETE /api/patrocinios/:empresaId/:projectId/puntos/:puntoId` — Auth, la parte dueña del punto
+- Un punto del otro lado o que no existe: **404** "Punto no encontrado". `PATCH` es parcial (`type`, `detail`, `amount`) y valida el resultado combinado; pasar de `money` a otro tipo sin mandar `amount` borra el monto.
+- **200:** `{ agreement }`.
+
+**Reglas de los tres cambios:** solo con el acuerdo `propuesto` (si no, **409** "El acuerdo ya está cerrado: no se puede cambiar"). Dentro de `db.transaction`, primero `UPDATE … SET version = version + 1 … AND estado = 'propuesto'` (si no cambia nada, 409: cubre también un acuerdo que se cierra en el medio) y después el cambio del punto. En Postgres ese `UPDATE` bloquea la fila: dos cambios a la vez se ordenan y la versión sube dos veces. Sin avisos todavía (etapa 2).
+
 ## Patrocinio (Empresa ↔ Proyecto) — `routes/empresas.js` + `routes/ngos.js`
 
 > Agregado 2026-09 (roadmap punto 5). Usa `empresa_voluntariados`, que existía sin API — ahora con columnas `estado` (`propuesto`/`aceptado`/`rechazado`), `mensaje` y `updated_at` agregadas vía `ALTER TABLE` en `scripts/migrate.js`.

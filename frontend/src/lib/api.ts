@@ -384,6 +384,16 @@ export interface AskFaqResponse {
   alternatives?: Faq[];
   suggestions?: { id: string; pregunta: string }[];
 }
+/** GET /api/patrocinios/:empresaId/:projectId (§263): el acuerdo, solo para las dos partes. `amount` solo en `money`. */
+export interface SponsorshipPoint {
+  id: string; side: 'company' | 'ngo'; type: 'money' | 'supplies' | 'volunteers' | 'outreach' | 'other';
+  detail: string; amount: number | null; created_at: string; updated_at: string;
+}
+export interface SponsorshipAgreement {
+  company_id: string; project_id: string; company_name: string; ngo_name: string; project_title: string;
+  status: 'propuesto' | 'aceptado' | 'rechazado'; version: number; message: string | null;
+  my_side: 'company' | 'ngo'; points: SponsorshipPoint[];
+}
 export interface Patrocinio {
   empresa_id: string; project_id: string;
   estado: 'propuesto' | 'aceptado' | 'rechazado';

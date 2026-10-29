@@ -104,7 +104,7 @@ El adaptador de `backend/src/db/index.js` cambia según `USE_POSTGRES` y traduce
                ▼
 ┌──────────────────────────────────────┐
 │ SQLite (local) · PostgreSQL (prod)   │
-│ 34 tablas                            │
+│ 35 tablas                            │
 └──────────────────────────────────────┘
 ```
 
@@ -165,7 +165,7 @@ cd backend
 npm install
 
 cp .env.example .env       # sirve como está para desarrollo
-npm run db:reset           # 34 tablas + datos base + usuarios y proyectos de prueba
+npm run db:reset           # 35 tablas + datos base + usuarios y proyectos de prueba
 npm run dev                # → API en http://localhost:3001
 ```
 
@@ -314,7 +314,7 @@ Cada ruta, con su autenticación, cuerpo, respuestas y errores, está en [`docs/
 
 ## Base de datos
 
-**34 tablas**, creadas por `scripts/migrate.js`, que también agrega columnas e índices y actualiza los datos base sin
+**35 tablas**, creadas por `scripts/migrate.js`, que también agrega columnas e índices y actualiza los datos base sin
 borrar nada. Detalle de cada tabla y columna: [`docs/DATABASE_CONTEXT.md`](docs/DATABASE_CONTEXT.md).
 
 | Grupo | Tablas |
