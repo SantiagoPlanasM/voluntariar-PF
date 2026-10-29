@@ -136,6 +136,8 @@ describe('Acuerdo de patrocinio: puntos', () => {
       const pid = (await call(`${url}/puntos`, { token: company, method: 'POST', body: { type: 'supplies', detail: 'Guantes' } }))
         .body.agreement.points[0].id;
       assert.equal((await call(`/api/ngos/me/patrocinios/${empresaId}/${projectId}`, { token: ngo1, method: 'PATCH', body: { estado } })).status, 200);
+      // Desde §264, después de un cambio de puntos la empresa también tiene que aceptar la versión vigente (la 2).
+      if (estado === 'aceptado') assert.equal((await call(`${url}/aceptar`, { token: company, method: 'POST', body: { version: 2 } })).body.agreement?.status, 'aceptado');
       const msg = 'El acuerdo ya está cerrado: no se puede cambiar';
       const add = await call(`${url}/puntos`, { token: company, method: 'POST', body: { type: 'supplies', detail: 'Bolsas' } });
       assert.deepEqual([add.status, add.body.error], [409, msg]);

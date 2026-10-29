@@ -503,6 +503,20 @@ async function migrate() {
       updated_at  ${NOW},
       FOREIGN KEY (empresa_id, project_id) REFERENCES empresa_voluntariados(empresa_id, project_id) ON DELETE CASCADE
     )`);
+  // Etapa 2 (§264): la charla del acuerdo, y proponer cuenta como que la empresa acepta la versión vigente. Las
+  // propuestas pendientes de antes de §264 no tienen esa aceptación: se les pone (solo una vez: después ya no es NULL).
+  await db.query(`CREATE TABLE IF NOT EXISTS patrocinio_mensajes (
+      id          ${UUID_PK},
+      empresa_id  TEXT NOT NULL,
+      project_id  TEXT NOT NULL,
+      lado        TEXT NOT NULL CHECK(lado IN ('empresa','ong')),
+      autor_id    TEXT REFERENCES users(id) ON DELETE SET NULL,
+      cuerpo      TEXT NOT NULL,
+      created_at  ${NOW},
+      FOREIGN KEY (empresa_id, project_id) REFERENCES empresa_voluntariados(empresa_id, project_id) ON DELETE CASCADE
+    )`);
+  await db.query(`UPDATE empresa_voluntariados SET acepta_empresa_version = version
+                  WHERE estado = 'propuesto' AND acepta_empresa_version IS NULL`);
 
   // ── Índices ───────────────────────────────────────────────────────────────
   console.log('\n🔍 Creando índices...');
@@ -546,6 +560,7 @@ async function migrate() {
     // Patrocinios (Empresa × Proyecto)
     `CREATE INDEX IF NOT EXISTS idx_empresa_vol_estado ON empresa_voluntariados(estado)`,
     `CREATE INDEX IF NOT EXISTS idx_patrocinio_puntos_acuerdo ON patrocinio_puntos(empresa_id, project_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_patrocinio_mensajes_acuerdo ON patrocinio_mensajes(empresa_id, project_id)`,
     // Seguidores entre Voluntarios
     `CREATE INDEX IF NOT EXISTS idx_vol_follows_follower  ON volunteer_follows(follower_id)`,
     `CREATE INDEX IF NOT EXISTS idx_vol_follows_following ON volunteer_follows(following_id)`,

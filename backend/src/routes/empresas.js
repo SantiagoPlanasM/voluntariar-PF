@@ -274,7 +274,9 @@ router.post('/me/patrocinios', requireAuth, requireRole('company'), async (req, 
     const duplicate = () => res.status(409).json({ error: 'Ya existe una propuesta de patrocinio con este proyecto' });
     if (existing) {
       const { changes } = await db.run(
-        `UPDATE empresa_voluntariados SET estado='propuesto', mensaje=$1, updated_at=CURRENT_TIMESTAMP
+        // Versión nueva, aceptada por la empresa (proponer es aceptar) y no por la ONG (§264).
+        `UPDATE empresa_voluntariados SET estado='propuesto', mensaje=$1, updated_at=CURRENT_TIMESTAMP,
+                version = version + 1, acepta_empresa_version = version + 1, acepta_ong_version = NULL
          WHERE empresa_id=$2 AND project_id=$3 AND estado='rechazado'`,
         [mensaje || null, empresa.id, project_id]
       );
@@ -282,8 +284,8 @@ router.post('/me/patrocinios', requireAuth, requireRole('company'), async (req, 
     } else {
       try {
         await db.run(
-          `INSERT INTO empresa_voluntariados (empresa_id, project_id, estado, mensaje)
-           VALUES ($1,$2,'propuesto',$3)`,
+          `INSERT INTO empresa_voluntariados (empresa_id, project_id, estado, mensaje, acepta_empresa_version)
+           VALUES ($1,$2,'propuesto',$3,1)`, // proponer es aceptar la versión 1 (§264)
           [empresa.id, project_id, mensaje || null]
         );
       } catch (err) {

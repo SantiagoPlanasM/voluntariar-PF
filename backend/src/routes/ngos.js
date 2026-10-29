@@ -10,6 +10,7 @@ const { sponsorDecisionEmail } = require('../lib/emailTemplates');
 // Mismo formateador que /api/projects, para no devolver filas crudas
 // (titulo/foto_perfil/etc.) en el listado de proyectos de la propia ONG.
 const { fmt: fmtProject } = require('./projects');
+const { acceptVersion } = require('./patrocinios'); // aceptar por versión (§264)
 const { attachAssoc } = require('../lib/projectAssoc');
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
@@ -444,18 +445,36 @@ router.patch('/me/patrocinios/:empresaId/:projectId', requireAuth, requireRole('
     if (patrocinio.estado !== 'propuesto')
       return res.status(409).json({ error: 'Esta propuesta ya fue decidida' });
 
-    // Compare-and-swap: solo decide quien todavía la encuentra 'propuesto'. Dos
-    // decisiones simultáneas pasan el chequeo de arriba; la segunda queda en 0
-    // filas y responde 409, sin notificar ni mandar email (REVISION B16).
-    const { changes } = await db.run(
-      `UPDATE empresa_voluntariados SET estado=$1, updated_at=CURRENT_TIMESTAMP
-       WHERE empresa_id=$2 AND project_id=$3 AND estado='propuesto'`,
-      [estado, req.params.empresaId, req.params.projectId]
-    );
-    if (changes !== 1)
-      return res.status(409).json({ error: 'Esta propuesta ya fue decidida' });
-
     const ngoRow = await db.get('SELECT nombre FROM ngos WHERE id=$1', [ngo.id]);
+
+    if (estado === 'aceptado') {
+      // Desde §264, "aceptar" es aceptar la versión vigente del acuerdo: se cierra si la empresa también la aceptó
+      // (proponer cuenta como aceptar; si nadie cambió puntos, se cierra como siempre). Si no, queda esperando.
+      // acceptVersion es compare-and-swap: de dos aceptaciones simultáneas, una cierra y la otra ve el cierre (409).
+      const result = await acceptVersion(req.params.empresaId, req.params.projectId, 'ong', Number(patrocinio.version) || 1);
+      if (result === 'already_closed') return res.status(409).json({ error: 'Esta propuesta ya fue decidida' });
+      if (result === 'stale') return res.status(409).json({ error: 'El acuerdo cambió: revisalo de nuevo' });
+      if (result === 'accepted') {
+        await db.run(
+          `INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,'sponsorship_accepted_by_other',$2,$3,$4)`,
+          [patrocinio.empresa_user_id, `Acuerdo de "${patrocinio.titulo}"`,
+           `${ngoRow.nombre} aceptó esta versión. Falta que la aceptes vos.`,
+           JSON.stringify({ project_id: patrocinio.project_id, empresa_id: patrocinio.empresa_id })]
+        ).catch(() => {});
+        return res.json({ message: 'Aceptaste esta versión del acuerdo; falta que la empresa la acepte' });
+      }
+    } else {
+      // Compare-and-swap: solo decide quien todavía la encuentra 'propuesto'. Dos
+      // decisiones simultáneas pasan el chequeo de arriba; la segunda queda en 0
+      // filas y responde 409, sin notificar ni mandar email (REVISION B16).
+      const { changes } = await db.run(
+        `UPDATE empresa_voluntariados SET estado=$1, updated_at=CURRENT_TIMESTAMP
+         WHERE empresa_id=$2 AND project_id=$3 AND estado='propuesto'`,
+        [estado, req.params.empresaId, req.params.projectId]
+      );
+      if (changes !== 1)
+        return res.status(409).json({ error: 'Esta propuesta ya fue decidida' });
+    }
 
     await db.run(
       `INSERT INTO notifications (user_id, type, title, body, data)
