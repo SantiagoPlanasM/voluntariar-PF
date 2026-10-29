@@ -416,6 +416,16 @@ async function migrate() {
       expires_at  TEXT NOT NULL,
       created_at  ${NOW}
     )`,
+
+    // ── 32. Links de "¿Olvidaste tu contraseña?" (2026-10-29, PROJECT_ANALYSIS.md §275) ─────
+    // Igual que account_deletion_tokens: SOLO el hash (sha256) del código del email, vence en 1 hora (ISO calculado en
+    // JS) y sirve una vez. Un pedido nuevo borra los anteriores del mismo usuario.
+    `CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      token_hash  TEXT PRIMARY KEY,
+      user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at  TEXT NOT NULL,
+      created_at  ${NOW}
+    )`,
   ];
 
   // ── Crear tablas ──────────────────────────────────────────────────────────
@@ -571,6 +581,7 @@ async function migrate() {
     `CREATE INDEX IF NOT EXISTS idx_post_media_post       ON post_media(post_id)`,
     `CREATE INDEX IF NOT EXISTS idx_post_likes_user       ON post_likes(user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_account_deletion_user ON account_deletion_tokens(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_password_reset_user   ON password_reset_tokens(user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_mp_oauth_states_ngo   ON mp_oauth_states(ngo_id)`,
   ];
 

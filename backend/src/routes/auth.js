@@ -10,7 +10,7 @@ const { createLimiter } = require('../lib/rateLimit');
 const multer = require('multer');
 const storage = require('../lib/storage');   // por propiedad (storage.uploadImage), para poder reemplazarlo en tests
 const email = require('../lib/email');       // por propiedad (email.sendEmail), ídem
-const { accountDeletionEmail } = require('../lib/emailTemplates');
+const { accountDeletionEmail, passwordResetEmail } = require('../lib/emailTemplates');
 const { forLog } = require('../lib/logSafe');   // S5145 (§202)
 
 const router = express.Router();
@@ -501,6 +501,98 @@ router.post('/delete-account', async (req, res) => {
   } catch (err) {
     console.error('POST /auth/delete-account error:', err);
     res.status(500).json({ error: 'No pudimos borrar la cuenta. Probá de nuevo.' });
+  }
+});
+
+// ── "¿Olvidaste tu contraseña?" (PROJECT_ANALYSIS.md §275) ───────────────────────────────────────────────────
+// 1) POST /forgot-password { email } (sin sesión): NO revela si el email tiene cuenta. La respuesta es siempre
+//    { sent: true }, y el código y el email se hacen DESPUÉS de responder (así tampoco se nota por el tiempo ni por un
+//    envío que falla). El único error que no depende del email es 503 sin Resend, igual para todos. Límites: 3 por email
+//    por hora (cuenta exista o no la cuenta: si no, el 429 diría cuáles existen) y 20 por IP por hora.
+// 2) POST /reset-password { token, new_password } (sin sesión): las reglas del registro se validan ANTES de gastar el
+//    código; el código se consume con compare-and-swap (DELETE … y mirar `changes`) en la misma transacción que fija la
+//    contraseña, así dos pedidos a la vez con el mismo link la cambian una sola vez. No inicia sesión.
+// Límite conocido (como en PUT /me/password): los JWT ya emitidos siguen valiendo hasta que vencen.
+const RESET_TTL_MS = 60 * 60 * 1000;
+const RESETS_PER_EMAIL = createLimiter({ max: 3, windowMs: 60 * 60 * 1000 });
+const RESETS_PER_IP    = createLimiter({ max: 20, windowMs: 60 * 60 * 1000 });
+const INVALID_RESET_LINK = 'El link no es válido o ya se usó. Pedí uno nuevo desde "¿Olvidaste tu contraseña?".';
+
+async function sendResetLink(normEmail) {
+  const user = await db.get('SELECT id, name, email FROM users WHERE email=$1', [normEmail]);
+  if (!user) return;
+  const token = randomBytes(32).toString('base64url');
+  const tokenHash = sha256(token);
+  await db.transaction(async (tx) => {
+    await tx.run('DELETE FROM password_reset_tokens WHERE user_id=$1', [user.id]);   // un pedido nuevo invalida el anterior
+    await tx.run('INSERT INTO password_reset_tokens (token_hash, user_id, expires_at) VALUES ($1,$2,$3)',
+      [tokenHash, user.id, new Date(Date.now() + RESET_TTL_MS).toISOString()]);
+  });
+  // El email va DESPUÉS del COMMIT (regla 21). Si no sale, el link no sirve: se descarta.
+  const { subject, html } = passwordResetEmail({ name: user.name, link: `${appUrl()}/restablecer?token=${token}` });
+  const result = await email.sendEmail({ to: user.email, subject, html });
+  if (!result?.ok) {
+    await db.run('DELETE FROM password_reset_tokens WHERE token_hash=$1', [tokenHash]);
+    console.error('POST /auth/forgot-password: no se pudo mandar el email', forLog(result?.error || ''));
+  }
+}
+
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const raw = req.body?.email;
+    if (validateEmail(raw)) return res.status(400).json({ error: 'Email inválido' });
+    if (!email.isConfigured()) {
+      return res.status(503).json({ error: 'No podemos mandar emails por el momento, así que no se puede recuperar la contraseña.' });
+    }
+    const normEmail = raw.trim().toLowerCase();
+    const waitIp = RESETS_PER_IP.blocked(req.ip);
+    if (waitIp) return tooMany(res, waitIp);
+    const waitEmail = RESETS_PER_EMAIL.blocked(normEmail);
+    if (waitEmail) {
+      res.set('Retry-After', String(waitEmail));
+      return res.status(429).json({ error: 'Pediste recuperar la contraseña muchas veces seguidas. Esperá un rato.' });
+    }
+    RESETS_PER_IP.hit(req.ip);
+    RESETS_PER_EMAIL.hit(normEmail);
+
+    res.json({ sent: true });
+    sendResetLink(normEmail).catch((err) => console.error('POST /auth/forgot-password error:', err));
+  } catch (err) {
+    console.error('POST /auth/forgot-password error:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, new_password } = req.body || {};
+    // base64url de 32 bytes = 43 caracteres. Cualquier otra cosa ni se busca.
+    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) return res.status(400).json({ error: INVALID_RESET_LINK });
+    const passErr = validatePassword(new_password);
+    if (passErr) return res.status(400).json({ error: passErr });
+
+    const tokenHash = sha256(token);
+    const row = await db.get('SELECT user_id, expires_at FROM password_reset_tokens WHERE token_hash=$1', [tokenHash]);
+    if (!row) return res.status(400).json({ error: INVALID_RESET_LINK });
+    if (!(Date.parse(row.expires_at) > Date.now())) {
+      await db.run('DELETE FROM password_reset_tokens WHERE token_hash=$1', [tokenHash]);
+      return res.status(400).json({ error: 'El link venció. Pedí uno nuevo desde "¿Olvidaste tu contraseña?".' });
+    }
+
+    const hashed = await bcrypt.hash(new_password, 10);
+    let used = false;
+    await db.transaction(async (tx) => {
+      const del = await tx.run('DELETE FROM password_reset_tokens WHERE token_hash=$1', [tokenHash]);
+      if (del.changes !== 1) return;   // otro pedido con el mismo link llegó primero
+      await tx.run('UPDATE users SET password=$1 WHERE id=$2', [hashed, row.user_id]);
+      await tx.run('DELETE FROM password_reset_tokens WHERE user_id=$1', [row.user_id]);
+      used = true;
+    });
+    if (!used) return res.status(400).json({ error: INVALID_RESET_LINK });
+    res.json({ message: 'Contraseña actualizada' });
+  } catch (err) {
+    console.error('POST /auth/reset-password error:', err);
+    res.status(500).json({ error: 'No pudimos cambiar la contraseña. Probá de nuevo.' });
   }
 });
 

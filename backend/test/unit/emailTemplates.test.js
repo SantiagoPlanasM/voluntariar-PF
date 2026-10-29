@@ -2,7 +2,7 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  newEnrollmentEmail, enrollmentApprovedEmail, enrollmentRejectedEmail,
+  newEnrollmentEmail, enrollmentApprovedEmail, enrollmentRejectedEmail, passwordResetEmail,
 } = require('../../src/lib/emailTemplates');
 
 const ok = { ngoName: 'Sustentando', volunteerName: 'Juan Pérez', projectTitle: 'Reforestar el parque', projectId: 'proj-1', appUrl: 'http://localhost:5173' };
@@ -51,5 +51,25 @@ describe('enrollmentApprovedEmail / enrollmentRejectedEmail', () => {
     const malicious = { ...ok, volunteerName: '<script>x</script>' };
     assert.equal(enrollmentApprovedEmail(malicious).html.includes('<script>x</script>'), false);
     assert.equal(enrollmentRejectedEmail(malicious).html.includes('<script>x</script>'), false);
+  });
+});
+
+// §275: "¿Olvidaste tu contraseña?". El link va tal cual (lo arma el backend) y el nombre del usuario, escapado.
+describe('passwordResetEmail', () => {
+  const link = 'http://localhost:5173/restablecer?token=abc_DEF-123';
+
+  test('asunto sobre la contraseña, el botón con el link, el vencimiento y qué hacer si no lo pediste', () => {
+    const { subject, html } = passwordResetEmail({ name: 'Ana', link });
+    assert.match(subject, /contraseña/i);
+    assert.ok(html.includes(`href="${link}"`), 'el botón lleva el link');
+    assert.match(html, /1 hora/);
+    assert.match(html, /si no lo pediste/i);
+    assert.match(html, /Hola Ana/);
+  });
+
+  test('SEGURIDAD — escapa HTML malicioso en el nombre', () => {
+    const { html } = passwordResetEmail({ name: '<img src=x onerror=alert(1)>', link });
+    assert.equal(html.includes('<img src=x'), false);
+    assert.match(html, /&lt;img/);
   });
 });

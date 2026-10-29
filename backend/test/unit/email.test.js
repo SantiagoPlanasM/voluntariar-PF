@@ -188,6 +188,20 @@ describe('sendEmail()', () => {
     });
   });
 
+  // §275: lo usa "¿Olvidaste tu contraseña?" para responder 503 a todos por igual antes de buscar la cuenta.
+  describe('isConfigured()', () => {
+    test('sin RESEND_API_KEY: false', () => {
+      assert.equal(freshEmail().isConfigured(), false);
+    });
+    test('con RESEND_API_KEY: true, y se lee en cada llamada', () => {
+      const e = freshEmail();
+      process.env.RESEND_API_KEY = 're_test';
+      assert.equal(e.isConfigured(), true);
+      process.env.RESEND_API_KEY = '';
+      assert.equal(e.isConfigured(), false);
+    });
+  });
+
   describe('describeEmailConfig() (línea del log de arranque)', () => {
     test('sin API key', () => {
       assert.match(freshEmail().describeEmailConfig(), /desactivado.*RESEND_API_KEY/);

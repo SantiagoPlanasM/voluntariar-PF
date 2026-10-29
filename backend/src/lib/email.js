@@ -134,6 +134,12 @@ async function sendEmail({ to, subject, html }) {
   }
 }
 
+/** Si hay con qué mandar emails (RESEND_API_KEY). Lo usa "¿Olvidaste tu contraseña?" para responder 503 a todos por
+ * igual ANTES de buscar la cuenta, sin revelar si existe (§275). No dice si el envío va a salir bien. */
+function isConfigured() {
+  return Boolean(getConfig().apiKey);
+}
+
 /** Una línea para el log de arranque. Nunca incluye la API key. */
 function describeEmailConfig() {
   const { apiKey, from, redirectTo } = getConfig();
@@ -151,4 +157,4 @@ function describeEmailConfig() {
   return `Resend (${from})`;
 }
 
-module.exports = { sendEmail, describeEmailConfig, looksLikeEmail };
+module.exports = { sendEmail, isConfigured, describeEmailConfig, looksLikeEmail };

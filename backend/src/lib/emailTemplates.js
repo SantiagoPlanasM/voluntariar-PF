@@ -151,8 +151,24 @@ function accountDeletionEmail({ name, link }) {
   };
 }
 
+/** "¿Olvidaste tu contraseña?" (§275). El link vence en 1 hora y sirve una sola vez. */
+function passwordResetEmail({ name, link }) {
+  return {
+    subject: 'Elegí una contraseña nueva para VoluntariAR',
+    html: wrapper(
+      'Restablecer tu contraseña',
+      `<p>Hola ${esc(name) || ''},</p>
+       <p>Recibimos un pedido para <strong>cambiar la contraseña</strong> de tu cuenta de VoluntariAR. Tocá el botón para
+          elegir una nueva. El link vence en <strong>1 hora</strong> y sirve una sola vez.</p>
+       <p>Si no lo pediste, ignorá este email: tu contraseña sigue siendo la misma.</p>`,
+      'Elegir una contraseña nueva',
+      link
+    ),
+  };
+}
+
 module.exports = {
   newEnrollmentEmail, enrollmentApprovedEmail, enrollmentRejectedEmail, interviewScheduledEmail,
-  sponsorProposalEmail, sponsorDecisionEmail, accountDeletionEmail,
+  sponsorProposalEmail, sponsorDecisionEmail, accountDeletionEmail, passwordResetEmail,
   esc, // lo reusa lib/email.js para el aviso del modo prueba
 };
