@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { api, ProjectDetail } from '../../lib/api';
 import { useLatestRequest } from '../../lib/useLatestRequest';
-import { hasBadWord } from '../../lib/badWords';
 import { LoadError, describeLoadError } from './LoadError';
 import { useAuth } from '../../lib/AuthContext';
 import { MomentsGrid } from './MomentsGrid';
@@ -22,6 +21,7 @@ import { useToast } from '../ui/UiProvider';
 import { JoinButton } from './FeedPostCard';
 import { PROFILE_FIELD } from '../ui/fieldStyles';
 import { imagePositionClass } from '../volunteering/imagePosition';
+import { projectFacts, commentError } from '../volunteering/projectFacts';
 import { cardActions } from '../volunteering/cardActions';
 import { isRemote } from '../volunteering/isRemote';
 
@@ -152,8 +152,8 @@ export function ProjectDetails() {
     e.preventDefault();
     if (!user) { openAuthModal('Iniciá sesión para comentar'); return; }
     const c = comment.trim();
-    if (!c || c.length < 3) { setCommentErr('Muy corto'); return; }
-    if (hasBadWord(c)) { setCommentErr('Contiene palabras no permitidas'); return; }
+    const invalid = commentError(c);   // app/volunteering/projectFacts (§299)
+    if (invalid) { setCommentErr(invalid); return; }
     setCommenting(true); setCommentErr('');
     try { await api.projects.comment(id!, c); setComment(''); void load(id!); }
     catch (e: any) { setCommentErr(e.message); }
@@ -191,21 +191,12 @@ export function ProjectDetails() {
       onRetry={loadError?.retry && id ? () => load(id) : undefined} home="/" />
   );
 
-  const hasFunding = (project.funding_goal || 0) > 0;
   // Solo GET /projects/:id trae user_id en las reseñas (§112); sin sesión ninguna es propia.
   const hasOwnRating = !!user && project.ratings.some(r => r.user_id === user.id);
   const remote = isRemote(project);
-  const hoursLabel = project.type === 'fugaz'
-    ? (project.duration || 'Sin especificar')
-    : (project.hours_per_week ? `${project.hours_per_week} h por semana` : 'No especificado');
-  const avg = project.avg_rating ? Number(project.avg_rating).toFixed(1).replace('.', ',') : null;
-  const spotsLeft = Math.max(0, (project.volunteers_needed || 0) - (project.current_volunteers || 0));
-  const active = project.status === 'active';
-  const goalMet = hasFunding && project.current_funding >= project.funding_goal;
-  const canDonate = active && user?.role !== 'ngo' && !!project.accepts_donations;
+  // Los datos que se muestran (app/volunteering/projectFacts, §299).
+  const { hasFunding, hoursLabel, avg, spotsLeft, active, goalMet, canDonate, mapsHref } = projectFacts(project, user?.role);
   const actions = cardActions(project, project.my_enrollment?.status ?? null, user?.role ?? null);
-  const mapsHref = project.latitude != null && project.longitude != null
-    ? `https://www.google.com/maps/search/?api=1&query=${project.latitude},${project.longitude}` : null;
 
   /** Los botones de acción: se dibujan en la barra fija (celular) y en la caja de la derecha (escritorio). */
   const ActionButtons = () => {
