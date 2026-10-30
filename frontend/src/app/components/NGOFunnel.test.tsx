@@ -34,11 +34,12 @@ describe('Embudo de postulaciones', () => {
   test('cada etapa con su cantidad y su porcentaje sobre las postulaciones', () => {
     render(<NGOFunnel funnel={{ applications: 7, interviewed: 4, approved: 3, with_hours: 2, rejected: 1 }} />);
     const region = screen.getByRole('region', { name: 'Embudo de postulaciones' });
-    expect(fila(region, 'Postulaciones')).toHaveTextContent(/7\s*100 %/);
-    expect(fila(region, 'Con entrevista')).toHaveTextContent(/4\s*57 %/);
-    expect(fila(region, 'Aprobadas')).toHaveTextContent(/3\s*43 %/);
-    expect(fila(region, 'Con horas certificadas')).toHaveTextContent(/2\s*29 %/);
-    expect(fila(region, 'Rechazadas')).toHaveTextContent(/1\s*14 %/);
+    // Visto en producción (§286): "2 100 %" se leía como "2100 %"; el porcentaje va entre paréntesis.
+    expect(fila(region, 'Postulaciones')).toHaveTextContent('7 (100 %)');
+    expect(fila(region, 'Con entrevista')).toHaveTextContent('4 (57 %)');
+    expect(fila(region, 'Aprobadas')).toHaveTextContent('3 (43 %)');
+    expect(fila(region, 'Con horas certificadas')).toHaveTextContent('2 (29 %)');
+    expect(fila(region, 'Rechazadas')).toHaveTextContent('1 (14 %)');
     const etapas = within(region).getAllByRole('listitem').map((li) => li.querySelector('span')?.textContent);
     expect(etapas).toEqual(['Postulaciones', 'Con entrevista', 'Aprobadas', 'Con horas certificadas', 'Rechazadas']);
   });
@@ -53,6 +54,6 @@ describe('Embudo de postulaciones', () => {
   test('el panel de la ONG lo muestra con los datos de GET /ngos/me', async () => {
     render(<MemoryRouter><NGODashboard /></MemoryRouter>);
     const region = await screen.findByRole('region', { name: 'Embudo de postulaciones' });
-    expect(fila(region, 'Aprobadas')).toHaveTextContent(/3\s*43 %/);
+    expect(fila(region, 'Aprobadas')).toHaveTextContent('3 (43 %)');
   });
 });

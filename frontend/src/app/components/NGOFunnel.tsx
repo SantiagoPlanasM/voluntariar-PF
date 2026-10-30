@@ -26,7 +26,8 @@ export function NGOFunnel({ funnel }: { funnel?: NGOFunnelCounts }) {
             <li key={label} className={`flex flex-col gap-1 ${i === stages.length - 1 ? 'pt-2 border-t border-hairline' : ''}`}>
               <div className="flex items-baseline justify-between gap-3 text-[13px]">
                 <span className="font-semibold">{label}</span>
-                <span className="text-ink-soft"><strong className="text-ink">{n}</strong> {share} %</span>
+                {/* "2 (100 %)": en producción "2 100 %" se leía como "2100 %" (§286). */}
+                <span className="text-ink-soft"><strong className="text-ink">{n}</strong> ({share} %)</span>
               </div>
               <Meter value={share} tone="people" thin label={`${label}: ${share} %`} />
             </li>
