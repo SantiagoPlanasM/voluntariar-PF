@@ -51,7 +51,8 @@ describe('Encuadre de la foto del voluntariado', () => {
   });
 
   test('un valor que no es de la lista → 400 y no cambia nada', async () => {
-    for (const v of ['left', '', null, 3, 'arriba']) {
+    // ['top'] y 'toString': sin el chequeo de tipo, Object.hasOwn los convertiría a texto y pasarían.
+    for (const v of ['left', '', null, 3, 'arriba', ['top'], 'toString']) {
       const r = await call('PUT', '/api/projects/proj-1', { image_position: v }, owner);
       assert.equal(r.status, 400, JSON.stringify(v));
     }
