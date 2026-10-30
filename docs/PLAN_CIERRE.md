@@ -74,6 +74,7 @@ Después, correr la corrección v3.
 - la presentación.
 
 ## 4. Después de la defensa (trabajo futuro, ya decidido o diseñado)
+- **Sacar `NGOEmpleados`** (el directorio de fichas sin cuenta, `/ngo/empleados/:id`): desde §296 no tiene ningún link y el equipo real es "Acceso del equipo". Decisión del usuario del 30/10: no hace falta más y se saca después. Hay que retirar la pantalla y la ruta, y decidir qué pasa con la tabla `empleados` y su API.
 - **Equipo de la ONG con cuentas reales y empleados de empresa con cupos reservados** (`docs/PLAN_EQUIPOS.md`). Hay tres decisiones abiertas para el usuario.
 - **Verificación de ONG:** el objetivo 11, que sigue sin cumplirse. Los datos de transparencia son el primer paso.
 - **Donaciones recurrentes de montos chicos** (suscripciones de Mercado Pago), de la entrevista a FONBEC.
