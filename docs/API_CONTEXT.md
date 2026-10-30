@@ -149,7 +149,7 @@
 - **Errores:** `401` · `429` con `Retry-After` (más de **3 por hora**) · **`503`** si Resend no está configurado, o **`502`** si el email falla. En los dos casos **no queda ningún link**: sin email no hay borrado.
 
 **`POST /api/auth/delete-account`** — Sin sesión (el link puede abrirse en otro dispositivo). Body `{ token }`.
-- Si el código vale, en **una transacción** corrige los contadores (seguidores de ONG, proyectos y voluntarios; `cupos_ocupados` de sus inscripciones aprobadas) y borra el usuario. El resto cae por `ON DELETE CASCADE`: perfil, inscripciones, mensajes, notificaciones, Momentos, follows y, **si es ONG, sus proyectos con las inscripciones de otros**. Después del COMMIT, en lo posible, borra el CV y las fotos de Momentos en Cloudinary.
+- Si el código vale, en **una transacción** corrige los contadores (seguidores de ONG, proyectos y voluntarios; `cupos_ocupados` de sus inscripciones aprobadas) y borra el usuario. El resto cae por `ON DELETE CASCADE`: perfil, inscripciones, mensajes, notificaciones, Momentos, follows y, **si es ONG, sus proyectos con las inscripciones de otros**. Después del COMMIT, en lo posible, borra en Cloudinary el CV, las fotos de Momentos y, si es ONG, la foto propia de cada voluntariado suyo (`foto_provider_id`, desde §289).
 - **Respuesta 200:** `{ deleted: true }`.
 - **Errores:** `400` "El link no es válido o ya se usó…" (forma incorrecta, inexistente o ya usado) · `400` "El link venció…" (y se descarta) · `500` "No pudimos borrar la cuenta…": no se borra nada y el mismo link sirve para reintentar.
 
@@ -248,6 +248,7 @@
 
 ### `DELETE /api/projects/:id` — Auth, role `ngo` (dueño)
 - Borra el proyecto (cascada elimina requisitos, roles, comentarios, ratings, kpis, enrollments asociados — ver `DATABASE_CONTEXT.md §5`).
+- **Archivos de Cloudinary (§289):** antes de borrar se leen `foto_provider_id` y los `post_media.provider_id` de sus Momentos (que se van en cascada). Después del `DELETE`, si Cloudinary está configurado, se borran todos con `Promise.allSettled`: si alguno falla, queda en el log y la respuesta sigue siendo 200, porque el voluntariado ya se borró.
 - **Respuesta 200:** `{ message: 'Proyecto eliminado' }` (esta doc decía `{ success: true }`). **404** si no existe o no es de la ONG de la sesión.
 
 ### `POST /api/projects/:id/comments` — Auth (cualquier rol)

@@ -8165,3 +8165,33 @@ El director de FONBEC dijo que la confianza se gana con el recibo para ganancias
 
 ### ⚠️ NO verificado
 - Nada en pantalla (es un cambio de log).
+
+## 289. Borrar un voluntariado borra sus archivos de Cloudinary
+
+Era un pendiente conocido de `CLAUDE.md`. El usuario autorizó arreglarlo el 30/10 (regla 16).
+
+### Qué se hizo
+- **`DELETE /api/projects/:id`:** antes de borrar, se leen el `foto_provider_id` del voluntariado y los `provider_id` de las fotos de sus Momentos (los posts y `post_media` se van en cascada). Después del `DELETE`, si Cloudinary está configurado, se borran todos con `Promise.allSettled`. Si alguno falla, queda en el log y la respuesta sigue siendo 200, porque el voluntariado ya se borró. Es el mismo criterio que el borrado de cuenta.
+- **Hueco encontrado de paso:** el borrado de cuenta de una ONG ya borraba las fotos de Momentos de sus voluntariados, pero **no la foto propia de cada uno** (`foto_provider_id` es de §282, posterior al borrado de cuenta de §177). Ahora también.
+
+### Verificación
+- **`project-delete-files.test.js` (5):**
+  - con foto y Momentos;
+  - sin foto propia;
+  - Cloudinary falla y se borra igual;
+  - sin Cloudinary no se intenta;
+  - otra ONG → 404 sin tocar archivos.
+  
+  Los dos primeros fueron rojos antes (no se borraba nada) y los otros tres ya se cumplían.
+- **`account-deletion.test.js`:** el caso de la ONG suma la foto de `proj-4` y una de otra ONG que no se tiene que tocar. Rojo antes (faltaba `test/proyecto-4`).
+- SQLite y Postgres.
+- **Mutación:**
+  - `projects.js`: **6 de 6** (sin la foto, sin los Momentos, sin `filter(Boolean)`, sin el chequeo de configurado, `allSettled` → `all`, y la consulta de Momentos vacía);
+  - `auth.js`: **2 de 3**. El vivo es equivalente: sacar el `IS NOT NULL`, que el loop ya filtra con `if (m.provider_id)`.
+
+### Errores propios
+- **La primera tanda de mutantes de `projects.js` tenía 2 que no se aplicaban,** porque usé `\n` en un archivo CRLF. El script lo avisó ("NO APLICADO") y los rehíce con `\r\n`.
+- **Muté `auth.js` antes de commitear el cambio.** La memoria dice que hay que commitear antes. No se perdió nada, porque el script guarda el original en memoria y lo restaura, pero no seguí la regla.
+
+### ⚠️ NO verificado
+- Contra Cloudinary real: los tests usan un doble. Que `deleteImage` borre de verdad está probado en `storage.test.js` contra la API simulada, no contra la cuenta.

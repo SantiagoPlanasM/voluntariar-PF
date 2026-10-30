@@ -210,6 +210,9 @@ describe('Borrar la propia cuenta', () => {
                     VALUES ('don-del-1','user-vol-2','proj-4','ngo-4',1500,'completada','ARS')`);
       await db.run(`INSERT INTO posts (id, user_id, project_id, caption) VALUES ('post-del-2','user-vol-3','proj-4','foto de lucia')`);
       await db.run(`INSERT INTO post_media (id, post_id, url, provider_id, position, width, height) VALUES ('pm-del-2','post-del-2','https://x','test/foto-lucia',0,1,1)`);
+      // §289: la foto propia del voluntariado (§282) también se borra de Cloudinary.
+      await db.run(`UPDATE projects SET foto_perfil='https://x', foto_provider_id='test/proyecto-4' WHERE id='proj-4'`);
+      await db.run(`UPDATE projects SET foto_perfil='https://x', foto_provider_id='test/ajena' WHERE id='proj-1'`);   // de ngo-1: no se toca
       await requestDeletion(ngo4);
       assert.equal((await confirmDeletion(linkToken(sent[0]))).status, 200);
       assert.equal((await db.all(`SELECT 1 FROM projects WHERE ngo_id='ngo-4'`)).length, 0);
@@ -217,7 +220,7 @@ describe('Borrar la propia cuenta', () => {
       assert.equal(await userExists('user-vol-3'), true, 'la voluntaria sigue');
       const d = await db.get(`SELECT project_id, ngo_id FROM donaciones WHERE id='don-del-1'`);
       assert.deepEqual({ project_id: d.project_id, ngo_id: d.ngo_id }, { project_id: null, ngo_id: null });
-      assert.deepEqual(deletedImages, ['test/foto-lucia'], 'las fotos de Momentos de sus proyectos también');
+      assert.deepEqual([...deletedImages].sort(), ['test/foto-lucia', 'test/proyecto-4'], 'las fotos de sus proyectos y de sus Momentos también');
     });
 
     test('empresa: también se puede', async () => {

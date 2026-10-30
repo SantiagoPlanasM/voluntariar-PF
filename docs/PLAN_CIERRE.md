@@ -36,7 +36,7 @@
   
   Cuanto más cerca del 2/11, más riesgo: conviene parar el 1/11.
 - **Recorte de la foto en las tarjetas de Explorar:** hoy se recorta al centro en formato vertical. Podría mostrarse la foto entera o elegir el encuadre.
-- **Borrar la foto de Cloudinary al borrar un voluntariado:** con `foto_provider_id` ya es directo. Es un pendiente conocido: **preguntar antes** (regla 16).
+- ~~**Borrar la foto de Cloudinary al borrar un voluntariado**~~: hecho en §289, con el OK del usuario. También borra las fotos de sus Momentos.
 - **Teléfono de contacto en la postulación** (lo pidió la entrevistada de FONBEC): quedó sin decidir porque es un dato personal.
 
 ## 3. Te toca a vos (no lo puedo hacer yo)

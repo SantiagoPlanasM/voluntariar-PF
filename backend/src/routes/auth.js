@@ -460,6 +460,10 @@ router.post('/delete-account', async (req, res) => {
        LEFT JOIN projects pr ON pr.id = po.project_id
        LEFT JOIN ngos n ON n.id = pr.ngo_id
        WHERE po.user_id = $1 OR n.user_id = $1`, [userId]);
+    // §289: y la foto propia de cada voluntariado de la ONG (§282), que también se va en cascada.
+    const projectPhotos = await db.all(
+      `SELECT pr.foto_provider_id AS provider_id FROM projects pr JOIN ngos n ON n.id = pr.ngo_id
+       WHERE n.user_id = $1 AND pr.foto_provider_id IS NOT NULL`, [userId]);
 
     let deleted = false;
     await db.transaction(async (tx) => {
@@ -480,7 +484,7 @@ router.post('/delete-account', async (req, res) => {
     if (storage.isConfigured()) {
       const jobs = [];
       if (cv?.cv_url) jobs.push(storage.deletePdf(cv.cv_url));
-      for (const m of media) if (m.provider_id) jobs.push(storage.deleteImage(m.provider_id));
+      for (const m of [...media, ...projectPhotos]) if (m.provider_id) jobs.push(storage.deleteImage(m.provider_id));
       const results = await Promise.allSettled(jobs);
       const failed = results.filter((r) => r.status === 'rejected').length;
       if (failed) console.error(`POST /auth/delete-account: no se pudieron borrar ${failed} archivo(s) de Cloudinary`);
