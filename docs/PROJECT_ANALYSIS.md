@@ -8106,3 +8106,33 @@ El director de FONBEC dijo que la confianza se gana con el recibo para ganancias
 
 ### ⚠️ NO verificado
 - Los bordes nuevos en pantalla, en claro y en oscuro.
+
+## 287. Sonar: las aceptadas revisadas y el recomendador fuera de `projects.js`
+
+### Qué se hizo
+- **Aceptadas de SonarCloud revisadas** (quedaban 4, `TRIAGE_SONAR.md`):
+  - **`S5145` de `donaciones.js`, arreglada** (`c7b026f`): el `data.id` del log de firma inválida se escribe solo si son 1 a 20 dígitos (un id de pago de Mercado Pago lo es); si no, `?`, igual que `user_id`. Antes pasaba por `forLog()`, que Sonar no reconocía en esa línea.
+  - **`S8475`, `S8480` y `S6845` siguen aceptadas** con su motivo: localStorage y WebSocket son análisis de flujo sin texto del usuario (el token del WebSocket en el primer mensaje queda como trabajo futuro), y sacar el `tabIndex` del carrusel cambia cómo se usa con teclado.
+- **Recomendador** (`f24750a`): las 9 señales, el puntaje y el orden con diversidad de `GET /api/projects/recommended` pasaron a `src/lib/recommender.js` como funciones puras. `routes/projects.js` era el archivo con más complejidad cognitiva del proyecto (342 en SonarCloud), casi toda de ese scoring. La ruta solo junta los datos.
+- **Defecto encontrado en el refactor** (`36c168d`): la consulta de roles de las recomendaciones no tenía `ORDER BY`, así que "Busca tus habilidades: A, B" salía en el orden de la base (en SQLite, el de `rol_id`, que es un UUID). El código viejo ya lo hacía. Ahora `ORDER BY ro.nombre`.
+
+### Verificación
+- **Prueba diferencial del refactor:** 65 recomendaciones (puntaje, motivos y tags) iguales entre el código viejo y el nuevo, con los mismos datos.
+- **S5145:** un test en `donaciones-webhook.test.js` exige que un `data.id` inyectado no llegue al log.
+- **`ORDER BY`:** test en `recommended-quality.test.js` que elige dos roles cuyo orden por id es el inverso del alfabético y los inserta al revés. Rojo antes ("Programador, Coordinador"), verde después, en SQLite y Postgres.
+- **Tests unitarios del recomendador:** 15 (`test/unit/recommender.test.js`).
+- **Mutación de `recommender.js`** (commit antes, original en memoria, corrida de control sin mutar): 61 mutantes; uno no se aplicó (el texto del orden de las señales aparece dos veces). La primera corrida dejó **17 vivos de 60**: 12 eran huecos de los tests (ubicación "remoto" o "virtual", la ciudad con espacios, sin ciudad, el borde de 0,75 de cupos, `cupos: 0` con ocupados, valoración 4.0 con 2 reseñas, señales sin motivo o sin tag, "Podría interesarte" con motivo y sin tag, desempate sin fecha). Se agregaron 3 tests y quedan **5 vivos, los 5 equivalentes**:
+  - el `[null, 0]` de `tier` y el `'esta categoría'` por defecto: la frecuencia es un entero ≥ 1 y la categoría siempre tiene nombre, así que no se alcanzan;
+  - `!ctx.hasSkills || roles.length === 0` sin la segunda parte: con roles vacíos el filtro da vacío y devuelve `null` igual;
+  - `Math.round` → `Math.floor` en 10 × 1,5 y 6 × 1,5: dan enteros.
+- **Suites:** backend `npm test` **1047/1047**, con TZ de Córdoba **1047/1047**, `npm run test:pg` **1049/1049**, y Postgres con TZ de Córdoba **1049/1049**. La primera corrida de Postgres en UTC dio **1048/1049 (1 falla)**; no guardé la salida y no sé qué test fue. Las cuatro corridas siguientes dieron 1049/1049. Frontend **1124/1124** (no se tocó). Scripts del CI 38/38.
+
+### Errores propios
+- **Commiteé `c7b026f` con un test de §202 en rojo** (el que miraba el `data.id` en el log): lo arregló el commit siguiente, `6d15be7`. Van en el mismo push, así que el CI no corre el commit en rojo.
+- **Otro `node -e` con escapes** en la prueba diferencial, que falló. Es lo que la memoria dice que no hay que hacer.
+- **Corrí las cuatro suites filtrando solo los totales,** así que de la falla intermitente de Postgres quedó el número pero no el nombre del test. Hay que guardar la salida completa en un archivo.
+
+### ⚠️ NO verificado
+- Que SonarCloud cierre el `S5145` y baje la complejidad de `projects.js`: se ve en el análisis del CI después del push.
+- La pantalla de recomendaciones con el orden nuevo (no puedo ver la interfaz).
+- Cuál fue la falla intermitente de Postgres en UTC, y si tiene que ver con este cambio. Hay dos candidatos conocidos: el umbral de tiempo de `email-redos` y la falla del runner de §273. El test nuevo de los roles depende de los UUID de los roles: si no hubiera ningún par invertido entre los 6 roles, fallaría con un mensaje claro, pero eso pasa con probabilidad 1/720 y solo si los ids cambian en cada corrida.
