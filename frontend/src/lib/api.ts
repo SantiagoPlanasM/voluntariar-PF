@@ -135,7 +135,7 @@ export const api = {
   },
   ngos: {
     list: () => req<{ ngos: NGO[] }>('/ngos'),
-    me: () => req<{ ngo: NGO; projects: Project[]; stats: NGOStats; pending_enrollments: PendingEnrollment[] }>('/ngos/me'),
+    me: () => req<{ ngo: NGO; projects: Project[]; stats: NGOStats; pending_enrollments: PendingEnrollment[]; funnel?: NGOFunnelCounts }>('/ngos/me'),
     get: (id: string) => req<{ ngo: NGO; projects: Project[] }>(`/ngos/${id}`),
     update: (b: Partial<NGO>) => req<{ ngo: NGO }>('/ngos/me', { method: 'PUT', body: JSON.stringify(b) }),
     // Equipo de la ONG (antes NGOEmpleados hacía fetch directo: AI_RULES regla 4, PROJECT_ANALYSIS.md §98).
@@ -477,6 +477,10 @@ export interface NGOStats {
   total_projects: number; active_projects: number;
   completed_projects: number; total_volunteers: number;
   total_funding: number; pending_enrollments: number;
+}
+/** §284: embudo de postulaciones de todos los voluntariados de la ONG (GET /ngos/me). */
+export interface NGOFunnelCounts {
+  applications: number; interviewed: number; approved: number; with_hours: number; rejected: number;
 }
 export interface AppComment {
   id: string; user_id: string; user_name: string;

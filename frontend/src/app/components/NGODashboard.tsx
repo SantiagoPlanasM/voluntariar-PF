@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { Bell, Plus, Search, Check, X, CalendarClock } from 'lucide-react';
 import { interviewWhen } from './InterviewPanel';
-import { api, ApiError, Project, PendingEnrollment, NGO, NGOStats } from '../../lib/api';
+import { api, ApiError, Project, PendingEnrollment, NGO, NGOStats, type NGOFunnelCounts } from '../../lib/api';
+import { NGOFunnel } from './NGOFunnel';
 import { userMessage } from '../../lib/format';
 import { InlineError } from './LoadError';
 import { MercadoPagoBanner } from './MercadoPagoAccount';
@@ -25,6 +26,7 @@ export function NGODashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [stats, setStats]     = useState<NGOStats | null>(null);
   const [pending, setPending] = useState<PendingEnrollment[]>([]);
+  const [funnel, setFunnel]   = useState<NGOFunnelCounts | undefined>(undefined);   // §284
   const [loading, setLoading] = useState(true);
   const [search, setSearch]   = useState('');
   const [processing, setProcessing] = useState<string | null>(null);
@@ -41,9 +43,10 @@ export function NGODashboard() {
     setLoading(true);
     setLoadError('');
     try {
-      const { ngo: n, projects: p, stats: s, pending_enrollments } = await api.ngos.me();
+      const { ngo: n, projects: p, stats: s, pending_enrollments, funnel: f } = await api.ngos.me();
       setNgo(n); setProjects(p); setStats(s);
       setPending(pending_enrollments);
+      setFunnel(f);
     } catch (e) {
       // Sesión vencida → al inicio (antes se buscaba "Token" en el texto del mensaje). Cualquier otro error
       // se muestra: antes se tragaba y el panel parecía el de una ONG sin proyectos (REVISION F9).
@@ -120,6 +123,8 @@ export function NGODashboard() {
             ))}
           </dl>
         )}
+
+        <NGOFunnel funnel={funnel} />
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] items-start">
           {pending.length > 0 && (
