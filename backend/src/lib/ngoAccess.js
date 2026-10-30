@@ -30,4 +30,13 @@ async function projectAccess(userId, projectId) {
 /** Postulaciones, CV, entrevistas y horas: el dueño y el coordinador. */
 const canManageEnrollments = (access) => access === 'owner' || access === 'coordinador';
 
-module.exports = { ngoAccess, projectAccess, canManageEnrollments };
+/** La ONG de una postulación si el usuario puede gestionarla (dueño o coordinador activo); si no, null. Las rutas la
+ *  usan en lugar de "la ONG de la sesión" y dejan su `AND p.ngo_id = $n` como estaba (§295). */
+async function managedNgoOfEnrollment(userId, enrollmentId) {
+  const row = await db.get(
+    'SELECT p.ngo_id FROM enrollments e JOIN projects p ON p.id = e.project_id WHERE e.id=$1', [enrollmentId]);
+  if (!row) return null;
+  return canManageEnrollments(await ngoAccess(userId, row.ngo_id)) ? row.ngo_id : null;
+}
+
+module.exports = { ngoAccess, projectAccess, canManageEnrollments, managedNgoOfEnrollment };

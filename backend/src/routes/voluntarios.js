@@ -205,12 +205,14 @@ router.get('/:userId/cv', requireAuth, async (req, res) => {
   try {
     const target = req.params.userId;
     let allowed = req.user.role === 'volunteer' && req.user.id === target;
-    if (!allowed && req.user.role === 'ngo') {
+    // La ONG dueña o un coordinador activo de su equipo (§295), con una postulación pendiente o aprobada.
+    if (!allowed && (req.user.role === 'ngo' || req.user.role === 'volunteer')) {
       allowed = Boolean(await db.get(
         `SELECT e.id FROM enrollments e
          JOIN projects p ON p.id = e.project_id
          JOIN ngos n ON n.id = p.ngo_id
-         WHERE e.user_id = $1 AND n.user_id = $2 AND e.status IN ('pending', 'approved')
+         LEFT JOIN ngo_miembros m ON m.ngo_id = n.id AND m.user_id = $2 AND m.estado = 'activo' AND m.rol = 'coordinador'
+         WHERE e.user_id = $1 AND (n.user_id = $2 OR m.user_id IS NOT NULL) AND e.status IN ('pending', 'approved')
          LIMIT 1`,
         [target, req.user.id]
       ));

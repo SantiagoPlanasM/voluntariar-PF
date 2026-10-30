@@ -137,10 +137,11 @@ describe('Entrevistas: agendar', () => {
     assert.equal((await agendar(e.id)).status, 201, 'ninguno de los inválidos tenía que crear una entrevista');
   });
 
-  test('solo la ONG dueña: otra ONG 404, un voluntario 403', async () => {
+  // §295: un voluntario puede llegar (por si es coordinador del equipo); si no lo es, 404 como otra ONG (antes 403 por rol).
+  test('solo la ONG dueña: otra ONG 404, un voluntario 404', async () => {
     const e = await postulacion(lucia);
     assert.equal((await agendar(e.id, VALIDA, ngo2)).status, 404);
-    assert.equal((await agendar(e.id, VALIDA, lucia)).status, 403);
+    assert.equal((await agendar(e.id, VALIDA, lucia)).status, 404);
     assert.equal((await agendar('no-existe', VALIDA)).status, 404);
   });
 
@@ -195,14 +196,15 @@ describe('Entrevistas: agendar', () => {
     assert.deepEqual([r.status, r.body.interview?.status], [200, 'done']);
   });
 
-  test('sin entrevista programada 404; status inválido 400; otra ONG 404; un voluntario 403', async () => {
+  // §295: un voluntario puede llegar (por si es coordinador del equipo); si no lo es, 404 como otra ONG (antes 403 por rol).
+  test('sin entrevista programada 404; status inválido 400; otra ONG 404; un voluntario 404', async () => {
     const e = await postulacion(juan);
     assert.equal((await cambiar(e.id, { status: 'cancelled' })).status, 404);
     assert.equal((await agendar(e.id)).status, 201);
     const bad = await cambiar(e.id, { status: 'scheduled' });
     assert.deepEqual([bad.status, bad.body.error], [400, 'status tiene que ser cancelled o done']);
     assert.equal((await cambiar(e.id, { status: 'cancelled' }, ngo2)).status, 404);
-    assert.equal((await cambiar(e.id, { status: 'cancelled' }, juan)).status, 403);
+    assert.equal((await cambiar(e.id, { status: 'cancelled' }, juan)).status, 404);
     assert.deepEqual(await estadoEnBase(e.id), ['programada']);
   });
 

@@ -8,6 +8,7 @@ const {
 } = require('../lib/emailTemplates');
 const { isUniqueViolation } = require('../lib/dbErrors');
 const { checkText, firstError, parsePhone } = require('../lib/inputs');
+const { projectAccess, canManageEnrollments, managedNgoOfEnrollment } = require('../lib/ngoAccess');
 const crypto = require('node:crypto');
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
@@ -149,14 +150,11 @@ router.get('/my', requireAuth, async (req, res) => {
 });
 
 // ── GET /api/enrollments/project/:projectId ───────────────────────────────
-router.get('/project/:projectId', requireAuth, requireRole('ngo'), async (req, res) => {
+// La ONG dueña o un coordinador activo de su equipo (§295).
+router.get('/project/:projectId', requireAuth, requireRole('ngo', 'volunteer'), async (req, res) => {
   try {
-    const ngo = await db.get('SELECT id FROM ngos WHERE user_id=$1', [req.user.id]);
-    const project = await db.get(
-      'SELECT id FROM projects WHERE id=$1 AND ngo_id=$2',
-      [req.params.projectId, ngo?.id]
-    );
-    if (!project) return res.status(403).json({ error: 'Sin permiso sobre este proyecto' });
+    const pa = await projectAccess(req.user.id, req.params.projectId);
+    if (!pa || !canManageEnrollments(pa.access)) return res.status(403).json({ error: 'Sin permiso sobre este proyecto' });
 
     const { status } = req.query;
     let sql = `
@@ -189,13 +187,14 @@ router.get('/project/:projectId', requireAuth, requireRole('ngo'), async (req, r
 });
 
 // ── PATCH /api/enrollments/:id ────────────────────────────────────────────
-router.patch('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
+router.patch('/:id', requireAuth, requireRole('ngo', 'volunteer'), async (req, res) => {
   try {
     const { status } = req.body;
     if (!['approved', 'rejected'].includes(status))
       return res.status(400).json({ error: 'Status debe ser: approved o rejected' });
 
-    const ngo = await db.get('SELECT id FROM ngos WHERE user_id=$1', [req.user.id]);
+    // §295: el dueño o un coordinador activo de la ONG de esta postulación (lib/ngoAccess).
+    const ngo = { id: await managedNgoOfEnrollment(req.user.id, req.params.id) };
     const enrollment = await db.get(
       `SELECT e.*, p.titulo, p.ngo_id, u.email AS volunteer_email, u.name AS volunteer_name,
               n.nombre AS ngo_name
@@ -359,12 +358,13 @@ function parseInterview({ date, time, link, place, note }) {
 }
 
 // ── POST /api/enrollments/:id/entrevista ──────────────────────────────────
-router.post('/:id/entrevista', requireAuth, requireRole('ngo'), async (req, res) => {
+router.post('/:id/entrevista', requireAuth, requireRole('ngo', 'volunteer'), async (req, res) => {
   try {
     const { error, value } = parseInterview(req.body || {});
     if (error) return res.status(400).json({ error });
 
-    const ngo = await db.get('SELECT id FROM ngos WHERE user_id=$1', [req.user.id]);
+    // §295: el dueño o un coordinador activo de la ONG de esta postulación (lib/ngoAccess).
+    const ngo = { id: await managedNgoOfEnrollment(req.user.id, req.params.id) };
     const enrollment = await db.get(
       `SELECT e.id, e.user_id, e.project_id, e.status, p.titulo, n.nombre AS ngo_name,
               u.email AS volunteer_email, u.name AS volunteer_name
@@ -415,7 +415,7 @@ router.post('/:id/entrevista', requireAuth, requireRole('ngo'), async (req, res)
 // ── PATCH /api/enrollments/:id/entrevista ─────────────────────────────────
 // Sobre la entrevista PROGRAMADA de la postulación: { status: 'cancelled' } la cancela, { status: 'done' } la marca
 // realizada (si ya pasó), y sin status la reprograma con los mismos datos y validaciones que el alta.
-router.patch('/:id/entrevista', requireAuth, requireRole('ngo'), async (req, res) => {
+router.patch('/:id/entrevista', requireAuth, requireRole('ngo', 'volunteer'), async (req, res) => {
   try {
     const body = req.body || {};
     const { status } = body;
@@ -428,7 +428,8 @@ router.patch('/:id/entrevista', requireAuth, requireRole('ngo'), async (req, res
       value = parsed.value;
     }
 
-    const ngo = await db.get('SELECT id FROM ngos WHERE user_id=$1', [req.user.id]);
+    // §295: el dueño o un coordinador activo de la ONG de esta postulación (lib/ngoAccess).
+    const ngo = { id: await managedNgoOfEnrollment(req.user.id, req.params.id) };
     const current = await db.get(
       `SELECT r.*, p.titulo, n.nombre AS ngo_name
        FROM reuniones r
@@ -478,7 +479,7 @@ router.patch('/:id/entrevista', requireAuth, requireRole('ngo'), async (req, res
 // del proyecto (no el propio voluntario) — son horas *verificadas*, no un
 // auto-reporte; si el voluntario pudiera cargarlas él mismo no habría forma
 // de confiar en el dato para las estadísticas del proyecto.
-router.patch('/:id/horas', requireAuth, requireRole('ngo'), async (req, res) => {
+router.patch('/:id/horas', requireAuth, requireRole('ngo', 'volunteer'), async (req, res) => {
   try {
     const { horas } = req.body;
     // Número finito entre 0 y MAX_HORAS (también como string numérico, p. ej. "7.5"). Antes era parseFloat +
@@ -489,7 +490,8 @@ router.patch('/:id/horas', requireAuth, requireRole('ngo'), async (req, res) => 
     if (!Number.isFinite(h) || h < 0 || h > MAX_HORAS)
       return res.status(400).json({ error: `Las horas tienen que ser un número entre 0 y ${MAX_HORAS}` });
 
-    const ngo = await db.get('SELECT id FROM ngos WHERE user_id=$1', [req.user.id]);
+    // §295: el dueño o un coordinador activo de la ONG de esta postulación (lib/ngoAccess).
+    const ngo = { id: await managedNgoOfEnrollment(req.user.id, req.params.id) };
     const enrollment = await db.get(
       `SELECT e.* FROM enrollments e
        JOIN projects p ON p.id = e.project_id

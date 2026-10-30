@@ -24,6 +24,7 @@ const { requireAuth, optionalAuth, requireRole } = require('../middleware/auth')
 const { toMillis } = require('../lib/time');
 const { hasBadWord } = require('../lib/badWords');
 const { clampInt, checkText } = require('../lib/inputs');
+const { ngoAccess } = require('../lib/ngoAccess');   // miembros del equipo de la ONG (§295)
 
 const router = express.Router();
 
@@ -82,11 +83,13 @@ const isoDate = (v) => {
   return ms === null ? null : new Date(ms).toISOString();   // string en SQLite, Date en Postgres → siempre ISO
 };
 
-// Participó = inscripción APROBADA (una pendiente no cuenta). La ONG dueña también puede publicar.
+// Participó = inscripción APROBADA (una pendiente no cuenta). La ONG dueña también puede publicar, y desde §295 los
+// miembros activos de su equipo (coordinador o comunicador).
 async function canPostTo(user, project) {
   if (user.role === 'ngo') {
     return Boolean(await db.get('SELECT id FROM ngos WHERE id=$1 AND user_id=$2', [project.ngo_id, user.id]));
   }
+  if (await ngoAccess(user.id, project.ngo_id)) return true;
   return Boolean(await db.get(
     "SELECT id FROM enrollments WHERE project_id=$1 AND user_id=$2 AND status='approved'",
     [project.id, user.id]
@@ -179,8 +182,10 @@ router.get('/eligible-projects', requireAuth, requireRole('volunteer', 'ngo'), a
           `SELECT p.id, p.titulo AS title FROM projects p JOIN ngos n ON n.id = p.ngo_id
            WHERE n.user_id=$1 ORDER BY p.titulo`, [req.user.id])
       : await db.all(
-          `SELECT DISTINCT p.id, p.titulo AS title FROM enrollments e JOIN projects p ON p.id = e.project_id
-           WHERE e.user_id=$1 AND e.status='approved' ORDER BY p.titulo`, [req.user.id]);
+          `SELECT DISTINCT p.id, p.titulo AS title FROM projects p
+           WHERE p.id IN (SELECT e.project_id FROM enrollments e WHERE e.user_id=$1 AND e.status='approved')
+              OR p.ngo_id IN (SELECT m.ngo_id FROM ngo_miembros m WHERE m.user_id=$1 AND m.estado='activo')
+           ORDER BY p.titulo`, [req.user.id]);   // §295: también los de las ONG de su equipo
     res.json({ projects: rows.map((r) => ({ id: r.id, title: r.title })) });
   } catch (err) {
     console.error('GET /posts/eligible-projects error:', err);

@@ -196,13 +196,14 @@ describe('API — flujo completo (integración, servidor real + DB temporal)', (
   });
 
   describe('horas — decisión de diseño: las carga la ONG, no el voluntario', () => {
-    test('el voluntario NO puede auto-reportar sus horas (403)', async () => {
+    // §295: un voluntario puede llegar (por si es coordinador del equipo); si no lo es, 404 como otra ONG (antes 403 por rol).
+    test('el voluntario NO puede auto-reportar sus horas (404)', async () => {
       const { status } = await api(`/api/enrollments/${enrollmentId}/horas`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${volunteerToken}` },
         body: JSON.stringify({ horas: 100 }),
       });
-      assert.equal(status, 403);
+      assert.equal(status, 404);
     });
 
     test('la ONG dueña del proyecto SÍ puede cargar las horas', async () => {
