@@ -135,6 +135,8 @@ describe('Equipo de la ONG: permisos en postulaciones, CV y Momentos', () => {
     assert.ok(eligible.some((p) => p.id === projectId), 'el comunicador ve los voluntariados de su ONG para publicar');
     const notMine = (await call('GET', '/api/posts/eligible-projects', undefined, foreignCoord.token)).body.projects;
     assert.ok(!notMine.some((p) => p.id === projectId));
+    const notYet = (await call('GET', '/api/posts/eligible-projects', undefined, invited.token)).body.projects;
+    assert.ok(!notYet.some((p) => p.id === projectId), 'un invitado sin aceptar todavía no');
   });
 
   test('el dueño sigue pudiendo todo', async () => {
