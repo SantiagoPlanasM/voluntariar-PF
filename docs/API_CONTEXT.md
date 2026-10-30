@@ -31,6 +31,7 @@
 | GET | `/api/projects/:id` | Opcional | — | `routes/projects.js` |
 | POST | `/api/projects` | Sí | ngo | `routes/projects.js` |
 | PUT | `/api/projects/:id` | Sí | ngo (dueño) | `routes/projects.js` |
+| PUT | `/api/projects/:id/photo` | Sí | ngo (dueño) | `routes/projectPhoto.js` |
 | DELETE | `/api/projects/:id` | Sí | ngo (dueño) | `routes/projects.js` |
 | POST | `/api/projects/:id/comments` | Sí | cualquiera | `routes/projects.js` |
 | POST | `/api/projects/:id/ratings` | Sí | cualquiera | `routes/projects.js` |
@@ -230,6 +231,12 @@
 - **Respuesta 201:** `{ project }`, con `roles_needed`/`requirements`/`category` tal como se guardaron (recortados, sin repetidos), no como vinieron en el body.
 - **Errores:** `400` validación, `404` si el usuario no tiene perfil de ONG asociado. *(No pasa por `hasBadWord()`: eso es solo para comentarios, reseñas y posts; la doc anterior decía lo contrario.)*
 - **Id propio (`PROJECT_ANALYSIS.md §40`):** el handler genera el id con `crypto.randomUUID()`, lo usa en el `INSERT`, para releer la fila y para asociar categoría/roles/requisitos. *(Antes buscaba "el último proyecto de la ONG" por `created_at`: en SQLite, con resolución de 1 s, dos altas de la misma ONG en el mismo segundo empataban, devolvía el más viejo y le enganchaba las asociaciones.)*
+
+### `PUT /api/projects/:id/photo` — Auth, role `ngo` (dueño) (§282)
+- **Body:** multipart, campo `photo` (JPEG, PNG o WebP, hasta 8.000.000 bytes; la lectura es `lib/photoUpload.js`, la misma de la foto de perfil). **No fijar `Content-Type`** desde el cliente.
+- Orden de la regla 24: sesión y rol → **límite de 20 subidas por hora por ONG** (429 con `Retry-After`) → Cloudinary configurado (**503** si no) → archivo (**400** "Elegí una foto"; **413** si pesa más) → **cabecera real** (`detectImageType`; **400** "El archivo no es una imagen válida…") → propiedad (**404** "Proyecto no encontrado o sin permiso" si no existe o es de otra ONG, sin subir nada) → subida (**502** si Cloudinary falla, sin tocar la base) → guardado en una transacción (si falla, se borra lo subido y **500**).
+- Guarda la versión ancha (`feedUrl`, 1080 px) en `projects.foto_perfil` (el `image` de la API) y el id de Cloudinary en `foto_provider_id`, que **no sale en la API**. Al reemplazarla, la anterior se borra de Cloudinary **después del COMMIT** y en lo posible; una URL externa vieja (sin id) no se toca.
+- **200:** `{ project }` (formateado con `fmt`; el frontend usa `image`). **Límite conocido:** borrar el voluntariado todavía no borra su foto en Cloudinary.
 
 ### `PUT /api/projects/:id` — Auth, role `ngo` (dueño)
 - Verifica `ngo_id` de la sesión contra el `ngo_id` del proyecto (join implícito vía `WHERE id=$1 AND ngo_id=$2`).

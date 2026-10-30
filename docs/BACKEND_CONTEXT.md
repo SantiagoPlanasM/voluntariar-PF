@@ -27,6 +27,7 @@ backend/
 │       ├── empresas.js     # /api/empresas/*  (perfil, patrocinios lado Empresa)
 │       ├── follows.js      # /api/follows/*   (seguir ONG/proyecto/voluntario, feed)
 │       ├── posts.js        # /api/posts/*     ("Momentos": fotos de voluntariados, likes, moderación)
+│       ├── projectPhoto.js # PUT /api/projects/:id/photo (la foto del voluntariado, §282; lib/photoUpload.js lee el multipart)
 │       ├── voluntarios.js  # /api/voluntarios/* (habilidades, perfil público)
 │       ├── faqs.js         # /api/faqs/*      (Chatbot FAQ, sin IA)
 │       ├── messages.js     # /api/messages/*   (chat 1 a 1, REST)

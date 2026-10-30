@@ -126,6 +126,7 @@ id · ngo_id (FK→ngos, CASCADE) · nombre · apellido · email · foto_perfil 
 | horas_semanales | INTEGER | CHECK NULL o > 0 (solo aplica si `tipo='sostenido'`, validado en la app, no en el CHECK) |
 | duracion | TEXT | (solo aplica si `tipo='fugaz'`, validado en la app) |
 | latitud, longitud | REAL | Agregadas por el usuario (2026-09) vía `ALTER TABLE`, para el mapa (`ProjectMap.tsx`). El API las expone como `latitude`/`longitude` (ver `fmt()` en `routes/projects.js`) |
+| foto_provider_id | TEXT | §282 (`addColumnIfNotExists`): el id de Cloudinary de la foto subida con `PUT /api/projects/:id/photo` (la URL va en `foto_perfil`), para borrar la anterior al reemplazarla. NULL = sin foto subida acá o una URL externa vieja. Nunca sale en la API (`fmt` es una lista blanca) |
 | modalidad | TEXT | Agregada por el usuario (2026-09), DEFAULT `presencial`, valores usados: `presencial`/`remoto`/`hibrido`. El API la expone como `modality`. **Ojo:** el frontend debe leer siempre este campo tal cual — no re-inferir la modalidad por texto en `ubicacion` (bug real encontrado y arreglado, ver `PROJECT_ANALYSIS.md §29`) |
 | followers | INTEGER | DEFAULT 0, CHECK ≥ 0 |
 | created_at / updated_at | TIMESTAMP | |

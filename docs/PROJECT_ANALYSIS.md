@@ -7992,3 +7992,32 @@ Pedido del usuario: "veamos el sistema de recomendaciones, por si se puede mejor
 - **Empleados de empresa:** `empresa_voluntarios`, del roadmap §2.4, y reservas de cupos desde el acuerdo de patrocinio, con la nueva regla `cupos_ocupados + reservados sin usar <= cupos`.
 
 El plan ordena los pasos y deja las decisiones abiertas para el usuario. Sin código.
+
+## 282. La foto del voluntariado
+
+Pedido del usuario: "no sé dónde se le pondría foto al voluntariado". `projects.foto_perfil` existía (es el `image` de la API y la usan la tarjeta y el detalle), pero no había forma de cargarla desde la aplicación: los voluntariados nuevos quedaban sin foto. §279–§281 quedaron desplegados: CI 40982005553 (9 jobs en verde) y Deploy 40982670135 (`/health` en `751d3d0`).
+
+### Qué se hizo
+- **Backend:** `PUT /api/projects/:id/photo` (archivo nuevo `routes/projectPhoto.js`, para no agrandar `projects.js`), solo para la ONG dueña. Sigue el orden de la regla 24:
+  - límite de 20 subidas por hora y Cloudinary configurado;
+  - archivo con su cabecera real y propiedad del proyecto, **antes** de subir;
+  - subida fuera de la transacción, y borrado de lo subido si falla el guardado.
+  
+  Guarda la versión ancha (`feedUrl`) y, en la columna nueva **`projects.foto_provider_id`**, el id de Cloudinary, para **borrar la anterior al reemplazarla** (después del COMMIT). Una URL externa vieja no se toca. La lectura del multipart pasó de `routes/auth.js` a **`lib/photoUpload.js`**, compartida con la foto de perfil (regla 3).
+- **Frontend:** `ProjectPhotoField` en el paso 3 de crear y editar: vista previa, la actual al editar, "Quitar" y solo JPEG, PNG o WebP. La foto se sube comprimida **después** de guardar (al crear, recién ahí hay id). Si falla, el voluntariado ya quedó guardado, se sigue igual y un aviso lo dice.
+- **Docs:** `API_CONTEXT`, `DATABASE_CONTEXT`, `FRONTEND_CONTEXT`, `BACKEND_CONTEXT` y `CLAUDE.md`.
+
+### Verificación
+- **Backend:**
+  - `project-photo.test.js` (11). 10 en rojo antes, con 404 porque la ruta no existía; "voluntariado inexistente" ya daba 404.
+  - Cubren la subida y la versión ancha, el reemplazo que borra la anterior y la URL externa que no se borra, otra ONG (404, sin subir y con la base igual), voluntario y sin sesión, inexistente, sin Cloudinary, archivo falso, sin archivo, Cloudinary caído (502, base igual) y el límite.
+  - Un caso nuevo en `ownership.test.js` (regla 15). `profile-photo.test.js` siguió en verde después de sacar el multipart a `lib/photoUpload.js`.
+- **Frontend:** `CreateVoluntariadoPhoto.test.tsx` (6) y el contrato de `api.projects.uploadPhoto`. En rojo los que esperan la foto; "alta sin foto" pasaba desde antes, como corresponde. Un primer intento falló por el test (el `File` de jsdom no tiene `.text()`): se compara el tamaño de la comprimida.
+- **Mutación (scripts, el código se commiteó antes):** backend **12 de 12** (sin control de dueño, sin cabecera, sin Cloudinary, sin límite o con otro tope, miniatura en vez de ancha, sin guardar el id, sin borrar la anterior, borrar sin id, borrar la nueva, sin 502, aceptar cualquier tipo declarado); frontend **11 de 11**.
+- **Suites:** backend `npm test` **1022/1022**, con TZ de Córdoba **1022/1022**, `npm run test:pg` **1024/1024**, y Postgres con TZ de Córdoba **1024/1024**. Frontend **1110/1110**, `npm run typecheck` 0 errores. Cobertura local del frontend: sentencias 89,29 %, ramas 86,10 %, funciones 85,62 %, líneas 92,60 %.
+
+### ⚠️ NO verificado
+- **La subida real a Cloudinary** (los tests usan dobles) y cómo se ve la foto en la tarjeta, el detalle y Explorar.
+- **El campo en pantalla**, en el celular y en oscuro.
+- **Borrar un voluntariado sigue sin borrar su foto** en Cloudinary: es el pendiente conocido de `CLAUDE.md`, no se tocó (regla 16). Ahora existe `foto_provider_id`, así que arreglarlo es directo.
+- **Sin desplegar** al escribir esto.
