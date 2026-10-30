@@ -3,7 +3,8 @@
 // acción más común (aprobar postulaciones, crear un voluntariado) está a un toque desde la primera pantalla.
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router';
-import { Bell, Plus, Search, Check, X } from 'lucide-react';
+import { Bell, Plus, Search, Check, X, CalendarClock } from 'lucide-react';
+import { interviewWhen } from './InterviewPanel';
 import { api, ApiError, Project, PendingEnrollment, NGO, NGOStats } from '../../lib/api';
 import { userMessage } from '../../lib/format';
 import { InlineError } from './LoadError';
@@ -132,6 +133,9 @@ export function NGODashboard() {
                       <p className="text-[15px] font-semibold truncate">{e.volunteer_name}</p>
                       <p className="text-[13px] text-ink-soft truncate">{e.project_title}</p>
                       <p className="text-xs text-ink-muted truncate">{e.volunteer_email}</p>
+                      {e.interview?.status === 'scheduled' && (
+                        <p className="text-xs font-semibold text-ink-soft truncate">Entrevista: {interviewWhen(e.interview)}</p>
+                      )}
                     </div>
                     <div className="flex gap-1.5 flex-shrink-0">
                       <Button variant="primary" onClick={() => handleEnrollment(e, 'approved')} disabled={processing === e.id}
@@ -142,6 +146,11 @@ export function NGODashboard() {
                         aria-label={`Rechazar a ${e.volunteer_name} en ${e.project_title}`} className="!h-9 !px-2 !text-[13px]">
                         <X size={16} strokeWidth={2} aria-hidden="true" /><span className="hidden sm:inline">Rechazar</span>
                       </Button>
+                      {/* §279: a la postulación en el detalle del voluntariado, con la entrevista a mano. */}
+                      <ButtonLink variant="text" to={`/ngo/dashboard/project/${e.project_id}?postulacion=${e.id}`}
+                        aria-label={`Entrevista con ${e.volunteer_name} en ${e.project_title}`} className="!h-9 !px-2 !text-[13px]">
+                        <CalendarClock size={16} strokeWidth={2} aria-hidden="true" /><span className="hidden sm:inline">Entrevista</span>
+                      </ButtonLink>
                     </div>
                   </li>
                 ))}

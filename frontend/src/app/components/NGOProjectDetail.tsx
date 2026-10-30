@@ -1,4 +1,4 @@
-import { useParams, useNavigate, Link } from 'react-router';
+import { useParams, useNavigate, useLocation, Link } from 'react-router';
 import { useEffect, useId, useState } from 'react';
 import { ArrowLeft, Users, CheckCircle, Clock, XCircle, Loader2, DollarSign, BarChart2, MessageCircle, Clock3, Save, FileText, Pencil } from 'lucide-react';
 import { api, ApiError, Project, EnrollmentWithVolunteer } from '../../lib/api';
@@ -29,6 +29,8 @@ const STATUS_CONFIRM = {
 export function NGOProjectDetail() {
   const { projectId } = useParams();
   const navigate = useNavigate();
+  // §279: el link "Entrevista" del panel marca una postulación: se la deja a la vista y con su entrevista a mano.
+  const marked = new URLSearchParams(useLocation().search).get('postulacion');
   const [project, setProject] = useState<Project | null>(null);
   const [enrollments, setEnrollments] = useState<EnrollmentWithVolunteer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +49,11 @@ export function NGOProjectDetail() {
   // Solo vale la respuesta del último pedido (al cambiar de proyecto, reintentar o recargar tras aprobar): F15, §89.
   const latest = useLatestRequest();
   useEffect(() => { if (projectId) void load(); }, [projectId]);
+  // Cuando llegan las postulaciones, la marcada queda a la vista (una vez por postulación marcada).
+  const markedLoaded = enrollments.some(e => e.id === marked);
+  useEffect(() => {
+    if (markedLoaded) document.getElementById(`postulacion-${marked}`)?.scrollIntoView({ block: 'center' });
+  }, [markedLoaded, marked]);
 
   const load = async () => {
     const req = latest.start();
@@ -212,7 +219,7 @@ export function NGOProjectDetail() {
           ) : (
             <div className="divide-y divide-gray-50">
               {filtered.map(e => (
-                <div key={e.id} className="p-4">
+                <div key={e.id} id={`postulacion-${e.id}`} className={`p-4 ${e.id === marked ? 'bg-surface-soft' : ''}`}>
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-full bg-brand-soft flex items-center justify-center text-sm font-bold text-brand-text flex-shrink-0">
                       {e.volunteer_name[0]}
@@ -260,7 +267,7 @@ export function NGOProjectDetail() {
                       </button>
                     </div>
                   )}
-                  <InterviewPanel enrollment={e}
+                  <InterviewPanel enrollment={e} startOpen={e.id === marked}
                     onChange={iv => setEnrollments(prev => prev.map(x => (x.id === e.id ? { ...x, interview: iv } : x)))} />
                   {e.status === 'approved' && (
                     <div className="flex items-center gap-2 mt-3 ml-13">

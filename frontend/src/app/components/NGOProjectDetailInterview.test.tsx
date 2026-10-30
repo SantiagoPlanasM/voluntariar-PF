@@ -42,6 +42,41 @@ beforeEach(() => {
   vi.spyOn(api.projects, 'get').mockResolvedValue({ project } as never);
 });
 
+// §279: el link "Entrevista" del panel trae ?postulacion=<id>: la fila queda a la vista y, si se puede agendar, el
+// formulario ya abierto.
+describe('Llegar desde el panel con la postulación marcada', () => {
+  const mountWith = (e: EnrollmentWithVolunteer, search: string) => {
+    vi.spyOn(api.enrollments, 'byProject').mockResolvedValue({ enrollments: [e] });
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    render(
+      <UiProvider><MemoryRouter initialEntries={[`/ngo/dashboard/project/proj-1${search}`]}><Routes>
+        <Route path="/ngo/dashboard/project/:projectId" element={<NGOProjectDetail />} />
+      </Routes></MemoryRouter></UiProvider>);
+    return scroll;
+  };
+
+  test('pendiente sin entrevista: la fila a la vista y el formulario de agendar abierto', async () => {
+    const scroll = mountWith(enrollment(), '?postulacion=enr-1');
+    expect(await screen.findByLabelText('Fecha de la entrevista')).toBeInTheDocument();
+    await waitFor(() => expect(scroll).toHaveBeenCalled());
+    expect(scroll.mock.contexts[0]).toBe(document.getElementById('postulacion-enr-1'));
+  });
+
+  test('con una programada: la fila a la vista con el resumen, sin abrir el formulario', async () => {
+    const scroll = mountWith(enrollment({ interview: interview() }), '?postulacion=enr-1');
+    expect(await within(await screen.findByRole('region', { name: 'Entrevista con Ana Gómez' })).findByText(/10 de mar.*18:00/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Fecha de la entrevista')).toBeNull();
+    await waitFor(() => expect(scroll).toHaveBeenCalled());
+  });
+
+  test('sin el parámetro, el formulario arranca cerrado', async () => {
+    mountWith(enrollment(), '');
+    expect(await screen.findByRole('button', { name: 'Agendar entrevista' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Fecha de la entrevista')).toBeNull();
+  });
+});
+
 describe('Panel de la ONG: agendar una entrevista', () => {
   test('pendiente sin entrevista: agendar manda solo lo cargado y la fila muestra la entrevista', async () => {
     const schedule = vi.spyOn(api.enrollments, 'scheduleInterview').mockResolvedValue({ interview: interview({ place: 'Sede' }) });

@@ -20,11 +20,14 @@ const EMPTY = { date: '', time: '', link: '', place: '', note: '' };
 const field = 'w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500';
 const smallBtn = 'py-2 px-3 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50';
 
-export function InterviewPanel({ enrollment, onChange }: {
+export function InterviewPanel({ enrollment, onChange, startOpen = false }: {
   enrollment: EnrollmentWithVolunteer; onChange: (interview: Interview) => void;
+  /** §279: se llegó desde el panel con esta postulación marcada: si se puede agendar, el formulario arranca abierto. */
+  startOpen?: boolean;
 }) {
   const confirm = useConfirm();
-  const [form, setForm] = useState<typeof EMPTY | null>(null);
+  const [form, setForm] = useState<typeof EMPTY | null>(() =>
+    (startOpen && enrollment.status === 'pending' && enrollment.interview?.status !== 'scheduled' ? EMPTY : null));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const iv = enrollment.interview;
