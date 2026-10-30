@@ -99,6 +99,8 @@ export const api = {
       req<{ project: Project }>('/projects', { method: 'POST', body: JSON.stringify(b) }),
     update: (id: string, b: Partial<Project>) =>
       req<{ project: Project }>(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(b) }),
+    // La foto del voluntariado (multipart, campo `photo`; §282): solo la ONG dueña. Responde el proyecto con `image`.
+    uploadPhoto: (id: string, form: FormData) => upload<{ project: Project }>(`/projects/${id}/photo`, form, 'PUT'),
     delete: (id: string) =>
       req<{ message: string }>(`/projects/${id}`, { method: 'DELETE' }),
     comment: (id: string, comment: string) =>

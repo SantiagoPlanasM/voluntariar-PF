@@ -132,6 +132,7 @@ const CASES: Case[] = [
 
 const UPLOADS: [nombre: string, llamar: (f: FormData) => Promise<unknown>, metodo: string, ruta: string][] = [
   ['auth.uploadPhoto', (f) => api.auth.uploadPhoto(f), 'PUT', '/auth/me/photo'],
+  ['projects.uploadPhoto (§282)', (f) => api.projects.uploadPhoto('p1', f), 'PUT', '/projects/p1/photo'],
   ['voluntarios.cv.upload', (f) => api.voluntarios.cv.upload(f), 'PUT', '/voluntarios/me/cv'],
   ['posts.create', (f) => api.posts.create(f), 'POST', '/posts'],
 ];

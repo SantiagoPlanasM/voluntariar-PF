@@ -8,6 +8,10 @@ import {
 import { api, type Project, type ProjectDetail } from '../../lib/api';
 import { LocationPicker } from './LocationPicker';
 import { LoadError, describeLoadError } from './LoadError';
+import { ProjectPhotoField } from './ProjectPhotoField';
+import { compressImage } from '../../lib/imageCompress';
+import { userMessage } from '../../lib/format';
+import { useToast } from '../ui/UiProvider';
 
 const CATEGORIES = ['Medio Ambiente', 'Educación', 'Salud', 'Animales', 'Alimentación', 'Tecnología', 'Arte y Cultura', 'Deportes'];
 const ROLE_RE    = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\-\/]{2,40}$/;
@@ -108,6 +112,10 @@ export function CreateVoluntariado() {
   const [coords, setCoords]       = useState<{ lat: number; lng: number } | null>(null);
   const [roles, setRoles]         = useState<string[]>([]);
   const [requirements, setReqs]     = useState<string[]>([]);
+  // §282: la foto elegida (se sube después de guardar) y la actual, al editar.
+  const [photo, setPhoto]               = useState<File | null>(null);
+  const [currentImage, setCurrentImage] = useState<string | null>(null);
+  const toast = useToast();
 
   const loadProject = async () => {
     setLoadingProject(true);
@@ -121,6 +129,7 @@ export function CreateVoluntariado() {
       }
       const loaded = fromProject(project);
       setForm(loaded.form); setRoles(loaded.roles); setReqs(loaded.requirements); setCoords(loaded.coords);
+      setCurrentImage(project.image || null);
       initialBody.current = toBody(loaded.form, loaded.roles, loaded.requirements, loaded.coords, true);
     } catch (e) {
       setLoadError(describeLoadError(e, 'No encontramos este voluntariado'));
@@ -222,13 +231,29 @@ export function CreateVoluntariado() {
       if (editing) {
         const changes = changedFields(body, initialBody.current);
         if (Object.keys(changes).length > 0) await api.projects.update(projectId!, changes);
+        await savePhoto(projectId!, 'Los cambios se guardaron');
         navigate(`/ngo/dashboard/project/${projectId}`);
       } else {
-        await api.projects.create(body);
+        const { project } = await api.projects.create(body);
+        await savePhoto(project.id, 'El voluntariado se publicó');
         navigate('/ngo/dashboard');
       }
     } catch (err: any) { setErrors({ _global: err.message }); }
     finally { setLoading(false); }
+  };
+
+  // §282: la foto va después de guardar (al crear, recién ahí hay id). Si falla, el voluntariado ya quedó guardado:
+  // se sigue igual y el aviso lo dice, para que no se vuelva a publicar.
+  const savePhoto = async (id: string, saved: string) => {
+    if (!photo) return;
+    try {
+      const ready = await compressImage(photo);
+      const fd = new FormData();
+      fd.append('photo', ready, ready.name);
+      await api.projects.uploadPhoto(id, fd);
+    } catch (e) {
+      toast(`${saved}, pero la foto no se pudo subir: ${userMessage(e, 'revisá tu conexión')}. Podés cargarla desde "Editar".`, { kind: 'error' });
+    }
   };
 
   const inp = (key: string) =>
@@ -506,6 +531,9 @@ export function CreateVoluntariado() {
         {/* ── Step 3: Extras ── */}
         {step === 3 && (
           <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+              <ProjectPhotoField currentUrl={currentImage} file={photo} onChange={setPhoto} />
+            </div>
             <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
               <div>
                 <label htmlFor="crear-descripcion-completa" className={lbl}>
