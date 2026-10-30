@@ -70,7 +70,8 @@ describe('Postulación: teléfono de contacto', () => {
   });
 
   test('teléfono inválido: 400 y no se crea la postulación', async () => {
-    const invalid = [123456789, ['3515551234'], 'abc3515551234', '12345', '1234567890123456', '351+5551234', '351.555.1234'];
+    const invalid = [123456789, ['3515551234'], 'abc3515551234', '12345', '1234567890123456', '351+5551234', '351.555.1234',
+      '1 2 3 4 5 6 7 8 9 0 1 2 3 4'];   // 14 dígitos pero 27 caracteres: el tope de 25
     for (const phone of invalid) {
       const v = await volunteer();
       const p = await project();
