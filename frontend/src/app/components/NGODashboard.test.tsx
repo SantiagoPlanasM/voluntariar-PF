@@ -61,6 +61,15 @@ describe('NGODashboard: encabezado en el celular', () => {
   });
 });
 
+// En el celular "Equipo" no está en la barra: el Panel tiene la tarjeta que lleva a /ngo/equipo.
+describe('NGODashboard: acceso al equipo', () => {
+  test('la tarjeta del equipo lleva a /ngo/equipo', async () => {
+    vi.spyOn(api.team, 'members').mockResolvedValue({ members: [] });
+    render(<MemoryRouter><NGODashboard /></MemoryRouter>);
+    expect(await screen.findByRole('link', { name: /Equipo/ })).toHaveAttribute('href', '/ngo/equipo');
+  });
+});
+
 describe('NGODashboard: solicitudes pendientes', () => {
   test('cada solicitud muestra a qué voluntariado es', async () => {
     render(<MemoryRouter><NGODashboard /></MemoryRouter>);

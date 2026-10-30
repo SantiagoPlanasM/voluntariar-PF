@@ -39,6 +39,13 @@ describe('Panel del equipo', () => {
     expect(screen.queryByRole('link', { name: 'Publicar un Momento' })).toBeInTheDocument();
   });
 
+  test('"Volver" lleva a Equipos en el perfil (antes, a Configuración)', async () => {
+    vi.spyOn(api.team, 'panel').mockResolvedValue({ ngo: { id: 'ngo-1', name: 'Sustentando', logo: null }, role: 'communicator', projects });
+    mount();
+    await screen.findByRole('heading', { name: 'Sustentando' });
+    expect(screen.getByRole('link', { name: 'Volver' })).toHaveAttribute('href', '/profile#equipos');
+  });
+
   test('comunicación: sin postulaciones; los voluntariados van al detalle público', async () => {
     vi.spyOn(api.team, 'panel').mockResolvedValue({ ngo: { id: 'ngo-1', name: 'Sustentando', logo: null }, role: 'communicator', projects });
     mount();

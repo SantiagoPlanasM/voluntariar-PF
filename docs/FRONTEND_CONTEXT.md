@@ -27,7 +27,7 @@ frontend/src/
 │   ├── layout/          # AppShell, navConfig
 │   ├── ui/              # kit: Button, PasswordInput, Avatar, Meter, Sheet, UiProvider, ProfileHeader, TypeBadge, Logo, fieldStyles
 │   ├── volunteering/    # lógica pura: cardActions, status, isRemote, imagePosition, projectForm, projectFacts; VolunteeringTile
-│   └── team/            # teamRoles (nombres de los roles del equipo)
+│   └── team/            # teamRoles (nombres de los roles), useTeamMemberships (invitaciones y equipos del voluntario)
 ├── lib/                 # api.ts, AuthContext, ChatContext, format, useLatestRequest, useTheme, badWords, calendar,
 │                        # cv, donations, imageCompress, mapTiles, sponsorship
 └── styles/              # theme.css (tokens), fonts.css, globals.css
@@ -46,7 +46,7 @@ frontend/src/
 | `/notifications` (y `/ngo/notifications` con `inPanel`) | `NotificationsScreen` | con sesión |
 | `/momentos` | `MomentsPage` (una ONG va a `/ngo/momentos`) | público |
 | `/messages`, `/messages/:userId`, `/messages/asistente` (y los mismos en `/ngo/…`, `/company/…`) | `MessagesScreen`, `ChatThread`, `AssistantScreen` | con sesión |
-| `/profile` | `VolunteerProfile` | volunteer |
+| `/profile` | `VolunteerProfile` (con `TeamSection`, ancla `#equipos`) | volunteer |
 | `/volunteer/:id`, `/ngo/:id`, `/company/:id` | perfiles públicos | público |
 | `/settings` | `SettingsScreen`: CV, Mercado Pago (link), tema, contraseña, Equipos/Acceso del equipo, privacidad, cerrar sesión y borrar la cuenta | con sesión |
 | `/equipo/:ngoId` | `TeamPanel` | miembro activo |
@@ -127,7 +127,8 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
 - **`NGOOwnProfile`:** edita el perfil, con CUIT y "Link a balances y documentos". Incluye `MercadoPagoAccountSection` (ancla `#mercadopago`; vincular, volver a vincular o desvincular, con confirmación en la página).
 - **`NGOTransparency`:** muestra los datos con "Los carga la organización; VoluntariAR no los verifica".
 - **`MercadoPagoReturn`:** manda `code` y `state` **una sola vez** (un ref la protege de StrictMode).
-- **`NGOTeam`:** invita, cambia el rol o saca. Del lado del voluntario, `TeamSection` (en Configuración) acepta o sale, y `TeamPanel` es su panel.
+- **`NGOTeam`:** invita, cambia el rol o saca. Se llega por "Equipo" en la barra lateral (escritorio), por `NGOTeamCard` en el Panel (miembros e invitaciones pendientes; es el acceso en el celular) y por Configuración.
+- **Equipo, lado del voluntario:** `useTeamMemberships` (`app/team/`) carga `GET /equipo/mias` y acepta, rechaza o sale (salir pide confirmación). Lo usan `TeamSection` ("Equipos", en el perfil y en Configuración; ancla `#equipos`, a la que llevan el aviso `team_invite` y "Volver" de `TeamPanel`) y `TeamInvites` (arriba del Inicio, solo las invitaciones; al aceptar, link al panel). Los dos se ocultan sin datos o si falla la carga. `TeamPanel` es el panel del miembro.
 - **`NGOPatrocinios` y `SponsorshipAgreementScreen`:**
   - **Puntos:** dos columnas; la propia tiene agregar, editar y borrar mientras el acuerdo está abierto.
   - **Aceptación:** "Estoy de acuerdo" manda `version`, y "Rechazar acuerdo".

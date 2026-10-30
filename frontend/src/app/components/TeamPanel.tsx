@@ -1,6 +1,7 @@
-// El panel de un miembro del equipo de una ONG (/equipo/:ngoId, §296). Lo abre un voluntario desde Configuración →
-// Equipos. Coordinación: las postulaciones sin responder y la gestión de cada voluntariado (NGOProjectDetail en modo
-// equipo). Comunicación: los voluntariados y "Publicar un Momento". Qué ve cada uno lo decide el backend.
+// El panel de un miembro del equipo de una ONG (/equipo/:ngoId, §296). Lo abre un voluntario desde "Equipos" (en su
+// perfil y en Configuración) o desde el aviso de invitación del Inicio. Coordinación: las postulaciones sin responder
+// y la gestión de cada voluntariado (NGOProjectDetail en modo equipo). Comunicación: los voluntariados y "Publicar un
+// Momento". Qué ve cada uno lo decide el backend.
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ArrowLeft, ChevronRight, Loader2, SquarePlus } from 'lucide-react';
@@ -28,7 +29,7 @@ export function TeamPanel() {
   };
   useEffect(() => { if (ngoId) void load(); }, [ngoId]);
 
-  if (loadError) return <LoadError message={loadError.message} onRetry={loadError.retry ? load : undefined} home="/settings" />;
+  if (loadError) return <LoadError message={loadError.message} onRetry={loadError.retry ? load : undefined} home="/profile#equipos" />;
   if (!panel) return <div role="status" aria-label="Cargando panel" className="flex items-center justify-center h-screen"><Loader2 className="w-8 h-8 animate-spin text-ink-muted" /></div>;
 
   const coordinator = panel.role === 'coordinator';
@@ -37,7 +38,7 @@ export function TeamPanel() {
     <div className="min-h-screen bg-canvas-soft pb-8">
       <div className="max-w-[640px] mx-auto px-4 pt-2 md:pt-8 flex flex-col gap-5">
         <header className="flex items-center gap-2 -ml-3">
-          <Link to="/settings" aria-label="Volver" className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-surface-soft">
+          <Link to="/profile#equipos" aria-label="Volver" className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-surface-soft">
             <ArrowLeft size={22} strokeWidth={1.75} aria-hidden="true" />
           </Link>
           <Avatar src={panel.ngo.logo ?? undefined} name={panel.ngo.name} kind="org" size={40} />

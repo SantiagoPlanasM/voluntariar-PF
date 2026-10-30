@@ -1,6 +1,6 @@
 // "Acceso del equipo" (/ngo/equipo, §296): el dueño de la ONG suma voluntarios que lo ayudan, con un rol cada uno.
 // No es el directorio de NGOEmpleados (fichas sin cuenta): acá cada persona tiene su cuenta y entra con ella.
-// La persona invitada acepta desde su Configuración; hasta entonces no ve nada.
+// La persona invitada acepta desde el aviso del Inicio o desde "Equipos" en su perfil; hasta entonces no ve nada.
 import { useEffect, useId, useState } from 'react';
 import { Link } from 'react-router';
 import { ArrowLeft, Loader2, Trash2 } from 'lucide-react';

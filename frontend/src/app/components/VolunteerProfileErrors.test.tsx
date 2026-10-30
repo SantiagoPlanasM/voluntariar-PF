@@ -190,3 +190,17 @@ function allOkAfterFirst() {
   m.following.mockResolvedValue({ volunteers: [juan] });
   m.followers.mockResolvedValue({ volunteers: [juan, { ...juan, user_id: 'u-3' }] });
 }
+
+// "Equipos" (invitaciones y equipos de ONG, con el link al panel) también está en el perfil propio, no solo en
+// Configuración.
+describe('perfil propio: equipos', () => {
+  test('muestra la sección Equipos con el link al panel', async () => {
+    const mine = vi.spyOn(api.team, 'mine').mockResolvedValue({
+      memberships: [{ ngo_id: 'ngo-4', ngo_name: 'TechSocial', ngo_logo: null, role: 'communicator', status: 'active' }],
+    });
+    mount();
+    const section = await screen.findByRole('region', { name: 'Equipos' });
+    expect(within(section).getByRole('link', { name: 'Abrir el panel de TechSocial' })).toHaveAttribute('href', '/equipo/ngo-4');
+    mine.mockRestore();
+  });
+});

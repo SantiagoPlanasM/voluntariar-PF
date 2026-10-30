@@ -10,6 +10,7 @@ import { FollowListModal, FollowListMode } from './FollowListModal';
 import { InlineError } from './LoadError';
 import { ProfilePhotoPicker } from './ProfilePhotoPicker';
 import { MomentsGrid } from './MomentsGrid';
+import { TeamSection } from './TeamSection';
 import { userMessage } from '../../lib/format';
 import { useLatestRequest } from '../../lib/useLatestRequest';
 import { Avatar } from '../ui/Avatar';
@@ -218,6 +219,9 @@ export function VolunteerProfile() {
           </div>
 
           {loadErr && <div className="px-4 pt-4"><InlineError message={loadErr} onRetry={loadAll} /></div>}
+
+          {/* Invitaciones y equipos de ONG, con el link a cada panel (se oculta si no hay ninguno). */}
+          <TeamSection className="mx-4 mt-4" />
 
           {/* Editar perfil */}
           {editing && (

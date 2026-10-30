@@ -1,54 +1,28 @@
-// "Equipos" en la Configuración del voluntario (§296): las invitaciones de ONG (aceptar o rechazar) y los equipos
-// de los que forma parte (link a su panel y "Salir"). La mayoría no tiene ninguno: sin datos (o si falla la carga),
-// no se muestra nada, para no ensuciar Configuración.
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
-import { api, TeamMembership } from '../../lib/api';
-import { userMessage } from '../../lib/format';
+// "Equipos" del voluntario (§296): las invitaciones de ONG (aceptar o rechazar) y los equipos de los que forma
+// parte (link a su panel y "Salir"). Está en su perfil y en Configuración. La mayoría no tiene ninguno: sin datos
+// (o si falla la carga), no se muestra nada. El aviso de invitación lleva a /profile#equipos: el scroll al ancla se
+// hace acá, una vez cargada la lista (react-router no lo hace y la sección aparece después).
+import { useEffect, useRef } from 'react';
+import { Link, useLocation } from 'react-router';
 import { Avatar } from '../ui/Avatar';
-import { useConfirm } from '../ui/UiProvider';
 import { TEAM_ROLE_LABEL } from '../team/teamRoles';
+import { useTeamMemberships } from '../team/useTeamMemberships';
 
-export function TeamSection() {
-  const [items, setItems] = useState<TeamMembership[]>([]);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState('');
-  const confirm = useConfirm();
+export function TeamSection({ className = '' }: { className?: string }) {
+  const { items, busy, error, accept, leave } = useTeamMemberships();
 
+  const { hash } = useLocation();
+  const section = useRef<HTMLElement>(null);
+  const scrolled = useRef(false);
   useEffect(() => {
-    let alive = true;
-    api.team.mine().then(({ memberships }) => { if (alive) setItems(memberships); }).catch(() => {});
-    return () => { alive = false; };
-  }, []);
-
-  const accept = async (m: TeamMembership) => {
-    setBusy(m.ngo_id); setError('');
-    try {
-      const { membership } = await api.team.accept(m.ngo_id);
-      setItems((xs) => xs.map((x) => (x.ngo_id === m.ngo_id ? membership : x)));
-    } catch (e) { setError(userMessage(e, 'No pudimos aceptar la invitación.')); }
-    finally { setBusy(null); }
-  };
-
-  const leave = async (m: TeamMembership) => {
-    if (m.status === 'active') {
-      const ok = await confirm({
-        title: `¿Salir del equipo de ${m.ngo_name}?`, body: 'Dejás de ver su panel. Para volver, la ONG te tiene que invitar de nuevo.',
-        confirmLabel: 'Salir', cancelLabel: 'Volver', danger: true,
-      });
-      if (!ok) return;
-    }
-    setBusy(m.ngo_id); setError('');
-    try {
-      await api.team.leave(m.ngo_id);
-      setItems((xs) => xs.filter((x) => x.ngo_id !== m.ngo_id));
-    } catch (e) { setError(userMessage(e, 'No pudimos hacerlo. Probá de nuevo.')); }
-    finally { setBusy(null); }
-  };
+    if (hash !== '#equipos' || items.length === 0 || scrolled.current) return;
+    scrolled.current = true;
+    section.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  }, [hash, items]);
 
   if (items.length === 0) return null;
   return (
-    <section aria-label="Equipos" className="flex flex-col gap-2">
+    <section ref={section} id="equipos" aria-label="Equipos" className={`flex flex-col gap-2 scroll-mt-4 ${className}`}>
       <h2 className="px-1 text-xs font-semibold text-ink-soft">Equipos</h2>
       {error && <p role="alert" className="px-1 text-[13px] text-critical">{error}</p>}
       <ul className="rounded-xl bg-surface border border-hairline overflow-hidden">

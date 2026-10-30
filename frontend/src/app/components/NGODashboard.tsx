@@ -10,6 +10,7 @@ import { NGOFunnel } from './NGOFunnel';
 import { userMessage } from '../../lib/format';
 import { InlineError } from './LoadError';
 import { MercadoPagoBanner } from './MercadoPagoAccount';
+import { NGOTeamCard } from './NGOTeamCard';
 import { Avatar } from '../ui/Avatar';
 import { TypeBadge } from '../ui/TypeBadge';
 import { Button, ButtonLink } from '../ui/Button';
@@ -124,6 +125,9 @@ export function NGODashboard() {
             ))}
           </dl>
         )}
+
+        {/* En el celular "Equipo" no está en la barra: este es su acceso (en escritorio, también la barra lateral). */}
+        <NGOTeamCard />
 
         <NGOFunnel funnel={funnel} />
 

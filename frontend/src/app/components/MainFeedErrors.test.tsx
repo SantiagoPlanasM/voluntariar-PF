@@ -127,3 +127,15 @@ describe('Inicio: errores de carga (REVISION S1)', () => {
     expect(await screen.findByText('Colecta urgente')).toBeInTheDocument();
   });
 });
+
+// La invitación al equipo de una ONG se ve arriba del Inicio (antes solo en Configuración).
+describe('Inicio: invitación al equipo', () => {
+  test('el voluntario ve la invitación con "Aceptar"', async () => {
+    const mine = vi.spyOn(api.team, 'mine').mockResolvedValue({
+      memberships: [{ ngo_id: 'ngo-1', ngo_name: 'Sustentando', ngo_logo: null, role: 'coordinator', status: 'invited' }],
+    });
+    mount();
+    expect(await screen.findByRole('button', { name: 'Aceptar invitación de Sustentando' })).toBeInTheDocument();
+    mine.mockRestore();
+  });
+});

@@ -8,6 +8,7 @@ import { api, Project, FeedProject, NGO, Post } from '../../lib/api';
 import { FeedPostCard } from './FeedPostCard';
 import { PostCard } from './PostCard';
 import { FeedSidebar, FollowNgoError } from './FeedSidebar';
+import { TeamInvites } from './TeamInvites';
 import { useAuth } from '../../lib/AuthContext';
 import { Link } from 'react-router';
 import { InlineError } from './LoadError';
@@ -150,6 +151,8 @@ export function MainFeed() {
       <div className="max-w-[900px] xl:max-w-[1000px] mx-auto md:px-6 md:pt-6 flex justify-center gap-8 items-start">
         <div className="w-full max-w-[520px] flex-1 min-w-0 flex flex-col gap-3 md:gap-6 px-3 md:px-0 pt-1 md:pt-0">
           <h1 className="sr-only">Inicio</h1>
+
+          {isVolunteer && <TeamInvites />}
 
           {nothingFollowed && (
             <section className="rounded-2xl bg-surface border border-hairline p-5 flex flex-col gap-4" aria-labelledby="empezar">

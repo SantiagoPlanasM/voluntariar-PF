@@ -66,6 +66,39 @@ describe('Configuración: Equipos', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  test('con #equipos en la dirección (el aviso de invitación), hace scroll a la sección una vez cargada', async () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    render(<MemoryRouter initialEntries={['/profile#equipos']}><TeamSection /></MemoryRouter>);
+    const section = await screen.findByRole('region', { name: 'Equipos' });
+    expect(section).toHaveAttribute('id', 'equipos');
+    await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
+    expect(scroll.mock.contexts[0]).toBe(section);
+  });
+
+  test('con #equipos, aceptar una invitación no vuelve a mover la pantalla', async () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    vi.spyOn(api.team, 'accept').mockResolvedValue({ membership: ms('ngo-1', 'Sustentando', 'coordinator', 'active') });
+    render(<MemoryRouter initialEntries={['/profile#equipos']}><TeamSection /></MemoryRouter>);
+    fireEvent.click(within(await row('Sustentando')).getByRole('button', { name: 'Aceptar invitación de Sustentando' }));
+    await within(await row('Sustentando')).findByRole('link', { name: 'Abrir el panel de Sustentando' });
+    expect(scroll).toHaveBeenCalledTimes(1);
+  });
+
+  test('el margen lo pone la pantalla que la usa', async () => {
+    render(<MemoryRouter><TeamSection className="mx-4 mt-4" /></MemoryRouter>);
+    expect((await screen.findByRole('region', { name: 'Equipos' })).className).toContain('mx-4 mt-4');
+  });
+
+  test('sin #equipos no hace scroll', async () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    mount();
+    await screen.findByRole('region', { name: 'Equipos' });
+    expect(scroll).not.toHaveBeenCalled();
+  });
+
   test('si falla la carga, tampoco rompe la pantalla', async () => {
     vi.mocked(api.team.mine).mockRejectedValue(new Error('red'));
     const { container } = mount();

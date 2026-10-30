@@ -75,8 +75,8 @@ export function notificationHref(n: Pick<AppNotification, 'type' | 'data'>, role
     }
     case 'new_project':
       return project ? `/project/${project}` : null;
-    case 'team_invite':   // al voluntario: se acepta en Configuración → Equipos (§296)
-      return '/settings';
+    case 'team_invite':   // al voluntario: "Equipos" en su perfil, donde la acepta
+      return '/profile#equipos';
     case 'team_joined':   // al dueño: su equipo
       return '/ngo/equipo';
     default:

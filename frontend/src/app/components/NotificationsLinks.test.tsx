@@ -32,8 +32,9 @@ describe('notificationHref', () => {
     expect(notificationHref(n('new_follower', {}))).toBeNull();
     expect(notificationHref(n('new_enrollment', 'no es json'))).toBe('/ngo/dashboard');
     expect(notificationHref(n('algo_nuevo', { project_id: 'p1' }))).toBeNull();
-    // §296: la invitación al equipo se acepta en Configuración; al dueño, quien se sumó lo lleva a su equipo.
-    expect(notificationHref(n('team_invite', { ngo_id: 'ngo-1' }))).toBe('/settings');
+    // La invitación al equipo lleva a "Equipos" en el perfil (antes, a Configuración: §296); al dueño, quien se
+    // sumó lo lleva a su equipo.
+    expect(notificationHref(n('team_invite', { ngo_id: 'ngo-1' }))).toBe('/profile#equipos');
     expect(notificationHref(n('team_joined', { ngo_id: 'ngo-1', user_id: 'u1' }))).toBe('/ngo/equipo');
     expect(notificationHref({ type: 'new_project', data: undefined })).toBeNull();
   });

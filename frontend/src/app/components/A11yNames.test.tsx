@@ -86,6 +86,7 @@ vi.mock('../../lib/api', async () => {
         markRead: ok({}), send: vi.fn() },
       notifications: { ...actual.api.notifications, list: ok({ notifications: [] }), markAllRead: vi.fn() },
       faqs: { list: ok({ faqs: [] }), ask: vi.fn() },
+      team: { ...actual.api.team, mine: ok({ memberships: [] }), members: ok({ members: [] }) },
     },
   };
 });
