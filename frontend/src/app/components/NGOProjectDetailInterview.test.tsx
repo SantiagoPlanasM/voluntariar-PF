@@ -45,8 +45,8 @@ beforeEach(() => {
 // §279: el link "Entrevista" del panel trae ?postulacion=<id>: la fila queda a la vista y, si se puede agendar, el
 // formulario ya abierto.
 describe('Llegar desde el panel con la postulación marcada', () => {
-  const mountWith = (e: EnrollmentWithVolunteer, search: string) => {
-    vi.spyOn(api.enrollments, 'byProject').mockResolvedValue({ enrollments: [e] });
+  const mountWith = (e: EnrollmentWithVolunteer | EnrollmentWithVolunteer[], search: string) => {
+    vi.spyOn(api.enrollments, 'byProject').mockResolvedValue({ enrollments: Array.isArray(e) ? e : [e] });
     const scroll = vi.fn();
     Element.prototype.scrollIntoView = scroll;
     render(
@@ -68,6 +68,14 @@ describe('Llegar desde el panel con la postulación marcada', () => {
     expect(await within(await screen.findByRole('region', { name: 'Entrevista con Ana Gómez' })).findByText(/10 de mar.*18:00/)).toBeInTheDocument();
     expect(screen.queryByLabelText('Fecha de la entrevista')).toBeNull();
     await waitFor(() => expect(scroll).toHaveBeenCalled());
+  });
+
+  test('con varias postulaciones, queda a la vista la marcada (no la primera)', async () => {
+    const otra = enrollment({ id: 'enr-0', user_id: 'u-0', volunteer_name: 'Beto Ruiz' });
+    const scroll = mountWith([otra, enrollment()], '?postulacion=enr-1');
+    await waitFor(() => expect(scroll).toHaveBeenCalled());
+    expect(scroll.mock.contexts[0]).toBe(document.getElementById('postulacion-enr-1'));
+    expect(screen.getAllByLabelText('Fecha de la entrevista')).toHaveLength(1);
   });
 
   test('sin el parámetro, el formulario arranca cerrado', async () => {
