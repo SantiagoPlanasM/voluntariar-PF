@@ -41,7 +41,7 @@ Los tres commits locales del 29/10 se verificaron y pushearon. La mutación del 
 - canal de difusión de la encuesta;
 - fecha de la portada;
 - horas de desarrollo para el ROI;
-- actualizar los números (hoy: 37 tablas, 1030/1032 y 1124 tests, y lo de §279–§286).
+- ~~actualizar los números~~: hecho el 30/10 a la noche con el CI de `199259a` (38 tablas; 1088/1090 y 1187 tests; cobertura; HU-O10 del equipo; trabajo futuro). Si cambia el sistema antes de entregar, repetirlo.
 
 Después, correr la corrección v3.
 
