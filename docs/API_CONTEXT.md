@@ -21,11 +21,11 @@
 | GET | `/api/auth/me` | Sí | cualquiera | `routes/auth.js` |
 | PUT | `/api/auth/me` | Sí | cualquiera | `routes/auth.js` |
 | PUT | `/api/auth/me/photo` | Sí | cualquiera | `routes/auth.js` |
-| PUT | `/api/auth/me/password` | Sí | cualquiera | `routes/auth.js` |
+| PUT | `/api/auth/me/password` | Sí | cualquiera | `routes/authPassword.js` (§290) |
 | POST | `/api/auth/me/delete-request` | Sí | cualquiera | `routes/auth.js` |
 | POST | `/api/auth/delete-account` | No (código del email) | — | `routes/auth.js` |
-| POST | `/api/auth/forgot-password` | No | — | `routes/auth.js` |
-| POST | `/api/auth/reset-password` | No (código del email) | — | `routes/auth.js` |
+| POST | `/api/auth/forgot-password` | No | — | `routes/authPassword.js` (§290) |
+| POST | `/api/auth/reset-password` | No (código del email) | — | `routes/authPassword.js` (§290) |
 | GET | `/api/projects` | Opcional | — | `routes/projects.js` |
 | GET | `/api/projects/recommended` | Sí | volunteer | `routes/projects.js` |
 | GET | `/api/projects/:id` | Opcional | — | `routes/projects.js` |
@@ -113,6 +113,8 @@
 ---
 
 ## Auth (`routes/auth.js`)
+
+Desde §290, las tres rutas de contraseña (`PUT /me/password`, `POST /forgot-password` y `POST /reset-password`) están en `routes/authPassword.js`, que `auth.js` monta con `router.use`: las URLs no cambiaron. Las validaciones, la respuesta 429, `sha256` y `appUrl` están en `lib/authCommon.js`.
 
 ### `POST /api/auth/register`
 - **Body:** `{ name, email, password, role: 'volunteer'|'ngo'|'company', apellido? }` (no lee otros campos; `role` ausente = `volunteer`, fuera de la lista → **400** "Rol inválido").

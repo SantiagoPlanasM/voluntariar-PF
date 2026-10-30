@@ -8195,3 +8195,31 @@ Era un pendiente conocido de `CLAUDE.md`. El usuario autorizó arreglarlo el 30/
 
 ### ⚠️ NO verificado
 - Contra Cloudinary real: los tests usan un doble. Que `deleteImage` borre de verdad está probado en `storage.test.js` contra la API simulada, no contra la cuenta.
+
+## 290. Las contraseñas salen de `routes/auth.js`
+
+`routes/auth.js` era el tercer archivo más complejo del proyecto (SonarCloud: 108 de complejidad cognitiva, `PLAN_CIERRE.md §2`). Pedido del usuario el 30/10.
+
+### Qué se hizo
+- **`routes/authPassword.js`:** `PUT /me/password`, `POST /forgot-password`, `POST /reset-password`, `notifyPasswordChanged`, `sendResetLink` y sus límites de intentos. `auth.js` lo monta con `router.use(require('./authPassword'))` en el mismo lugar donde estaba el bloque, así que las URLs y `index.js` no cambian.
+- **`lib/authCommon.js`:** lo que usan los dos archivos, que así no se copia (regla 3):
+  - `validateEmail`, `validateName` y `validatePassword` (con `EMAIL_RE`);
+  - `tooMany` (el 429 con `Retry-After`);
+  - `sha256` y `appUrl`.
+
+  `auth.js` los sigue reexportando para los tests que los importan de ahí.
+- `auth.js` pasó de 599 a 428 líneas.
+- **Copias que siguen y no se tocaron:** `appUrl`/`APP_URL` en `donaciones.js`, `empresas.js`, `enrollments.js` y `ngos.js`, y el `sha256` de `mercadopago.js`. Unificarlas era otro cambio.
+
+### Verificación
+- **Prueba diferencial del movimiento:** script que compara las líneas del `auth.js` original contra los tres archivos nuevos. Las únicas líneas nuevas son encabezados, imports y el `router.use`. Del original solo faltan los dos imports que se achicaron, y ninguna línea de lógica.
+- **Los 27 tests de las rutas que se movieron pasan sin cambios:** `password-change`, `password-changed-email`, `password-reset` y `password-reset-limit`. También los de los validadores, `validators` y `regexLineales`.
+- **Suites:** `npm test` **1052/1052** y `npm run test:pg` **1054/1054**, con §289 incluido (+5). Córdoba: en la corrida final, antes del push.
+- **Mutación:** no se corrió. Es un movimiento sin código nuevo, y esas rutas ya se mutaron en §272, §275 y §278. Se reemplazó por la prueba diferencial.
+
+### Errores propios
+- **Al escribir esta sección con un script de Node, el texto `` `\r` `` quedó como un retorno de carro de verdad.** Git pasó a ver `PROJECT_ANALYSIS.md` como no texto (`w/-text`) y el diff tocaba las 8.200 líneas. Lo detecté con `git ls-files --eol` antes de commitear y lo corregí.
+- Al mirar `auth.js` con `cat -A` no aparecían los `\r`, aunque el archivo es CRLF en la copia local. El `sed` de Git Bash los esconde. Por eso el movimiento se hizo con un script de Node que detecta el fin de línea, y no confiando en lo que mostraba `sed`.
+
+### ⚠️ NO verificado
+- La complejidad nueva de `auth.js` en SonarCloud: se ve en el análisis después del push.

@@ -13,6 +13,7 @@ backend/
 │   ├── db/index.js         # adaptador dual SQLite/Postgres — único punto de acceso a datos
 │   ├── lib/
 │   │   ├── email.js          # cliente mínimo de Resend (fetch nativo, sin SDK); isConfigured() para el 503 de §275
+│   │   ├── authCommon.js     # validateEmail/Name/Password, tooMany (429), sha256 y appUrl de auth.js y authPassword.js (§290)
 │   │   ├── emailTemplates.js # plantillas HTML de los emails transaccionales
 │   │   ├── inputs.js         # checkText()/firstError(): textos libres del body (tipo, vacío, largo máximo; §76)
 │   │   ├── errorHandler.js   # manejador global de errores: 400/413/415/403 con mensaje fijo en español, resto 500 genérico
@@ -21,7 +22,8 @@ backend/
 │   │   └── time.js           # toMillis(): timestamps string (SQLite) o Date (Postgres) → ms
 │   ├── middleware/auth.js  # requireAuth, optionalAuth, requireRole, signToken
 │   └── routes/
-│       ├── auth.js         # /api/auth/*
+│       ├── auth.js         # /api/auth/* (registro, login, perfil, foto, borrar la cuenta; monta authPassword.js)
+│       ├── authPassword.js # /api/auth: cambiar la contraseña, "¿Olvidaste tu contraseña?" y su aviso por email (§290)
 │       ├── projects.js     # /api/projects/*  (incluye comments, ratings, kpis, recomendaciones)
 │       ├── enrollments.js  # /api/enrollments/*
 │       ├── ngos.js         # /api/ngos/*      (incluye empleados, patrocinios lado ONG)
@@ -223,7 +225,7 @@ Como el esquema de base de datos está en español (`titulo`, `descripcion`, `ub
 
 | Helper | Ubicación | Qué hace |
 |---|---|---|
-| `validateEmail/validateName/validatePassword` | `routes/auth.js` | Regex idénticas (copiadas) a las de `frontend/AuthModal.tsx` |
+| `validateEmail/validateName/validatePassword` | `lib/authCommon.js` (desde §290; `routes/auth.js` los reexporta) | Regex idénticas (copiadas) a las de `frontend/AuthModal.tsx` |
 | `validateProject(body)` | `routes/projects.js` | Valida título, descripción, ubicación, duración (si `fugaz`), horas semanales (si `sostenido`), cupos |
 | `parseJson(val)` | `routes/projects.js` | `JSON.parse` con try/catch que devuelve `[]` en error |
 | `hasBadWord(text)` / `BLACKLIST` | `lib/badWords.js` | Lista fija de 11 palabras ofensivas en español. Compara **palabras completas**, sin mayúsculas ni acentos (`PROJECT_ANALYSIS.md §93`; antes por subcadena). La usan los comentarios de proyectos, los comentarios de las calificaciones (`§104`) y los textos de publicaciones. Copia idéntica en `frontend/src/lib/badWords.ts`; `test/unit/badWords.test.js` exige que las listas sean iguales. |
