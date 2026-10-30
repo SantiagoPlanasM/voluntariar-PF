@@ -97,6 +97,9 @@ mutación.
 3. `empresa_voluntarios` con invitación y el panel de la empresa con sus empleados.
 4. Reservas de cupos desde el acuerdo de patrocinio.
 
-**Decisiones abiertas para el usuario:** los nombres de los roles del equipo (¿alcanzan coordinador y
-comunicador?), si un miembro puede pertenecer a más de una ONG, y si los empleados de una empresa se aprueban solos
-en un voluntariado con cupos reservados o igual pasan por la ONG.
+**Decisiones del usuario (2026-10-30):**
+- **Roles:** alcanzan coordinador y comunicador.
+- **Membresía:** una persona puede ser miembro de **varias ONG**, con un rol en cada una.
+- **Empleados con lugar reservado:** **igual pasan por la ONG**. La reserva les guarda el lugar, pero la ONG aprueba.
+- **Cuándo:** el **equipo de la ONG (pasos 1 y 2) se hace y se despliega antes del 2/11**, cambiando el plan
+  original de dejarlo para después de la defensa. Los pasos 3 y 4 (empresa) quedan para después del 5/11.

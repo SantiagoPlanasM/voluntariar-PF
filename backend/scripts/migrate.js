@@ -536,6 +536,20 @@ async function migrate() {
     )`);
   await db.query(`UPDATE empresa_voluntariados SET acepta_empresa_version = version
                   WHERE estado = 'propuesto' AND acepta_empresa_version IS NULL`);
+  // §293 (2026-10-30, docs/PLAN_EQUIPOS.md): el equipo de la ONG. Un usuario voluntario es miembro de una o varias ONG,
+  // con un rol en cada una; cuenta solo si aceptó la invitación (estado 'activo'). La cuenta dueña sigue siendo
+  // ngos.user_id: acá no está. Quién puede qué lo responde src/lib/ngoAccess.js.
+  await db.query(`CREATE TABLE IF NOT EXISTS ngo_miembros (
+      id            ${UUID_PK},
+      ngo_id        TEXT NOT NULL REFERENCES ngos(id) ON DELETE CASCADE,
+      user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      rol           TEXT NOT NULL CHECK(rol IN ('coordinador','comunicador')),
+      estado        TEXT NOT NULL DEFAULT 'invitado' CHECK(estado IN ('invitado','activo')),
+      invitado_por  TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at    ${NOW},
+      updated_at    ${NOW},
+      UNIQUE(ngo_id, user_id)
+    )`);
 
   // ── Índices ───────────────────────────────────────────────────────────────
   console.log('\n🔍 Creando índices...');
