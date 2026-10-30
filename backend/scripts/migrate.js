@@ -474,6 +474,9 @@ async function migrate() {
   // Agregadas 2026-09 para geolocalización y modalidad de voluntariados:
   await addColumnIfNotExists('projects', 'latitud', 'REAL');
   await addColumnIfNotExists('projects', 'longitud', 'REAL');
+  // §282 (2026-10-29): el id de Cloudinary de la foto del voluntariado, para borrar la anterior al reemplazarla.
+  // NULL = sin foto subida acá (o una URL externa vieja). Nunca sale en la API.
+  await addColumnIfNotExists('projects', 'foto_provider_id', 'TEXT');
   await addColumnIfNotExists('projects', 'modalidad', "TEXT DEFAULT 'presencial'");
 
   // Agregada 2026-09: contador de seguidores en voluntarios (mismo patrón que ngos.followers)

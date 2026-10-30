@@ -245,6 +245,36 @@ describe('Autorización por dueño entre ONGs', () => {
     });
   });
 
+  // §282: la foto del voluntariado. Multipart, así que va aparte del helper JSON; Cloudinary es un doble.
+  describe('foto del voluntariado (§282)', () => {
+    test('otra ONG no puede cambiar la foto de proj-1 (404, sin subir nada, la base igual); la dueña sí', async () => {
+      const storage = require('../../src/lib/storage');
+      const uploads = [];
+      const mocks = [
+        mock.method(storage, 'isConfigured', () => true),
+        mock.method(storage, 'uploadImage', async () => { uploads.push(1); return { url: 'https://res.cloudinary.com/demo/image/upload/v1/x.jpg', publicId: 'test/x' }; }),
+        mock.method(storage, 'deleteImage', async () => true),
+      ];
+      try {
+        const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]), Buffer.alloc(100, 1)]);
+        const put = (token) => {
+          const form = new FormData();
+          form.append('photo', new Blob([jpeg], { type: 'image/jpeg' }), 'f.jpg');
+          return fetch(`${baseUrl}/api/projects/proj-1/photo`, { method: 'PUT', headers: { Authorization: `Bearer ${token}` }, body: form });
+        };
+        const photo = () => db.get(`SELECT foto_perfil, foto_provider_id FROM projects WHERE id='proj-1'`);
+        const before_ = await photo();
+        assert.equal((await put(other)).status, 404);
+        assert.equal(uploads.length, 0);
+        assert.deepEqual(await photo(), before_);
+        assert.equal((await put(owner)).status, 200);
+        assert.equal((await photo()).foto_provider_id, 'test/x');
+      } finally {
+        for (const m of mocks) m.mock.restore();
+      }
+    });
+  });
+
   // Control: con los MISMOS ids, la dueña sí puede. Va después de los rechazos porque modifica los datos.
   describe('la ONG dueña SÍ puede (mismos ids)', () => {
     test('ver inscripciones, cargar horas y aprobar', async () => {

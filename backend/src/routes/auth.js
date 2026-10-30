@@ -7,7 +7,7 @@ const { signToken, requireAuth } = require('../middleware/auth');
 const { checkText, firstError } = require('../lib/inputs');
 const { isUniqueViolation } = require('../lib/dbErrors');
 const { createLimiter } = require('../lib/rateLimit');
-const multer = require('multer');
+const { parsePhoto } = require('../lib/photoUpload');   // la foto en multipart, compartida con la del voluntariado (§282)
 const storage = require('../lib/storage');   // por propiedad (storage.uploadImage), para poder reemplazarlo en tests
 const email = require('../lib/email');       // por propiedad (email.sendEmail), ídem
 const { accountDeletionEmail, passwordResetEmail, passwordChangedEmail } = require('../lib/emailTemplates');
@@ -330,33 +330,9 @@ router.put('/me/password', requireAuth, async (req, res) => {
 // toca: users.avatar es la única foto del voluntario (PLAN_FALTANTE.md, decisión F2).
 // Orden de la regla 24 de AI_RULES: sesión → límite → validar todo (cabecera real incluida) → subir fuera de la
 // transacción → guardar en una transacción → si falla, borrar lo subido.
-// Como Momentos (el frontend comprime antes de subir). 8.000.000 y no 8 MiB: es el máximo para subidas de
-// SonarCloud S5693 (§232), y el frontend usa el mismo tope.
-const PHOTO_MAX_BYTES = 8_000_000;
-const PHOTO_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
+// Como Momentos (el frontend comprime antes de subir). La lectura del multipart es lib/photoUpload (§282).
 const PHOTO_CHANGES_PER_USER = createLimiter({ max: 10, windowMs: 60 * 60 * 1000 });   // cada subida gasta cuota
 const PROFILE_TABLE = { ngo: 'ngos', company: 'empresas' };   // tablas fijas, nunca texto del cliente
-
-class PhotoRejected extends Error {}
-const photoUpload = multer({
-  storage: multer.memoryStorage(),   // nada al disco: el de Render es efímero
-  limits: { fileSize: PHOTO_MAX_BYTES, files: 1, fields: 5, parts: 6 },
-  fileFilter: (req, file, cb) => {
-    if (!PHOTO_MIME.has(file.mimetype)) return cb(new PhotoRejected('Solo se aceptan fotos JPEG, PNG o WebP'));
-    cb(null, true);
-  },
-}).single('photo');
-
-function parsePhoto(req, res, next) {
-  photoUpload(req, res, (err) => {
-    if (!err) return next();
-    if (err instanceof PhotoRejected) return res.status(400).json({ error: err.message });
-    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(413).json({ error: 'La foto puede pesar hasta 8 MB' });
-    }
-    return res.status(400).json({ error: 'Elegí una foto' });   // campo con otro nombre, más de un archivo, etc.
-  });
-}
 
 router.put('/me/photo', requireAuth, (req, res, next) => {
   const wait = PHOTO_CHANGES_PER_USER.blocked(req.user.id);
