@@ -1,240 +1,66 @@
 # PROJECT_CONTEXT.md — VoluntariAR
 
-> Documento maestro de contexto. Leer este archivo primero en cualquier conversación nueva sobre este proyecto. Los archivos `BACKEND_CONTEXT.md`, `FRONTEND_CONTEXT.md`, `DATABASE_CONTEXT.md` y `API_CONTEXT.md` profundizan cada capa; `PROJECT_ANALYSIS.md` contiene el diagnóstico crítico; `AI_RULES.md` define cómo debe trabajar una IA sobre este código.
+> Documento maestro: leer primero. Cada capa se detalla en `BACKEND_CONTEXT.md`, `API_CONTEXT.md`,
+> `DATABASE_CONTEXT.md` y `FRONTEND_CONTEXT.md`; las reglas de trabajo están en `AI_RULES.md`. Estado al 30/10/2026.
 
-## 1. Descripción del proyecto
+## Qué es
 
-**VoluntariAR** es una plataforma web tipo "red social solidaria" — un proyecto académico (Universidad Católica de Córdoba, Argentina) que conecta:
+**VoluntariAR** es una red social de voluntariado, proyecto final de la Universidad Católica de Córdoba. Conecta tres roles (`users.role`, fijo desde el registro):
 
-- **Voluntarios** que buscan participar en proyectos sociales.
-- **ONGs** que publican esos proyectos y gestionan inscripciones.
-- **Empresas** que patrocinan voluntariados corporativos (RSE): siguen proyectos de una ONG, proponen patrocinios, y tienen su propio panel (perfil, patrocinios, mensajes) — ver §5 y `PROJECT_ANALYSIS.md §24-26`.
+| Rol | Qué hace |
+|---|---|
+| `volunteer` | Explora (lista, mapa, "Para vos"), se postula (con teléfono opcional), ve sus participaciones, horas y certificados, comenta y califica, sigue ONG, proyectos y voluntarios, sube su CV privado, dona, chatea. Puede ser **miembro del equipo** de una o varias ONG |
+| `ngo` | Publica y edita voluntariados (foto con encuadre, cupos, roles, requisitos, lugar en el mapa), aprueba o rechaza postulaciones, agenda entrevistas, carga horas, ve KPIs y el embudo, publica Momentos, vincula Mercado Pago, negocia patrocinios, muestra datos de transparencia e invita a su equipo (coordinación o comunicación) |
+| `company` | Propone y negocia patrocinios con las ONG (acuerdo por puntos y versiones), tiene un panel de impacto y figura como patrocinadora en público |
 
-El feed público (`/`) permite a cualquier visitante no autenticado explorar proyectos activos antes de crear una cuenta.
+Cualquier visitante puede explorar sin cuenta (`optionalAuth`).
 
-## 2. Objetivo del sistema
+## Arquitectura
 
-Facilitar el descubrimiento y la gestión de oportunidades de voluntariado: que una ONG pueda publicar un proyecto con cupos, requisitos y roles, que un voluntario pueda inscribirse y hacer seguimiento de su participación (incluidas horas realizadas), y que la ONG pueda aprobar/rechazar inscripciones, medir impacto con KPIs y administrar su equipo interno.
-
-## 3. Arquitectura general
-
-Monorepo con dos paquetes npm independientes (`frontend/`, `backend/`) más un `render.yaml` en la raíz para despliegue automático en Render.com (Blueprint).
-
-```
-┌──────────────────────────────┐
-│  Frontend — React 18 SPA     │
-│  Vite + React Router 7        │
-│  Tailwind CSS 4                │
-│  AuthContext (JWT en localStorage) │
-│  src/lib/api.ts → fetch()      │
-└───────────────┬────────────────┘
-                │ HTTP/JSON (REST)
-                ▼
-┌──────────────────────────────┐
-│  Backend — Express 4 (Node)   │
-│  CORS → express.json()         │
-│  Middleware JWT (auth.js)      │
-│  Rutas: /api/auth /projects    │
-│  /enrollments /ngos /empresas  │
-│  /follows /faqs /voluntarios   │
-│  /notifications /messages      │
-│  /posts /donaciones            │
-│  /categorias /roles /habilidades │
-└───────────────┬────────────────┘
-                │ SQL (adaptador dual)
-                ▼
-┌──────────────────────────────┐
-│  Base de datos                 │
-│  SQLite (local, better-sqlite3)│
-│  PostgreSQL (prod, Render)     │
-│  33 tablas · 33 índices        │
-└──────────────────────────────┘
-```
-
-No hay backend-for-frontend, GraphQL, ni capa de caché: es un CRUD REST clásico servido directamente por Express, consumido por un SPA de React.
-
-## 4. Stack tecnológico
-
-### Frontend
-| Tecnología | Versión | Uso |
-|---|---|---|
-| React | 18.3 | UI, con `StrictMode` |
-| React Router | 7.13 | Enrutamiento SPA (`createBrowserRouter`) |
-| Vite | 6.3 | Bundler / dev server |
-| Tailwind CSS | 4.1 (via `@tailwindcss/vite`) | Estilos utilitarios inline |
-| lucide-react | 0.487 | Íconos |
-| TypeScript | 7 (devDependency; `npm run typecheck`, `tsconfig.json` con `strict: true`) | Tipado — con `noUnusedLocals`/`noUnusedParameters` desactivados. Vite transpila sin chequear tipos: el chequeo real es `npm run typecheck` (`PROJECT_ANALYSIS.md §68–§69`) |
-| Vitest + Testing Library | 5 / 16 | Tests (`npm test`) |
-
-No usa: gestor de estado global (Redux/Zustand — todo vive en `AuthContext` + estado local por componente), React Query/SWR (fetch manual en cada `useEffect`), linter configurado en el repo.
-
-### Backend
-| Tecnología | Versión | Uso |
-|---|---|---|
-| Node.js | ≥22 (`engines` en package.json; lo exige `better-sqlite3@13`) | Runtime |
-| Express | 4.19 | Framework HTTP |
-| jsonwebtoken | 9.0 | Autenticación JWT |
-| bcryptjs | 2.4 | Hash de contraseñas |
-| better-sqlite3 | 13.0.3 | Driver SQLite síncrono (local). Trae binarios precompilados; `backend/.npmrc` (`ignore-scripts=true`) evita que npm intente compilarlo (ver `PROJECT_ANALYSIS.md §36` y `§38`) |
-| pg | 8.12 | Driver PostgreSQL (producción) |
-| cors | 2.8 | CORS configurable por `CORS_ORIGINS` |
-| multer | 2.4 | Subida multipart a Cloudinary: fotos de Momentos (`routes/posts.js`, §43), foto de perfil (`auth.js`, §162) y CV en PDF (`voluntarios.js`, §165). Se subió de 1.x, que estaba deprecada con vulnerabilidades (`§37`) |
-| `node --watch` | incluido en Node ≥ 22 | Hot-reload en desarrollo (`npm run dev`). Reemplazó a `nodemon` (`PROJECT_ANALYSIS.md §41`); el backend ya no tiene devDependencies |
-
-No usa: ORM (todo es SQL crudo con parámetros posicionales `$1, $2...`), sistema de migraciones versionado (un único script `migrate.js` idempotente con `CREATE TABLE IF NOT EXISTS`), linter. Los tests usan `node:test` (sin dependencias): `npm test` en SQLite y `npm run test:pg` contra Postgres.
-
-### Base de datos
-- **Local:** SQLite, archivo `backend/data/voluntariar.sqlite` (creado automáticamente, con WAL habilitado).
-- **Producción:** PostgreSQL, gestionado por Render (plan free: vence a los 30 días de creada; la de este proyecto, el **14/11/2026**).
-- El adaptador (`backend/src/db/index.js`) decide en tiempo de arranque cuál usar según `USE_POSTGRES` / presencia de `DATABASE_URL`, y traduce sobre la marcha la sintaxis específica de Postgres a SQLite (ver `BACKEND_CONTEXT.md §2`).
-
-## 5. Roles del sistema
-
-| Rol (`users.role`) | Descripción | Pantallas dedicadas |
-|---|---|---|
-| `volunteer` | Explora proyectos, se inscribe, ve su historial y horas, comenta, califica, sigue ONGs/proyectos/otros voluntarios | Sí (feed, explorar con mapa, participaciones, perfil propio y público, notificaciones, mensajes) |
-| `ngo` | Publica y gestiona proyectos, aprueba/rechaza inscripciones, gestiona empleados, KPIs y propuestas de patrocinio | Sí (dashboard, crear, detalle de proyecto, perfil, empleados, KPIs, patrocinios, mensajes) |
-| `company` | Patrocina voluntariados (RSE) | Sí (perfil propio y público, panel de KPIs de patrocinio, proponer/retirar patrocinios, mensajes) — layout propio en `/company/*`, redirige ahí después del login |
-
-El rol se fija en el registro y es inmutable desde la UI (no hay endpoint de cambio de rol).
-
-## 6. Flujo completo de navegación
-
-```mermaid
-flowchart TD
-    A["/ (PublicFeed)<br/>sin login"] -->|"Entrar / Registrarme<br/>(AuthModal)"| B{Login OK}
-    B -->|role=volunteer| C["/feed (MainFeed)<br/>feed de lo que sigo"]
-    B -->|role=ngo| D["/ngo/dashboard"]
-    B -->|role=company| E["/company/profile"]
-
-    C --> C1["/project/:id<br/>ProjectDetails"]
-    C --> C2["/explore<br/>ExploreScreen (buscar/filtrar/mapa)"]
-    C --> C3["/participation<br/>MyParticipation"]
-    C --> C4["/notifications"]
-    C --> C5["/profile<br/>VolunteerProfile"]
-    C --> C6["/messages<br/>+ /messages/:userId"]
-    C --> C10["/momentos<br/>MomentsPage (pestaña del feed, pública)"]
-    C1 --> C7["/ngo/:id<br/>NGOPublicProfile (público)"]
-    C1 --> C8["/company/:id<br/>CompanyPublicProfile (público)"]
-    C1 --> C9["/volunteer/:id<br/>VolunteerPublicProfile (público)"]
-
-    D --> D1["/ngo/create<br/>CreateVoluntariado"]
-    D --> D2["/ngo/dashboard/project/:id<br/>NGOProjectDetail"]
-    D --> D3["/ngo/profile<br/>NGOOwnProfile"]
-    D --> D4["/ngo/patrocinios<br/>NGOPatrocinios"]
-    D --> D5["/ngo/empleados/:id<br/>NGOEmpleados"]
-    D --> D6["/ngo/kpis/:projectId<br/>NGOKPIs"]
-    D --> D8["/ngo/momentos<br/>NGOMoments"]
-    D --> D7["/ngo/messages<br/>+ /ngo/messages/:userId"]
-
-    E --> E1["/company/profile<br/>CompanyOwnProfile<br/>(editar perfil + proponer/retirar patrocinios)"]
-    E --> E3["/company/dashboard<br/>CompanyDashboard<br/>(KPIs de patrocinio e impacto)"]
-    E --> E2["/company/messages<br/>+ /company/messages/:userId"]
-```
-
-Hay **tres layouts raíz** (`Root.tsx` para `/`, `NGOLayout.tsx` para `/ngo/*` y `CompanyLayout.tsx` para `/company/*`), cada uno con su propia navegación (bottom nav en mobile, sidebar en desktop) y su propio `<AuthModal/>` y `<ChatbotWidget/>` montados.
-
-`OnboardingScreen.tsx` (login/registro alternativo, nunca enrutado) se borró en `PROJECT_ANALYSIS.md §99`.
-
-## 7. Cómo interactúan frontend y backend
-
-- El frontend llama a la API vía `src/lib/api.ts`, un cliente `fetch` centralizado que añade automáticamente el header `Authorization: Bearer <token>` si hay sesión (token guardado en `localStorage` bajo la clave `v_token`).
-- ~~**Excepción:** `NGOEmpleados.tsx` **no usa `api.ts`**~~ — **resuelto en `PROJECT_ANALYSIS.md §98`**: hoy ningún componente hace `fetch()` fuera de `api.ts`. *(Texto original, histórico:)* `NGOEmpleados.tsx` no usaba `api.ts` para sus 2 llamadas a `/ngos/:id/empleados` — hace `fetch()` directo a `import.meta.env.VITE_API_URL`, leyendo el token de `localStorage` por su cuenta (pese a que sí importa `api` de `lib/api.ts`, no lo usa para esto — `api.ts` no tiene un namespace `empleados`). Esto duplica lógica y significa que cualquier cambio futuro al cliente HTTP (p. ej. manejo de errores, refresh de token) no cubre este módulo automáticamente. *(Corregido parcialmente: `NGOKPIs.tsx`, que antes tenía el mismo problema, ya usa `api.ts` correctamente.)*
-- El backend responde siempre JSON. Los errores se devuelven como `{ error: "mensaje en español" }` con el código HTTP correspondiente; el cliente los relanza como `Error(data.error)` y cada componente los muestra en su propio estado local (no hay un manejador de errores global en el frontend).
-- No hay renovación de token ni interceptor de 401: si el JWT expira, la próxima request falla y el componente que la hizo debe manejarlo manualmente (algunos lo hacen — `NGODashboard` redirige a `/` si detecta "Token"/"autenticado" en el mensaje de error —, la mayoría no).
-
-## 8. Organización del repositorio
+Monorepo con dos paquetes npm (`backend/`, `frontend/`) y `render.yaml` para Render.
 
 ```
-voluntariar-v2/
-├── render.yaml              # Blueprint de Render: define los 3 servicios (api, frontend, db)
-├── README.md                 # Documentación funcional/deploy orientada a humanos
-├── backend/
-│   ├── src/
-│   │   ├── index.js          # Entry point Express: CORS, rutas, 404, error handler
-│   │   ├── db/index.js       # Adaptador SQLite/PostgreSQL (dual)
-│   │   ├── middleware/auth.js # requireAuth, optionalAuth, requireRole, signToken
-│   │   └── routes/
-│   │       ├── auth.js       # register, login, me (GET/PUT), foto de perfil, borrar la cuenta (§162, §177)
-│   │       ├── projects.js   # CRUD proyectos, comments, ratings, kpis, recomendaciones
-│   │       ├── enrollments.js # inscripciones, aprobación, horas
-│   │       ├── ngos.js       # perfil ONG, dashboard, empleados, patrocinios (lado ONG)
-│   │       ├── empresas.js   # perfil Empresa, patrocinios (lado Empresa)
-│   │       ├── follows.js    # seguir ONG/proyecto/voluntario, feed personalizado
-│   │       ├── voluntarios.js # habilidades, perfil público y CV privado (§165)
-│   │       ├── faqs.js       # catálogo + matching del Chatbot FAQ
-│   │       ├── messages.js   # chat 1 a 1 (REST)
-│   │       ├── posts.js      # Momentos: publicaciones con fotos (Cloudinary)
-│   │       ├── donaciones.js # donaciones con Mercado Pago (§170–§176)
-│   │       └── notifications.js
-│   ├── scripts/
-│   │   ├── migrate.js        # DDL completo (33 tablas + 33 índices + datos base)
-│   │   └── seed.js           # Datos de demo (usuarios, ONGs, empresa, 12+ proyectos, follows)
-│   └── data/voluntariar.sqlite # DB local (generada, no versionar en git real)
-└── frontend/
-    └── src/
-        ├── app/
-        │   ├── routes.tsx    # Definición de rutas (createBrowserRouter, 3 layouts raíz)
-        │   └── components/   # 56 componentes (sin contar tests), casi todos "screen-level"
-        ├── lib/
-        │   ├── api.ts        # Cliente HTTP + todos los tipos TS del dominio
-        │   └── AuthContext.tsx # Estado global de sesión (React Context)
-        └── styles/           # CSS global + Tailwind + fuentes + tema
+React 18 SPA (Vite, React Router 7, Tailwind 4) ── lib/api.ts (fetch + JWT) ──► Express 4 (Node ≥22)
+                                               ◄── WebSocket (chat) ──────────  ws, mismo JWT
+Express ── adaptador dual (src/db/index.js) ──► SQLite (dev y tests) | PostgreSQL (prod)
+        ── servicios externos ──► Cloudinary (archivos), Resend (correo), Mercado Pago (pagos)
 ```
 
-No hay separación entre "componentes de presentación" y "componentes contenedores": cada archivo en `components/` es autosuficiente (fetch + estado + UI). No hay carpeta `hooks/` custom, ni `types/` separada de `api.ts`.
+- **Backend:** rutas en `/api/auth`, `/projects` (y la foto en `projectPhoto.js`), `/enrollments`, `/ngos` (y `/ngos/me/mercadopago`), `/empresas`, `/voluntarios`, `/follows`, `/messages`, `/posts`, `/notifications`, `/faqs`, `/donaciones`, `/patrocinios`, `/equipo`. Bibliotecas en `src/lib/` (ver `BACKEND_CONTEXT.md`).
+- **Base:** **38 tablas**, todas en `backend/scripts/migrate.js` (idempotente). `seed.js` carga datos de demo con ids legibles (`user-vol-1`, `ngo-1`).
+- **Frontend:** un layout único, `app/layout/AppShell.tsx` (barra inferior en el celular, lateral en escritorio), usado por `Root` (`/`), `NGOLayout` (`/ngo/*`) y `CompanyLayout` (`/company/*`), estos dos con `RequireRole`. Pantallas en `app/components/`, kit en `app/ui/`, lógica pura en `app/volunteering/` y `app/team/`. Estado global: solo `AuthContext` y `ChatContext`.
 
-## 9. Convenciones generales
+## Stack
 
-- **Idioma mixto por diseño:** los nombres de tabla/columna de base de datos y buena parte de las variables del backend están en **español** (`titulo`, `descripcion`, `ubicacion`, `cupos`, `mensaje`, `foto_perfil`...), mientras que el **frontend y sus tipos TypeScript están en inglés** (`title`, `description`, `location`, `volunteers_needed`, `message`, `image`...). El puente entre ambos mundos son funciones `fmt()` / `fmtNgo()` en las rutas del backend que renombran campos al responder. Esto es una convención deliberada pero frágil: cualquier campo nuevo debe agregarse a mano en el `fmt()` correspondiente o el frontend no lo verá.
-- **IDs:** todas las tablas usan claves primarias de tipo `TEXT` (UUID), generadas por la base de datos (`gen_random_uuid()` en Postgres, expresión `randomblob` en SQLite) — excepto en `seed.js`, que inserta IDs legibles a mano (`user-vol-1`, `ngo-1`, etc.) para facilitar las credenciales de demo.
-- **Parámetros SQL:** siempre posicionales estilo Postgres (`$1, $2, ...`), incluso en las queries que corren contra SQLite — el adaptador los traduce a `?` internamente.
-- **Fechas:** `CURRENT_TIMESTAMP` (Postgres) / `datetime('now')` (SQLite), abstraído por la constante `NOW` en `migrate.js`.
-- **Errores HTTP:** el backend nunca expone stack traces al cliente; usa `try/catch` por endpoint con mensajes de error en español pensados para mostrarse directo en la UI.
+| Capa | Tecnologías |
+|---|---|
+| Backend | Express 4.19, `jsonwebtoken` 9, `bcryptjs` 2.4, `better-sqlite3` 13 (binarios precompilados; `backend/.npmrc` con `ignore-scripts=true`), `pg` 8, `multer` 2 (subidas), `ws` 8 (chat), `cors`, `dotenv`. Sin devDependencies: tests con `node:test`, recarga con `node --watch` |
+| Frontend | React 18.3, React Router 7.13, Vite 6, Tailwind 4.1, `lucide-react`, `leaflet` (mapas con OpenStreetMap). TypeScript 7 con `strict` (`npm run typecheck`; Vite no chequea tipos). Vitest 5 + Testing Library 16 |
+| Infra | Render (API, sitio estático y Postgres gratis; la base vence el 14/11/2026). CI y deploy en GitHub Actions; SonarCloud |
 
-## 10. Decisiones de diseño relevantes
+**No se usa** (regla 18): ORM, migraciones versionadas, Redux/Zustand, React Query, linter.
 
-- **SQLite en local, Postgres en producción** con un único adaptador que traduce sintaxis sobre la marcha (no dos codebases separados). Ahorra fricción para levantar el proyecto localmente sin instalar Postgres, a costa de una capa de traducción regex que es una fuente de bugs sutiles (ver `BACKEND_CONTEXT.md §2` y `PROJECT_ANALYSIS.md`).
-- **JWT sin refresh token:** sesiones de 7 días (`JWT_EXPIRES_IN`), sin blacklist ni rotación. Cerrar sesión es puramente client-side (se borra el token de `localStorage`); el token sigue siendo válido en el servidor hasta que expira.
-- **Sin ORM:** todas las queries son SQL crudo escrito a mano. Da control total sobre el SQL pero significa que no hay validación de esquema en tiempo de desarrollo ni migraciones incrementales versionadas — el "esquema" vive enteramente en `migrate.js`. Las tablas nuevas se agregan con `CREATE TABLE IF NOT EXISTS`; las columnas nuevas sobre una tabla existente usan un helper `addColumnIfNotExists(tabla, columna, definición)` (agregado 2026-09, ver `PROJECT_ANALYSIS.md §29`) que chequea si la columna ya existe (vía `PRAGMA table_info` / `information_schema`, portable entre motores) antes de correr el `ALTER TABLE` — permite correr `migrate.js` las veces que sea sin romper.
-- **Requisitos/roles de proyecto normalizados en tablas propias** (`requisitos`, `roles`, `project_roles`) en vez de columnas JSON — explícitamente mencionado en un comentario del código (`REQUISITOS — tabla normalizada (reemplaza JSON)`), pero el propio backend expone estos datos al frontend serializados como JSON string (`roles_json`, `requisitos_json`) que luego se parsean de nuevo con `JSON.parse` — un patrón híbrido.
-- **Feed público sin autenticación** (`optionalAuth`) para permitir SEO/descubrimiento sin registro, con CTA para registrarse al querer inscribirse.
+## Convenciones
 
-## 11. Dependencias importantes a tener en cuenta
+- **DB en español, API y frontend en inglés.** El puente son `fmt()` / `fmtNgo()` / `fmtEmpresa()`, listas blancas: un campo nuevo que no se agregue ahí no llega al frontend.
+- **IDs:** `TEXT` con UUID; las altas lo generan con `crypto.randomUUID()` y releen por id.
+- **SQL:** parámetros `$1, $2...` siempre; el adaptador los traduce para SQLite (`translatePg`).
+- **Errores:** `{ error: "mensaje en español" }` con su código HTTP; nunca stack traces. El cliente los relanza como `ApiError` con `status`.
+- **Esquema:** solo aditivo (`CREATE TABLE IF NOT EXISTS`, `addColumnIfNotExists`).
 
-- `frontend/vite.config.ts` incluye un plugin custom `figmaAssetResolver` y un comentario explícito ("required for Make, even if Tailwind is not being actively used") que indica que el frontend fue generado/scaffoldeado con una herramienta de diseño-a-código (probablemente Figma Make). Esto explica el estilo muy uniforme de Tailwind inline y la ausencia de componentes reutilizables abstraídos.
-- Las subidas de archivos son las fotos de Momentos (`multer` en `routes/posts.js`, guardadas en Cloudinary; `PROJECT_ANALYSIS.md §43`) y la foto de perfil (`PUT /api/auth/me/photo` en `routes/auth.js`: va a `users.avatar` y, para ONG y empresa, también al logo; §162). Los demás campos de imagen (proyectos) se llenan con URLs externas, p. ej. avatares generados por `dicebear.com`. (`uuid` se eliminó por no usarse.)
+## Sesión y permisos
 
-## 12. Flujo de autenticación
+- `POST /api/auth/register` y `/login` devuelven `{ token, user }`. JWT de 7 días (`JWT_EXPIRES_IN`), sin refresh ni revocación: cerrar sesión borra el token del navegador (`localStorage`, `v_token`). El secreto sale solo de `src/lib/jwtSecret.js`.
+- Al cargar, `AuthContext` revalida con `GET /api/auth/me` y cierra la sesión solo ante 401 o 404 (no ante un 502 de Render dormido).
+- `middleware/auth.js`: `requireAuth`, `optionalAuth`, `requireRole(rol)`. La propiedad de cada recurso se verifica en el endpoint (`WHERE ... AND ngo_id = $n`).
+- **Equipo de la ONG:** `src/lib/ngoAccess.js` decide qué puede hacer sobre una ONG su cuenta o un miembro (`ngo_miembros`, roles coordinación y comunicación). Editar voluntariados, Mercado Pago y patrocinios es solo de la cuenta de la ONG.
+- Las guardas de la UI (`RequireRole`) son cosméticas: la autorización real está en el backend (regla 15).
 
-1. `POST /api/auth/register` — valida nombre/email/password con regex compartidas (duplicadas en frontend y backend), hashea password con bcrypt (10 rounds), crea el `user` y, según `role`, un registro en `voluntarios`/`ngos`/`empresas`. Devuelve `{ token, user }`.
-2. `POST /api/auth/login` — verifica email + `bcrypt.compare`, devuelve `{ token, user }`.
-3. El frontend guarda `token` en `localStorage` (`v_token`) y `user` (`v_user`), y los expone vía `AuthContext`.
-4. En cada request subsecuente, `api.ts` añade `Authorization: Bearer <token>`.
-5. Al cargar la app, si hay token pero no hay `user` en memoria, `AuthContext` llama a `GET /api/auth/me` para revalidar/hidratar la sesión; si falla, limpia el storage.
-6. `middleware/auth.js::requireAuth` verifica el JWT con `jsonwebtoken.verify` y coloca el payload (`{ id, email, role, name }`) en `req.user`. `optionalAuth` hace lo mismo pero sin rechazar si no hay token.
+## Riesgos y deuda conocidos
 
-Ver diagrama de secuencia completo en `BACKEND_CONTEXT.md §4`.
-
-## 13. Flujo de autorización
-
-- Autorización basada en **rol único por usuario** (`requireRole('ngo')`, `requireRole('volunteer')`, etc.), sin permisos granulares ni roles combinables.
-- Autorización de **propiedad de recurso** verificada manualmente en cada endpoint sensible mediante joins (p. ej., para editar un proyecto se verifica `WHERE id=$1 AND ngo_id=$2` con el `ngo_id` de la ONG dueña de la sesión) — no hay una capa de políticas centralizada (tipo CASL o similar).
-- El campo `role` viaja embebido en el JWT — si un usuario cambia de rol en la base de datos manualmente, su token viejo sigue teniendo el rol anterior hasta que expira o vuelve a loguearse.
-
-## 14. Riesgos técnicos (resumen — detalle en `PROJECT_ANALYSIS.md`)
-
-- ~~**`JWT_SECRET` con fallback inseguro**~~ — **resuelto en `PROJECT_ANALYSIS.md §94`**: obligatorio en producción (el servidor no arranca sin él), un solo lugar lo define (`src/lib/jwtSecret.js`).
-- **Sin paginación real en `GET /api/projects`** — cualquier pantalla que necesite "todos los proyectos" (como `ExploreScreen.tsx`) tiene que pasar un `limit` explícito alto a mano, o los resultados quedan truncados en silencio al default de 20 (bug real encontrado y arreglado así, ver `PROJECT_ANALYSIS.md §29` bug 4 — pero la causa de fondo, la falta de paginación, sigue sin resolver).
-- **Riesgo de duplicación de helpers de formateo entre routers** — ya pasó dos veces (`follows.js` y `ngos.js` con copias desincronizadas de `fmtProject`, ver `PROJECT_ANALYSIS.md §29`). Se resolvió exportando `fmt` desde `projects.js`, pero cualquier router nuevo que devuelva proyectos tiene que acordarse de importarlo, no copiarlo.
-- Lógica de negocio y validaciones duplicadas en frontend y backend (regex de email/nombre/password, blacklist de palabras) sin una fuente única de verdad — mantenerlas sincronizadas es manual.
-- ~~`NGOEmpleados.tsx` evita el cliente `api.ts`~~ — resuelto en `PROJECT_ANALYSIS.md §98`.
-- ~~Falta de guardas de rol en el frontend para las rutas `/ngo/*` y `/company/*`~~ — **resuelto en `PROJECT_ANALYSIS.md §97`** (`RequireRole` en los layouts).
-- Dependencia de un plan gratuito de Render con vencimiento de la base de datos a los 30 días (la actual vence el 14/11/2026) y "sleep" tras 15 minutos de inactividad — aceptable para una demo académica, no para producción real.
-
-## 15. Deuda técnica encontrada (resumen — detalle en `PROJECT_ANALYSIS.md`)
-
-- Rutas registradas *después* de `module.exports` en `projects.js`, `ngos.js` y `empresas.js` — funciona por mutación de referencia. Empezó como una señal de organización descuidada, pero pasó a ser el patrón deliberado del proyecto para exportar helpers reutilizables entre routers (`fmt`, `validateProject`, `hasBadWord`) sin crear un módulo aparte — ver `PROJECT_ANALYSIS.md §29`.
-- ~~`multer` declarado y sin usar~~ — **resuelto**: ya lo usa `routes/posts.js` para las fotos de Momentos (Cloudinary, ver `PROJECT_ANALYSIS.md §43`).
-- ~~Un componente completo (`OnboardingScreen.tsx`) que no está enrutado~~ — borrado (§99).
-- Doble definición de la lista de palabras prohibidas en `backend/src/lib/badWords.js` y `frontend/src/lib/badWords.ts` (runtimes separados). Desde §93 un test del backend exige que las dos listas sean iguales, así que olvidarse de una ya rompe la suite.
+- **Sin paginación real:** los listados usan un `limit` alto (Explorar pide 500).
+- **Escala horizontal:** las conexiones del chat y el limitador de intentos viven en memoria.
+- **Validaciones duplicadas** en los dos lados (regex de auth, palabras prohibidas). Un test exige que `backend/src/lib/badWords.js` y `frontend/src/lib/badWords.ts` sean iguales.
+- En `projects.js`, `ngos.js` y `empresas.js` hay rutas registradas después de `module.exports`: es el patrón para exportar helpers (`fmt`, `validateProject`, `hasBadWord`).
+- **Render gratis:** la API se duerme a los 15 minutos y la base vence el 14/11/2026.
+- `NGOEmpleados` (`/ngo/empleados/:id`, fichas sin cuenta) ya no tiene links: se saca después de la defensa (`PLAN_CIERRE.md` §4).
