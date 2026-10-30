@@ -15,7 +15,7 @@ voluntariados que un usuario voluntario normal".
   `otro`). Nadie entra con ellas; son un directorio.
 - **Todo** lo de la ONG lo hace una sola cuenta, la del usuario con `role='ngo'`. El backend lo controla en unos
   **28 lugares** de 5 archivos (`auth`, `enrollments`, `mercadopago`, `ngos`, `projects`) con
-  `ngos.user_id = req.user.id`. No hay una capa central de permisos (`PROJECT_CONTEXT.md §13`).
+  `ngos.user_id = req.user.id`. No hay una capa central de permisos (`archivo/contexto-2026-10-30/PROJECT_CONTEXT.md §13`).
 
 ### Propuesta
 - **Tabla nueva `ngo_miembros`:** `ngo_id`, `user_id` (un usuario común, `role='volunteer'`), `rol` (`coordinador` |

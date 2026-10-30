@@ -56,7 +56,7 @@ cumplió su función: se conserva sin cambios porque la bitácora y el informe l
 | Documento | Qué fue |
 |---|---|
 | [`archivo/bitacora/`](archivo/bitacora/) | La bitácora §1–§299, partida por etapa (el índice está en `PROJECT_ANALYSIS.md`) |
-| [`archivo/contexto-2026-10-30/`](archivo/contexto-2026-10-30/) | Los `*_CONTEXT.md`, `DESIGN.md`, `AI_RULES.md` y `CLAUDE.md` completos, antes de compactarlos (§300) |
+| [`archivo/contexto-2026-10-30/`](archivo/contexto-2026-10-30/) | Los `*_CONTEXT.md`, `AI_RULES.md` y `CLAUDE.md` completos, antes de compactarlos (§300) |
 | [`archivo/REVISION.md`](archivo/REVISION.md) | Revisión de código del 13/10 (hallazgos B, F, T, D, S, A; el código los cita como `REVISION.md B3`) |
 | [`archivo/BACKEND_ROADMAP_ANALYSIS.md`](archivo/BACKEND_ROADMAP_ANALYSIS.md) | Diseño de los módulos que faltaban (sept.–oct.) |
 | [`archivo/PLAN_FALTANTE.md`](archivo/PLAN_FALTANTE.md) | Plan de cierre de la tesis (16–17/10; el código cita sus "Etapas") |

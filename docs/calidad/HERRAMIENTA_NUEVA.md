@@ -8,7 +8,7 @@
 
 Necesidad: el TP pide un **quality gate que bloquee** ante bugs críticos, duplicación > 5 % y cobertura del código
 nuevo < 80 %, con **análisis estático y reporte automático** en el pipeline. El proyecto no tenía linter ni medición
-de duplicación (`PROJECT_CONTEXT.md §4`).
+de duplicación (`docs/archivo/contexto-2026-10-30/PROJECT_CONTEXT.md §4`).
 
 Requisitos de la herramienta:
 1. Medir bugs y vulnerabilidades por severidad, duplicación y cobertura **del código nuevo** (no solo total).
