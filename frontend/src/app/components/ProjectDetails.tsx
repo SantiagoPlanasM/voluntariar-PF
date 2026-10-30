@@ -21,6 +21,7 @@ import { TypeBadge } from '../ui/TypeBadge';
 import { useToast } from '../ui/UiProvider';
 import { JoinButton } from './FeedPostCard';
 import { PROFILE_FIELD } from '../ui/fieldStyles';
+import { imagePositionClass } from '../volunteering/imagePosition';
 import { cardActions } from '../volunteering/cardActions';
 import { isRemote } from '../volunteering/isRemote';
 
@@ -288,7 +289,7 @@ export function ProjectDetails() {
           <div className="bg-canvas md:rounded-2xl md:border md:border-hairline overflow-hidden min-w-0">
             <div className="relative aspect-[4/3] md:aspect-[16/10] bg-surface-soft">
               {project.image ? (
-                <img src={project.image} alt={project.title} className="w-full h-full object-cover" />
+                <img src={project.image} alt={project.title} className={`w-full h-full object-cover ${imagePositionClass(project.image_position)}`} />
               ) : (
                 <span className="w-full h-full flex items-center justify-center opacity-30" aria-hidden="true"><LogoMark size={72} /></span>
               )}

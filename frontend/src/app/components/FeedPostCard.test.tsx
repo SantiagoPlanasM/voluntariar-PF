@@ -380,3 +380,14 @@ describe('FeedPostCard: seguir y reseñas', () => {
     expect(screen.queryByRole('dialog', { name: 'Reseñas' })).not.toBeInTheDocument();
   });
 });
+
+// §297: la foto respeta el encuadre que eligió la ONG (por defecto, al centro).
+describe('FeedPostCard: encuadre de la foto', () => {
+  test('arriba si la ONG eligió arriba; al centro si no hay dato', () => {
+    const { container, unmount } = montar({ image: 'https://x/foto.jpg', image_position: 'top' });
+    expect(container.querySelector('img[src="https://x/foto.jpg"]')).toHaveClass('object-top');
+    unmount();
+    const r = montar({ image: 'https://x/foto.jpg' });
+    expect(r.container.querySelector('img[src="https://x/foto.jpg"]')).toHaveClass('object-center');
+  });
+});

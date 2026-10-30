@@ -5,7 +5,7 @@ import {
   ArrowLeft, ArrowRight, Plus, X, Loader2, Check, AlertCircle,
   Zap, Sprout, MapPin, Users, DollarSign, ClipboardList, Laptop, Globe,
 } from 'lucide-react';
-import { api, type Project, type ProjectDetail } from '../../lib/api';
+import { api, type ImagePosition, type Project, type ProjectDetail } from '../../lib/api';
 import { LocationPicker } from './LocationPicker';
 import { LoadError, describeLoadError } from './LoadError';
 import { ProjectPhotoField } from './ProjectPhotoField';
@@ -117,6 +117,7 @@ export function CreateVoluntariado() {
   // §282: la foto elegida (se sube después de guardar) y la actual, al editar.
   const [photo, setPhoto]               = useState<File | null>(null);
   const [currentImage, setCurrentImage] = useState<string | null>(null);
+  const [imagePosition, setImagePosition] = useState<ImagePosition>('center');   // encuadre de la foto (§297)
   const toast = useToast();
 
   const loadProject = async () => {
@@ -132,7 +133,8 @@ export function CreateVoluntariado() {
       const loaded = fromProject(project);
       setForm(loaded.form); setRoles(loaded.roles); setReqs(loaded.requirements); setCoords(loaded.coords);
       setCurrentImage(project.image || null);
-      initialBody.current = toBody(loaded.form, loaded.roles, loaded.requirements, loaded.coords, true);
+      setImagePosition(project.image_position ?? 'center');
+      initialBody.current = { ...toBody(loaded.form, loaded.roles, loaded.requirements, loaded.coords, true), image_position: project.image_position ?? 'center' };
     } catch (e) {
       setLoadError(describeLoadError(e, 'No encontramos este voluntariado'));
     } finally {
@@ -229,7 +231,7 @@ export function CreateVoluntariado() {
       setStep(Object.keys(validateStep(1)).length ? 1 : 2);
       return;
     }
-    const body = toBody(form, roles, requirements, coords, editing);
+    const body = { ...toBody(form, roles, requirements, coords, editing), image_position: imagePosition };
     setLoading(true);
     try {
       if (editing) {
@@ -536,7 +538,7 @@ export function CreateVoluntariado() {
         {step === 3 && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-              <ProjectPhotoField currentUrl={currentImage} file={photo} onChange={setPhoto} />
+              <ProjectPhotoField currentUrl={currentImage} file={photo} onChange={setPhoto} position={imagePosition} onPositionChange={setImagePosition} />
             </div>
             <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
               <div>

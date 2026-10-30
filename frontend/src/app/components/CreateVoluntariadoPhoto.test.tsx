@@ -113,6 +113,33 @@ describe('Foto del voluntariado', () => {
     expect(await screen.findByText('Detalle del voluntariado')).toBeInTheDocument();
   });
 
+  // §297: la tarjeta de Explorar recorta la foto; la ONG elige qué parte se ve.
+  test('encuadre al crear: aparece con una foto elegida, se ve en la vista previa y va en el alta', async () => {
+    altaHastaExtras();
+    expect(screen.queryByRole('radiogroup', { name: 'Encuadre en las tarjetas' })).toBeNull();
+    elegir(foto());
+    const grupo = await screen.findByRole('radiogroup', { name: 'Encuadre en las tarjetas' });
+    expect(screen.getByRole('radio', { name: 'Centro' })).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(screen.getByRole('radio', { name: 'Arriba' }));
+    expect(grupo).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Vista previa de la foto del voluntariado' })).toHaveClass('object-top');
+    click(/Publicar/);
+    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ image_position: 'top' })));
+  });
+
+  test('encuadre al editar: arranca en el guardado y cambiarlo solo manda ese campo', async () => {
+    get.mockResolvedValue({ project: { ...PROJECT, image_position: 'bottom' } as never });
+    routes('/ngo/dashboard/project/p1/editar');
+    await screen.findByRole('heading', { name: 'Editar voluntariado' });
+    click(/Continuar/);
+    click(/Continuar/);
+    expect(screen.getByRole('radio', { name: 'Abajo' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('img', { name: 'Foto actual del voluntariado' })).toHaveClass('object-bottom');
+    fireEvent.click(screen.getByRole('radio', { name: 'Centro' }));
+    click(/Guardar cambios/);
+    await waitFor(() => expect(update).toHaveBeenCalledWith('p1', { image_position: 'center' }));
+  });
+
   test('"Quitar" descarta la foto elegida antes de guardar', async () => {
     await edicionHastaExtras();
     elegir(foto());

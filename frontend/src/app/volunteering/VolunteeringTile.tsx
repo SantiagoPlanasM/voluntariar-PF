@@ -6,6 +6,7 @@ import type { Project } from '../../lib/api';
 import { Meter, pct } from '../ui/Meter';
 import { LogoMark } from '../ui/Logo';
 import { TypeBadge } from '../ui/TypeBadge';
+import { imagePositionClass } from './imagePosition';
 
 export function VolunteeringTile({ project, note }: { project: Project; note?: string }) {
   const people = pct(project.current_volunteers, project.volunteers_needed);
@@ -14,7 +15,7 @@ export function VolunteeringTile({ project, note }: { project: Project; note?: s
     <Link to={`/project/${project.id}`} className="group flex flex-col gap-1.5 min-w-0">
       <span className="relative block aspect-[4/5] rounded-xl overflow-hidden bg-surface-soft">
         {project.image ? (
-          <img src={project.image} alt="" loading="lazy" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
+          <img src={project.image} alt="" loading="lazy" className={`w-full h-full object-cover ${imagePositionClass(project.image_position)} transition-transform duration-300 group-hover:scale-[1.02]`} />
         ) : (
           <span className="w-full h-full flex items-center justify-center opacity-30" aria-hidden="true"><LogoMark size={48} /></span>
         )}

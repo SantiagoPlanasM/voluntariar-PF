@@ -14,6 +14,7 @@ import { TypeBadge } from '../ui/TypeBadge';
 import { Button, ButtonLink } from '../ui/Button';
 import { DualGoal, formatMoney } from '../ui/Meter';
 import { cardActions } from '../volunteering/cardActions';
+import { imagePositionClass } from '../volunteering/imagePosition';
 
 interface FeedPostCardProps {
   project: FeedProject;
@@ -148,7 +149,7 @@ export function FeedPostCard({ project, onRefresh }: FeedPostCardProps) {
       <div className="relative aspect-[16/10] bg-surface-soft">
         <Link to={`/project/${project.id}`} aria-label={`Abrir ${project.title}`} tabIndex={-1} className="block w-full h-full">
           {project.image ? (
-            <img src={project.image} alt="" className="w-full h-full object-cover" loading="lazy" />
+            <img src={project.image} alt="" className={`w-full h-full object-cover ${imagePositionClass(project.image_position)}`} loading="lazy" />
           ) : (
             <span className="w-full h-full flex items-center justify-center opacity-30" aria-hidden="true"><LogoMark size={56} /></span>
           )}

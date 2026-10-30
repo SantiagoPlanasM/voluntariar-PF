@@ -98,3 +98,13 @@ describe('ProjectDetails: teléfono al postularse', () => {
     }
   });
 });
+
+// §297: la foto de la cabecera usa el mismo encuadre que la tarjeta (va en este archivo porque ya monta el detalle).
+describe('ProjectDetails: encuadre de la foto', () => {
+  test('la cabecera respeta el encuadre elegido', async () => {
+    as(null);
+    vi.mocked(api.projects.get).mockResolvedValue(project({ image: 'https://x/foto.jpg', image_position: 'bottom' }) as never);
+    mount();
+    expect(await screen.findByRole('img', { name: 'Reforestación' })).toHaveClass('object-bottom');
+  });
+});

@@ -305,6 +305,8 @@ export interface User {
 export interface Project {
   id: string; ngo_id: string; title: string; description: string;
   full_description?: string; image?: string; category: string;
+  /** Qué parte de la foto se ve cuando la tarjeta la recorta (§297). Sin dato: al centro. */
+  image_position?: ImagePosition;
   location: string; duration?: string; type: 'fugaz' | 'sostenido';
   status: 'active' | 'completed' | 'cancelled'; volunteers_needed: number;
   current_volunteers: number; funding_goal: number; current_funding: number;
@@ -402,6 +404,8 @@ export interface EnrollmentWithVolunteer extends Enrollment {
   /** GET /enrollments/project/:id (§168): true si la ONG puede abrir el CV (inscripción pendiente o aprobada y hay CV). */
   has_cv?: boolean;
 }
+/** Encuadre de la foto del voluntariado (§297). */
+export type ImagePosition = 'top' | 'center' | 'bottom';
 /** Equipo de la ONG (§294). Coordinador: postulaciones, CV, entrevistas y horas. Comunicador: Momentos. */
 export type TeamRole = 'coordinator' | 'communicator';
 export type TeamStatus = 'invited' | 'active';
