@@ -38,7 +38,34 @@ function fmtNgo(n) {
     // categoria_nombre viene del LEFT JOIN con ngo_categorias/categorias
     // cuando la query lo incluye; si no, queda undefined (no rompe nada)
     category:    n.categoria_nombre || undefined,
+    // §285: transparencia, cargada por la ONG y pública a propósito (no es una verificación).
+    cuit:             n.cuit || null,
+    transparency_url: n.transparencia_url || null,
   };
+}
+
+// §285: CUIT de 11 dígitos (con o sin guiones) y dígito verificador de AFIP: pesos 5,4,3,2,7,6,5,4,3,2; 11 menos el
+// resto de dividir por 11 (11 → 0; 10 no es válido). Devuelve { value } normalizado (XX-XXXXXXXX-X), { value: null }
+// para borrarlo, o { error }.
+const CUIT_ERROR = 'El CUIT no es válido: son 11 números con el dígito verificador correcto';
+function parseCuit(v) {
+  if (v === null || v === '') return { value: null };
+  if (typeof v !== 'string') return { error: CUIT_ERROR };
+  const digits = v.trim().replace(/-/g, '');
+  if (!/^\d{11}$/.test(digits)) return { error: CUIT_ERROR };
+  const sum = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2].reduce((s, w, i) => s + w * Number(digits[i]), 0);
+  const check = 11 - (sum % 11);
+  const expected = check === 11 ? 0 : check;
+  if (expected === 10 || expected !== Number(digits[10])) return { error: CUIT_ERROR };
+  return { value: `${digits.slice(0, 2)}-${digits.slice(2, 10)}-${digits[10]}` };
+}
+const TRANSPARENCY_URL_ERROR = 'El link de transparencia tiene que empezar con https:// y tener hasta 500 caracteres';
+function parseTransparencyUrl(v) {
+  if (v === null || v === '') return { value: null };
+  if (typeof v !== 'string') return { error: TRANSPARENCY_URL_ERROR };
+  const url = v.trim();
+  if (!/^https:\/\/\S+$/i.test(url) || url.length > 500) return { error: TRANSPARENCY_URL_ERROR };
+  return { value: url };
 }
 
 // ── Proyectos de una ONG, ya formateados ──────────────────────────────────
@@ -194,7 +221,7 @@ router.get('/:id', async (req, res) => {
 // ── PUT /api/ngos/me ──────────────────────────────────────────────────────
 router.put('/me', requireAuth, requireRole('ngo'), async (req, res) => {
   try {
-    const { name, description, mission, location, logo, cover_image, alias, founded, category } = req.body;
+    const { name, description, mission, location, logo, cover_image, alias, founded, category, cuit, transparency_url } = req.body;
 
     // Tipos y largos (antes `name && name.trim()...`: "" se salteaba y un número daba 500; REVISION B12/B13).
     const textErr = firstError(
@@ -209,6 +236,11 @@ router.put('/me', requireAuth, requireRole('ngo'), async (req, res) => {
       checkText(category, { label: 'La categoría', max: 60 }),
     );
     if (textErr) return res.status(400).json({ error: textErr });
+    // §285: si vienen, se validan; si no vienen, se conservan (abajo).
+    const cuitIn = cuit !== undefined ? parseCuit(cuit) : null;
+    if (cuitIn?.error) return res.status(400).json({ error: cuitIn.error });
+    const urlIn = transparency_url !== undefined ? parseTransparencyUrl(transparency_url) : null;
+    if (urlIn?.error) return res.status(400).json({ error: urlIn.error });
 
     // Verificar alias único si se envía
     if (alias) {
@@ -233,6 +265,7 @@ router.put('/me', requireAuth, requireRole('ngo'), async (req, res) => {
       `UPDATE ngos SET
          nombre=$1, descripcion=$2, mision=$3, ubicacion=$4,
          foto_perfil=$5, banner=$6, alias=$7, founded=$8,
+         cuit=$10, transparencia_url=$11,
          updated_at=CURRENT_TIMESTAMP
        WHERE user_id=$9`,
       [
@@ -245,6 +278,8 @@ router.put('/me', requireAuth, requireRole('ngo'), async (req, res) => {
         alias !== undefined ? alias : ngoRow.alias,
         founded !== undefined ? founded : ngoRow.founded,
         req.user.id,
+        cuitIn ? cuitIn.value : (ngoRow.cuit ?? null),
+        urlIn ? urlIn.value : (ngoRow.transparencia_url ?? null),
       ]
     );
 

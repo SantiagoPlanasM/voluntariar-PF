@@ -474,6 +474,9 @@ async function migrate() {
   // Agregadas 2026-09 para geolocalización y modalidad de voluntariados:
   await addColumnIfNotExists('projects', 'latitud', 'REAL');
   await addColumnIfNotExists('projects', 'longitud', 'REAL');
+  // §285 (2026-10-29): datos de transparencia que carga la ONG (públicos a propósito; no es una verificación).
+  await addColumnIfNotExists('ngos', 'cuit', 'TEXT');                // XX-XXXXXXXX-X, con dígito verificador válido
+  await addColumnIfNotExists('ngos', 'transparencia_url', 'TEXT');   // https:// a balances, estatuto o memoria
   // §282 (2026-10-29): el id de Cloudinary de la foto del voluntariado, para borrar la anterior al reemplazarla.
   // NULL = sin foto subida acá (o una URL externa vieja). Nunca sale en la API.
   await addColumnIfNotExists('projects', 'foto_provider_id', 'TEXT');
