@@ -10,6 +10,7 @@ import { ProfileHeader, ProfileTabs } from '../ui/ProfileHeader';
 import { Button } from '../ui/Button';
 import { VolunteeringTile } from '../volunteering/VolunteeringTile';
 import { MomentsFeed } from './MomentsFeed';
+import { NGOTransparency } from './NGOTransparency';
 
 export function NGOPublicProfile() {
   const { id } = useParams();
@@ -164,6 +165,8 @@ export function NGOPublicProfile() {
               </>
             )}
           />
+
+          <NGOTransparency cuit={ngo.cuit} url={ngo.transparency_url} />
 
           <ProfileTabs
             label="Contenido de la organización"

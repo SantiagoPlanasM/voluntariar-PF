@@ -398,6 +398,8 @@ export interface NGO {
   id: string; user_id: string; name: string; logo?: string;
   cover_image?: string; category?: string; description?: string;
   mission?: string; founded?: string; location?: string; followers: number;
+  /** §285: datos de transparencia que carga la ONG (públicos; no se verifican). */
+  cuit?: string | null; transparency_url?: string | null;
 }
 export interface Empresa {
   id: string; user_id: string; name: string; logo?: string;

@@ -12,6 +12,7 @@ import { ProfileHeader, ProfileTabs } from '../ui/ProfileHeader';
 import { Button } from '../ui/Button';
 import { useToast } from '../ui/UiProvider';
 import { VolunteeringTile } from '../volunteering/VolunteeringTile';
+import { NGOTransparency } from './NGOTransparency';
 
 const CATEGORIES = ['Medio Ambiente','Educación','Salud','Animales','Alimentación','Tecnología','Arte y Cultura','Deportes'];
 
@@ -24,7 +25,7 @@ export function NGOOwnProfile() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving]   = useState(false);
   const [saveErr, setSaveErr] = useState('');
-  const [form, setForm] = useState({ name: '', description: '', mission: '', location: '', category: '' });
+  const [form, setForm] = useState({ name: '', description: '', mission: '', location: '', category: '', cuit: '', transparency_url: '' });
   const [tab, setTab] = useState<'volunteering' | 'posts'>('volunteering');
 
   useEffect(() => { void load(); }, []);
@@ -34,7 +35,8 @@ export function NGOOwnProfile() {
     try {
       const { ngo: n, projects: p } = await api.ngos.me();
       setNgo(n); setProjects(p);
-      setForm({ name: n.name, description: n.description || '', mission: n.mission || '', location: n.location || '', category: n.category || '' });
+      setForm({ name: n.name, description: n.description || '', mission: n.mission || '', location: n.location || '', category: n.category || '',
+        cuit: n.cuit || '', transparency_url: n.transparency_url || '' });
     } catch { navigate('/'); }
     finally { setLoading(false); }
   };
@@ -131,6 +133,18 @@ export function NGOOwnProfile() {
                 <textarea id="ong-mis" className={inp + ' h-auto py-3 resize-none'} rows={2} aria-label="Misión" value={form.mission}
                   onChange={e => setForm(f => ({ ...f, mission: e.target.value }))} />
               </div>
+              {/* §285: transparencia (opcional y pública; el backend valida el CUIT y que el link sea https). */}
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="ong-cuit" className={lbl}>CUIT</label>
+                <input id="ong-cuit" className={inp} inputMode="numeric" placeholder="30-12345678-9" value={form.cuit}
+                  onChange={e => { setForm(f => ({ ...f, cuit: e.target.value })); setSaveErr(''); }} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="ong-transparencia" className={lbl}>Link a balances y documentos</label>
+                <input id="ong-transparencia" className={inp} type="url" placeholder="https://…" value={form.transparency_url}
+                  onChange={e => { setForm(f => ({ ...f, transparency_url: e.target.value })); setSaveErr(''); }} />
+                <p className="text-xs text-ink-muted">Opcionales y públicos. Generan confianza en quienes donan.</p>
+              </div>
 
               {saveErr && <p role="alert" className="text-[13px] font-medium text-critical">{saveErr}</p>}
 
@@ -139,6 +153,8 @@ export function NGOOwnProfile() {
               </Button>
             </div>
           )}
+
+          <NGOTransparency cuit={ngo.cuit} url={ngo.transparency_url} />
 
           <ProfileTabs
             label="Contenido de la ONG"
