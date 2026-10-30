@@ -8085,3 +8085,24 @@ El director de FONBEC dijo que la confianza se gana con el recibo para ganancias
 ### ⚠️ NO verificado
 - Las tres cosas en pantalla real (el modal con la sección nueva, el embudo y la sección de transparencia), en el celular y en oscuro.
 - **Sin desplegar** al escribir esto.
+
+## 286. Dos cosas vistas en producción: el embudo y los bordes de "Editar perfil"
+
+§283–§285 quedaron desplegados: CI 40988442737 (9 jobs en verde) y Deploy 40988999718 (`/health` en `dd4be09`). Revisado en Chrome con la sesión de la ONG SANTI (a pedido del usuario):
+- **Filtro:** la sección "Carga horaria", la pastilla "Hasta 2 h/semana" y el contador. Con los datos de producción (un fugaz y sostenidos de 1 y 2 h), no excluye nada.
+- **Embudo:** las 5 etapas con los datos reales, iguales a la API (2 postulaciones, 1 aprobada).
+- **Transparencia:** se cargaron datos **inventados** en SANTI (CUIT `30712345671` → `30-71234567-1`, link `https://example.org/balances-prueba`), y se vieron en el perfil propio y en el público, con el link a otra pestaña y `noopener noreferrer`. **Hay que reemplazarlos o borrarlos antes de la demo.**
+
+### Qué se corrigió
+- **Embudo:** "2 100 %" se leía como "2100 %". Ahora dice **"2 (100 %)"**. El test se cambió primero (rojo con el texto viejo).
+- **Bordes de "Editar perfil":** en los perfiles propios de la ONG, la empresa y el voluntario, los campos tenían `border-transparent` sobre el mismo fondo que la tarjeta, así que en reposo no se veían y solo se distinguía el que tenía el foco. Ahora tienen `border-hairline`. El estilo estaba copiado en las tres pantallas y pasó a `app/ui/fieldStyles.ts` (`PROFILE_FIELD`).
+
+### Verificación
+- **Bordes:** un test nuevo en `ProfilePhotoScreens.test.tsx` abre "Editar perfil" en los tres roles y exige `border-hairline`, sin `border-transparent`, en cada campo (rojo antes: `#ong-nombre`). Mutación: **4 de 4** (constante sin borde, y cada pantalla con el estilo viejo).
+- **Suites:** frontend **1124/1124**, `npm run typecheck` 0 errores; contraste en verde. Solo frontend.
+
+### Errores propios
+- Un tercer `node -e` con escapes, para cambiar las expresiones del test del embudo, no hizo ningún reemplazo. Se rehízo con `Edit`.
+
+### ⚠️ NO verificado
+- Los bordes nuevos en pantalla, en claro y en oscuro.
