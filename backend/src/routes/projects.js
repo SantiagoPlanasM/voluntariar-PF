@@ -126,6 +126,13 @@ const projectTextError = (b) => firstError(...PROJECT_TEXT_FIELDS.map(([k, label
 // Encuadre de la foto (§297): en la base en español, en la API en inglés (regla 11).
 const POSITION_TO_DB = { top: 'arriba', center: 'centro', bottom: 'abajo' };
 const POSITION_TO_API = { arriba: 'top', centro: 'center', abajo: 'bottom' };
+/** El encuadre del cuerpo: si no viene, `current`; si viene, de la lista (Object.hasOwn y el tipo: ni 'toString' ni
+ *  ['top'] son un encuadre). Devuelve { value } en español o { error }. Lo usan el alta y la edición. */
+function parseImagePosition(b, current) {
+  if (b.image_position === undefined) return { value: current };
+  if (typeof b.image_position === 'string' && Object.hasOwn(POSITION_TO_DB, b.image_position)) return { value: POSITION_TO_DB[b.image_position] };
+  return { error: 'image_position tiene que ser top, center o bottom' };
+}
 
 // modality y modalidad (alta y edición): si vienen y no están vacías, de la lista. Antes el PUT no lo miraba y un
 // objeto daba 500 en SQLite (B3).
@@ -703,6 +710,8 @@ router.post('/', requireAuth, requireRole('ngo'), async (req, res) => {
     if (lat.error) return res.status(400).json({ error: lat.error });
     const lng = parseLng(longitude ?? longitud ?? null);
     if (lng.error) return res.status(400).json({ error: lng.error });
+    const pos = parseImagePosition(req.body, 'centro');   // encuadre de la foto (§297)
+    if (pos.error) return res.status(400).json({ error: pos.error });
     const meta = funding_goal === undefined ? { value: 0 } : parseMoney(funding_goal, 'La meta de financiamiento');
     if (meta.error) return res.status(400).json({ error: meta.error });
     const costo = cost_per_person === undefined ? { value: 0 } : parseMoney(cost_per_person, 'El costo por persona');
@@ -733,14 +742,14 @@ router.post('/', requireAuth, requireRole('ngo'), async (req, res) => {
       await tx.run(
         `INSERT INTO projects (id, ngo_id, titulo, descripcion, descripcion_full, foto_perfil,
           tipo, status, ubicacion, duracion, cupos, cupos_ocupados,
-          meta_financiera, recaudado, costo, horas_semanales, latitud, longitud, modalidad)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,'active',$8,$9,$10,0,$11,0,$12,$13,$14,$15,$16)`,
+          meta_financiera, recaudado, costo, horas_semanales, latitud, longitud, modalidad, foto_posicion)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'active',$8,$9,$10,0,$11,0,$12,$13,$14,$15,$16,$17)`,
         [projectId, ngo.id, title.trim(), description.trim(), full_description?.trim() || null,
          image || null, tipo, location.trim(), duration?.trim() || null,
          toStrictInt(volunteers_needed), meta.value,
          costo.value,
          tipo === 'sostenido' ? toStrictInt(hours_per_week) : null,
-         lat.value, lng.value, mod]
+         lat.value, lng.value, mod, pos.value]
       );
 
       // Categoría y roles: se crean en el catálogo si no existen (ON CONFLICT: otra alta concurrente
@@ -826,10 +835,9 @@ router.put('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
     if (meta.error) return res.status(400).json({ error: meta.error });
     const costo = money('cost_per_person', project.costo, 'El costo por persona');
     if (costo.error) return res.status(400).json({ error: costo.error });
-    // Encuadre de la foto (§297): si viene, de la lista (Object.hasOwn: 'toString' no es un encuadre); si no, se conserva.
-    if (has('image_position') && !(typeof b.image_position === 'string' && Object.hasOwn(POSITION_TO_DB, b.image_position)))
-      return res.status(400).json({ error: 'image_position tiene que ser top, center o bottom' });
-    const fotoPosicion = has('image_position') ? POSITION_TO_DB[b.image_position] : (project.foto_posicion || 'centro');
+    // Encuadre de la foto (§297): si viene, de la lista; si no, se conserva.
+    const pos = parseImagePosition(b, project.foto_posicion || 'centro');
+    if (pos.error) return res.status(400).json({ error: pos.error });
 
     // Roles, requisitos y categoría: si vienen se validan como en el alta (REVISION B5) y REEMPLAZAN a los
     // actuales; si no vienen, no se tocan. Antes no se guardaban y la respuesta los inventaba del body.
@@ -858,7 +866,7 @@ router.put('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
          m.ubicacion.trim(), m.tipo, b.status != null ? b.status : project.status, m.duracion,
          newCupos, meta.value, costo.value,
          m.tipo === 'sostenido' ? toStrictInt(m.horas) : null,
-         lat.value, lng.value, mod, fotoPosicion,
+         lat.value, lng.value, mod, pos.value,
          req.params.id]
       );
       if (upd.changes === 0) return { capacity: true };

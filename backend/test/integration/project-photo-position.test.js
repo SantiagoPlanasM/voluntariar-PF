@@ -59,6 +59,24 @@ describe('Encuadre de la foto del voluntariado', () => {
     assert.equal(await stored(), 'centro');
   });
 
+  // Al crear también se elige: la foto se sube después del alta, pero el encuadre ya viene en el cuerpo.
+  const alta = (extra) => call('POST', '/api/projects', {
+    title: 'Con encuadre', description: 'Un voluntariado para probar el encuadre de la foto',
+    location: 'Córdoba', type: 'fugaz', duration: '1 día', volunteers_needed: 5, ...extra,
+  }, owner);
+
+  test('alta: con encuadre se guarda; sin él, al centro; uno inválido → 400 sin crear nada', async () => {
+    const con = await alta({ image_position: 'bottom' });
+    assert.equal(con.status, 201, JSON.stringify(con.body));
+    assert.equal(con.body.project.image_position, 'bottom');
+    assert.equal((await db.get('SELECT foto_posicion FROM projects WHERE id=$1', [con.body.project.id])).foto_posicion, 'abajo');
+    const sin = await alta({});
+    assert.equal(sin.body.project.image_position, 'center');
+    const antes = Number((await db.get('SELECT COUNT(*) AS n FROM projects')).n);
+    assert.equal((await alta({ image_position: 'izquierda' })).status, 400);
+    assert.equal(Number((await db.get('SELECT COUNT(*) AS n FROM projects')).n), antes);
+  });
+
   test('otra ONG no la cambia', async () => {
     assert.equal((await call('PUT', '/api/projects/proj-1', { image_position: 'top' }, other)).status, 404);
     assert.equal(await stored(), 'centro');
