@@ -8292,3 +8292,98 @@ Lo pidió la entrevistada de FONBEC: para coordinar, a la ONG le sirve más un t
 
 ### ⚠️ NO verificado
 - Que el error no manejado no vuelva a aparecer en el CI por otro timer: es la primera vez que pasa, y no revisé los otros `setTimeout` del frontend.
+
+## 293. Equipo de la ONG (paso 1): `ngo_miembros` y `lib/ngoAccess`
+
+Pedido del usuario: vincular voluntarios como equipo de la ONG (`docs/PLAN_EQUIPOS.md`). Se había dejado para después de la defensa. El 30/10 el usuario decidió hacer **el equipo de la ONG antes del 2/11** y dejar la parte de empresas (reservas de cupos) para después del 5/11. Roles: coordinador y comunicador. Una persona puede estar en **varias ONG**.
+
+### Qué se hizo
+- **`ngo_miembros`:**
+  - `ngo_id` y `user_id`;
+  - `rol` (CHECK `coordinador`/`comunicador`) y `estado` (CHECK `invitado`/`activo`);
+  - `invitado_por`, fechas y `UNIQUE(ngo_id, user_id)`.
+
+  El dueño sigue siendo `ngos.user_id`. Es la tabla 38.
+- **`lib/ngoAccess.js`:**
+  - `ngoAccess(userId, ngoId)` → `'owner' | 'coordinador' | 'comunicador' | null`, y solo cuentan los miembros activos;
+  - `projectAccess`;
+  - `canManageEnrollments` (dueño o coordinador).
+
+### Verificación
+- **`ngo-access.test.js` (7):** dueño; activo con su rol; invitado sin acceso; varias ONG con roles distintos; argumentos vacíos; `projectAccess`; los CHECK y el UNIQUE. Rojo débil antes: el módulo no existía. SQLite y Postgres.
+- **Mutación:** 9 mutantes, **7 muertos y 2 equivalentes**:
+  - sin el chequeo de argumentos, la consulta igual no encuentra membresía;
+  - sin el `|| null`, el `LEFT JOIN` ya da `null`.
+
+## 294. Equipo de la ONG (paso 2): invitar, aceptar y el panel del miembro
+
+### Qué se hizo
+- **`routes/ngoTeam.js` (`/api/equipo`):**
+  - el dueño lista, invita por email (solo cuentas de voluntario que ya existen), cambia el rol y saca;
+  - el voluntario ve sus invitaciones y equipos, acepta (compare-and-swap, un solo aviso `team_joined` al dueño) y rechaza o sale;
+  - el miembro activo abre `GET /:ngoId/panel`: los voluntariados con sus pendientes y, si es coordinador, las postulaciones sin responder.
+
+  En la API, `role` es `coordinator`/`communicator` y `status` es `invited`/`active` (regla 11).
+- **`pendingEnrollmentsOf(ngoId)`** sale de `GET /ngos/me` y la comparten el panel del dueño y el del equipo (regla 3).
+- **Límite:** a quien no tiene cuenta no se le manda un email para registrarse; el dueño recibe 404 con el mensaje "Pedile que se registre como voluntario".
+
+### Verificación
+- **`ngo-team.test.js` (8):** invitar (aviso y lista), errores (sin cuenta, ONG o empresa, rol o email inválidos, repetida), solo la cuenta ONG gestiona, aceptar dos veces con un solo aviso, rechazar y salir, cambiar rol y sacar (otra ONG: 404 sin cambios), dos ONG, y el panel por rol. SQLite y Postgres.
+- **`ownership.test.js`:** otra ONG no cambia el rol, no saca a nadie ni ve el equipo ajeno; la dueña sí (regla 15).
+- **Mutación:** 13 mutantes, **13 muertos**. El de `Number(p.pending)` sobrevivió en SQLite y murió en Postgres, donde el `COUNT` llega como texto (lo corrí a mano con copia del archivo).
+
+### Errores propios
+- **Escribí los roles del test en español en la API** (`coordinador`). La regla 11 pide inglés, y lo corregí antes de implementar.
+- **El primer helper del test registraba voluntarios por la API** y chocó con el límite de 20 registros por hora. El primer rojo no fue limpio por eso, y la mutación lo compensó. Ahora los crea directo en la base.
+- **El `LIKE` sobre `notifications.data`** necesitaba `CAST(... AS TEXT)` para Postgres (es `JSONB`).
+
+## 295. Equipo de la ONG (paso 3): qué puede cada rol
+
+### Qué se hizo
+- **Coordinador:** ve y decide postulaciones (`GET /enrollments/project/:id`, `PATCH /enrollments/:id`), agenda y cambia entrevistas, carga horas y abre el CV (pendiente o aprobada, como la ONG).
+  - Esas rutas pasan de `requireRole('ngo')` a `requireRole('ngo', 'volunteer')` y preguntan a `managedNgoOfEnrollment` (`lib/ngoAccess`).
+  - Las consultas siguen filtrando `AND p.ngo_id = $n` con esa ONG, o con `null` si no puede.
+- **Coordinador y comunicador:** publican Momentos en los voluntariados de su ONG (`canPostTo`, `eligible-projects`).
+- **Cambio visible:** un voluntario sin permiso ahora recibe **404** (antes, 403 por rol), igual que otra ONG. Tres tests viejos (`api.test.js` y dos de `entrevistas.test.js`) pasaron a esperar 404, con el motivo comentado. La garantía de que no puede hacer nada sigue probada, con la base sin cambios, en `ngo-team-access.test.js`.
+
+### Verificación
+- **`ngo-team-access.test.js` (9):** el coordinador puede todo lo de la tabla y rechazar. El comunicador, un invitado, un coordinador de otra ONG y la dueña de otra ONG no pueden nada, y la base no cambia. El CV de una postulación rechazada no lo ve ni el coordinador. En Momentos sí publican los dos roles; no publican el invitado ni el de otra ONG. La dueña sigue pudiendo todo.
+- **Mutación:** 11 mutantes, **11 muertos**. Uno ("elegibles: invitados también") sobrevivió y lo mató un caso nuevo.
+
+## 296. Equipo de la ONG (frontend)
+
+### Qué se hizo
+- **Dueño:** "Acceso del equipo" (`/ngo/equipo`, `NGOTeam`) para invitar con rol, cambiar el rol y sacar (con confirmación). Se llega desde el menú lateral y desde Configuración (en el celular no hay menú lateral). No reemplaza `NGOEmpleados`, el directorio sin cuentas.
+- **Voluntario:** "Equipos" en Configuración (`TeamSection`): aceptar o rechazar, "Panel" y "Salir" (con confirmación). Sin invitaciones no se muestra.
+- **Miembro:** `/equipo/:ngoId` (`TeamPanel`). El coordinador ve las postulaciones sin responder (con el teléfono) y los voluntariados con sus pendientes; el comunicador, los voluntariados y "Publicar un Momento". La gestión de un voluntariado es `NGOProjectDetail` con `team`: sin editar, KPIs ni estado, y el chat va a `/messages`.
+- **Avisos:** `team_invite` lleva a Configuración y `team_joined`, a "Acceso del equipo".
+- `api.team` y sus tipos, y `app/team/teamRoles.ts` con las etiquetas: Coordinación y Comunicación.
+
+### Verificación
+- **Tests nuevos (25):** `NGOTeam` (6), `TeamSection` (5), `TeamPanel` (4), `NGOProjectDetailTeam` (3), rutas (2), menú, avisos y Configuración, y el contrato de `api.team` (8).
+- **Mutación:** 21 mutantes, **20 muertos y 1 equivalente** ("invitar sin `trim`": el backend recorta igual).
+
+### ⚠️ NO verificado
+- Todo en pantalla: las tres pantallas nuevas, en el celular y en oscuro.
+- El circuito completo con dos cuentas reales (invitar, aceptar, aprobar desde el equipo) en producción.
+- **Visto de paso, sin tocar:** `NGOEmpleados` (`/ngo/empleados/:id`, el directorio sin cuentas) ya no tiene ningún link que lo abra. Se puede enlazar o retirar; queda para decidir.
+
+## 297. Encuadre de la foto del voluntariado
+
+`PLAN_CIERRE §2`: la tarjeta de Explorar (4:5) recorta la foto al centro. Decisión del usuario: la ONG elige el encuadre.
+
+### Qué se hizo
+- **Backend:** `projects.foto_posicion` (`arriba`/`centro`/`abajo`, DEFAULT `centro`, con CHECK). En la API es `image_position` (`top`/`center`/`bottom`), en `fmt`, en el alta y en el PUT parcial. `parseImagePosition` lo comparten los dos y valida tipo y `Object.hasOwn`.
+- **Frontend:** con una foto, "Encuadre en las tarjetas" (Arriba, Centro, Abajo) en `ProjectPhotoField`, con la vista previa en la forma de la tarjeta. Va en el alta y, si cambió, en la edición. `imagePositionClass` lo aplica en `VolunteeringTile`, `FeedPostCard` y la cabecera de `ProjectDetails`.
+
+### Verificación
+- **Backend:** `project-photo-position.test.js` (5), en SQLite y Postgres. Mutación: **10 de 11** y 1 equivalente (el `|| 'center'` de `fmt`: la columna tiene DEFAULT). Un mutante mostró que el chequeo de tipo **no era redundante**: `Object.hasOwn(obj, ['top'])` acepta el array. Se agregaron `['top']` y `'toString'` al test.
+- **Frontend:** 6 tests (helper, tarjeta de Explorar, del inicio, cabecera, alta y edición). Mutación: **12 de 12**.
+
+### ⚠️ NO verificado
+- Cómo se ve cada encuadre con fotos reales.
+
+## Suites al cierre de §289–§297 (30/10)
+- **Backend:** `npm test` **1088/1088** y `npm run test:pg` **1090/1090**, en UTC y en Córdoba.
+- **Frontend:** **1171/1171**, cobertura de sentencias 90,18 %, ramas 86,62 %, funciones 86,7 % y líneas 93,17 %.
+- `npm run typecheck` sin errores y `npm audit` en 0 en los dos paquetes.

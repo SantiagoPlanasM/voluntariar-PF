@@ -15,7 +15,7 @@ Todas las claves primarias son `TEXT` (UUID v4-like), no enteros autoincremental
 
 > **⚠️ `created_at` en SQLite tiene resolución de 1 segundo** (`datetime('now')`; en Postgres, microsegundos). Dos filas creadas dentro del mismo segundo **empatan**: `ORDER BY created_at DESC LIMIT 1` devuelve cualquiera de las dos (en la práctica la de menor `rowid`, o sea la más vieja). No usar `created_at` para identificar una fila recién insertada (usar su id) ni asumir un orden estricto entre filas del mismo segundo. Ver `PROJECT_ANALYSIS.md §40`.
 
-## 1. Todas las tablas (37)
+## 1. Todas las tablas (38)
 
 | # | Tabla | Propósito |
 |---|---|---|
@@ -56,6 +56,7 @@ Todas las claves primarias son `TEXT` (UUID v4-like), no enteros autoincremental
 | 35 | `patrocinio_puntos` | Puntos de un acuerdo de patrocinio: lo que aporta la empresa y lo que pide u ofrece la ONG (§263) |
 | 36 | `patrocinio_mensajes` | La charla de un acuerdo de patrocinio entre la empresa y la ONG (§264) |
 | 37 | `password_reset_tokens` | Códigos de un solo uso de "¿Olvidaste tu contraseña?" (solo el hash; §275) |
+| 38 | `ngo_miembros` | El equipo de la ONG: voluntarios con rol coordinador o comunicador, invitados o activos (§293) |
 
 ## 2. Detalle de columnas por tabla
 
@@ -127,6 +128,7 @@ id · ngo_id (FK→ngos, CASCADE) · nombre · apellido · email · foto_perfil 
 | horas_semanales | INTEGER | CHECK NULL o > 0 (solo aplica si `tipo='sostenido'`, validado en la app, no en el CHECK) |
 | duracion | TEXT | (solo aplica si `tipo='fugaz'`, validado en la app) |
 | latitud, longitud | REAL | Agregadas por el usuario (2026-09) vía `ALTER TABLE`, para el mapa (`ProjectMap.tsx`). El API las expone como `latitude`/`longitude` (ver `fmt()` en `routes/projects.js`) |
+| foto_posicion | TEXT | §297 (`addColumnIfNotExists`): el encuadre de la foto cuando la tarjeta la recorta. DEFAULT `centro`, CHECK IN (`arriba`,`centro`,`abajo`). En la API, `image_position` (`top`/`center`/`bottom`) |
 | foto_provider_id | TEXT | §282 (`addColumnIfNotExists`): el id de Cloudinary de la foto subida con `PUT /api/projects/:id/photo` (la URL va en `foto_perfil`), para borrar la anterior al reemplazarla. NULL = sin foto subida acá o una URL externa vieja. Nunca sale en la API (`fmt` es una lista blanca) |
 | modalidad | TEXT | Agregada por el usuario (2026-09), DEFAULT `presencial`, valores usados: `presencial`/`remoto`/`hibrido`. El API la expone como `modality`. **Ojo:** el frontend debe leer siempre este campo tal cual — no re-inferir la modalidad por texto en `ubicacion` (bug real encontrado y arreglado, ver `PROJECT_ANALYSIS.md §29`) |
 | followers | INTEGER | DEFAULT 0, CHECK ≥ 0 |
@@ -171,6 +173,9 @@ id · empleado_id (FK→empleados, ON DELETE SET NULL) · user_id (NOT NULL FK�
 
 ### `patrocinio_puntos`
 id · empresa_id · project_id (FK compuesta a `empresa_voluntariados`, ON DELETE CASCADE) · lado (CHECK IN `empresa`,`ong`) · tipo (CHECK IN `dinero`,`insumos`,`voluntarios`,`difusion`,`otro`) · detalle (NOT NULL, hasta 300 por la API) · monto (REAL, CHECK NULL o > 0; solo en `dinero`, privado de las partes) · autor_id (FK→users, SET NULL) · created_at · updated_at. Índice `idx_patrocinio_puntos_acuerdo` (empresa_id, project_id). Se crea en la parte de migraciones aditivas de `migrate.js`, después de las columnas de `empresa_voluntariados` (§263).
+
+### `ngo_miembros` (§293, `docs/PLAN_EQUIPOS.md`)
+id · ngo_id (NOT NULL FK→ngos CASCADE) · user_id (NOT NULL FK→users CASCADE; un voluntario) · rol (CHECK IN `coordinador`,`comunicador`) · estado (CHECK IN `invitado`,`activo`, default `invitado`) · invitado_por (FK→users SET NULL) · created_at · updated_at · `UNIQUE(ngo_id, user_id)`. El dueño de la ONG no está acá (es `ngos.user_id`). Solo cuentan los `activo` (`lib/ngoAccess.js`). Una persona puede estar en varias ONG.
 
 ### `patrocinio_mensajes`
 id · empresa_id · project_id (FK compuesta a `empresa_voluntariados`, ON DELETE CASCADE) · lado (CHECK IN `empresa`,`ong`) · autor_id (FK→users, SET NULL) · cuerpo (NOT NULL, hasta 1000 por la API) · created_at (lo pone el código, con milisegundos: SQLite guarda segundos y el orden de la charla no puede depender del id). Índice `idx_patrocinio_mensajes_acuerdo` (§264).

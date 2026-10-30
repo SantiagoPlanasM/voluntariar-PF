@@ -1,6 +1,6 @@
 # PLAN_EQUIPOS.md — Equipo de la ONG con cuentas reales y empleados de empresa con cupos reservados
 
-> **Estado:** plan, sin código. Pedido del usuario el 2026-10-29. Se decidió hacerlo **después de la defensa
+> **Estado (30/10):** pasos 1 y 2 hechos (§293–§296: equipo de la ONG con coordinador y comunicador). Pasos 3 y 4 (empresa), después del 5/11. Antes: plan, sin código. Pedido del usuario el 2026-10-29. Se decidió hacerlo **después de la defensa
 > (5/11)**: los dos tocan permisos y la regla de cupos, que hoy están probados contra la concurrencia, y no conviene
 > cambiarlos justo antes. En el IPI va como trabajo futuro.
 

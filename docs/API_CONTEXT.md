@@ -41,11 +41,11 @@
 | DELETE | `/api/projects/:id/kpis/:kpiId` | Sí | ngo (dueño) | `routes/projects.js` |
 | POST | `/api/enrollments` | Sí | volunteer | `routes/enrollments.js` |
 | GET | `/api/enrollments/my` | Sí | cualquiera | `routes/enrollments.js` |
-| GET | `/api/enrollments/project/:projectId` | Sí | ngo (dueño) | `routes/enrollments.js` |
-| PATCH | `/api/enrollments/:id` | Sí | ngo (dueño) | `routes/enrollments.js` |
+| GET | `/api/enrollments/project/:projectId` | Sí | ngo (dueño) o coordinador del equipo (§295) | `routes/enrollments.js` |
+| PATCH | `/api/enrollments/:id` | Sí | ngo (dueño) o coordinador del equipo (§295) | `routes/enrollments.js` |
 | DELETE | `/api/enrollments/:id` | Sí | dueño de la inscripción | `routes/enrollments.js` |
-| PATCH | `/api/enrollments/:id/horas` | Sí | ngo (dueño del proyecto) | `routes/enrollments.js` |
-| POST | `/api/enrollments/:id/entrevista` | Sí | ngo (dueño del proyecto) | `routes/enrollments.js` |
+| PATCH | `/api/enrollments/:id/horas` | Sí | ngo (dueño) o coordinador del equipo (§295) | `routes/enrollments.js` |
+| POST | `/api/enrollments/:id/entrevista` | Sí | ngo (dueño) o coordinador del equipo (§295) | `routes/enrollments.js` |
 | PATCH | `/api/enrollments/:id/entrevista` | Sí | ngo (dueño del proyecto) | `routes/enrollments.js` |
 | GET | `/api/ngos` | No | — | `routes/ngos.js` |
 | GET | `/api/ngos/me` | Sí | ngo | `routes/ngos.js` |
@@ -97,7 +97,14 @@
 | PUT | `/api/voluntarios/me/habilidades` | Sí | volunteer | `routes/voluntarios.js` |
 | PUT | `/api/voluntarios/me/cv` | Sí | volunteer | `routes/voluntarios.js` |
 | DELETE | `/api/voluntarios/me/cv` | Sí | volunteer | `routes/voluntarios.js` |
-| GET | `/api/voluntarios/:userId/cv` | Sí | dueño, o ONG con inscripción pendiente/aprobada | `routes/voluntarios.js` |
+| GET | `/api/voluntarios/:userId/cv` | Sí | dueño, o ONG (o coordinador de su equipo, §295) con inscripción pendiente/aprobada | `routes/voluntarios.js` |
+| GET | `/api/equipo/miembros` | Sí | ngo | `routes/ngoTeam.js` (§294) |
+| POST | `/api/equipo/miembros` | Sí | ngo | `routes/ngoTeam.js` |
+| PATCH / DELETE | `/api/equipo/miembros/:userId` | Sí | ngo (su equipo) | `routes/ngoTeam.js` |
+| GET | `/api/equipo/mias` | Sí | volunteer | `routes/ngoTeam.js` |
+| POST | `/api/equipo/mias/:ngoId/aceptar` | Sí | volunteer (invitado) | `routes/ngoTeam.js` |
+| DELETE | `/api/equipo/mias/:ngoId` | Sí | volunteer (miembro o invitado) | `routes/ngoTeam.js` |
+| GET | `/api/equipo/:ngoId/panel` | Sí | miembro activo | `routes/ngoTeam.js` |
 | GET | `/api/voluntarios/:userId` | No | — | `routes/voluntarios.js` |
 | GET | `/api/messages/conversations` | Sí | cualquiera | `routes/messages.js` |
 | GET | `/api/messages/thread/:userId` | Sí | cualquiera | `routes/messages.js` |
@@ -243,7 +250,7 @@ Desde §290, las tres rutas de contraseña (`PUT /me/password`, `POST /forgot-pa
 
 ### `PUT /api/projects/:id` — Auth, role `ngo` (dueño)
 - Verifica `ngo_id` de la sesión contra el `ngo_id` del proyecto (join implícito vía `WHERE id=$1 AND ngo_id=$2`).
-- **Parcial (`PROJECT_ANALYSIS.md §95`):** cada campo que **no viene conserva su valor**: `title`, `description`, `full_description`, `image`, `location`, `type`, `duration`, `volunteers_needed`, `funding_goal`, `cost_per_person`, `hours_per_week`, `status`, `latitude`/`longitude`, `modality`, `roles_needed`, `requirements`, `category`. `null` o `""` borra los opcionales (`full_description`, `image`, `duration`; montos → 0). El resultado combinado se valida como el alta: `validateProject` (cupos y horas **enteros estrictos**, con los mismos topes de 100000 y 168), tipo `fugaz|sostenido` (`null` incluido) y montos finitos ≥ 0 (`parseMoney`). Los textos que vienen se validan como string y con los mismos largos máximos (80, 1000, 5000, 150, 100 y 1000; un valor viejo más largo no se revalida si no viene). **`modality`/`modalidad`**, si vienen y no están vacías, tienen que ser `presencial|remoto|hibrido` (antes no se validaban: un objeto daba 500 en SQLite); vacías conservan la actual. **`latitude`/`longitude`** (o `latitud`/`longitud`), si vienen, se validan como en el alta, y `null`/`''` las borra. Si algo no cumple → **400** sin cambiar nada (§143). `roles_needed`, `requirements` y `category`, si vienen, se validan como en el alta y **reemplazan** a los actuales (listas vacías o `""` los borran), en la misma transacción. *(Antes se pisaba todo lo no enviado —un status omitido reactivaba un proyecto terminado— y la respuesta devolvía roles/requisitos/categoría del body sin guardarlos.)*
+- **Parcial (`PROJECT_ANALYSIS.md §95`):** cada campo que **no viene conserva su valor**: `title`, `description`, `full_description`, `image`, `location`, `type`, `duration`, `volunteers_needed`, `funding_goal`, `cost_per_person`, `hours_per_week`, `status`, `latitude`/`longitude`, `modality`, `roles_needed`, `requirements`, `category`. `null` o `""` borra los opcionales (`full_description`, `image`, `duration`; montos → 0). El resultado combinado se valida como el alta: `validateProject` (cupos y horas **enteros estrictos**, con los mismos topes de 100000 y 168), tipo `fugaz|sostenido` (`null` incluido) y montos finitos ≥ 0 (`parseMoney`). Los textos que vienen se validan como string y con los mismos largos máximos (80, 1000, 5000, 150, 100 y 1000; un valor viejo más largo no se revalida si no viene). **`modality`/`modalidad`**, si vienen y no están vacías, tienen que ser `presencial|remoto|hibrido` (antes no se validaban: un objeto daba 500 en SQLite); vacías conservan la actual. **`latitude`/`longitude`** (o `latitud`/`longitud`), si vienen, se validan como en el alta, y `null`/`''` las borra. Si algo no cumple → **400** sin cambiar nada (§143). **`image_position` (§297)**, si viene, tiene que ser `top`, `center` o `bottom` (texto: ni `['top']` ni `'toString'`); si no, se conserva. También se acepta en el alta (sin él, `center`), y sale en todas las lecturas (`fmt`). `roles_needed`, `requirements` y `category`, si vienen, se validan como en el alta y **reemplazan** a los actuales (listas vacías o `""` los borran), en la misma transacción. *(Antes se pisaba todo lo no enviado —un status omitido reactivaba un proyecto terminado— y la respuesta devolvía roles/requisitos/categoría del body sin guardarlos.)*
 - **Capacidad (`PROJECT_ANALYSIS.md §40`):** `volunteers_needed` **omitido o `null` conserva la capacidad actual** (antes se pisaba con `0`); un valor explícito debe ser un entero ≥ 1 (**400** `"Los cupos deben ser un número positivo"`, o `"Los cupos tienen que ser un número entero"` si no es entero, igual que al crear; antes un negativo violaba el `CHECK(cupos >= 0)` y devolvía 500). **No se puede bajar por debajo de las inscripciones aprobadas**: **400** `"No podés bajar la capacidad a N: ya hay M voluntarios aprobados."`. La condición va dentro del propio `UPDATE` (`... AND cupos_ocupados <= $9`), así que es atómica frente a aprobaciones concurrentes. Desde §255–§256 lo usan dos pantallas: la edición (`CreateVoluntariado` en `/ngo/dashboard/project/:id/editar`, manda solo los campos que cambiaron y `null` para borrar la descripción completa o el lugar) y el estado del detalle del panel (`NGOProjectDetail`: `{ status }` para finalizar, cancelar o volver a activar). *(Esta viñeta decía además que "no es una actualización parcial real" y que un `status` omitido volvía a `'active'`: era de antes de §95 y contradecía la viñeta de arriba. El código es parcial, también para `status`.)*
 - **`status`**, si viene, tiene que ser `active`, `completed` o `cancelled` → si no, **400** (antes 500 por el `CHECK`; `§74`).
 - **Respuesta 200:** `{ project }` releído de la base (con sus roles, requisitos y categoría guardados). **Errores:** `400` validación o capacidad; `404` si el proyecto no existe o no pertenece a la ONG del usuario (no distingue "no existe" de "no es tuyo", por diseño). *(Decía "No lo usa ninguna pantalla": cierto hasta §255.)*
@@ -293,12 +300,13 @@ Desde §290, las tres rutas de contraseña (`PUT /me/password`, `POST /forgot-pa
 ### `GET /api/enrollments/my` — Auth
 - **Respuesta 200:** `{ enrollments: Enrollment[] }` del usuario logueado, con datos del proyecto embebidos (JOIN), `phone` (el suyo, en cualquier estado; §291) y `interview` (ver "Entrevistas" abajo).
 
-### `GET /api/enrollments/project/:projectId` — Auth, role `ngo` (dueño del proyecto)
+### `GET /api/enrollments/project/:projectId` — Auth, role `ngo` (dueño del proyecto) o un coordinador activo de su equipo (§295)
 - **Query:** `status` opcional (`pending`/`approved`/`rejected`): filtra por estado; sin él, todas.
 - **Respuesta 200:** `{ enrollments: Enrollment[] }` de ese proyecto, del más nuevo al más viejo, con datos del voluntario embebidos (`volunteer_name`, `volunteer_email`, `volunteer_avatar`, `volunteer_bio`) y **`has_cv`** (boolean, §168). `has_cv` es `true` solo si la inscripción es `pending` o `approved` y el voluntario cargó un CV: es exactamente cuando esta ONG puede abrirlo con `GET /api/voluntarios/:userId/cv`. Nunca devuelve `cv_url` ni el public_id. **`phone` (§291)**, con el mismo criterio: el teléfono que dejó en esa postulación si está `pending` o `approved`; si no (o si no dejó), `null`.
 - **Errores:** **`403`** "Sin permiso sobre este proyecto" si el proyecto no existe o no pertenece a la ONG de la sesión (esta doc decía 404).
 
-### `PATCH /api/enrollments/:id` — Auth, role `ngo` (dueño del proyecto de la inscripción)
+### `PATCH /api/enrollments/:id` — Auth, role `ngo` (dueño del proyecto de la inscripción) o un coordinador activo de su equipo (§295)
+- **Equipo (§295):** esta ruta, las dos de la entrevista y la de horas preguntan a `managedNgoOfEnrollment` (`lib/ngoAccess.js`): la ONG de la postulación si quien pide es su dueño o un coordinador activo; si no, `null`, y la consulta de siempre (`AND p.ngo_id = $n`) no encuentra nada → **404**. Un voluntario que no es coordinador recibe 404 (antes 403 por rol); una empresa, 403 por rol.
 - **Body:** `{ status: 'approved'|'rejected' }`.
 - **Efecto:** en **una transacción** actualiza `status` y ajusta `projects.cupos_ocupados` (+1 al pasar a `approved`, −1 —sin bajar de 0— al pasar de `approved` a `rejected`). Después del COMMIT, notificación y email fire-and-forget al voluntario.
 - **Concurrencia (2026-09, `PROJECT_ANALYSIS.md §34`):** el `UPDATE` es un compare-and-swap sobre el estado leído, así que doble click / reintentos no suman el cupo dos veces. **Idempotente:** pedir el estado que la inscripción ya tiene devuelve 200 sin cambiar nada y **sin** notificación ni email duplicados (antes cada re-aprobación mandaba otro email).
@@ -329,7 +337,7 @@ Una entrevista es una fila de `reuniones` atada a una postulación (`enrollment_
 - **Respuesta 200:** `{ interview }`.
 - **Automático:** aprobar o rechazar la postulación (`PATCH /api/enrollments/:id`) cancela la programada en la misma transacción (la realizada queda); cancelar la postulación la borra (`DELETE`) y con ella sus entrevistas (`ON DELETE CASCADE`).
 
-### `PATCH /api/enrollments/:id/horas` — Auth, role `ngo` (dueño del proyecto)
+### `PATCH /api/enrollments/:id/horas` — Auth, role `ngo` (dueño del proyecto) o un coordinador activo de su equipo (§295)
 - **Decisión de diseño (ver `PROJECT_ANALYSIS.md §21-22`):** originalmente el código dejaba que el propio voluntario auto-reportara sus horas (con la documentación de esta misma sección diciendo lo contrario) y no tenía ninguna UI que lo usara. Se decidió que las horas queden **verificadas por la ONG dueña del proyecto**, no auto-reportadas — patrón estándar en plataformas de voluntariado, y más confiable para las estadísticas del proyecto.
 - **Body:** `{ horas }`: número (o string numérico) **finito entre 0 y 10000**; si no → **400** (antes `"1e400"` se guardaba como Infinity y `"12abc"` como 12; `PROJECT_ANALYSIS.md §75`).
 - **UI:** `NGOProjectDetail.tsx`, un input + botón por cada inscripto aprobado. El voluntario ve el valor ya cargado (solo lectura) en `MyParticipation.tsx`.
@@ -434,6 +442,30 @@ Una entrevista es una fila de `reuniones` atada a una postulación (`enrollment_
 **Todavía sin API**: gestión de voluntarios propios de la empresa (`BACKEND_ROADMAP_ANALYSIS.md §2.4`). El patrocinio (`empresa_voluntariados`) sí tiene API completa — ver más abajo.
 
 ---
+
+## Equipo de la ONG (§293–§296, `docs/PLAN_EQUIPOS.md`) — `routes/ngoTeam.js` y `lib/ngoAccess.js`
+El dueño (la cuenta `ngo`) suma voluntarios a su equipo, con rol **`coordinator`** (postulaciones, CV, entrevistas, horas y Momentos) o **`communicator`** (Momentos). En la base `ngo_miembros.rol` es `coordinador`/`comunicador` y `estado` `invitado`/`activo`; en la API, `role` y `status` (`invited`/`active`). Una persona puede estar en varias ONG. **Sin aceptar no ve nada**: `ngoAccess` solo cuenta los activos. Editar voluntariados, KPIs, Mercado Pago, patrocinios y el propio equipo siguen siendo solo del dueño.
+
+### `GET /api/equipo/miembros` — Auth, role `ngo`
+- `{ members: [{ user_id, name, email, avatar, role, status, created_at }] }` de su ONG, en orden de invitación.
+
+### `POST /api/equipo/miembros { email, role }` — Auth, role `ngo`
+- Invita a una cuenta **de voluntario que ya existe** (el email se recorta y pasa a minúsculas). **400** email o rol inválidos, o la cuenta es de ONG o empresa; **404** "No hay ninguna cuenta con ese email…"; **409** si ya está en el equipo o invitada (también con dos invitaciones a la vez: `isUniqueViolation`). **201** `{ member }` y notificación `team_invite` a la persona (`data: { ngo_id, role }`). No manda email.
+
+### `PATCH /api/equipo/miembros/:userId { role }` y `DELETE /api/equipo/miembros/:userId` — Auth, role `ngo`
+- Cambia el rol o saca a alguien (o cancela la invitación). Solo de su equipo: si no está, **404** y la base no cambia (`ownership.test.js`).
+
+### `GET /api/equipo/mias` — Auth, role `volunteer`
+- `{ memberships: [{ ngo_id, ngo_name, ngo_logo, role, status }] }`: invitaciones y equipos.
+
+### `POST /api/equipo/mias/:ngoId/aceptar` — Auth, role `volunteer`
+- Compare-and-swap (`WHERE estado='invitado'`): aceptar dos veces da 200 y avisa al dueño (`team_joined`) una sola vez. Sin invitación, **404**.
+
+### `DELETE /api/equipo/mias/:ngoId` — Auth, role `volunteer`
+- Rechaza la invitación o sale del equipo (borra la fila). Sin fila, **404**.
+
+### `GET /api/equipo/:ngoId/panel` — Auth, miembro activo
+- `{ ngo: { id, name, logo }, role, projects: [{ id, title, status, image, volunteers_needed, current_volunteers, pending }] }`; el coordinador recibe además `pending_enrollments` (la misma consulta que `GET /api/ngos/me`, `pendingEnrollmentsOf`). `pending` sale con `Number()` (en Postgres el `COUNT` es texto). Invitado, de otra ONG o el dueño: **403** (el dueño tiene su panel).
 
 ## Acuerdo de patrocinio (§263, `docs/PLAN_PATROCINIO.md`) — `routes/patrocinios.js`
 La propuesta de siempre (`empresa_voluntariados`, abajo) suma **puntos** de cada parte y una **versión** (etapa 1, §263), y desde §264 **la aceptación por versión y la charla**: el acuerdo pasa a `aceptado` cuando **las dos partes aceptaron la versión vigente**. Proponer cuenta como que la empresa acepta, y el `PATCH` de la ONG de abajo es "aceptar mi parte": sin cambios en los puntos, se cierra como siempre.
@@ -570,7 +602,7 @@ La propuesta de siempre (`empresa_voluntariados`, abajo) suma **puntos** de cada
 
 ### `POST /api/posts` — Auth, role `volunteer` o `ngo`; `multipart/form-data`
 - **Campos:** `project_id` (obligatorio), `caption` (opcional, ≤ 500 caracteres, filtro de lenguaje inapropiado), `photos` (1 a 5 archivos JPEG/PNG/WebP, ≤ 8 MB c/u: **8.000.000 bytes**, no 8 MiB, §232).
-- **Quién puede publicar:** un voluntario con inscripción **aprobada** en ese proyecto (también cuando ya terminó), o la **ONG dueña**. Una empresa, una ONG ajena, una inscripción pendiente o sin inscripción → `403`.
+- **Quién puede publicar:** un voluntario con inscripción **aprobada** en ese proyecto (también cuando ya terminó), la **ONG dueña** o, desde §295, un **miembro activo de su equipo** (coordinador o comunicador). `GET /api/posts/eligible-projects` suma los voluntariados de esas ONG. Una empresa, una ONG ajena, una inscripción pendiente o sin inscripción → `403`.
 - **Orden de las validaciones (deliberado):** sesión y rol → ¿Cloudinary configurado? (`503`) → lectura del formulario (`413` si una foto pesa más de 8 MB; `400` si hay más de 5 o un tipo no permitido) → campos (`400`) → el proyecto existe (`404`) → permiso (`403`) → límite de frecuencia (`429`: más de 10 publicaciones en la última hora por usuario) → **cabecera real de cada archivo** (`400`; el `mimetype` lo declara el cliente y no se confía en él) → recién ahí se sube. Todo se valida **antes** de subir, para no gastar cuota de Cloudinary en pedidos inválidos.
 - **Subida y atomicidad:** las fotos se suben en paralelo; si alguna falla se **borran las que sí se subieron** y se responde `502` (sin detalles internos). El post y sus fotos se guardan en una sola transacción **después** de las llamadas externas; si esa transacción falla también se limpia lo subido.
 - **Respuesta 201:** `{ post }`.

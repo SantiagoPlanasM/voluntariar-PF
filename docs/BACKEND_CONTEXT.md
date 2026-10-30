@@ -17,12 +17,14 @@ backend/
 │   │   ├── emailTemplates.js # plantillas HTML de los emails transaccionales
 │   │   ├── inputs.js         # checkText()/firstError(): textos libres del body (tipo, vacío, largo máximo; §76)
 │   │   ├── errorHandler.js   # manejador global de errores: 400/413/415/403 con mensaje fijo en español, resto 500 genérico
+│   │   ├── ngoAccess.js      # quién puede actuar sobre una ONG: owner | coordinador | comunicador | null; managedNgoOfEnrollment (§293, §295)
 │   │   ├── recommender.js    # puntaje de GET /api/projects/recommended: 9 señales puras, scoreProject, rankRecommendations (§287)
 │   │   ├── storage.js        # fotos en Cloudinary por REST (subida/borrado firmados, tipo real de imagen, URLs optimizadas)
 │   │   └── time.js           # toMillis(): timestamps string (SQLite) o Date (Postgres) → ms
 │   ├── middleware/auth.js  # requireAuth, optionalAuth, requireRole, signToken
 │   └── routes/
 │       ├── auth.js         # /api/auth/* (registro, login, perfil, foto, borrar la cuenta; monta authPassword.js)
+│       ├── ngoTeam.js      # /api/equipo: invitar, aceptar, salir, cambiar rol y el panel del miembro (§294)
 │       ├── authPassword.js # /api/auth: cambiar la contraseña, "¿Olvidaste tu contraseña?" y su aviso por email (§290)
 │       ├── projects.js     # /api/projects/*  (incluye comments, ratings, kpis, recomendaciones)
 │       ├── enrollments.js  # /api/enrollments/*
