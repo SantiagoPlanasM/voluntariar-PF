@@ -89,6 +89,28 @@ describe('Recomendaciones: calidad', () => {
     assert.ok(body.recommendations.some((p) => p.id === viejo), 'el que encaja aparece aunque sea viejo');
   });
 
+  // §287: la consulta de roles no tenía ORDER BY y el motivo salía en el orden de la base (en SQLite, el de rol_id).
+  // Se eligen dos roles cuyo orden por id es el inverso del alfabético y se insertan al revés: sin ORDER BY falla.
+  test('el motivo "Busca tus habilidades" lista los roles en orden alfabético', async () => {
+    const { SKILL_TO_ROLE } = require('../../src/routes/projects');
+    const ascii = ['Programador', 'Educador', 'Cocinero', 'Conductor', 'Comunicador', 'Coordinador'];
+    const roleRows = (await db.all('SELECT id, nombre FROM roles')).filter((r) => ascii.includes(r.nombre));
+    let pair;
+    for (const a of roleRows) for (const b of roleRows) if (a.nombre < b.nombre && a.id > b.id) pair ||= [a, b];
+    assert.ok(pair, 'hay dos roles con el orden por id inverso al alfabético');
+    const v = await volunteer();
+    const skills = await db.all('SELECT id, nombre FROM habilidades');
+    for (const rol of pair) {
+      const skill = skills.find((h) => SKILL_TO_ROLE[h.nombre.toLowerCase()]?.includes(rol.nombre));
+      await db.run('INSERT INTO voluntario_habilidades (user_id, habilidad_id) VALUES ($1,$2)', [v.id, skill.id]);
+    }
+    const id = await project({ ngo: 'ngo-2' });
+    for (const rol of [...pair].reverse()) await db.run('INSERT INTO project_roles (project_id, rol_id) VALUES ($1,$2)', [id, rol.id]);
+    const p = (await recommended(v.token)).recommendations.find((x) => x.id === id);
+    assert.ok(p, 'el voluntariado aparece');
+    assert.ok(p.recommendation_reasons.includes(`Busca tus habilidades: ${pair[0].nombre}, ${pair[1].nombre}`), JSON.stringify(p.recommendation_reasons));
+  });
+
   test('toda habilidad del catálogo apunta a algún rol que existe', async () => {
     const { SKILL_TO_ROLE } = require('../../src/routes/projects');
     const roles = new Set((await db.all('SELECT nombre FROM roles')).map((r) => r.nombre));

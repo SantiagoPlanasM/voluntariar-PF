@@ -519,7 +519,8 @@ router.get('/recommended', requireAuth, requireRole('volunteer'), async (req, re
       db.all(
         `SELECT pr.project_id, ro.nombre
          FROM project_roles pr JOIN roles ro ON ro.id = pr.rol_id
-         WHERE pr.project_id IN (${ph})`,
+         WHERE pr.project_id IN (${ph})
+         ORDER BY ro.nombre`,
         candidateIds
       ),
       db.all(
