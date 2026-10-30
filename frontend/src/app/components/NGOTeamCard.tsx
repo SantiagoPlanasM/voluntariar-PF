@@ -1,10 +1,9 @@
-// Acceso al equipo desde el Panel de la ONG. En escritorio "Equipo" está en la barra lateral, pero en el celular
-// no: se llegaba solo por Perfil → Configuración. La tarjeta lleva a /ngo/equipo y resume miembros e invitaciones;
+// El acceso a Equipo de los accesos del Panel (NGOShortcuts): lleva a /ngo/equipo y resume miembros e invitaciones;
 // si la carga falla, el acceso queda igual, sin números.
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
-import { ChevronRight, Users } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { api, TeamMember } from '../../lib/api';
+import { ShortcutCard } from './ShortcutCard';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -27,14 +26,5 @@ export function NGOTeamCard() {
     return () => { alive = false; };
   }, []);
 
-  return (
-    <Link to="/ngo/equipo" className="rounded-xl bg-surface border border-hairline min-h-[60px] px-4 py-3 flex items-center gap-3 hover:bg-surface-soft">
-      <Users size={22} strokeWidth={1.75} className="flex-shrink-0" aria-hidden="true" />
-      <span className="flex-1 min-w-0 flex flex-col">
-        <span className="text-[15px] font-bold">Equipo</span>
-        {members && <span className="text-[13px] text-ink-soft">{summary(members)}</span>}
-      </span>
-      <ChevronRight size={18} strokeWidth={1.75} className="text-ink-muted flex-shrink-0" aria-hidden="true" />
-    </Link>
-  );
+  return <ShortcutCard to="/ngo/equipo" icon={Users} title="Equipo" detail={members ? summary(members) : undefined} />;
 }

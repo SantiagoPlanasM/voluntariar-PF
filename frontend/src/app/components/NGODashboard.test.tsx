@@ -61,12 +61,15 @@ describe('NGODashboard: encabezado en el celular', () => {
   });
 });
 
-// En el celular "Equipo" no está en la barra: el Panel tiene la tarjeta que lleva a /ngo/equipo.
-describe('NGODashboard: acceso al equipo', () => {
-  test('la tarjeta del equipo lleva a /ngo/equipo', async () => {
+// En el celular Patrocinios, Publicaciones y Equipo no están en la barra: el Panel tiene sus accesos.
+describe('NGODashboard: accesos', () => {
+  test('Patrocinios, Publicaciones y Equipo', async () => {
     vi.spyOn(api.team, 'members').mockResolvedValue({ members: [] });
     render(<MemoryRouter><NGODashboard /></MemoryRouter>);
-    expect(await screen.findByRole('link', { name: /Equipo/ })).toHaveAttribute('href', '/ngo/equipo');
+    const nav = await screen.findByRole('navigation', { name: 'Accesos del panel' });
+    expect(within(nav).getByRole('link', { name: /Patrocinios/ })).toHaveAttribute('href', '/ngo/patrocinios');
+    expect(within(nav).getByRole('link', { name: /Publicaciones/ })).toHaveAttribute('href', '/ngo/momentos');
+    expect(within(nav).getByRole('link', { name: /Equipo/ })).toHaveAttribute('href', '/ngo/equipo');
   });
 });
 

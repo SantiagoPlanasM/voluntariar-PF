@@ -10,7 +10,7 @@ import { NGOFunnel } from './NGOFunnel';
 import { userMessage } from '../../lib/format';
 import { InlineError } from './LoadError';
 import { MercadoPagoBanner } from './MercadoPagoAccount';
-import { NGOTeamCard } from './NGOTeamCard';
+import { NGOShortcuts } from './NGOShortcuts';
 import { Avatar } from '../ui/Avatar';
 import { TypeBadge } from '../ui/TypeBadge';
 import { Button, ButtonLink } from '../ui/Button';
@@ -126,8 +126,8 @@ export function NGODashboard() {
           </dl>
         )}
 
-        {/* En el celular "Equipo" no está en la barra: este es su acceso (en escritorio, también la barra lateral). */}
-        <NGOTeamCard />
+        {/* En el celular Patrocinios, Publicaciones y Equipo no están en la barra: estos son sus accesos. */}
+        <NGOShortcuts />
 
         <NGOFunnel funnel={funnel} />
 

@@ -127,7 +127,8 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
 - **`NGOOwnProfile`:** edita el perfil, con CUIT y "Link a balances y documentos". Incluye `MercadoPagoAccountSection` (ancla `#mercadopago`; vincular, volver a vincular o desvincular, con confirmación en la página).
 - **`NGOTransparency`:** muestra los datos con "Los carga la organización; VoluntariAR no los verifica".
 - **`MercadoPagoReturn`:** manda `code` y `state` **una sola vez** (un ref la protege de StrictMode).
-- **`NGOTeam`:** invita, cambia el rol o saca. Se llega por "Equipo" en la barra lateral (escritorio), por `NGOTeamCard` en el Panel (miembros e invitaciones pendientes; es el acceso en el celular) y por Configuración.
+- **`NGOTeam`:** invita, cambia el rol o saca. Se llega por "Equipo" en la barra lateral (escritorio), por el acceso del Panel y por Configuración.
+- **`NGOShortcuts`:** los accesos del Panel de la ONG (`ShortcutCard`, uno por pantalla) a Patrocinios, Publicaciones y Equipo (`NGOTeamCard`, con miembros e invitaciones pendientes; sin números si falla la carga). En el celular son el único camino a esas tres pantallas: la barra inferior tiene cinco ítems como máximo. En escritorio van en una fila de tres.
 - **Equipo, lado del voluntario:** `useTeamMemberships` (`app/team/`) carga `GET /equipo/mias` y acepta, rechaza o sale (salir pide confirmación). Lo usan `TeamSection` ("Equipos", en el perfil y en Configuración; ancla `#equipos`, a la que llevan el aviso `team_invite` y "Volver" de `TeamPanel`) y `TeamInvites` (arriba del Inicio, solo las invitaciones; al aceptar, link al panel). Los dos se ocultan sin datos o si falla la carga. `TeamPanel` es el panel del miembro.
 - **`NGOPatrocinios` y `SponsorshipAgreementScreen`:**
   - **Puntos:** dos columnas; la propia tiene agregar, editar y borrar mientras el acuerdo está abierto.

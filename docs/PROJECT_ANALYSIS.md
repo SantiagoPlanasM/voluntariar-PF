@@ -108,7 +108,7 @@ Antes, en el celular, la ONG llegaba a su equipo (`/ngo/equipo`) solo por Perfil
 - Al agregar la aserción de Comunicación usé `notif`, que ya existía en ese test: el archivo no cargó (SyntaxError) y se renombró a `invitation`.
 
 ### ⚠️ NO verificado
-- Un teléfono angosto de verdad (la ventana de Chrome no bajó de 756 px).
+- Un teléfono físico (lo táctil). El ancho de 390 px sí se vio después, en un `iframe` (§304).
 
 ## 303. Equipo de demo: en el seed y en DEMO_DATOS
 
@@ -127,3 +127,23 @@ Antes, en el celular, la ONG llegaba a su equipo (`/ngo/equipo`) solo por Perfil
 
 ### ⚠️ NO verificado
 - Que la carga del paso 2.5 en producción salga como dice la guía: la hace el usuario por la interfaz.
+
+## 304. Patrocinios y Publicaciones también desde el Panel (celular)
+
+### Qué se hizo
+- En el celular, Patrocinios y Publicaciones de la ONG no tenían acceso: están en la barra lateral, que en el celular no aparece, y la barra inferior tiene cinco ítems como máximo. Era el mismo problema que Equipo (§301).
+- `NGOShortcuts` reemplaza la tarjeta suelta de §301 con una fila de accesos (`nav` "Accesos del panel") a **Patrocinios** ("Propuestas y acuerdos con empresas"), **Publicaciones** ("Momentos de tus voluntariados") y **Equipo** (`NGOTeamCard`, con su resumen). En escritorio van en tres columnas.
+- `ShortcutCard` es la tarjeta de cada acceso, en su propio archivo para que `NGOShortcuts` y `NGOTeamCard` no se importen entre sí.
+- Además, la §301 vista a **390 px**: Chrome no deja achicar la ventana por debajo de ~756 px y la extensión no abre el modo dispositivo, así que se cargó la app en un `iframe` de 390 px (las media queries miran el iframe). El aviso del Inicio, "Equipos" en el perfil y la tarjeta del Panel entran, sin scroll horizontal.
+
+### Verificación
+- Test primero: `NGOShortcuts.test.tsx` y el del Panel (los tres accesos con su destino), rojos con un componente vacío.
+- Frontend: **1209** tests (+2), `npm run typecheck` sin errores. Cobertura: sentencias 90,6 %, ramas 87,14 %, funciones 86,96 %, líneas 93,39 %.
+- Mutación (11 mutantes, con la corrida de control): ningún sobreviviente. Los fuentes quedaron iguales a la copia previa.
+- Backend: no cambió en este commit.
+
+### Errores propios
+- La primera versión dejaba `ShortcutCard` en `NGOShortcuts` y la importaba desde `NGOTeamCard`, que `NGOShortcuts` a su vez importa: un ciclo. Se separó antes de correr los tests.
+
+### ⚠️ NO verificado
+- No se probó en producción ni en un teléfono físico. Sí se vio en Chrome local (tema oscuro): a 390 px, en un iframe, los tres accesos uno debajo del otro y sin scroll horizontal; en escritorio, una fila de tres.
