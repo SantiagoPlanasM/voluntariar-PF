@@ -235,8 +235,10 @@ describe('Aviso de Mercado Pago y conciliación', () => {
           headers: { 'x-signature': 'basura' },
           body: { user_id: 'x"; DROP', live_mode: 'quizás' },
         });
+        await notify('type=payment&data.id=152', { headers: { 'x-signature': 'basura' }, body: { live_mode: true } });
       } finally { warn.mock.restore(); }
-      const [a, b] = lines.filter((l) => l.startsWith('[donaciones]'));
+      const [a, b, c] = lines.filter((l) => l.startsWith('[donaciones]'));
+      assert.match(c, /live_mode=true/);
       assert.match(a, /firma inválida/);
       assert.match(a, /data\.id=150/);
       assert.match(a, /request-id: sí/);

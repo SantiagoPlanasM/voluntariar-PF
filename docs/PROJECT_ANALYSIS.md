@@ -8136,3 +8136,27 @@ El director de FONBEC dijo que la confianza se gana con el recibo para ganancias
 - Que SonarCloud cierre el `S5145` y baje la complejidad de `projects.js`: se ve en el análisis del CI después del push.
 - La pantalla de recomendaciones con el orden nuevo (no puedo ver la interfaz).
 - Cuál fue la falla intermitente de Postgres en UTC, y si tiene que ver con este cambio. Hay dos candidatos conocidos: el umbral de tiempo de `email-redos` y la falla del runner de §273. El test nuevo de los roles depende de los UUID de los roles: si no hubiera ningún par invertido entre los 6 roles, fallaría con un mensaje claro, pero eso pasa con probabilidad 1/720 y solo si los ids cambian en cada corrida.
+
+## 288. §287 en el CI y SonarCloud: la S5145 volvió por otro camino
+
+### Qué pasó
+- **CI de `7ae8a93`** (41098774758): 9 jobs en verde, incluido Postgres en UTC, donde localmente hubo la falla intermitente. Deploy 41099866605.
+- **SonarCloud** (análisis de `7ae8a93`, API pública):
+  - La complejidad de `routes/projects.js` bajó a **257 cognitiva / 315 ciclomática** (la cognitiva era 342). `lib/recommender.js` tiene 55 y 85.
+  - **La S5145 no se cerró: quedó OPEN** en `donaciones.js:214`, y con eso la seguridad pasó a **B** y el gate "Sonar way" a **ERROR**. El gate del TP pasó, porque solo frena las críticas, y la issue es menor.
+  - El `data.id` ya no aparece en el flujo. Ahora la fuente es `liveMode`: `String(body.live_mode)`, aunque solo se llamaba con un booleano. Sonar sigue el valor a través de `String()`. Era un falso positivo, pero antes estaba **aceptada** y, al cambiar la línea, Sonar la tomó como una issue nueva.
+
+### Qué se hizo
+- `liveMode` se arma con constantes: `body.live_mode === true ? 'true' : body.live_mode === false ? 'false' : '?'`. Hace lo mismo, pero ningún valor del cuerpo llega al log.
+- El test de diagnóstico del webhook suma el caso `live_mode: true`, que no estaba cubierto.
+
+### Verificación
+- `donaciones-webhook.test.js`: 25/25 en SQLite y Postgres. Es un refactor con el mismo comportamiento, así que no hubo rojo: los casos `false` y "no booleano" ya estaban probados.
+- **Mutación** (control sin mutar, original en memoria): 3 de 3. `true → ?`, `false → ?` y "cualquier otro → `false`".
+- Suites del backend: **1047/1047** en SQLite y **1049/1049** en Postgres, en UTC y en Córdoba. Esta vez se guardó la salida completa y no hubo fallas.
+
+### Errores propios
+- **En §287 di por hecho que Sonar cerraría la S5145** al arreglar el `data.id`, sin mirar el flujo completo de la issue: tenía más de una fuente. El flujo está en `api/issues/search?additionalFields=_all` y había que leerlo antes.
+
+### ⚠️ NO verificado
+- Que el próximo análisis cierre la S5145 y vuelva a poner la seguridad en A y el gate en OK. Puede marcar otra fuente: `userId` y `ts` pasan por `forLog()`, que Sonar reconoce en las demás líneas.

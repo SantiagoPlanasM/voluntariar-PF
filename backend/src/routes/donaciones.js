@@ -207,7 +207,8 @@ router.post('/webhook', async (req, res) => {
     // Diagnóstico (§175): solo datos que no son secretos, y solo si tienen la forma esperada (números o booleanos).
     const tsMatch = /(?:^|,)\s*ts=(\d{1,20})\s*(?:,|$)/i.exec(req.get('x-signature') || '');
     const body = req.body || {};
-    const liveMode = typeof body.live_mode === 'boolean' ? String(body.live_mode) : '?';
+    // §288 (S5145): constantes, no String(body.live_mode): Sonar seguía el valor del cuerpo a través de String().
+    const liveMode = body.live_mode === true ? 'true' : body.live_mode === false ? 'false' : '?';
     const userId = typeof body.user_id === 'number' || /^\d{1,20}$/.test(String(body.user_id)) ? String(body.user_id) : '?';
     // §287 (S5145): un id de pago es solo dígitos; cualquier otra cosa no se escribe (como user_id).
     const safeDataId = /^\d{1,20}$/.test(dataId) ? dataId : '?';
