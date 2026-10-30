@@ -11,6 +11,7 @@ const { sponsorDecisionEmail } = require('../lib/emailTemplates');
 // (titulo/foto_perfil/etc.) en el listado de proyectos de la propia ONG.
 const { fmt: fmtProject } = require('./projects');
 const { acceptVersion } = require('./patrocinios'); // aceptar por versión (§264)
+const { INTERVIEW_COLS, INTERVIEW_JOIN, withInterview } = require('./enrollments'); // la entrevista de cada postulación (§279)
 const { attachAssoc } = require('../lib/projectAssoc');
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
@@ -123,17 +124,19 @@ router.get('/me', requireAuth, requireRole('ngo'), async (req, res) => {
     // extra POR CADA proyecto (N+1: hasta 1 llamada HTTP por proyecto listado,
     // ver PROJECT_ANALYSIS.md §21). Trayéndolo acá, en la misma respuesta que
     // ya arma projects/stats, esa pantalla pasa a necesitar una sola llamada.
-    const pendingEnrollments = await db.all(
+    // Con la entrevista de cada una (§279), para verla y agendarla desde el panel.
+    const pendingEnrollments = (await db.all(
       `SELECT e.id, e.user_id, e.project_id, e.status, e.mensaje AS message, e.created_at,
               u.name AS volunteer_name, u.email AS volunteer_email, u.avatar AS volunteer_avatar,
-              p.titulo AS project_title
+              p.titulo AS project_title, ${INTERVIEW_COLS}
        FROM enrollments e
        JOIN users u ON u.id = e.user_id
        JOIN projects p ON p.id = e.project_id
+       ${INTERVIEW_JOIN}
        WHERE p.ngo_id=$1 AND e.status='pending'
        ORDER BY e.created_at DESC`,
       [ngo.id]
-    );
+    )).map(withInterview);
 
     const stats = {
       total_projects:      Number.parseInt(statsRow?.total_projects)    || 0,

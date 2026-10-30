@@ -507,3 +507,7 @@ router.patch('/:id/horas', requireAuth, requireRole('ngo'), async (req, res) => 
 });
 
 module.exports = router;
+// La entrevista de cada postulación, para otras listas (el panel de la ONG, §279): la misma consulta, sin copiarla.
+module.exports.INTERVIEW_COLS = INTERVIEW_COLS;
+module.exports.INTERVIEW_JOIN = INTERVIEW_JOIN;
+module.exports.withInterview = withInterview;
