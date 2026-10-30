@@ -15,6 +15,7 @@ import { useLatestRequest } from '../../lib/useLatestRequest';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
 import { useToast } from '../ui/UiProvider';
+import { PROFILE_FIELD } from '../ui/fieldStyles';
 
 /** Cada carga del perfil, para saber cuál falló. */
 type Part = 'enrollments' | 'catalog' | 'skills' | 'ngos' | 'following' | 'followers';
@@ -150,7 +151,7 @@ export function VolunteerProfile() {
   const count = (part: Part, n: number) => (failed.has(part) ? '—' : n);
   const notLoaded = <p className="text-[13px] text-ink-muted py-6 text-center">No se pudo cargar.</p>;
   const approved = count('enrollments', enrollments.filter(e => e.status === 'approved').length);
-  const inp = 'w-full h-12 px-3.5 rounded-[10px] bg-surface-soft text-[15px] border-[1.5px] border-transparent focus:bg-surface focus:border-ink outline-none';
+  const inp = PROFILE_FIELD;
 
   const stat = (n: number | string, label: string, onClick?: () => void) => {
     const inner = (<><span className="text-[15px] font-bold">{n}</span><span className="text-xs font-semibold text-ink-soft">{label}</span></>);

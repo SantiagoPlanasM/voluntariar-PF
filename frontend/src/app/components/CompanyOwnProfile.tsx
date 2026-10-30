@@ -9,6 +9,7 @@ import { InlineError } from './LoadError';
 import { ProfilePhotoPicker } from './ProfilePhotoPicker';
 import { ProfileHeader } from '../ui/ProfileHeader';
 import { Button } from '../ui/Button';
+import { PROFILE_FIELD } from '../ui/fieldStyles';
 
 // Tope del listado de proyectos para proponer. Sin `limit` el backend devuelve 20 y los demás no se podían
 // patrocinar (REVISION F6). GET /projects no tiene paginación (deuda conocida): el camino principal es
@@ -126,7 +127,7 @@ export function CompanyOwnProfile() {
   );
   if (!empresa) return null;
 
-  const inp = 'w-full h-12 px-3.5 rounded-[10px] bg-surface-soft text-[15px] border-[1.5px] border-transparent focus:bg-surface focus:border-ink outline-none';
+  const inp = PROFILE_FIELD;
 
   return (
     <div className="min-h-screen bg-gray-50">

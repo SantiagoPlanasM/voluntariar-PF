@@ -13,6 +13,7 @@ import { Button } from '../ui/Button';
 import { useToast } from '../ui/UiProvider';
 import { VolunteeringTile } from '../volunteering/VolunteeringTile';
 import { NGOTransparency } from './NGOTransparency';
+import { PROFILE_FIELD } from '../ui/fieldStyles';
 
 const CATEGORIES = ['Medio Ambiente','Educación','Salud','Animales','Alimentación','Tecnología','Arte y Cultura','Deportes'];
 
@@ -67,7 +68,7 @@ export function NGOOwnProfile() {
   );
   if (!ngo) return null;
 
-  const inp = 'w-full h-12 px-3.5 rounded-[10px] bg-surface-soft text-[15px] border-[1.5px] border-transparent focus:bg-surface focus:border-ink outline-none';
+  const inp = PROFILE_FIELD;
   const lbl = 'text-xs font-semibold text-ink-soft';
   const about = [ngo.description, ngo.mission ? `Misión: ${ngo.mission}` : ''].filter(Boolean).join('\n\n');
 

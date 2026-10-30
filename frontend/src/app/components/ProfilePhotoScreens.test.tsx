@@ -116,6 +116,34 @@ describe('"Cambiar foto" en los perfiles propios', () => {
     expect(await screen.findByRole('link', { name: 'Configuración' })).toHaveAttribute('href', '/settings');
   });
 
+  // §286: visto en producción, los campos de "Editar perfil" no tenían borde (border-transparent sobre el mismo fondo
+  // que la tarjeta): solo se veía el que tenía el foco. Ahora todos tienen borde visible en reposo.
+  test('en "Editar perfil" de los tres roles, todo campo tiene borde visible en reposo', async () => {
+    const campos = () => [...document.querySelectorAll('input:not([type=file]), textarea, select')]
+      .filter((el) => !(el as HTMLElement).closest('[aria-label="Buscar"]'));
+    const revisar = async (name: string) => {
+      await screen.findByRole('img', { name });
+      fireEvent.click(screen.getByRole('button', { name: 'Editar perfil' }));
+      const lista = campos();
+      expect(lista.length).toBeGreaterThan(2);
+      for (const el of lista) {
+        expect(el.className, el.outerHTML.slice(0, 80)).toContain('border-hairline');
+        expect(el.className).not.toContain('border-transparent');
+      }
+    };
+    sessionAs({ id: 'u-ngo', name: 'Sustentando', email: 's@x.org', role: 'ngo' });
+    const a = mount(<NGOOwnProfile />);
+    await revisar('Sustentando');
+    a.unmount();
+    sessionAs({ id: 'u-comp', name: 'TechCorp', email: 't@x.com', role: 'company' });
+    const b = mount(<CompanyOwnProfile />);
+    await revisar('TechCorp');
+    b.unmount();
+    sessionAs({ id: 'u-vol', name: 'María', email: 'm@x.com', role: 'volunteer', avatar: 'https://old/maria.png' });
+    mount(<VolunteerProfile />);
+    await revisar('María');
+  });
+
   test('"Cambiar foto" aparece al editar el perfil y se va al cancelar', async () => {
     sessionAs({ id: 'u-ngo', name: 'Sustentando', email: 's@x.org', role: 'ngo' });
     mount(<NGOOwnProfile />);
