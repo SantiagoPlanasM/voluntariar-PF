@@ -5,17 +5,16 @@ import {
   ArrowLeft, ArrowRight, Plus, X, Loader2, Check, AlertCircle,
   Zap, Sprout, MapPin, Users, DollarSign, ClipboardList, Laptop, Globe,
 } from 'lucide-react';
-import { api, type ImagePosition, type Project, type ProjectDetail } from '../../lib/api';
+import { api, type ImagePosition, type Project } from '../../lib/api';
 import { LocationPicker } from './LocationPicker';
 import { LoadError, describeLoadError } from './LoadError';
 import { ProjectPhotoField } from './ProjectPhotoField';
 import { compressImage } from '../../lib/imageCompress';
 import { userMessage } from '../../lib/format';
 import { useToast } from '../ui/UiProvider';
-
-const CATEGORIES = ['Medio Ambiente', 'Educación', 'Salud', 'Animales', 'Alimentación', 'Tecnología', 'Arte y Cultura', 'Deportes'];
-const ROLE_RE    = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\-\/]{2,40}$/;
-const REQ_RE     = /^.{3,100}$/;
+import {
+  CATEGORIES, EMPTY_FORM, toBody, fromProject, changedFields, validateStep as validate, roleError as checkRole, reqError as checkReq, type Form,
+} from '../volunteering/projectForm';
 
 const STEPS = [
   { id: 1, label: 'Básico',    icon: ClipboardList },
@@ -30,70 +29,6 @@ const FIELD_LABELS: Record<string, string> = {
   title: 'Título', description: 'Descripción', location: 'Ubicación',
   modality: 'Modalidad', duration: 'Duración', hours_per_week: 'Horas por semana', volunteers_needed: 'Voluntarios',
 };
-
-type Form = {
-  title: string; description: string; full_description: string; category: string; location: string;
-  modality: 'presencial' | 'remoto' | 'hibrido'; type: 'fugaz' | 'sostenido';
-  duration: string; hours_per_week: string; volunteers_needed: string; funding_goal: string; cost_per_person: string;
-};
-type Coords = { lat: number; lng: number } | null;
-
-const EMPTY_FORM: Form = {
-  title: '', description: '', full_description: '',
-  category: 'Medio Ambiente', location: '',
-  modality: 'presencial', type: 'fugaz',
-  duration: '', hours_per_week: '',
-  volunteers_needed: '', funding_goal: '', cost_per_person: '',
-};
-
-// Lo que se manda al backend, igual para crear y para editar. Al editar, "sin valor" es null (el PUT es parcial:
-// un campo que no viene se conserva, así que para borrar la descripción completa o el lugar hay que mandar null).
-function toBody(form: Form, roles: string[], requirements: string[], coords: Coords, editing: boolean): Partial<Project> {
-  const none = editing ? null : undefined;
-  return {
-    title: form.title.trim(),
-    description: form.description.trim(),
-    full_description: form.full_description.trim() || (none as undefined),
-    category: form.category,
-    location: form.modality === 'remoto' && !form.location.trim() ? 'Remoto' : form.location.trim(),
-    modality: form.modality,
-    // Remoto no tiene lugar: si había un punto marcado antes de cambiar la modalidad, no se manda.
-    latitude: form.modality !== 'remoto' && coords ? coords.lat : none,
-    longitude: form.modality !== 'remoto' && coords ? coords.lng : none,
-    type: form.type,
-    duration: form.type === 'fugaz' ? form.duration.trim() : undefined,
-    hours_per_week: form.type === 'sostenido' ? Number.parseInt(form.hours_per_week) : undefined,
-    volunteers_needed: Number.parseInt(form.volunteers_needed),
-    funding_goal: Number.parseFloat(form.funding_goal) || 0,
-    cost_per_person: Number.parseFloat(form.cost_per_person) || 0,
-    roles_needed: roles,
-    requirements,
-  };
-}
-
-// El formulario precargado con un voluntariado ya publicado (editar, §255).
-function fromProject(p: ProjectDetail): { form: Form; roles: string[]; requirements: string[]; coords: Coords } {
-  const num = (n: number | null | undefined) => (n ? String(n) : '');
-  return {
-    form: {
-      title: p.title ?? '', description: p.description ?? '', full_description: p.full_description ?? '',
-      category: p.category ?? '', location: p.location ?? '',
-      modality: p.modality ?? 'presencial', type: p.type,
-      duration: p.duration ?? '', hours_per_week: num(p.hours_per_week),
-      volunteers_needed: num(p.volunteers_needed), funding_goal: num(p.funding_goal), cost_per_person: num(p.cost_per_person),
-    },
-    roles: p.roles_needed ?? [],
-    requirements: p.requirements ?? [],
-    coords: p.latitude != null && p.longitude != null ? { lat: Number(p.latitude), lng: Number(p.longitude) } : null,
-  };
-}
-
-// Solo los campos que cambiaron respecto de lo que se cargó (para no reescribir lo que la ONG no tocó).
-function changedFields(body: Partial<Project>, initial: Partial<Project>): Partial<Project> {
-  return Object.fromEntries(
-    Object.entries(body).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify(initial[k as keyof Project])),
-  ) as Partial<Project>;
-}
 
 export function CreateVoluntariado() {
   const navigate = useNavigate();
@@ -154,52 +89,21 @@ export function CreateVoluntariado() {
 
   const addRole = (value?: string) => {
     const val = (value ?? newRole).trim();
-    if (!val) { setRoleError('Escribí un rol'); return; }
-    if (!ROLE_RE.test(val)) { setRoleError('Solo letras, mínimo 2 caracteres'); return; }
-    if (roles.includes(val)) { setRoleError('Ya está en la lista'); return; }
+    const error = checkRole(val, roles);
+    if (error) { setRoleError(error); return; }
     setRoles(r => [...r, val]); setNewRole(''); setRoleError('');
   };
 
   const addReq = (value?: string) => {
     const val = (value ?? newReq).trim();
-    if (!val) { setReqError('Escribí un requisito'); return; }
-    if (!REQ_RE.test(val)) { setReqError('Mínimo 3 caracteres'); return; }
-    if (requirements.includes(val)) return;
+    const error = checkReq(val, requirements);
+    if (error === 'duplicate') return;
+    if (error) { setReqError(error); return; }
     setReqs(r => [...r, val]); setNewReq(''); setReqError('');
   };
 
-  const validateStep = (s: number) => {
-    const e: Record<string, string> = {};
-    if (s === 1) {
-      // Topes iguales a los del backend (§143); maxLength los impone al escribir, esto cubre lo pegado (§145).
-      if (!form.title.trim() || form.title.trim().length < 3)
-        e.title = 'Mínimo 3 caracteres';
-      else if (form.title.trim().length > 80)
-        e.title = 'Máximo 80 caracteres';
-      if (!form.description.trim() || form.description.trim().length < 10)
-        e.description = 'Mínimo 10 caracteres';
-      else if (form.description.trim().length > 1000)
-        e.description = 'Máximo 1000 caracteres';
-    }
-    if (s === 2) {
-      if (form.modality !== 'remoto' && !form.location.trim())
-        e.location = 'Obligatorio. Indicá la dirección o sede del voluntariado';
-      // Presencial sin pin no aparece en el mapa de Explorar (§260); el híbrido puede no tener un único lugar.
-      if (form.modality === 'presencial' && !coords)
-        e.coords = 'Marcá el lugar en el mapa: buscá la dirección o tocá el mapa';
-      if (form.type === 'fugaz' && !form.duration.trim())
-        e.duration = 'Indicá la duración del evento';
-      if (form.type === 'sostenido') {
-        const h = Number.parseInt(form.hours_per_week);
-        if (!form.hours_per_week || Number.isNaN(h) || h < 1)
-          e.hours_per_week = 'Ingresá horas por semana (mín. 1)';
-      }
-      const v = Number.parseInt(form.volunteers_needed);
-      if (!form.volunteers_needed || Number.isNaN(v) || v < 1)
-        e.volunteers_needed = '¿Cuántos voluntarios necesitás?';
-    }
-    return e;
-  };
+  // Los errores de un paso (app/volunteering/projectForm, §298).
+  const validateStep = (s: number) => validate(s, form, coords);
 
   const next = () => {
     const errs = validateStep(step);
