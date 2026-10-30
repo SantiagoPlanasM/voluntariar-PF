@@ -29,7 +29,7 @@
    **No tocar el informe HTML/PDF** (está congelado).
 
 ## 2. Opcional antes del 2/11 (código; cada uno con tests y deploy)
-- **Seguir bajando la complejidad:**
+- **Seguir bajando la complejidad** (hecho en §290, §298 y §299: auth.js separado; la lógica pura de CreateVoluntariado y ProjectDetails, en módulos con tests; el JSX de los pasos no se partió):
   - `CreateVoluntariado.tsx` (124): separar los pasos en componentes;
   - `ProjectDetails.tsx` (112);
   - `routes/auth.js` (108): separar las contraseñas en su propio archivo.

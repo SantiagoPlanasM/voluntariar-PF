@@ -8387,3 +8387,45 @@ Pedido del usuario: vincular voluntarios como equipo de la ONG (`docs/PLAN_EQUIP
 - **Backend:** `npm test` **1088/1088** y `npm run test:pg` **1090/1090**, en UTC y en Córdoba.
 - **Frontend:** **1171/1171**, cobertura de sentencias 90,18 %, ramas 86,62 %, funciones 86,7 % y líneas 93,17 %.
 - `npm run typecheck` sin errores y `npm audit` en 0 en los dos paquetes.
+
+## 298. Crear voluntariado: la lógica del formulario sale del componente
+
+`PLAN_CIERRE §2`: `CreateVoluntariado.tsx` tenía 124 de complejidad cognitiva en SonarCloud. Se eligió la versión **de menos riesgo**: sacar la lógica pura y dejar el JSX de los pasos donde estaba. Mover el JSX a componentes por paso cambia el dibujo, y eso no lo puedo verificar en pantalla.
+
+### Qué se hizo
+- **`app/volunteering/projectForm.ts`:**
+  - `Form`, `EMPTY_FORM` y `CATEGORIES`;
+  - `toBody`, `fromProject` y `changedFields` (copiados tal cual);
+  - `validateStep(step, form, coords)`, partido en `validateBasics` y `validateDetails`;
+  - `roleError` y `reqError`. Un requisito repetido devuelve `'duplicate'` y la pantalla lo ignora, como antes.
+- El componente pasó de 710 a 614 líneas.
+
+### Verificación
+- **`projectForm.test.ts` (9):** tests de caracterización, escritos antes de mover el código.
+- **Los 36 tests de la pantalla** (alta, edición, topes, lugar, foto y timeout) pasan sin cambios.
+- **`CreateVoluntariadoLists.test.tsx` (1):** un requisito repetido no se agrega ni muestra error.
+- **Mutación:** 19 mutantes, **18 muertos y 1 equivalente** (sin `Number.isNaN`: `NaN >= 1` ya es falso). Tres sobrevivientes de la primera corrida murieron con casos nuevos: los mínimos justos de 3 y 10, y el requisito repetido en la pantalla, que no tenía test.
+
+### Errores propios
+- Al importar `roleError` y `reqError` choqué con los estados del componente que se llaman igual. Lo detectaron los tipos y los importé con otro nombre.
+
+## 299. Detalle del voluntariado: los datos que muestra salen del componente
+
+Mismo criterio que §298, sobre `ProjectDetails.tsx` (112 en SonarCloud).
+
+### Qué se hizo
+- **`app/volunteering/projectFacts.ts`:**
+  - `projectFacts(project, role)`: horas, promedio con coma, lugares libres, si se puede donar, meta cumplida y link al mapa;
+  - `commentError`: mínimo 3 y sin palabras no permitidas.
+- El componente desestructura ese resultado, y el import de `hasBadWord` quedó afuera.
+
+### Verificación
+- **`projectFacts.test.ts` (6)**, y los 56 tests de las pantallas que usan el detalle pasan sin cambios.
+- **Mutación:** **14 de 14**. "Comentario sin `trim`" sobrevivió y lo mató el caso `'   ok   '`.
+
+### ⚠️ NO verificado
+- Cuánto baja la complejidad en SonarCloud: se ve después del push. No se partió el JSX: la complejidad que viene de sus condicionales sigue en los dos componentes.
+
+## Suites al cierre de §298–§299
+- Frontend **1187/1187**, con cobertura de sentencias 90,49 %, ramas 87,04 %, funciones 86,78 % y líneas 93,3 %. Tipos sin errores.
+- El backend no cambió desde §297: 1088/1090.
