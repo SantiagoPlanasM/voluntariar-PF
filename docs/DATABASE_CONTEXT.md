@@ -89,6 +89,7 @@ id (PK) · nombre (UNIQUE, NOT NULL) · descripcion · created_at
 | ubicacion | TEXT | |
 | founded | TEXT | |
 | followers | INTEGER | DEFAULT 0, CHECK ≥ 0 |
+| cuit, transparencia_url | TEXT | §285 (`addColumnIfNotExists`): datos de transparencia que carga la ONG, públicos a propósito (`fmtNgo` los devuelve como `cuit`/`transparency_url`). `cuit` normalizado `XX-XXXXXXXX-X` con dígito verificador válido; `transparencia_url` https. **No es una verificación** |
 | created_at / updated_at | TIMESTAMP | |
 
 ### `empresas`

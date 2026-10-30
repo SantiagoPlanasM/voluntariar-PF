@@ -8021,3 +8021,67 @@ Pedido del usuario: "no sé dónde se le pondría foto al voluntariado". `projec
 - **El campo en pantalla**, en el celular y en oscuro.
 - **Borrar un voluntariado sigue sin borrar su foto** en Cloudinary: es el pendiente conocido de `CLAUDE.md`, no se tocó (regla 16). Ahora existe `foto_provider_id`, así que arreglarlo es directo.
 - **Sin desplegar** al escribir esto.
+
+## 283. Explorar: filtro de carga horaria
+
+Lo que salió de las entrevistas a FONBEC (transcriptas el 2026-10-29, en `docs/IPI/`, fuera de git). La coordinadora pidió poder filtrar por modalidad, horas y tipo de proyecto. Explorar filtraba por tipo y modalidad, pero no por horas, aunque el dato existe. §282 quedó desplegado (Deploy 40984268036, `/health` en `a0bdea1`) y se probó en producción con el usuario: se subió una foto de prueba (generada con ffmpeg, en `imagenes-demo/`, carpeta local fuera de git) al voluntariado "Test", y se vio en el detalle público y en la tarjeta de Explorar.
+
+### Qué se hizo
+- `FilterState.hours` (`all` | `hasta2` | `hasta5`), con la sección "Carga horaria" en el modal. Filtra los **sostenidos** por `hours_per_week`, y un sostenido sin horas no pasa. Los **fugaces** son de una sola vez y no tienen carga semanal: siempre pasan.
+- En `ExploreScreen`, el filtro suma al contador y tiene su pastilla ("Quitar filtro de carga horaria", "Hasta 2 h/semana").
+
+### Verificación
+- 3 tests de `filterProjects` (límites 2/3 y 5/6, fugaz, sin horas, "Cualquiera") y 1 de Explorar (pastilla, contador, lista y quitar), los 4 en rojo antes.
+- **Mutación (script, commit antes):** 7 mutantes, **7 de 7**.
+
+## 284. Panel de la ONG: embudo de postulaciones
+
+La coordinadora de FONBEC: les serviría "ver dónde invertimos nuestro tiempo". Con la plataforma que usan hoy no saben quién siguió después de la reunión.
+
+### Qué se hizo
+- **Backend:** `GET /api/ngos/me` suma `funnel` = `{ applications, interviewed, approved, with_hours, rejected }`, sobre todas las postulaciones de los voluntariados de la ONG:
+  - una entrevista **cancelada** no cuenta, y `EXISTS` evita contar dos veces una postulación con varias;
+  - "con horas" exige que esté **aprobada**;
+  - los valores salen con `Number(x) || 0` (regla 13).
+- **Frontend:** `NGOFunnel` en el panel, debajo de los números generales: cada etapa con cantidad, porcentaje sobre las postulaciones y barra; las rechazadas aparte. Sin postulaciones no se muestra.
+
+### Verificación
+- **Backend:** `ngo-funnel.test.js` (2): sin postulaciones todo en 0 y numérico, y el conteo de una ONG nueva con 5 postulaciones en estados distintos, sin contar las de otras ONG. En rojo antes ("actual: undefined"). También en Postgres.
+- **Frontend:** `NGOFunnel.test.tsx` (3): porcentajes y orden, oculto sin datos, y el panel con los datos de la API. Fue un **rojo débil** (el módulo no existía).
+- **Mutación:** 10 mutantes, 2 vivos en la primera pasada:
+  - "cuenta por reunión" estaba **mal armado** (`1=0 OR x` es `x`, equivalente). Se rehízo como debía (sumar reuniones en vez de postulaciones);
+  - "horas sin exigir aprobada" era real: una aprobada con horas que después se rechaza conserva sus horas.
+  
+  Se agregaron al test una postulación con una entrevista realizada y otra programada, y una rechazada con horas. Los dos mutantes **murieron**: **10 de 10**.
+
+## 285. Datos de transparencia de la ONG
+
+El director de FONBEC dijo que la confianza se gana con el recibo para ganancias, los balances publicados y la personería al día, y en la encuesta el 65 % pidió verificar a las ONG.
+
+### Qué se hizo
+- **Backend:** `ngos.cuit` y `ngos.transparencia_url` (`addColumnIfNotExists`). En `PUT /api/ngos/me`:
+  - **CUIT** de 11 dígitos con o sin guiones y **dígito verificador** de AFIP (pesos 5,4,3,2,7,6,5,4,3,2), guardado `XX-XXXXXXXX-X`;
+  - **link** `https://` de hasta 500 caracteres;
+  - vacíos o `null` los borran y, si no vienen, se conservan.
+  
+  `fmtNgo` los devuelve como `cuit` y `transparency_url`, **públicos a propósito**.
+- **Frontend:** los dos campos en "Editar perfil" de la ONG, y `NGOTransparency` en el perfil propio y en el público. Muestra el CUIT y "Ver balances y documentos" (otra pestaña, `noopener noreferrer`), con la aclaración **"Los carga la organización; VoluntariAR no los verifica"**.
+- **Qué no es:** no es la verificación del objetivo 11 (sigue sin cumplirse). Es un paso hacia ella, y así hay que contarlo en el IPI.
+
+### Verificación
+- **Backend:** `ngo-transparency.test.js` (6, rojo antes): sin cargar en null, CUIT válido sin guiones guardado con guiones y visible en el perfil público, PUT parcial, CUIT inválido (dígito, largo, tipo), link no https o largo, y vacíos que borran. El dígito verificador del caso válido (`30-71234567` → 1) se calculó a mano en la sesión. También en Postgres.
+- **Frontend:** `NGOTransparency.test.tsx` (3) y `NGOOwnProfileTransparency.test.tsx` (3). Los del componente fueron un rojo débil; los del perfil propio fallaron por lo que correspondía.
+- **Mutación (backend y frontend, commit antes):** 16 mutantes, **16 de 16**.
+
+### Suites de §283–§285
+- Backend `npm test` **1030/1030**, con TZ de Córdoba **1030/1030**, `npm run test:pg` **1032/1032**, y Postgres con TZ de Córdoba **1032/1032**.
+- Frontend **1123/1123**, `npm run typecheck` 0 errores. Cobertura local: sentencias 89,56 %, ramas 86,28 %, funciones 85,81 %, líneas 92,78 %.
+
+### Errores propios
+- **La primera corrida del frontend dio 4 fallas,** todas por superar los 5 s, porque la corrí a la par de las cuatro suites del backend. Sola, dio 1123/1123. Quedó anotado en `CLAUDE.md`: correrla sola.
+- **Agregué texto con `cat >>` a archivos CRLF,** que quedaron con saltos mezclados (`PROJECT_ANALYSIS.md`, `FilterModal.test.tsx`), y antes había pasado `CLAUDE.md` entero a LF con `sed -i`. En el repositorio no cambió nada (git normaliza), pero se corrigieron las copias locales. `NGOKPIs.test.tsx` también está `w/mixed`, de antes de esta sesión: no se tocó.
+- **Dos `node -e` con escapes fallaron:** uno no escribió nada, el otro rompió un script de mutación del scratchpad, no código del repo. Es justo lo que dice la memoria que no hay que hacer.
+
+### ⚠️ NO verificado
+- Las tres cosas en pantalla real (el modal con la sección nueva, el embudo y la sección de transparencia), en el celular y en oscuro.
+- **Sin desplegar** al escribir esto.
