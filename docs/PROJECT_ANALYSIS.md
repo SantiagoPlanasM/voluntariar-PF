@@ -8267,3 +8267,28 @@ Lo pidió la entrevistada de FONBEC: para coordinar, a la ONG le sirve más un t
 ### ⚠️ NO verificado
 - **En pantalla:** cómo se ve el campo en la barra fija del celular, que queda más alta, y en oscuro. Tampoco que el `tel:` llame desde un celular real.
 - **Prueba con FONBEC:** que les sirva así; puede que prefieran WhatsApp.
+
+## 292. El CI de `81fb24a` falló por un timeout que sobrevivía a la pantalla
+
+### Qué pasó
+- §289–§291 se pushearon en `81fb24a`. El CI 41109656409 falló en **Frontend · tests · UTC**: los **1133 tests pasaron**, pero Vitest atrapó un error no manejado (`ReferenceError: document is not defined` en `CreateVoluntariado.tsx:206`) y el job salió con código 1. El mismo job en Córdoba pasó.
+- El deploy se salteó y producción siguió en `242cc67`, como corresponde.
+- **Causa:** "Continuar" con errores deja un `setTimeout` de 80 ms que lleva la vista al primer campo con error, y nadie lo cancelaba. Si la pantalla se desmontaba antes, corría igual. En el CI, después de que `CreateVoluntariadoEdit.test.tsx` terminara y jsdom se cerrara. Es una carrera de tiempos, y no viene de §289–§291.
+
+### Qué se hizo
+- El timer queda en un `useRef`. Se cancela al desmontar (`useEffect` de limpieza) y antes de programar otro, así que dos clics seguidos hacen un solo desplazamiento.
+
+### Verificación
+- **`CreateVoluntariadoScrollTimer.test.tsx` (2), con timers falsos:**
+  - desmontado antes de los 80 ms, no se busca el campo;
+  - montado, dos clics hacen una sola búsqueda y un solo `scrollIntoView`.
+  
+  Los dos fueron rojos antes del arreglo.
+- **Mutación:** **3 de 3** (sin la limpieza al desmontar, sin cancelar el anterior, sin guardar el timer).
+- **Frontend completo** en UTC, solo: **1135/1135** y sin errores no manejados.
+
+### Errores propios
+- El segundo test tenía un error en el test mismo: jsdom no implementa `scrollIntoView`, y antes no aparecía porque el campo no se encontraba. Lo simulé en el test.
+
+### ⚠️ NO verificado
+- Que el error no manejado no vuelva a aparecer en el CI por otro timer: es la primera vez que pasa, y no revisé los otros `setTimeout` del frontend.
