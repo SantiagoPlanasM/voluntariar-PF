@@ -80,6 +80,20 @@ describe('Aviso por email cuando cambia la contraseña', () => {
     assert.equal(notices()[0]?.to, 'aviso-tres@example.com');
   });
 
+  // Los pedidos que pierden la carrera por el mismo link no avisan (en Postgres llegan hasta el compare-and-swap).
+  test('cinco pedidos a la vez con el mismo link: un solo aviso', async () => {
+    await register('Aviso Cinco', 'aviso-cinco@example.com');
+    await call('/api/auth/forgot-password', { body: { email: 'aviso-cinco@example.com' } });
+    await waitFor(() => sent.length === 1);
+    const token = /\/restablecer\?token=([A-Za-z0-9_-]+)/.exec(sent[0].html)[1];
+    const results = await Promise.all([1, 2, 3, 4, 5].map((i) =>
+      call('/api/auth/reset-password', { body: { token, new_password: `Paralela${i}` } })));
+    assert.equal(results.filter((r) => r.status === 200).length, 1);
+    await waitFor(() => notices().length >= 1);
+    await settle();
+    assert.deepEqual(notices().map((m) => m.to), ['aviso-cinco@example.com']);
+  });
+
   test('si el email falla o tira un error, el cambio igual responde 200', async () => {
     const token = await register('Aviso Cuatro', 'aviso-cuatro@example.com');
     sendImpl = async () => { throw new Error('Resend caído'); };
