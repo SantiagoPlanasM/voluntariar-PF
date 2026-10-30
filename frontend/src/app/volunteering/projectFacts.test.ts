@@ -52,6 +52,7 @@ describe('commentError', () => {
   test('corto, con palabras no permitidas o bien', () => {
     expect(commentError('  ')).toBe('Muy corto');
     expect(commentError('ok')).toBe('Muy corto');
+    expect(commentError('   ok   ')).toBe('Muy corto');   // los espacios no cuentan
     expect(commentError('Muy lindo')).toBe('');
     expect(commentError('sos un idiota')).toBe('Contiene palabras no permitidas');
   });
