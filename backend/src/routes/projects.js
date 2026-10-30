@@ -78,6 +78,7 @@ function fmt(p) {
     description:        p.descripcion,
     full_description:   p.descripcion_full,
     image:              p.foto_perfil,
+    image_position:     POSITION_TO_API[p.foto_posicion] || 'center',   // encuadre de la foto (§297)
     category:           p.category_name || p.categoria || '',
     location:           p.ubicacion,
     modality:           p.modalidad || (p.ubicacion && (p.ubicacion.toLowerCase().includes('remoto') || p.ubicacion.toLowerCase().includes('virtual')) ? 'remoto' : 'presencial'),
@@ -121,6 +122,10 @@ const PROJECT_TEXT_FIELDS = [
   ['full_description', 'La descripción completa', 5000], ['image', 'La imagen', 1000], ['duration', 'La duración', 100],
 ];
 const projectTextError = (b) => firstError(...PROJECT_TEXT_FIELDS.map(([k, label, max]) => checkText(b[k], { label, max })));
+
+// Encuadre de la foto (§297): en la base en español, en la API en inglés (regla 11).
+const POSITION_TO_DB = { top: 'arriba', center: 'centro', bottom: 'abajo' };
+const POSITION_TO_API = { arriba: 'top', centro: 'center', abajo: 'bottom' };
 
 // modality y modalidad (alta y edición): si vienen y no están vacías, de la lista. Antes el PUT no lo miraba y un
 // objeto daba 500 en SQLite (B3).
@@ -821,6 +826,10 @@ router.put('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
     if (meta.error) return res.status(400).json({ error: meta.error });
     const costo = money('cost_per_person', project.costo, 'El costo por persona');
     if (costo.error) return res.status(400).json({ error: costo.error });
+    // Encuadre de la foto (§297): si viene, de la lista (Object.hasOwn: 'toString' no es un encuadre); si no, se conserva.
+    if (has('image_position') && !(typeof b.image_position === 'string' && Object.hasOwn(POSITION_TO_DB, b.image_position)))
+      return res.status(400).json({ error: 'image_position tiene que ser top, center o bottom' });
+    const fotoPosicion = has('image_position') ? POSITION_TO_DB[b.image_position] : (project.foto_posicion || 'centro');
 
     // Roles, requisitos y categoría: si vienen se validan como en el alta (REVISION B5) y REEMPLAZAN a los
     // actuales; si no vienen, no se tocan. Antes no se guardaban y la respuesta los inventaba del body.
@@ -841,15 +850,15 @@ router.put('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
       const upd = await tx.run(
         `UPDATE projects SET titulo=$1, descripcion=$2, descripcion_full=$3, foto_perfil=$4,
          ubicacion=$5, tipo=$6, status=$7, duracion=$8, cupos=$9, meta_financiera=$10,
-         costo=$11, horas_semanales=$12, latitud=$13, longitud=$14, modalidad=$15, updated_at=CURRENT_TIMESTAMP
-         WHERE id=$16 AND cupos_ocupados <= $9`,
+         costo=$11, horas_semanales=$12, latitud=$13, longitud=$14, modalidad=$15, foto_posicion=$16, updated_at=CURRENT_TIMESTAMP
+         WHERE id=$17 AND cupos_ocupados <= $9`,
         [m.titulo.trim(), m.descripcion.trim(),
          has('full_description') ? (b.full_description?.trim() || null) : project.descripcion_full,
          has('image') ? (b.image || null) : project.foto_perfil,
          m.ubicacion.trim(), m.tipo, b.status != null ? b.status : project.status, m.duracion,
          newCupos, meta.value, costo.value,
          m.tipo === 'sostenido' ? toStrictInt(m.horas) : null,
-         lat.value, lng.value, mod,
+         lat.value, lng.value, mod, fotoPosicion,
          req.params.id]
       );
       if (upd.changes === 0) return { capacity: true };

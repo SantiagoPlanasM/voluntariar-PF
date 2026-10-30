@@ -484,6 +484,8 @@ async function migrate() {
   // §291 (2026-10-30): teléfono de contacto opcional de la postulación (lo pidió FONBEC). Dato personal: la ONG lo ve
   // solo con la postulación pendiente o aprobada. NULL = no lo dejó.
   await addColumnIfNotExists('enrollments', 'telefono', 'TEXT');
+  // §297 (2026-10-30): qué parte de la foto se ve cuando la tarjeta la recorta (la elige la ONG).
+  await addColumnIfNotExists('projects', 'foto_posicion', "TEXT DEFAULT 'centro' CHECK(foto_posicion IN ('arriba','centro','abajo'))");
 
   // Agregada 2026-09: contador de seguidores en voluntarios (mismo patrón que ngos.followers)
   await addColumnIfNotExists('voluntarios', 'followers', 'INTEGER DEFAULT 0');
