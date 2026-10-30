@@ -185,6 +185,26 @@ El informe del TP quedó congelado en el corte de la sección 6. Esto es para la
 
 **Lectura:** la complejidad total subió con las funciones nuevas (fotos, entrevistas, patrocinio, transparencia), pero la del archivo más complejo bajó un 25 %. En el medio, en `7ae8a93`, la seguridad estuvo en **B** y el gate de SonarCloud en rojo: la `S5145` volvió a aparecer por otra fuente (`live_mode`). Se arregló en el commit siguiente (§288). Los 7 runs cancelados del CI y los 11 deploys salteados (porque el CI no dio verde) no cuentan en la tasa.
 
+## 8. Corte para la defensa: análisis de `199259a` (30/10/2026, noche)
+
+Igual que la sección 7, no entra en el informe. Fuentes: la API pública de SonarCloud (análisis de `199259a`, 20:05 UTC), `gh run list` y las suites locales de §297–§299.
+
+| Métrica | `242cc67` | `199259a` |
+|---|---|---|
+| Tests backend SQLite / Postgres | 1047 / 1049 | **1088 / 1090** (1087 reales: el runner cuenta `helpers.js`) |
+| Tests frontend | 1124 | **1187** |
+| Cobertura total en SonarCloud | 91,7 % (backend 92,7 %) | **91,9 %** (backend 92,6 %) |
+| Cobertura del código nuevo | 93,1 % | **93,4 %** |
+| ncloc / duplicación | 18.695 / 1,2 % (backend 6.782) | **19.430 / 1,2 %** (backend 7.045); código nuevo 0,1 % |
+| Complejidad ciclomática / cognitiva | 4.971 / 3.168 | **5.170 / 3.268** |
+| Archivos más complejos (cognitiva) | `routes/projects.js` 257 | `routes/projects.js` **265**, `ProjectDetails.tsx` **105** (era 112), `routes/enrollments.js` 94, `ProjectMap.tsx` 89, `CreateVoluntariado.tsx` **84** (era 124) |
+| Bugs / vulnerabilidades / code smells / hotspots | 0 / 0 / 0 / 0 | **0 / 0 / 0 / 0** (A / A / A, gate OK, deuda 0) |
+| Aceptadas | 3 | **3** (`S8475`, `S8480`, `S6845`) |
+| Tasa del pipeline | CI 53/56 (94,6 %), Deploy 44/48 (91,7 %) | **CI 58/62 (93,5 %)**, **Deploy 49/53 (92,5 %)** |
+| Densidad de pruebas (tests/KLOC) | backend 154,2 | **backend 154,3** (1087 / 7,045) |
+
+**Lectura:** el equipo de la ONG (§293–§296) y el encuadre de la foto (§297) sumaron código y tests en proporción: la cobertura subió apenas y la densidad de pruebas quedó igual. `routes/projects.js` subió de 257 a 265 con los permisos del equipo. Los dos refactors del frontend (§298–§299) bajaron `CreateVoluntariado.tsx` un 32 %. `ProjectDetails.tsx` bajó poco, porque casi toda su complejidad está en el JSX. La falla nueva del CI es la de `81fb24a` (§292): un timeout de `CreateVoluntariado` que seguía corriendo después del test; se arregló en el commit siguiente.
+
 ## ⚠️ No verificado
 
 - La duración de los deploys (1,3 min de media) mide el workflow de GitHub, que espera a que `/health` muestre el commit nuevo. No es el tiempo de build de Render.
