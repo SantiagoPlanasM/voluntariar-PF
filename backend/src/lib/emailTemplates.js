@@ -167,8 +167,25 @@ function passwordResetEmail({ name, link }) {
   };
 }
 
+/** Aviso de que la contraseña cambió (§278), desde Configuración o con el link de recuperación. Nunca trae la contraseña. */
+function passwordChangedEmail({ name, appUrl }) {
+  return {
+    subject: 'Tu contraseña de VoluntariAR cambió',
+    html: wrapper(
+      'Tu contraseña cambió',
+      `<p>Hola ${esc(name) || ''},</p>
+       <p>Te avisamos que la contraseña de tu cuenta de VoluntariAR <strong>se cambió</strong>. Si fuiste vos, no tenés
+          que hacer nada.</p>
+       <p><strong>Si no fuiste vos</strong>, elegí una contraseña nueva cuanto antes desde "¿Olvidaste tu contraseña?",
+          al iniciar sesión.</p>`,
+      'Ir a VoluntariAR',
+      appUrl
+    ),
+  };
+}
+
 module.exports = {
   newEnrollmentEmail, enrollmentApprovedEmail, enrollmentRejectedEmail, interviewScheduledEmail,
-  sponsorProposalEmail, sponsorDecisionEmail, accountDeletionEmail, passwordResetEmail,
+  sponsorProposalEmail, sponsorDecisionEmail, accountDeletionEmail, passwordResetEmail, passwordChangedEmail,
   esc, // lo reusa lib/email.js para el aviso del modo prueba
 };

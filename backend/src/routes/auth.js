@@ -10,7 +10,7 @@ const { createLimiter } = require('../lib/rateLimit');
 const multer = require('multer');
 const storage = require('../lib/storage');   // por propiedad (storage.uploadImage), para poder reemplazarlo en tests
 const email = require('../lib/email');       // por propiedad (email.sendEmail), ídem
-const { accountDeletionEmail, passwordResetEmail } = require('../lib/emailTemplates');
+const { accountDeletionEmail, passwordResetEmail, passwordChangedEmail } = require('../lib/emailTemplates');
 const { forLog } = require('../lib/logSafe');   // S5145 (§202)
 
 const router = express.Router();
@@ -284,6 +284,17 @@ router.put('/me', requireAuth, async (req, res) => {
 // para que no se pueda adivinar la actual con una sesión robada. Límite conocido: los JWT ya emitidos (otros
 // dispositivos) siguen valiendo hasta que vencen; no hay revocación de sesiones.
 const PASSWORD_FAILS_PER_USER = createLimiter({ max: 5, windowMs: 15 * 60 * 1000 });
+
+// Aviso por email de que la contraseña cambió (§278): lo usan PUT /me/password y POST /reset-password, DESPUÉS de
+// responder. Un email que falla (o que tira) no cambia el resultado: queda en el log. Nunca lleva la contraseña.
+function notifyPasswordChanged(user) {
+  const { subject, html } = passwordChangedEmail({ name: user.name, appUrl: appUrl() });
+  Promise.resolve()
+    .then(() => email.sendEmail({ to: user.email, subject, html }))
+    .then((result) => { if (!result?.ok) console.error('Aviso de contraseña cambiada no enviado', forLog(result?.error || '')); })
+    .catch((err) => console.error('Aviso de contraseña cambiada no enviado:', forLog(err?.message || '')));
+}
+
 router.put('/me/password', requireAuth, async (req, res) => {
   try {
     const { current_password, new_password } = req.body || {};
@@ -292,7 +303,7 @@ router.put('/me/password', requireAuth, async (req, res) => {
     const wait = PASSWORD_FAILS_PER_USER.blocked(req.user.id);
     if (wait) return tooMany(res, wait);
 
-    const user = await db.get('SELECT password FROM users WHERE id=$1', [req.user.id]);
+    const user = await db.get('SELECT password, name, email FROM users WHERE id=$1', [req.user.id]);
     if (!user || !(await bcrypt.compare(current_password, user.password))) {
       PASSWORD_FAILS_PER_USER.hit(req.user.id);
       return res.status(400).json({ error: 'La contraseña actual no es correcta' });
@@ -305,6 +316,7 @@ router.put('/me/password', requireAuth, async (req, res) => {
     await db.run('UPDATE users SET password=$1 WHERE id=$2', [await bcrypt.hash(new_password, 10), req.user.id]);
     PASSWORD_FAILS_PER_USER.reset(req.user.id);
     res.json({ message: 'Contraseña actualizada' });
+    notifyPasswordChanged(user);
   } catch (err) {
     console.error('PUT /auth/me/password error:', err);
     res.status(500).json({ error: 'Error al cambiar la contraseña' });
@@ -590,9 +602,11 @@ router.post('/reset-password', async (req, res) => {
     });
     if (!used) return res.status(400).json({ error: INVALID_RESET_LINK });
     res.json({ message: 'Contraseña actualizada' });
+    const owner = await db.get('SELECT name, email FROM users WHERE id=$1', [row.user_id]);
+    if (owner) notifyPasswordChanged(owner);
   } catch (err) {
     console.error('POST /auth/reset-password error:', err);
-    res.status(500).json({ error: 'No pudimos cambiar la contraseña. Probá de nuevo.' });
+    if (!res.headersSent) res.status(500).json({ error: 'No pudimos cambiar la contraseña. Probá de nuevo.' });
   }
 });
 

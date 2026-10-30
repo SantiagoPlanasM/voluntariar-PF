@@ -2,7 +2,7 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  newEnrollmentEmail, enrollmentApprovedEmail, enrollmentRejectedEmail, passwordResetEmail,
+  newEnrollmentEmail, enrollmentApprovedEmail, enrollmentRejectedEmail, passwordResetEmail, passwordChangedEmail,
 } = require('../../src/lib/emailTemplates');
 
 const ok = { ngoName: 'Sustentando', volunteerName: 'Juan Pérez', projectTitle: 'Reforestar el parque', projectId: 'proj-1', appUrl: 'http://localhost:5173' };
@@ -71,5 +71,22 @@ describe('passwordResetEmail', () => {
     const { html } = passwordResetEmail({ name: '<img src=x onerror=alert(1)>', link });
     assert.equal(html.includes('<img src=x'), false);
     assert.match(html, /&lt;img/);
+  });
+});
+
+// §278: aviso de que la contraseña cambió. El botón va a la aplicación y el nombre, escapado.
+describe('passwordChangedEmail', () => {
+  test('asunto, qué hacer si no fuiste vos y el botón a la aplicación', () => {
+    const { subject, html } = passwordChangedEmail({ name: 'Ana', appUrl: 'http://localhost:5173' });
+    assert.match(subject, /tu contraseña .*cambió/i);
+    assert.match(html, /si no fuiste vos/i);
+    assert.match(html, /¿Olvidaste tu contraseña\?/);
+    assert.ok(html.includes('href="http://localhost:5173"'));
+    assert.match(html, /Hola Ana/);
+  });
+
+  test('SEGURIDAD — escapa HTML malicioso en el nombre', () => {
+    const { html } = passwordChangedEmail({ name: '<script>x</script>', appUrl: 'http://localhost:5173' });
+    assert.equal(html.includes('<script>x</script>'), false);
   });
 });
