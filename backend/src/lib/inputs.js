@@ -43,4 +43,19 @@ const toStrictInt = (value) => {
 /** El primer error de una lista de chequeos, o null. */
 const firstError = (...errors) => errors.find(Boolean) || null;
 
-module.exports = { checkText, firstError, clampInt, toStrictInt };
+// Teléfono de contacto opcional (§291): dígitos, espacios, guiones, paréntesis y un + inicial, con 6 a 15 dígitos (15
+// es el máximo de E.164) y hasta 25 caracteres en total. Ausente, null, vacío o solo espacios → null. Devuelve
+// { value } (sin los espacios de los bordes) o { error }.
+const PHONE_RE = /^\+?[0-9 ()-]+$/;
+const PHONE_ERROR = 'Teléfono inválido: usá entre 6 y 15 números (podés agregar espacios, guiones, paréntesis y +).';
+function parsePhone(value) {
+  if (value === undefined || value === null) return { value: null };
+  if (typeof value !== 'string') return { error: PHONE_ERROR };
+  const phone = value.trim();
+  if (!phone) return { value: null };
+  const digits = phone.replace(/\D/g, '').length;
+  if (phone.length > 25 || !PHONE_RE.test(phone) || digits < 6 || digits > 15) return { error: PHONE_ERROR };
+  return { value: phone };
+}
+
+module.exports = { checkText, firstError, clampInt, toStrictInt, parsePhone };

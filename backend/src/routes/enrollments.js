@@ -7,7 +7,7 @@ const {
   newEnrollmentEmail, enrollmentApprovedEmail, enrollmentRejectedEmail, interviewScheduledEmail,
 } = require('../lib/emailTemplates');
 const { isUniqueViolation } = require('../lib/dbErrors');
-const { checkText, firstError } = require('../lib/inputs');
+const { checkText, firstError, parsePhone } = require('../lib/inputs');
 const crypto = require('node:crypto');
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
@@ -53,6 +53,8 @@ router.post('/', requireAuth, requireRole('volunteer'), async (req, res) => {
   try {
     const { project_id, message } = req.body;
     if (!project_id) return res.status(400).json({ error: 'project_id requerido' });
+    const phone = parsePhone(req.body.phone);   // §291: opcional
+    if (phone.error) return res.status(400).json({ error: phone.error });
 
     const project = await db.get(
       'SELECT id, titulo, cupos, cupos_ocupados FROM projects WHERE id=$1 AND status=$2',
@@ -71,13 +73,13 @@ router.post('/', requireAuth, requireRole('volunteer'), async (req, res) => {
     if (already) return res.status(409).json({ error: 'Ya estás inscripto en este proyecto' });
 
     await db.run(
-      `INSERT INTO enrollments (user_id, project_id, status, mensaje)
-       VALUES ($1,$2,'pending',$3)`,
-      [req.user.id, project_id, message || null]
+      `INSERT INTO enrollments (user_id, project_id, status, mensaje, telefono)
+       VALUES ($1,$2,'pending',$3,$4)`,
+      [req.user.id, project_id, message || null, phone.value]
     );
 
     const enrollment = await db.get(
-      `SELECT id, user_id, project_id, status, mensaje AS message,
+      `SELECT id, user_id, project_id, status, mensaje AS message, telefono AS phone,
               horas_realizadas, created_at, updated_at
        FROM enrollments WHERE user_id=$1 AND project_id=$2`,
       [req.user.id, project_id]
@@ -122,7 +124,7 @@ router.post('/', requireAuth, requireRole('volunteer'), async (req, res) => {
 router.get('/my', requireAuth, async (req, res) => {
   try {
     const enrollments = await db.all(
-      `SELECT e.id, e.user_id, e.project_id, e.status, e.mensaje AS message,
+      `SELECT e.id, e.user_id, e.project_id, e.status, e.mensaje AS message, e.telefono AS phone,
               e.horas_realizadas AS hours_logged, e.created_at, e.updated_at,
               p.titulo AS title, p.foto_perfil AS image, p.tipo AS type,
               p.ubicacion AS location, p.status AS project_status,
@@ -158,7 +160,7 @@ router.get('/project/:projectId', requireAuth, requireRole('ngo'), async (req, r
 
     const { status } = req.query;
     let sql = `
-      SELECT e.id, e.user_id, e.project_id, e.status, e.mensaje AS message,
+      SELECT e.id, e.user_id, e.project_id, e.status, e.mensaje AS message, e.telefono AS phone,
              e.horas_realizadas AS hours_logged, e.created_at, e.updated_at,
              u.name AS volunteer_name, u.email AS volunteer_email,
              u.avatar AS volunteer_avatar, u.bio AS volunteer_bio,
@@ -174,11 +176,12 @@ router.get('/project/:projectId', requireAuth, requireRole('ngo'), async (req, r
     sql += ' ORDER BY e.created_at DESC';
 
     // has_cv (§168): true solo si la ONG puede abrir el CV con GET /api/voluntarios/:userId/cv (inscripción
-    // pendiente o aprobada, §165). cv_url es el public_id de un PDF privado: no sale de acá.
-    const enrollments = (await db.all(sql, params)).map(withInterview).map(({ cv_url, ...e }) => ({
-      ...e,
-      has_cv: Boolean(cv_url) && (e.status === 'pending' || e.status === 'approved'),
-    }));
+    // pendiente o aprobada, §165). cv_url es el public_id de un PDF privado: no sale de acá. El teléfono (§291), con el
+    // mismo criterio: rechazada o cancelada, null.
+    const enrollments = (await db.all(sql, params)).map(withInterview).map(({ cv_url, ...e }) => {
+      const open = e.status === 'pending' || e.status === 'approved';
+      return { ...e, phone: open ? e.phone : null, has_cv: Boolean(cv_url) && open };
+    });
     res.json({ enrollments });
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener inscripciones' });

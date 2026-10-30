@@ -481,6 +481,9 @@ async function migrate() {
   // NULL = sin foto subida acá (o una URL externa vieja). Nunca sale en la API.
   await addColumnIfNotExists('projects', 'foto_provider_id', 'TEXT');
   await addColumnIfNotExists('projects', 'modalidad', "TEXT DEFAULT 'presencial'");
+  // §291 (2026-10-30): teléfono de contacto opcional de la postulación (lo pidió FONBEC). Dato personal: la ONG lo ve
+  // solo con la postulación pendiente o aprobada. NULL = no lo dejó.
+  await addColumnIfNotExists('enrollments', 'telefono', 'TEXT');
 
   // Agregada 2026-09: contador de seguidores en voluntarios (mismo patrón que ngos.followers)
   await addColumnIfNotExists('voluntarios', 'followers', 'INTEGER DEFAULT 0');

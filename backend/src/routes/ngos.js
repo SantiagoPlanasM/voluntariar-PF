@@ -153,7 +153,7 @@ router.get('/me', requireAuth, requireRole('ngo'), async (req, res) => {
     // ya arma projects/stats, esa pantalla pasa a necesitar una sola llamada.
     // Con la entrevista de cada una (§279), para verla y agendarla desde el panel.
     const pendingEnrollments = (await db.all(
-      `SELECT e.id, e.user_id, e.project_id, e.status, e.mensaje AS message, e.created_at,
+      `SELECT e.id, e.user_id, e.project_id, e.status, e.mensaje AS message, e.telefono AS phone, e.created_at,
               u.name AS volunteer_name, u.email AS volunteer_email, u.avatar AS volunteer_avatar,
               p.titulo AS project_title, ${INTERVIEW_COLS}
        FROM enrollments e
@@ -346,9 +346,11 @@ router.get('/:id/dashboard', requireAuth, requireRole('ngo'), async (req, res) =
       [req.params.id]
     );
 
-    // Inscripciones pendientes con info del voluntario
+    // Inscripciones pendientes con info del voluntario. Columnas explícitas (§291): con `e.*` el teléfono salía como
+    // `telefono` (y el resto de las columnas en español); ahora la misma forma que GET /ngos/me, sin la entrevista.
     const pendingEnrollments = await db.all(
-      `SELECT e.*,
+      `SELECT e.id, e.user_id, e.project_id, e.status, e.mensaje AS message, e.telefono AS phone,
+              e.horas_realizadas AS hours_logged, e.created_at, e.updated_at,
               u.name AS volunteer_name, u.email AS volunteer_email,
               u.avatar AS volunteer_avatar,
               p.titulo AS project_title
