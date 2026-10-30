@@ -90,3 +90,30 @@ describe('filterProjects — búsqueda sin distinguir acentos', () => {
     expect(ids('', ps, { ...DEFAULT_FILTERS, categories: [''] })).toEqual([]);
   });
 });
+
+// §283: carga horaria (pedido en la entrevista a FONBEC: filtrar por las horas por semana). Solo los sostenidos tienen
+// horas semanales; un fugaz es de una sola vez y siempre pasa. Un sostenido sin horas cargadas no pasa (no se sabe).
+describe('filterProjects — carga horaria', () => {
+  const sost = (h?: number) => makeProject({ type: 'sostenido', hours_per_week: h });
+  const pasa = (p: Project, hours: 'all' | 'hasta2' | 'hasta5') =>
+    filterProjects([p], '', { ...DEFAULT_FILTERS, hours }).length === 1;
+
+  test('"Hasta 2 h": entra uno de 2 h y no uno de 3 h', () => {
+    expect(pasa(sost(2), 'hasta2')).toBe(true);
+    expect(pasa(sost(1), 'hasta2')).toBe(true);
+    expect(pasa(sost(3), 'hasta2')).toBe(false);
+  });
+
+  test('"Hasta 5 h": entra uno de 5 h y no uno de 6 h', () => {
+    expect(pasa(sost(5), 'hasta5')).toBe(true);
+    expect(pasa(sost(3), 'hasta5')).toBe(true);
+    expect(pasa(sost(6), 'hasta5')).toBe(false);
+  });
+
+  test('un fugaz siempre pasa; un sostenido sin horas no pasa; "Cualquiera" deja todo', () => {
+    expect(pasa(makeProject({ type: 'fugaz' }), 'hasta2')).toBe(true);
+    expect(pasa(sost(undefined), 'hasta5')).toBe(false);
+    expect(pasa(sost(40), 'all')).toBe(true);
+    expect(DEFAULT_FILTERS.hours).toBe('all');
+  });
+});

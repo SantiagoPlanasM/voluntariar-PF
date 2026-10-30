@@ -11,6 +11,8 @@ export interface FilterState {
   type: 'all' | 'fugaz' | 'sostenido';
   modality: 'all' | 'presencial' | 'remoto' | 'hibrido';
   cost: 'all' | 'gratis' | 'pago';
+  /** §283: carga horaria por semana (solo los sostenidos tienen; los fugaces siempre pasan). */
+  hours: 'all' | 'hasta2' | 'hasta5';
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -18,7 +20,10 @@ export const DEFAULT_FILTERS: FilterState = {
   type: 'all',
   modality: 'all',
   cost: 'all',
+  hours: 'all',
 };
+
+const MAX_HOURS = { hasta2: 2, hasta5: 5 } as const;
 
 interface FilterModalProps {
   isOpen: boolean;
@@ -74,6 +79,13 @@ export function filterProjects(projects: Project[], searchQuery: string, filters
       if (p.cost_per_person && p.cost_per_person > 0) return false;
     } else if (filters.cost === 'pago') {
       if (!p.cost_per_person || p.cost_per_person === 0) return false;
+    }
+
+    // 6. Carga horaria (§283): un fugaz es de una sola vez y no tiene horas semanales, así que siempre pasa; un
+    // sostenido sin horas cargadas no pasa (no se puede asegurar que entre).
+    if (filters.hours !== 'all' && p.type === 'sostenido') {
+      const h = Number(p.hours_per_week);
+      if (!(h > 0) || h > MAX_HOURS[filters.hours]) return false;
     }
 
     return true;
@@ -304,6 +316,39 @@ export function FilterModal({
                     key={opt.id}
                     type="button"
                     onClick={() => setDraft(prev => ({ ...prev, cost: opt.id as any }))}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-ink bg-emerald-50/40 text-ink ring-1 ring-ink'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
+                    }`}
+                  >
+                    <div className="font-bold text-xs">{opt.label}</div>
+                    <div className="text-xs text-gray-400 mt-0.5">{opt.desc}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <hr className="border-gray-100" />
+
+          {/* 5. Carga horaria (§283) */}
+          <div>
+            <p className="font-bold text-gray-900 text-sm block mb-1">Carga horaria</p>
+            <p className="text-xs text-gray-400">Horas por semana de los sostenidos. Los fugaces son de una sola vez: siempre aparecen.</p>
+            <div className="grid grid-cols-3 gap-2.5 mt-2">
+              {[
+                { id: 'all', label: 'Cualquiera', desc: 'Sin límite' },
+                { id: 'hasta2', label: 'Hasta 2 h por semana', desc: 'Poco tiempo' },
+                { id: 'hasta5', label: 'Hasta 5 h por semana', desc: 'Algo más' },
+              ].map(opt => {
+                const isSelected = draft.hours === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => setDraft(prev => ({ ...prev, hours: opt.id as FilterState['hours'] }))}
                     className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                       isSelected
                         ? 'border-ink bg-emerald-50/40 text-ink ring-1 ring-ink'

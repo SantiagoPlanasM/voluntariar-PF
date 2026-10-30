@@ -290,6 +290,30 @@ describe('ExploreScreen: búsqueda y filtros', () => {
     expect(screen.getByText('Huerta comunitaria')).toBeInTheDocument();
   });
 
+  // §283: carga horaria desde el modal: su pastilla, el contador y solo lo que entra (los fugaces siempre).
+  test('carga horaria: "Hasta 2 h por semana" deja los de hasta 2 h y los fugaces, con su pastilla', async () => {
+    vi.mocked(api.projects.list).mockResolvedValue({ projects: [
+      project('h2', 'Apoyo escolar', { type: 'sostenido', hours_per_week: 2 }),
+      project('h6', 'Tutorías intensivas', { type: 'sostenido', hours_per_week: 6 }),
+      project('f1', 'Colecta de abrigo', { type: 'fugaz' }),
+    ] } as never);
+    mount();
+    await screen.findByText('Tutorías intensivas');
+    fireEvent.click(filtros());
+    const modal = await screen.findByRole('dialog');
+    fireEvent.click(within(modal).getByRole('button', { name: /Hasta 2 h por semana/ }));
+    fireEvent.click(within(modal).getByRole('button', { name: /^Mostrar/ }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(pastilla('Quitar filtro de carga horaria')).toHaveTextContent('Hasta 2 h/semana');
+    expect(filtros()).toHaveAccessibleName('Filtros, 1 activos');
+    expect(screen.getByText('Apoyo escolar')).toBeInTheDocument();
+    expect(screen.getByText('Colecta de abrigo')).toBeInTheDocument();
+    expect(screen.queryByText('Tutorías intensivas')).not.toBeInTheDocument();
+    fireEvent.click(pastilla('Quitar filtro de carga horaria'));
+    expect(screen.getByText('Tutorías intensivas')).toBeInTheDocument();
+    expect(filtros()).toHaveAccessibleName('Filtros');
+  });
+
   test('cada cruz quita solo su filtro, y sin filtros vuelve "Para vos"', async () => {
     mount();
     await screen.findByText('Colecta de ropa');

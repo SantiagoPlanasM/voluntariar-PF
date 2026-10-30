@@ -18,6 +18,7 @@ const EXPLORE_LIMIT = 500;
 const TYPE_LABEL = { fugaz: 'Fugaz', sostenido: 'Sostenido' } as const;
 const MODALITY_LABEL = { presencial: 'Presencial', remoto: 'Remoto', hibrido: 'Híbrido' } as const;
 const COST_LABEL = { gratis: 'Gratis', pago: 'Con costo' } as const;
+const HOURS_LABEL = { hasta2: 'Hasta 2 h/semana', hasta5: 'Hasta 5 h/semana' } as const;   // §283
 
 interface RecommendedProject extends Project {
   recommendation_score?: number;
@@ -51,7 +52,8 @@ export function ExploreScreen() {
       filters.categories.length +
       (filters.type !== 'all' ? 1 : 0) +
       (filters.modality !== 'all' ? 1 : 0) +
-      (filters.cost !== 'all' ? 1 : 0)
+      (filters.cost !== 'all' ? 1 : 0) +
+      (filters.hours !== 'all' ? 1 : 0)
     );
   }, [filters]);
 
@@ -114,11 +116,12 @@ export function ExploreScreen() {
   };
 
   // Una pastilla por cada filtro del modal que no está en "todos" (las categorías van aparte, una por una).
-  const otherPills: { key: 'type' | 'modality' | 'cost'; label: string; aria: string }[] = [];
+  const otherPills: { key: 'type' | 'modality' | 'cost' | 'hours'; label: string; aria: string }[] = [];
   if (filters.type !== 'all') otherPills.push({ key: 'type', label: TYPE_LABEL[filters.type], aria: 'Quitar filtro de tipo' });
   if (filters.modality !== 'all') otherPills.push({ key: 'modality', label: MODALITY_LABEL[filters.modality], aria: 'Quitar filtro de modalidad' });
   if (filters.cost !== 'all') otherPills.push({ key: 'cost', label: COST_LABEL[filters.cost], aria: 'Quitar filtro de costo' });
-  const removeFilter = (key: 'type' | 'modality' | 'cost') => setFilters(prev => ({ ...prev, [key]: 'all' }));
+  if (filters.hours !== 'all') otherPills.push({ key: 'hours', label: HOURS_LABEL[filters.hours], aria: 'Quitar filtro de carga horaria' });
+  const removeFilter = (key: 'type' | 'modality' | 'cost' | 'hours') => setFilters(prev => ({ ...prev, [key]: 'all' }));
 
   // "Para vos" muestra hasta 6. La lista general saca solo las que se ven: si sacaba todas las que manda la API
   // (hasta 8), las que no entraban no aparecían en ningún lado (D22, §246).
