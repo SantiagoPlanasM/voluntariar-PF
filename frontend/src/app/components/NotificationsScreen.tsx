@@ -2,7 +2,7 @@
 // que dice de qué tipo es cada una. Las no leídas llevan fondo suave y un punto. El destino de cada notificación
 // (el voluntariado, el perfil) necesita que el backend la mande en `data`: hoy la lista solo trae título y texto.
 import { useEffect, useMemo, useState } from 'react';
-import { Bell, CalendarClock, Check, Handshake, UserPlus, X } from 'lucide-react';
+import { Bell, CalendarClock, Check, Handshake, UserPlus, Users, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { api, AppNotification } from '../../lib/api';
 import { parseBackendDate, timeAgo, userMessage } from '../../lib/format';
@@ -26,6 +26,9 @@ const KIND: Record<string, { icon: typeof Bell; badge: string }> = {
   sponsorship_accepted_by_other: { icon: Handshake, badge: 'bg-ink text-on-ink' },
   sponsorship_closed:            { icon: Handshake, badge: 'bg-people text-white' },
   sponsorship_rejected:          { icon: Handshake, badge: 'bg-ink-muted text-white' },
+  // §296: el equipo de la ONG.
+  team_invite: { icon: Users, badge: 'bg-ink text-on-ink' },
+  team_joined: { icon: Users, badge: 'bg-people text-white' },
 };
 
 // "Hace cuánto": el timeAgo compartido (lib/format.ts). Antes había una copia acá con `new Date(fecha)`, que
@@ -72,6 +75,10 @@ export function notificationHref(n: Pick<AppNotification, 'type' | 'data'>, role
     }
     case 'new_project':
       return project ? `/project/${project}` : null;
+    case 'team_invite':   // al voluntario: se acepta en Configuración → Equipos (§296)
+      return '/settings';
+    case 'team_joined':   // al dueño: su equipo
+      return '/ngo/equipo';
     default:
       return null;
   }

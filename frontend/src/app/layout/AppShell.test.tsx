@@ -64,6 +64,7 @@ describe('navegación por rol (navConfig)', () => {
   test('ONG: Panel, Explorar, Crear, Mensajes y Perfil abajo; en la lateral también Patrocinios, Publicaciones y Notificaciones', () => {
     expect(NAV.ngo.tabs.map(i => i.label)).toEqual(['Panel', 'Explorar', 'Crear', 'Mensajes', 'Perfil']);
     expect(NAV.ngo.side.map(i => i.to)).toEqual(expect.arrayContaining(['/ngo/patrocinios', '/ngo/momentos', '/ngo/notifications']));
+    expect(NAV.ngo.side.map(i => i.to)).toContain('/ngo/equipo');   // §296
   });
   test('empresa: Notificaciones también en la barra inferior (en el celular no había otra forma de verlas)', () => {
     expect(NAV.company.tabs.map(i => i.label)).toEqual(['Panel', 'Explorar', 'Mensajes', 'Notificaciones', 'Perfil']);

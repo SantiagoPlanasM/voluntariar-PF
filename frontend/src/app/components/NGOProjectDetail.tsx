@@ -27,8 +27,10 @@ const STATUS_CONFIRM = {
   },
 } as const;
 
-export function NGOProjectDetail() {
-  const { projectId } = useParams();
+/** `team` (§296): abierto por un coordinador del equipo en /equipo/:ngoId/project/:projectId. Gestiona las
+ *  postulaciones como el dueño, pero no ve lo que es solo del dueño (editar, KPIs, cambiar el estado). */
+export function NGOProjectDetail({ team = false }: { team?: boolean } = {}) {
+  const { projectId, ngoId } = useParams();
   const navigate = useNavigate();
   // §279: el link "Entrevista" del panel marca una postulación: se la deja a la vista y con su entrevista a mano.
   const marked = new URLSearchParams(useLocation().search).get('postulacion');
@@ -119,7 +121,7 @@ export function NGOProjectDetail() {
   if (loading) return <div role="status" aria-label="Cargando voluntariado" className="flex items-center justify-center h-screen"><Loader2 className="w-8 h-8 animate-spin text-brand" /></div>;
   if (loadError || !project) return (
     <LoadError message={loadError?.message ?? 'No encontramos este voluntariado'}
-      onRetry={loadError?.retry ? load : undefined} home="/ngo/dashboard" />
+      onRetry={loadError?.retry ? load : undefined} home={team ? `/equipo/${ngoId}` : '/ngo/dashboard'} />
   );
 
   const fundPct = Math.min(100, (project.current_funding / project.funding_goal) * 100) || 0;
@@ -136,16 +138,20 @@ export function NGOProjectDetail() {
             <h1 className="text-base font-bold text-gray-900 leading-tight">{project.title}</h1>
             <p className="text-xs text-gray-500">{project.category} · {project.type}</p>
           </div>
-          <button
-            onClick={() => navigate(`/ngo/dashboard/project/${projectId}/editar`)}
-            className="ml-auto flex items-center gap-1.5 px-3 py-2 bg-surface-soft hover:bg-surface-pressed text-ink rounded-xl text-xs font-bold transition-colors">
-            <Pencil className="w-3.5 h-3.5" aria-hidden="true" />Editar
-          </button>
-          <button
-            onClick={() => navigate(`/ngo/kpis/${projectId}`)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-xl text-xs font-bold transition-colors">
-            <BarChart2 className="w-3.5 h-3.5" />KPIs
-          </button>
+          {!team && (
+            <>
+              <button
+                onClick={() => navigate(`/ngo/dashboard/project/${projectId}/editar`)}
+                className="ml-auto flex items-center gap-1.5 px-3 py-2 bg-surface-soft hover:bg-surface-pressed text-ink rounded-xl text-xs font-bold transition-colors">
+                <Pencil className="w-3.5 h-3.5" aria-hidden="true" />Editar
+              </button>
+              <button
+                onClick={() => navigate(`/ngo/kpis/${projectId}`)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-xl text-xs font-bold transition-colors">
+                <BarChart2 className="w-3.5 h-3.5" />KPIs
+              </button>
+            </>
+          )}
         </div>
       </header>
 
@@ -168,8 +174,8 @@ export function NGOProjectDetail() {
           </div>
         </div>
 
-        {/* Estado: finalizar, cancelar o volver a activar (§256) */}
-        <section aria-labelledby={statusTitleId} className="bg-white rounded-2xl shadow-sm p-4 flex flex-col gap-3">
+        {/* Estado: finalizar, cancelar o volver a activar (§256). Solo el dueño (§296). */}
+        {!team && <section aria-labelledby={statusTitleId} className="bg-white rounded-2xl shadow-sm p-4 flex flex-col gap-3">
           <div className="flex items-center justify-between gap-3">
             <h2 id={statusTitleId} className="font-bold text-sm text-gray-900">Estado del voluntariado</h2>
             <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-surface-soft text-ink">
@@ -196,7 +202,7 @@ export function NGOProjectDetail() {
               </button>
             )}
           </div>
-        </section>
+        </section>}
 
         {/* Enrollments */}
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -243,7 +249,7 @@ export function NGOProjectDetail() {
                               <FileText className="w-3.5 h-3.5 text-emerald-600" />
                             </button>
                           )}
-                          <button onClick={() => navigate(`/ngo/messages/${e.user_id}`)}
+                          <button onClick={() => navigate(`${team ? '' : '/ngo'}/messages/${e.user_id}`)}
                             className="w-7 h-7 rounded-full bg-blue-50 hover:bg-blue-100 flex items-center justify-center transition-colors"
                             title={`Mensaje a ${e.volunteer_name}`}>
                             <MessageCircle className="w-3.5 h-3.5 text-blue-600" />

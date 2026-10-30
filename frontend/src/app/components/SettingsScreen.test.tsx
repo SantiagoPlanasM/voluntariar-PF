@@ -77,6 +77,20 @@ describe('SettingsScreen', () => {
     expect(screen.queryByText(/CV de/)).not.toBeInTheDocument();
   });
 
+  // §296: en el celular la barra lateral no está; desde acá se llega a "Acceso del equipo".
+  test('ONG: "Acceso del equipo"; los otros roles no lo ven', () => {
+    as('ngo');
+    const { unmount } = mount();
+    expect(screen.getByRole('link', { name: /Acceso del equipo/ })).toHaveAttribute('href', '/ngo/equipo');
+    unmount();
+    for (const role of ['volunteer', 'company']) {
+      as(role);
+      const r = mount();
+      expect(screen.queryByRole('link', { name: /Acceso del equipo/ })).not.toBeInTheDocument();
+      r.unmount();
+    }
+  });
+
   test('empresa: ni CV ni Mercado Pago', () => {
     as('company');
     mount();

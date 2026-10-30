@@ -60,6 +60,7 @@ const ngo: NavSet = (() => {
       panel, create,
       { to: '/ngo/patrocinios', label: 'Patrocinios', icon: Handshake },
       { to: '/ngo/momentos', label: 'Publicaciones', icon: Camera },
+      { to: '/ngo/equipo', label: 'Equipo', icon: Users },   // §296
       explore, messages,
       { to: '/ngo/notifications', label: 'Notificaciones', icon: Bell, fill: true, badge: 'notifications' },
       profile,

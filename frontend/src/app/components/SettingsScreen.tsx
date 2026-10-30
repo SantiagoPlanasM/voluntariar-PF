@@ -8,6 +8,7 @@ import { useTheme, ThemeChoice } from '../../lib/useTheme';
 import { CvSection } from './CvSection';
 import { DeleteAccountSection } from './DeleteAccountSection';
 import { PasswordSection } from './PasswordSection';
+import { TeamSection } from './TeamSection';
 import { useConfirm } from '../ui/UiProvider';
 
 const THEMES: { key: ThemeChoice; label: string }[] = [
@@ -59,9 +60,15 @@ export function SettingsScreen() {
         </header>
 
         {user.role === 'volunteer' && <CvSection userId={user.id} />}
+        {user.role === 'volunteer' && <TeamSection />}
         {user.role === 'ngo' && (
           <Link to="/ngo/profile#mercadopago" className="rounded-xl bg-surface border border-hairline min-h-[52px] px-4 flex items-center justify-between text-[15px] hover:bg-surface-soft">
             Cuenta de Mercado Pago<ChevronRight size={18} strokeWidth={1.75} className="text-ink-muted" aria-hidden="true" />
+          </Link>
+        )}
+        {user.role === 'ngo' && (
+          <Link to="/ngo/equipo" className="rounded-xl bg-surface border border-hairline min-h-[52px] px-4 flex items-center justify-between text-[15px] hover:bg-surface-soft">
+            Acceso del equipo<ChevronRight size={18} strokeWidth={1.75} className="text-ink-muted" aria-hidden="true" />
           </Link>
         )}
 

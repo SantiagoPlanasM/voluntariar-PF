@@ -60,3 +60,24 @@ describe('rutas que no existen (D28)', () => {
     expect(screen.getByRole('link', { name: 'Ir al inicio' })).toHaveAttribute('href', '/');
   });
 });
+
+// §296: el equipo de la ONG. El dueño gestiona en /ngo/equipo (antes que /ngo/:id, que es el perfil público); el
+// voluntario miembro abre el panel y la gestión de un voluntariado en /equipo/..., dentro de Root.
+describe('rutas del equipo de la ONG (§296)', () => {
+  test('/ngo/equipo es la pantalla del dueño, no el perfil público de una ONG "equipo"', async () => {
+    const { NGOTeam } = await import('./components/NGOTeam');
+    expect(leaf('/ngo/equipo')).toBe(NGOTeam);
+    expect(layout('/ngo/equipo')).toBe(NGOLayout);
+  });
+
+  test('/equipo/:ngoId es el panel del miembro y /equipo/:ngoId/project/:id la gestión del voluntariado, en Root', async () => {
+    const { TeamPanel } = await import('./components/TeamPanel');
+    const { NGOProjectDetail } = await import('./components/NGOProjectDetail');
+    expect(leaf('/equipo/ngo-1')).toBe(TeamPanel);
+    expect(layout('/equipo/ngo-1')).toBe(Root);
+    const m = matchRoutes(router.routes, '/equipo/ngo-1/project/p1');
+    const el = m?.[m.length - 1].route.element as ReactElement<{ team?: boolean }>;
+    expect(el.type).toBe(NGOProjectDetail);
+    expect(el.props.team).toBe(true);
+  });
+});

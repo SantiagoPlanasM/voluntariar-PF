@@ -35,6 +35,8 @@ import { SettingsScreen } from './components/SettingsScreen';
 import { MomentsPage } from './components/MomentsPage';
 import { NGOMoments } from './components/NGOMoments';
 import { NotFoundPage } from './components/NotFoundPage';
+import { NGOTeam } from './components/NGOTeam';
+import { TeamPanel } from './components/TeamPanel';
 
 export const router = createBrowserRouter([
   {
@@ -62,6 +64,8 @@ export const router = createBrowserRouter([
       { path: 'restablecer',     Component: ResetPasswordPage },   // link del email de "¿Olvidaste tu contraseña?" (§275)
       { path: 'privacidad',      Component: PrivacyPage },            // privacidad y términos (§179)
       { path: 'settings',        Component: SettingsScreen },         // configuración: CV, tema, cerrar sesión, borrar cuenta (§240)
+      { path: 'equipo/:ngoId',   Component: TeamPanel },                // panel del miembro del equipo de una ONG (§296)
+      { path: 'equipo/:ngoId/project/:projectId', element: <NGOProjectDetail team /> }, // la gestión de un voluntariado, desde el equipo
       { path: '*',               Component: NotFoundPage },           // URL que no existe: antes, la pantalla de desarrollador de React Router (D28, §247)
     ],
   },
@@ -80,6 +84,7 @@ export const router = createBrowserRouter([
       { path: 'patrocinios',                      Component: NGOPatrocinios },
       { path: 'patrocinios/:empresaId/:projectId', Component: SponsorshipAgreementScreen }, // el acuerdo (§265)
       { path: 'momentos',                         Component: NGOMoments },
+      { path: 'equipo',                           Component: NGOTeam },   // acceso del equipo (§296)
       { path: 'empleados/:id',                    Component: NGOEmpleados },
       { path: 'kpis/:projectId',                  Component: NGOKPIs },
       { path: 'messages',                         Component: MessagesScreen },

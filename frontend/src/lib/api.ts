@@ -173,6 +173,19 @@ export const api = {
         req<{ message: string }>(`/empresas/me/patrocinios/${projectId}`, { method: 'DELETE' }),
     },
   },
+  // El equipo de la ONG (§294–§296): el dueño invita y gestiona; el voluntario acepta, sale y abre el panel.
+  team: {
+    members: () => req<{ members: TeamMember[] }>('/equipo/miembros'),
+    invite: (email: string, role: TeamRole) =>
+      req<{ member: TeamMember }>('/equipo/miembros', { method: 'POST', body: JSON.stringify({ email, role }) }),
+    setRole: (userId: string, role: TeamRole) =>
+      req<{ member: TeamMember }>(`/equipo/miembros/${userId}`, { method: 'PATCH', body: JSON.stringify({ role }) }),
+    remove: (userId: string) => req<{ removed: boolean }>(`/equipo/miembros/${userId}`, { method: 'DELETE' }),
+    mine: () => req<{ memberships: TeamMembership[] }>('/equipo/mias'),
+    accept: (ngoId: string) => req<{ membership: TeamMembership }>(`/equipo/mias/${ngoId}/aceptar`, { method: 'POST' }),
+    leave: (ngoId: string) => req<{ removed: boolean }>(`/equipo/mias/${ngoId}`, { method: 'DELETE' }),
+    panel: (ngoId: string) => req<TeamPanel>(`/equipo/${ngoId}/panel`),
+  },
   // El acuerdo de patrocinio (§263–§265): lo usan las dos partes, cada una sobre su lado.
   sponsorships: {
     get: (empresaId: string, projectId: string) =>
@@ -388,6 +401,28 @@ export interface EnrollmentWithVolunteer extends Enrollment {
   volunteer_avatar?: string; volunteer_bio?: string;
   /** GET /enrollments/project/:id (§168): true si la ONG puede abrir el CV (inscripción pendiente o aprobada y hay CV). */
   has_cv?: boolean;
+}
+/** Equipo de la ONG (§294). Coordinador: postulaciones, CV, entrevistas y horas. Comunicador: Momentos. */
+export type TeamRole = 'coordinator' | 'communicator';
+export type TeamStatus = 'invited' | 'active';
+/** GET /equipo/miembros (lo ve el dueño). */
+export interface TeamMember {
+  user_id: string; name: string; email: string; avatar: string | null;
+  role: TeamRole; status: TeamStatus; created_at: string;
+}
+/** GET /equipo/mias (lo ve el voluntario): sus invitaciones y equipos. */
+export interface TeamMembership {
+  ngo_id: string; ngo_name: string; ngo_logo: string | null; role: TeamRole; status: TeamStatus;
+}
+/** GET /equipo/:ngoId/panel. `pending_enrollments` solo para el coordinador. */
+export interface TeamPanel {
+  ngo: { id: string; name: string; logo: string | null };
+  role: TeamRole;
+  projects: {
+    id: string; title: string; status: string; image: string | null;
+    volunteers_needed: number; current_volunteers: number; pending: number;
+  }[];
+  pending_enrollments?: PendingEnrollment[];
 }
 /** Solicitud pendiente del panel de la ONG (GET /ngos/me): trae además el título del proyecto. */
 export interface PendingEnrollment extends EnrollmentWithVolunteer {
