@@ -8158,5 +8158,10 @@ El director de FONBEC dijo que la confianza se gana con el recibo para ganancias
 ### Errores propios
 - **En §287 di por hecho que Sonar cerraría la S5145** al arreglar el `data.id`, sin mirar el flujo completo de la issue: tenía más de una fuente. El flujo está en `api/issues/search?additionalFields=_all` y había que leerlo antes.
 
+### Resultado (después del push)
+- CI 41100635083 en verde. Estuvo unos 7 minutos en cola esperando un runner de GitHub, sin ningún incidente reportado.
+- Análisis de `242cc67`: la **S5145 quedó CLOSED/FIXED**, con 0 issues abiertas, 0 vulnerabilidades, seguridad en **A**, gate "Sonar way" **OK** y deuda 0. Cobertura 91,7 % y 93,1 % en el código nuevo.
+- Quedan 3 aceptadas. `METRICAS.md` (sección 7, para la defensa) y `TRIAGE_SONAR.md`, actualizados. El informe HTML/PDF no se tocó.
+
 ### ⚠️ NO verificado
-- Que el próximo análisis cierre la S5145 y vuelva a poner la seguridad en A y el gate en OK. Puede marcar otra fuente: `userId` y `ts` pasan por `forLog()`, que Sonar reconoce en las demás líneas.
+- Nada en pantalla (es un cambio de log).

@@ -165,6 +165,26 @@ Fuentes: log del CI #41 (https://github.com/SantiagoPlanasM/voluntariar-PF/actio
 
 **Lectura:** entre los dos cortes no hubo runs fallidos. El CI #37 quedó cancelado porque se colgó `npm audit` y no cuenta. Los 8 defectos de la sesión exploratoria entraron y se corrigieron con su test (§245–§248). La cobertura casi no se movió: los arreglos sumaron tests y código en proporción.
 
+## 7. Después del informe: análisis de `242cc67` (30/10/2026)
+
+El informe del TP quedó congelado en el corte de la sección 6. Esto es para la defensa, no para el informe. Fuentes: CI 41100635083 (9 jobs en verde), `gh run list` y la API pública de SonarCloud (análisis de `242cc67`, §287–§288).
+
+| Métrica | CI #41 | `242cc67` |
+|---|---|---|
+| Tests backend SQLite / Postgres | 932 / 934 | **1047 / 1049** |
+| Tests frontend | 954 | **1124** |
+| Cobertura total en SonarCloud | — | **91,7 %** (backend 92,7 %) |
+| Cobertura del código nuevo | 90,8 % | **93,1 %** |
+| ncloc / duplicación | 16.606 / 1,3 % | **18.695 / 1,2 %** (backend 6.782); duplicación del código nuevo 0,1 % |
+| Complejidad ciclomática / cognitiva | 4.340 / 2.815 | **4.971 / 3.168** |
+| Complejidad cognitiva de `routes/projects.js` | — | **342 → 257** (el puntaje de las recomendaciones pasó a `lib/recommender.js`, 55) |
+| Bugs / vulnerabilidades / code smells / hotspots | 0 / 0 / 0 / 0 | **0 / 0 / 0 / 0** (A / A / A, gate OK, deuda 0) |
+| Aceptadas | 4 | **3** (`S5145` arreglada, §287–§288) |
+| Tasa del pipeline | CI 32/35 (91,4 %), Deploy 23/27 (85,2 %) | **CI 53/56 (94,6 %)**, **Deploy 44/48 (91,7 %)** |
+| Densidad de pruebas (tests/KLOC) | backend 154,9, frontend 90,0 | **backend 154,2** (1046 / 6,782) |
+
+**Lectura:** la complejidad total subió con las funciones nuevas (fotos, entrevistas, patrocinio, transparencia), pero la del archivo más complejo bajó un 25 %. En el medio, en `7ae8a93`, la seguridad estuvo en **B** y el gate de SonarCloud en rojo: la `S5145` volvió a aparecer por otra fuente (`live_mode`). Se arregló en el commit siguiente (§288). Los 7 runs cancelados del CI y los 11 deploys salteados (porque el CI no dio verde) no cuentan en la tasa.
+
 ## ⚠️ No verificado
 
 - La duración de los deploys (1,3 min de media) mide el workflow de GitHub, que espera a que `/health` muestre el commit nuevo. No es el tiempo de build de Render.

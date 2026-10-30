@@ -115,3 +115,13 @@ De las 14 aceptadas en §204, **10 se arreglaron**. SonarCloud las pasó a FIXED
 **Medidas de ese análisis** (API pública):
 - 0 issues abiertas; bugs, vulnerabilidades, code smells y hotspots en 0; deuda 0 min; A/A/A; gate OK;
 - 17.594 líneas; cobertura 89,7 %; código nuevo 93,0 %; duplicación 1,9 %.
+
+## La `S5145` de `donaciones.js`, arreglada (2026-10-30, §287–§288)
+
+De las 4 aceptadas, era la única que se podía arreglar sin cambiar el comportamiento. Hicieron falta dos intentos:
+1. **`c7b026f`:** el `data.id` del log de firma inválida se escribe solo si son 1 a 20 dígitos; si no, `?`. En el análisis de `7ae8a93`, la issue **volvió como abierta**. La línea cambió, así que Sonar no la reconoció como la aceptada, y el flujo tenía otra fuente: `String(body.live_mode)`. Con eso la seguridad bajó a **B** y el gate "Sonar way" quedó en **ERROR**. El gate del TP pasó: la issue es menor.
+2. **`242cc67`:** `live_mode` se escribe con constantes (`'true'`, `'false'` o `'?'`). En el análisis de `242cc67`, la `S5145` quedó **CLOSED/FIXED**, con 0 issues abiertas, seguridad en A y gate OK.
+
+**Lección:** antes de dar por arreglada una issue de taint, hay que leer su flujo completo (`api/issues/search?additionalFields=_all`): puede tener más de una fuente.
+
+**Siguen aceptadas 3:** `S8475` (localStorage) y `S8480` (WebSocket), que son análisis de flujo sin texto del usuario, y `S6845` del carrusel, porque sacar el `tabIndex` cambia cómo se usa con teclado. Pasar el token del WebSocket al primer mensaje queda como trabajo futuro.
