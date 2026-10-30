@@ -415,7 +415,11 @@ const SKILL_TO_ROLE = {
   'diseño gráfico':     ['Comunicador'],
   'administración':     ['Coordinador'],
   'idiomas':            ['Educador'],
+  // §280: estaban en el catálogo sin rol y no sumaban nada (un test exige que toda habilidad tenga uno).
+  'contabilidad':       ['Coordinador'],
+  'jardinería':         ['Voluntario general'],
 };
+const MAX_PER_NGO = 2;   // diversidad de las recomendaciones (§280)
 
 router.get('/recommended', requireAuth, requireRole('volunteer'), async (req, res) => {
   try {
@@ -424,23 +428,37 @@ router.get('/recommended', requireAuth, requireRole('volunteer'), async (req, re
     const limit = clampInt(req.query.limit, 10, 1, 30);
 
     // ── 1) Historial del voluntario: categorías de interés ────────────
-    const myEnrolledProjectIds = await db.all(
-      'SELECT project_id FROM enrollments WHERE user_id=$1',
+    // §280: una postulación aprobada pesa el doble (interés confirmado) que una pendiente o rechazada.
+    const myEnrollments = await db.all(
+      'SELECT project_id, status FROM enrollments WHERE user_id=$1',
       [req.user.id]
     );
-    const enrolledIds = myEnrolledProjectIds.map(r => r.project_id);
+    const enrolledIds = myEnrollments.map(r => r.project_id);
+    const enrollmentWeight = Object.fromEntries(myEnrollments.map(r => [r.project_id, r.status === 'approved' ? 2 : 1]));
 
     const categoryFreq = {};
     if (enrolledIds.length) {
       const ph = enrolledIds.map((_, i) => `$${i + 1}`).join(',');
       const catRows = await db.all(
-        `SELECT categoria_id FROM project_categorias WHERE project_id IN (${ph})`,
+        `SELECT project_id, categoria_id FROM project_categorias WHERE project_id IN (${ph})`,
         enrolledIds
       );
-      for (const { categoria_id } of catRows) {
-        categoryFreq[categoria_id] = (categoryFreq[categoria_id] || 0) + 1;
+      for (const { project_id, categoria_id } of catRows) {
+        categoryFreq[categoria_id] = (categoryFreq[categoria_id] || 0) + enrollmentWeight[project_id];
       }
     }
+    // Se decide acá, antes de sumar los seguidos: `based_on_history` habla de postulaciones.
+    const hasHistory = Object.keys(categoryFreq).length > 0;
+
+    // §280: seguir un voluntariado también es interés en su categoría (pesa como una postulación pendiente).
+    const followedCats = await db.all(
+      `SELECT pc.categoria_id FROM project_follows pf
+       JOIN project_categorias pc ON pc.project_id = pf.project_id
+       WHERE pf.user_id = $1`,
+      [req.user.id]
+    );
+    for (const { categoria_id } of followedCats) categoryFreq[categoria_id] = (categoryFreq[categoria_id] || 0) + 1;
+    const hasInterests = Object.keys(categoryFreq).length > 0;
 
     // ── 2) Ubicación del voluntario ───────────────────────────────────
     const userRow = await db.get('SELECT location FROM users WHERE id=$1', [req.user.id]);
@@ -483,7 +501,6 @@ router.get('/recommended', requireAuth, requireRole('volunteer'), async (req, re
     const myFollowingIds = myFollowingRows.map(r => r.following_id);
 
     // ── 4c) Detectar historial y cold start ──────────────────────────
-    const hasHistory = Object.keys(categoryFreq).length > 0;
     const hasFollows = interestedNgoIds.size > 0;
     const hasSkills  = myCompatibleRoles.size > 0;
     const hasSocial  = myFollowingIds.length > 0;
@@ -502,7 +519,8 @@ router.get('/recommended', requireAuth, requireRole('volunteer'), async (req, re
       sql += ` AND p.id NOT IN (${ph})`;
       params.push(...enrolledIds);
     }
-    sql += ` ORDER BY p.created_at DESC LIMIT 100`;
+    // §280: 500 (el mismo tope de Explorar), no los 100 más nuevos: uno más viejo que encaja también compite.
+    sql += ` ORDER BY p.created_at DESC LIMIT 500`;
     const candidates = await db.all(sql, params);
 
     if (!candidates.length) {
@@ -589,7 +607,7 @@ router.get('/recommended', requireAuth, requireRole('volunteer'), async (req, re
       let score = 0;
 
       // ─── Señal 1: Afinidad temática (máx 30) ─────────────────────
-      if (hasHistory) {
+      if (hasInterests) {
         const bestFreq = cats.reduce((best, c) => Math.max(best, categoryFreq[c] || 0), 0);
         if (bestFreq >= 3) {
           score += 30;
@@ -732,7 +750,16 @@ router.get('/recommended', requireAuth, requireRole('volunteer'), async (req, re
     // ── 9) Ordenar y limitar ──────────────────────────────────────────
     scored.sort((a, b) => b.score - a.score || (toMillis(b.project.created_at) ?? 0) - (toMillis(a.project.created_at) ?? 0));
 
-    const top = scored.slice(0, limit).map(({ project, score, reasons, tags }) => ({
+    // §280: diversidad. A lo sumo MAX_PER_NGO de la misma ONG adelante; los que sobran van detrás, en su orden.
+    const perNgo = {};
+    const ahead = [];
+    const behind = [];
+    for (const s of scored) {
+      const k = s.project.ngo_id;
+      if ((perNgo[k] || 0) < MAX_PER_NGO) { perNgo[k] = (perNgo[k] || 0) + 1; ahead.push(s); } else behind.push(s);
+    }
+
+    const top = [...ahead, ...behind].slice(0, limit).map(({ project, score, reasons, tags }) => ({
       ...fmt({ ...project, category_name: catNameById[(catsByProject[project.id] || [])[0]] || '' }),
       recommendation_score: score,
       recommendation_reasons: reasons,
@@ -1150,6 +1177,7 @@ module.exports.validateProject = validateProject;
 // queden desincronizadas cuando se agrega un campo nuevo acá.
 module.exports.fmt = fmt;
 module.exports.RATINGS_SELECT = RATINGS_SELECT;
+module.exports.SKILL_TO_ROLE = SKILL_TO_ROLE;   // para el test que exige un rol por habilidad del catálogo (§280)
 
 // ── GET /api/projects/:id/kpis ────────────────────────────────────────────
 router.get('/:id/kpis', async (req, res) => {
