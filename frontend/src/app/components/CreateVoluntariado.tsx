@@ -102,6 +102,8 @@ export function CreateVoluntariado() {
   const editing = !!projectId;
   const mainRef  = useRef<HTMLElement>(null);
   const initialBody = useRef<Partial<Project>>({});
+  const scrollTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(scrollTimer.current), []);
   const [step, setStep]       = useState(1);
   const [loading, setLoading] = useState(false);
   const [loadingProject, setLoadingProject] = useState(editing);
@@ -202,7 +204,9 @@ export function CreateVoluntariado() {
     if (Object.keys(errs).length) {
       setErrors(errs);
       const firstKey = Object.keys(errs)[0];
-      setTimeout(() => {
+      // §292: uno solo pendiente, y se cancela al desmontar (si no, corría con la pantalla ya cerrada).
+      clearTimeout(scrollTimer.current);
+      scrollTimer.current = setTimeout(() => {
         document.getElementById(`field-${firstKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 80);
       return;
