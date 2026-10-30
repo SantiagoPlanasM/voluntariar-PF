@@ -53,6 +53,14 @@ describe('señales', () => {
     assert.equal(signals.proximitySignal(p(), ctx()), null);
   });
 
+  // Mutación (§287): los bordes que los tests de arriba no fijaban.
+  test('cercanía: "remoto" o "virtual" en la ubicación; la ciudad sin espacios; sin ciudad no compara', () => {
+    assert.equal(signals.proximitySignal(p({ ubicacion: 'Remoto' }), ctx({ myLocation: 'rosario' })).points, 4);
+    assert.equal(signals.proximitySignal(p({ ubicacion: 'Virtual (Meet)' }), ctx({ myLocation: 'rosario' })).points, 4);
+    assert.equal(signals.proximitySignal(p({ ubicacion: 'Córdoba, Centro' }), ctx({ myLocation: 'córdoba , argentina' })).points, 6);
+    assert.equal(signals.proximitySignal(p({ ubicacion: 'Mendoza' }), ctx({ myLocation: ', argentina' })), null);
+  });
+
   test('cupos: 8 / 5 / 2 según lo lleno (×2 en arranque en frío)', () => {
     assert.deepEqual(signals.urgencySignal(p({ cupos_ocupados: 9 }), ctx()), { points: 8, reason: '¡Últimos 1 cupo!', tag: '🔥 Últimos cupos' });
     assert.equal(signals.urgencySignal(p({ cupos: 20, cupos_ocupados: 18 }), ctx()).reason, '¡Últimos 2 cupos!');
@@ -61,6 +69,8 @@ describe('señales', () => {
     assert.equal(signals.urgencySignal(p({ cupos_ocupados: 4 }), ctx()), null);
     assert.equal(signals.urgencySignal(p({ cupos_ocupados: 9 }), ctx({ isColdStart: true })).points, 16);
     assert.equal(signals.urgencySignal(p({ cupos: 0 }), ctx()), null);
+    assert.equal(signals.urgencySignal(p({ cupos: 0, cupos_ocupados: 1 }), ctx()), null);   // sin cupos no hay urgencia
+    assert.equal(signals.urgencySignal(p({ cupos: 4, cupos_ocupados: 3 }), ctx()).points, 5);  // justo 0,75
   });
 
   test('novedad: 7 / 5 / 2 hasta 3, 7 y 14 días (×2 en arranque en frío); sin fecha, nada', () => {
@@ -76,6 +86,7 @@ describe('señales', () => {
     const c = (avg, count, cold = false) => ctx({ isColdStart: cold, ratingByProject: { p1: { avg, count } } });
     assert.deepEqual(signals.ratingSignal(p(), c(4.5, 3)), { points: 5, reason: '⭐ 4.5/5 (3 reseñas)', tag: '⭐ Bien valorado' });
     assert.deepEqual(signals.ratingSignal(p(), c(4.5, 2)), { points: 3, reason: '⭐ 4.5/5 (2 reseñas)' });
+    assert.deepEqual(signals.ratingSignal(p(), c(4.0, 2)), { points: 3, reason: '⭐ 4.0/5 (2 reseñas)' });
     assert.deepEqual(signals.ratingSignal(p(), c(3.5, 1)), { points: 1 });
     assert.equal(signals.ratingSignal(p(), c(3.4, 5)), null);
     assert.equal(signals.ratingSignal(p(), c(4.6, 3, true)).points, 15);
@@ -107,6 +118,18 @@ describe('suma, arranque en frío y orden', () => {
     assert.deepEqual(r.tags, ['❤️ Sustentando', '🔥 Últimos cupos', '🚀 Popular']);
     assert.deepEqual(scoreProject(p(), ctx()), { project: p(), score: 0, reasons: ['Podría interesarte'], tags: [] });
     assert.deepEqual(scoreProject(p(), ctx({ isColdStart: true })).tags, ['🌟 Destacado']);
+  });
+
+  test('scoreProject: una señal sin motivo o sin tag no agrega undefined; con motivo y sin tag no dice "Podría interesarte"', () => {
+    const soloPuntos = scoreProject(p({ cupos_ocupados: 5 }), ctx());   // { points: 2 }, sin motivo ni tag
+    assert.deepEqual([soloPuntos.score, soloPuntos.reasons, soloPuntos.tags], [2, ['Podría interesarte'], []]);
+    const sinTag = scoreProject(p(), ctx({ interestedNgos: new Set(['n1']) }));
+    assert.deepEqual([sinTag.reasons, sinTag.tags], [['De Sustentando, que te podría interesar'], []]);
+  });
+
+  test('rankRecommendations: a igual puntaje, uno sin fecha válida va después', () => {
+    const s = (id, created_at) => ({ project: p({ id, created_at }), score: 10 });
+    assert.deepEqual(rankRecommendations([s('sin', null), s('con', days(30))], 10).map((x) => x.project.id), ['con', 'sin']);
   });
 
   test('rankRecommendations: por puntaje, empate al más nuevo, a lo sumo 2 por ONG adelante y corta en limit', () => {
