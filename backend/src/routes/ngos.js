@@ -147,7 +147,24 @@ router.get('/me', requireAuth, requireRole('ngo'), async (req, res) => {
       pending_enrollments: pendingEnrollments.length,
     };
 
-    res.json({ ngo: fmtNgo(ngo), projects, stats, pending_enrollments: pendingEnrollments });
+    // §284: embudo de postulaciones de todos sus voluntariados ("ver dónde invertimos nuestro tiempo", entrevista a
+    // FONBEC). Una entrevista cancelada no cuenta; EXISTS para no contar dos veces una postulación con varias.
+    const f = await db.get(
+      `SELECT COUNT(*) AS applications,
+              SUM(CASE WHEN EXISTS (SELECT 1 FROM reuniones r WHERE r.enrollment_id = e.id AND r.estado IN ('programada','realizada'))
+                       THEN 1 ELSE 0 END) AS interviewed,
+              SUM(CASE WHEN e.status='approved' THEN 1 ELSE 0 END) AS approved,
+              SUM(CASE WHEN e.status='approved' AND e.horas_realizadas > 0 THEN 1 ELSE 0 END) AS with_hours,
+              SUM(CASE WHEN e.status='rejected' THEN 1 ELSE 0 END) AS rejected
+       FROM enrollments e JOIN projects p ON p.id = e.project_id
+       WHERE p.ngo_id=$1`,
+      [ngo.id]
+    );
+    // En Postgres llegan como texto y SUM sin filas es NULL: Number(x) || 0 (regla 13).
+    const funnel = Object.fromEntries(['applications', 'interviewed', 'approved', 'with_hours', 'rejected']
+      .map((k) => [k, Number(f?.[k]) || 0]));
+
+    res.json({ ngo: fmtNgo(ngo), projects, stats, pending_enrollments: pendingEnrollments, funnel });
   } catch (err) {
     console.error('GET /ngos/me error:', err);
     res.status(500).json({ error: 'Error al obtener perfil' });
