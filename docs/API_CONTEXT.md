@@ -159,14 +159,14 @@
 
 **`POST /api/auth/reset-password`** — Sin sesión (el link puede abrirse en otro dispositivo). Body `{ token, new_password }`.
 - Valida la forma del código y después las reglas del registro (`validatePassword`) **antes de gastar el código**: con una contraseña que no cumple, el link sigue sirviendo. Fija la contraseña en una transacción que **consume el código con compare-and-swap** (`DELETE … WHERE token_hash`, mira `changes`) y borra los demás códigos del usuario: cinco pedidos a la vez con el mismo link la cambian una sola vez (probado en Postgres).
-- **Respuesta 200:** `{ message: "Contraseña actualizada" }`. **No inicia sesión** (no devuelve token).
+- **Respuesta 200:** `{ message: "Contraseña actualizada" }`. **No inicia sesión** (no devuelve token). Después de responder manda el mismo aviso de "tu contraseña cambió" que `PUT /me/password` (§278); los pedidos que pierden la carrera por el link no avisan.
 - **Errores:** `400` "El link no es válido o ya se usó. Pedí uno nuevo desde "¿Olvidaste tu contraseña?"." (forma incorrecta, inexistente, ya usado o ganado por otro pedido) · `400` "El link venció…" (y se descarta) · `400` con el mensaje de las reglas de la contraseña. **Límite conocido:** como en `PUT /me/password`, los JWT ya emitidos siguen valiendo hasta que vencen.
 
 ### `PUT /api/auth/me/password` — Auth (§272)
 - **Body:** `{ current_password, new_password }` (textos; si no, **400** "Contraseña actual y nueva requeridas").
 - La actual equivocada: **400** "La contraseña actual no es correcta" (400 y no 401, para que el frontend no cierre la sesión). La nueva, las reglas del registro (`validatePassword`: mínimo 8, una mayúscula, un número, hasta 72 bytes) y distinta de la actual (**400** "La nueva contraseña tiene que ser distinta de la actual").
 - **5 intentos con la actual equivocada en 15 minutos por usuario:** **429** (en memoria, por proceso, como el login). Se limpia al cambiarla bien.
-- **200:** `{ message: "Contraseña actualizada" }`. **Límite conocido:** los JWT ya emitidos (otras sesiones) siguen valiendo hasta que vencen; no hay revocación. No avisa por mail.
+- **200:** `{ message: "Contraseña actualizada" }`. **Límite conocido:** los JWT ya emitidos (otras sesiones) siguen valiendo hasta que vencen; no hay revocación. **Avisa por mail** (§278): después de responder, "Tu contraseña de VoluntariAR cambió", sin la contraseña y con qué hacer si no fue la persona; un envío que falla no cambia la respuesta.
 
 ### `PUT /api/auth/me/photo` — Auth (cualquier rol)
 > Agregado en `PROJECT_ANALYSIS.md §162` (`PLAN_FALTANTE.md`, Etapa 1). Foto de perfil subida como archivo a Cloudinary (`lib/storage.js`).

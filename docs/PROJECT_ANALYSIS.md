@@ -7923,3 +7923,21 @@ Pedido del usuario: lo propuesto en §272 y no hecho. Hasta ahora, quien se olvi
 - El celular: la extensión de Chrome no puede abrir la barra de dispositivos de DevTools ni achicar la ventana maximizada.
 - El tema claro (no se cambió, para no tocar la preferencia guardada de la sesión del usuario).
 - El circuito completo de recuperar la contraseña con el mail real.
+
+## 278. Aviso por email cuando cambia la contraseña
+
+Pendiente anotado en §272 ("no avisa por mail del cambio"), pedido por el usuario. §277 quedó desplegado: CI 40976131883 (9 jobs en verde, la tercera corrida limpia desde §273) y Deploy 40976856057 (`/health` en `283af4c`). Visto en Chrome: las etiquetas aparecen en tema claro y en el celular (400 px con la emulación de DevTools que abrió el usuario, sin scroll horizontal). Ojo: Render cachea el HTML de cada ruta hasta 5 minutos (`s-maxage=300`), así que justo después de un deploy una ruta puede servir el bundle viejo (anotado en `GUION_DEFENSA`).
+
+### Qué se hizo
+- `passwordChangedEmail` ("Tu contraseña de VoluntariAR cambió"): no lleva ninguna contraseña, dice qué hacer si no fue la persona ("¿Olvidaste tu contraseña?") y tiene un botón a la aplicación. El nombre va escapado.
+- `notifyPasswordChanged(user)` en `routes/auth.js`. Lo llaman `PUT /me/password` y `POST /reset-password` **después de responder**: un envío que falla o que tira un error queda en el log y no cambia la respuesta. En `reset-password`, el `catch` ya no responde si la respuesta salió (la lectura de la persona para el aviso es posterior).
+- **Docs:** `API_CONTEXT` y `CLAUDE.md` (1002/1004).
+
+### Verificación
+- **`password-changed-email.test.js`** (5 tests): el aviso desde Configuración (a la persona, sin contraseñas, con "si no fuiste vos" y el link); sin aviso si el cambio falla; el aviso con el link de recuperación y sin aviso con un link inválido; **cinco pedidos a la vez con el mismo link: un solo aviso**; y con el envío caído el cambio responde 200 y la contraseña nueva entra. Rojo antes: los dos que esperan el aviso fallaron ("llegó el aviso"); los dos de "no hay aviso" pasaban desde el principio, como es esperable. Más 2 unitarios de la plantilla, escritos después del código.
+- **Mutación (script; el código se commiteó antes de mutar):** 9 mutantes, 8 muertos y 1 vivo en SQLite, "avisa aunque pierda la carrera por el link". Esa rama solo se alcanza en Postgres, así que se agregó el test de los cinco pedidos: el mutante **muere en Postgres 3 de 3 veces** y sigue vivo en SQLite, donde la rama no existe en la práctica (como el compare-and-swap de §275). **9 muertos**, contando Postgres.
+- **Suites:** `npm test` **1002/1002**, con TZ de Córdoba **1002/1002**, `npm run test:pg` **1004/1004**, y Postgres con TZ de Córdoba **1004/1004**.
+
+### ⚠️ NO verificado
+- El email real (los tests usan un doble). En producción llega a la casilla de `EMAIL_REDIRECT_TO`.
+- **Sin desplegar** al escribir esto.
