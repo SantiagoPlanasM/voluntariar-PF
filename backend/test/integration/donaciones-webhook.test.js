@@ -264,11 +264,13 @@ describe('Aviso de Mercado Pago y conciliación', () => {
           headers: { 'x-signature': 'basura' },
         });
       } finally { warn.mock.restore(); }
-      // Assert: una sola línea, sin \n ni \r, y el texto inyectado quedó dentro de ella
+      // Assert: una sola línea, sin \n ni \r. Desde §287 el data.id que no es numérico ni se escribe (data.id=?):
+      // antes quedaba neutralizado DENTRO de la línea por forLog().
       const line = lines.find((l) => l.startsWith('[donaciones]'));
       assert.ok(line, 'se logueó la firma inválida');
       assert.doesNotMatch(line, /[\r\n]/);
-      assert.match(line, /data\.id=150 \[donaciones\] aviso/);
+      assert.match(line, /data\.id=\?;/);
+      assert.ok(!line.includes('pago 999'), line);
     });
 
     test('es público (Mercado Pago no manda sesión) y no expone nada de la donación', async () => {
