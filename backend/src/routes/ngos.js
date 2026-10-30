@@ -118,6 +118,23 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Las postulaciones pendientes de una ONG, con el contacto y la entrevista. La usan GET /me y el panel del equipo
+// (GET /api/equipo/:ngoId/panel, §294): una sola consulta para los dos.
+async function pendingEnrollmentsOf(ngoId) {
+  return (await db.all(
+    `SELECT e.id, e.user_id, e.project_id, e.status, e.mensaje AS message, e.telefono AS phone, e.created_at,
+            u.name AS volunteer_name, u.email AS volunteer_email, u.avatar AS volunteer_avatar,
+            p.titulo AS project_title, ${INTERVIEW_COLS}
+     FROM enrollments e
+     JOIN users u ON u.id = e.user_id
+     JOIN projects p ON p.id = e.project_id
+     ${INTERVIEW_JOIN}
+     WHERE p.ngo_id=$1 AND e.status='pending'
+     ORDER BY e.created_at DESC`,
+    [ngoId]
+  )).map(withInterview);
+}
+
 // ── GET /api/ngos/me ──────────────────────────────────────────────────────
 router.get('/me', requireAuth, requireRole('ngo'), async (req, res) => {
   try {
@@ -152,18 +169,7 @@ router.get('/me', requireAuth, requireRole('ngo'), async (req, res) => {
     // ver PROJECT_ANALYSIS.md §21). Trayéndolo acá, en la misma respuesta que
     // ya arma projects/stats, esa pantalla pasa a necesitar una sola llamada.
     // Con la entrevista de cada una (§279), para verla y agendarla desde el panel.
-    const pendingEnrollments = (await db.all(
-      `SELECT e.id, e.user_id, e.project_id, e.status, e.mensaje AS message, e.telefono AS phone, e.created_at,
-              u.name AS volunteer_name, u.email AS volunteer_email, u.avatar AS volunteer_avatar,
-              p.titulo AS project_title, ${INTERVIEW_COLS}
-       FROM enrollments e
-       JOIN users u ON u.id = e.user_id
-       JOIN projects p ON p.id = e.project_id
-       ${INTERVIEW_JOIN}
-       WHERE p.ngo_id=$1 AND e.status='pending'
-       ORDER BY e.created_at DESC`,
-      [ngo.id]
-    )).map(withInterview);
+    const pendingEnrollments = await pendingEnrollmentsOf(ngo.id);
 
     const stats = {
       total_projects:      Number.parseInt(statsRow?.total_projects)    || 0,
@@ -564,3 +570,4 @@ router.patch('/me/patrocinios/:empresaId/:projectId', requireAuth, requireRole('
 module.exports = router;
 // Compartido con routes/follows.js (no copiarlo: regla 4).
 module.exports.fmtNgo = fmtNgo;
+module.exports.pendingEnrollmentsOf = pendingEnrollmentsOf;   // panel del equipo (§294)

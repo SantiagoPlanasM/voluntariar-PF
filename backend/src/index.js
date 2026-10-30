@@ -53,6 +53,7 @@ app.use('/api/follows',        require('./routes/follows'));
 app.use('/api/posts',          require('./routes/posts'));
 app.use('/api/donaciones',     require('./routes/donaciones'));
 app.use('/api/patrocinios',    require('./routes/patrocinios'));    // acuerdo negociado (§263)
+app.use('/api/equipo',         require('./routes/ngoTeam'));        // equipo de la ONG (§294)
 
 // ── Rutas de catálogos (solo GET, datos base) ─────────────────────────────
 const db = require('./db');
