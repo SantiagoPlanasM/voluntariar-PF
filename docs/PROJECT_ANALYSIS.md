@@ -8222,7 +8222,7 @@ Era un pendiente conocido de `CLAUDE.md`. El usuario autorizó arreglarlo el 30/
 - Al mirar `auth.js` con `cat -A` no aparecían los `\r`, aunque el archivo es CRLF en la copia local. El `sed` de Git Bash los esconde. Por eso el movimiento se hizo con un script de Node que detecta el fin de línea, y no confiando en lo que mostraba `sed`.
 
 ### ⚠️ NO verificado
-- La complejidad nueva de `auth.js` en SonarCloud: se ve en el análisis después del push.
+- ~~La complejidad nueva de `auth.js` en SonarCloud~~. **Verificado en el análisis de `0dfe535`** (§292): `auth.js` tiene 74 de complejidad cognitiva (era 108), `authPassword.js` 27 y `authCommon.js` 7. `projects.js` subió de 257 a 260 con el borrado de archivos de §289. Gate OK, 0 issues abiertas, cobertura 91,9 % (93,4 % en el código nuevo). Backend en el CI: líneas 94,26 %, ramas 87,43 % y funciones 90,96 %.
 
 ## 291. Teléfono de contacto en la postulación
 
