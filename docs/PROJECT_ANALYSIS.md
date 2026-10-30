@@ -88,6 +88,24 @@ Antes, en el celular, la ONG llegaba a su equipo (`/ngo/equipo`) solo por Perfil
 - El primer respaldo antes de mutar usó `tar` con una ruta `C:/…` y falló ("Cannot connect to C:"). La cadena se cortó antes de mutar nada, y se rehízo con `cp -r`.
 
 ### ⚠️ NO verificado
-- Cómo se ven la tarjeta del Panel, el aviso del Inicio y "Equipos" en el perfil, en el celular y en el escritorio, en tema claro y oscuro. No se pudo ver la interfaz.
-- Que el scroll a `#equipos` funcione en un navegador real (jsdom no hace scroll: se verificó que se llama `scrollIntoView` una vez).
-- No se probó en producción ni se desplegó.
+- Cómo se ve en un teléfono angosto de verdad: en Chrome se vio con 756 px de ancho, ya con el diseño de celular (§302).
+- No se probó en producción.
+
+## 302. El aviso de invitación al equipo, al día; §301 vista en Chrome
+
+### Qué se hizo
+- El texto del aviso `team_invite` (`routes/ngoTeam.js`) decía "Rol: coordinador. Aceptá o rechazá la invitación desde Configuración → Equipos.": el rol con el nombre de la base y un camino que ya no es el principal. Ahora dice "Rol: Coordinación. Aceptala o rechazala desde tu Inicio o desde Equipos en tu perfil." (`ROLE_LABEL`, el mismo nombre que `TEAM_ROLE_LABEL` del frontend). Los avisos ya creados conservan el texto viejo.
+- `GUION_DEFENSA.md`: la voluntaria acepta desde el aviso del Inicio.
+- §301 vista en Chrome, con backend y Vite locales, una base SQLite de prueba en el scratchpad y sin mails (sin `RESEND_API_KEY`).
+  - **Escritorio, tema claro:** el aviso del Inicio; "Aceptar" deja "Ya sos parte" con "Abrir el panel"; la notificación lleva a `/profile#equipos` y baja hasta la sección; "Volver" del panel del miembro vuelve ahí; la tarjeta "Equipo · 2 miembros" en el Panel.
+  - **Celular (756 px, barra inferior) y tema oscuro:** el aviso del Inicio, "Equipos" en el perfil y la tarjeta "Equipo · 2 miembros · 1 invitación pendiente", que abre "Acceso del equipo". Sin scroll horizontal.
+
+### Verificación
+- Test primero: `ngo-team.test.js` exige el texto nuevo (Coordinación) y "Rol: Comunicación."; rojo con el texto viejo y verde después.
+- Backend: **1088** en SQLite, **1090** en Postgres y **1088** con `TZ=America/Argentina/Cordoba`, 0 fallas y 0 canceladas (los mismos conteos: se agregaron aserciones, no tests). Frontend: no cambió.
+
+### Errores propios
+- Al agregar la aserción de Comunicación usé `notif`, que ya existía en ese test: el archivo no cargó (SyntaxError) y se renombró a `invitation`.
+
+### ⚠️ NO verificado
+- Un teléfono angosto de verdad (la ventana de Chrome no bajó de 756 px).

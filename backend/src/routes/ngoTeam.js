@@ -18,6 +18,8 @@ const router = express.Router();
 const ROLE_TO_DB = { coordinator: 'coordinador', communicator: 'comunicador' };
 const ROLE_TO_API = { coordinador: 'coordinator', comunicador: 'communicator' };
 const STATUS_TO_API = { invitado: 'invited', activo: 'active' };
+// Nombre visible del rol en el texto del aviso (el mismo que TEAM_ROLE_LABEL del frontend).
+const ROLE_LABEL = { coordinador: 'Coordinación', comunicador: 'Comunicación' };
 const INVALID_ROLE = 'El rol tiene que ser coordinator o communicator';
 
 const fmtMember = (r) => ({
@@ -75,7 +77,7 @@ router.post('/miembros', requireAuth, requireRole('ngo'), async (req, res) => {
       throw err;
     }
     await notify(user.id, 'team_invite', `${ngo.nombre} te invitó a su equipo`,
-      `Rol: ${rol}. Aceptá o rechazá la invitación desde Configuración → Equipos.`, { ngo_id: ngo.id, role: ROLE_TO_API[rol] });
+      `Rol: ${ROLE_LABEL[rol]}. Aceptala o rechazala desde tu Inicio o desde Equipos en tu perfil.`, { ngo_id: ngo.id, role: ROLE_TO_API[rol] });
     res.status(201).json({ member: fmtMember(await memberRow(ngo.id, user.id)) });
   } catch (err) {
     console.error('POST /equipo/miembros error:', err);

@@ -60,8 +60,10 @@ describe('Equipo de la ONG', () => {
     assert.deepEqual({ role: r.body.member.role, status: r.body.member.status, user_id: r.body.member.user_id },
       { role: 'coordinator', status: 'invited', user_id: v.id });
     assert.deepEqual(await row(v.id), { rol: 'coordinador', estado: 'invitado' });
-    const notif = await db.get(`SELECT type, data FROM notifications WHERE user_id=$1 AND type='team_invite'`, [v.id]);
+    const notif = await db.get(`SELECT type, body, data FROM notifications WHERE user_id=$1 AND type='team_invite'`, [v.id]);
     assert.ok(notif, 'le llegó la invitación');
+    // §302: el rol con su nombre visible y dónde se acepta ahora (antes "Rol: coordinador" y "Configuración → Equipos").
+    assert.equal(notif.body, 'Rol: Coordinación. Aceptala o rechazala desde tu Inicio o desde Equipos en tu perfil.');
     const list = (await call('GET', '/api/equipo/miembros', undefined, owner.token)).body.members;
     const m = list.find((x) => x.user_id === v.id);
     assert.equal(m.status, 'invited');
@@ -91,6 +93,8 @@ describe('Equipo de la ONG', () => {
   test('la invitada ve la invitación, la acepta (dos veces da lo mismo) y el dueño recibe el aviso', async () => {
     const v = await volunteer();
     await invite(owner, v.email, 'communicator');
+    const invitation = await db.get(`SELECT body FROM notifications WHERE user_id=$1 AND type='team_invite'`, [v.id]);
+    assert.match(invitation.body, /^Rol: Comunicación\. /);
     const mine = (await call('GET', '/api/equipo/mias', undefined, v.token)).body.memberships;
     assert.equal(mine.length, 1);
     assert.deepEqual({ ngo_id: mine[0].ngo_id, role: mine[0].role, status: mine[0].status }, { ngo_id: 'ngo-1', role: 'communicator', status: 'invited' });

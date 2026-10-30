@@ -411,7 +411,7 @@ Solo cuentan los activos. Editar voluntariados, KPIs, Mercado Pago, patrocinios 
 - **`GET /miembros`** (ngo) → `{ members: [{ user_id, name, email, avatar, role, status, created_at }] }`.
 - **`POST /miembros`** `{ email, role }` (ngo): invita a una cuenta **de voluntario** que ya existe.
   - **Errores:** 400 si el email o el rol son inválidos, o si la cuenta no es de voluntario · 404 "No hay ninguna cuenta con ese email…" · 409 si ya está.
-  - **201:** `{ member }`, más el aviso `team_invite`. No manda mail.
+  - **201:** `{ member }`, más el aviso `team_invite` ("Rol: Coordinación/Comunicación. Aceptala o rechazala desde tu Inicio o desde Equipos en tu perfil."). No manda mail.
 - **`PATCH /miembros/:userId`** `{ role }` y **`DELETE /miembros/:userId`:** solo su equipo (si no, 404).
 - **`GET /mias`** (volunteer) → `{ memberships: [{ ngo_id, ngo_name, ngo_logo, role, status }] }`.
 - **`POST /mias/:ngoId/aceptar`:** compare-and-swap; avisa `team_joined` una sola vez. Sin invitación, 404.
