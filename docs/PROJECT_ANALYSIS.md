@@ -8424,7 +8424,7 @@ Mismo criterio que §298, sobre `ProjectDetails.tsx` (112 en SonarCloud).
 - **Mutación:** **14 de 14**. "Comentario sin `trim`" sobrevivió y lo mató el caso `'   ok   '`.
 
 ### ⚠️ NO verificado
-- Cuánto baja la complejidad en SonarCloud: se ve después del push. No se partió el JSX: la complejidad que viene de sus condicionales sigue en los dos componentes.
+- ~~Cuánto baja la complejidad en SonarCloud~~. **Verificado en el análisis de `fdca58a`:** `CreateVoluntariado.tsx` pasó de 124 a **84** y `ProjectDetails.tsx` de 112 a **105** (`projectForm.ts` tiene 35 y `projectFacts.ts` 9). Gate OK y 0 issues. En el detalle bajó poco porque casi toda su complejidad está en el JSX, que no se partió.
 
 ## Suites al cierre de §298–§299
 - Frontend **1187/1187**, con cobertura de sentencias 90,49 %, ramas 87,04 %, funciones 86,78 % y líneas 93,3 %. Tipos sin errores.
