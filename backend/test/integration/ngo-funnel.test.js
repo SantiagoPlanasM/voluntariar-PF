@@ -58,8 +58,9 @@ describe('Panel de la ONG: embudo de postulaciones', () => {
     const c = await enroll('user-vol-3', p2, 'approved', 4);
     await interview(c, 'user-vol-3', p2, 'realizada');             // entrevistada, aprobada, con horas
     await interview(c, 'user-vol-3', p2, 'cancelada');             // una cancelada vieja no la cuenta dos veces
+    await interview(c, 'user-vol-3', p2, 'programada');            // realizada + programada: una sola postulación
     await enroll('user-vol-1', p2, 'approved', 0);                 // aprobada sin horas
-    await enroll('user-vol-2', p2, 'rejected');
+    await enroll('user-vol-2', p2, 'rejected', 3);                 // rechazada después de cargarle horas: no cuenta
     const r = await me();
     assert.deepEqual(r.body.funnel, { applications: 5, interviewed: 2, approved: 2, with_hours: 1, rejected: 1 });
     for (const v of Object.values(r.body.funnel)) assert.equal(typeof v, 'number');
