@@ -39,7 +39,9 @@ const CASES: Case[] = [
   ['projects.kpis.update', () => api.projects.kpis.update('p1', 'k1', { valor: 3 } as never), 'PUT', '/projects/p1/kpis/k1', { valor: 3 }],
   ['projects.kpis.delete', () => api.projects.kpis.delete('p1', 'k1'), 'DELETE', '/projects/p1/kpis/k1'],
   // enrollments
-  ['enrollments.enroll', () => api.enrollments.enroll('p1', 'Quiero ayudar'), 'POST', '/enrollments', { project_id: 'p1', message: 'Quiero ayudar' }],
+  ['enrollments.enroll', () => api.enrollments.enroll('p1', { message: 'Quiero ayudar' }), 'POST', '/enrollments', { project_id: 'p1', message: 'Quiero ayudar' }],
+  ['enrollments.enroll con teléfono (§291)', () => api.enrollments.enroll('p1', { phone: '351 555 1234' }), 'POST', '/enrollments', { project_id: 'p1', phone: '351 555 1234' }],
+  ['enrollments.enroll sin nada más', () => api.enrollments.enroll('p1'), 'POST', '/enrollments', { project_id: 'p1' }],
   ['enrollments.my', () => api.enrollments.my(), 'GET', '/enrollments/my'],
   ['enrollments.byProject', () => api.enrollments.byProject('p1'), 'GET', '/enrollments/project/p1'],
   ['enrollments.updateStatus', () => api.enrollments.updateStatus('e1', 'approved'), 'PATCH', '/enrollments/e1', { status: 'approved' }],

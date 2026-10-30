@@ -10,6 +10,7 @@ import { InterviewPanel } from './InterviewPanel';
 import { LoadError, describeLoadError } from './LoadError';
 import { useConfirm } from '../ui/UiProvider';
 import { PROJECT_STATUS_LABEL } from '../volunteering/status';
+import { EnrollmentPhone } from './EnrollmentPhone';
 
 // Finalizar y cancelar sacan el voluntariado de circulación: se confirman. Volver a activarlo, no (§256).
 const STATUS_CONFIRM = {
@@ -250,6 +251,7 @@ export function NGOProjectDetail() {
                         </div>
                       </div>
                       <p className="text-xs text-gray-400">{e.volunteer_email}</p>
+                      <EnrollmentPhone phone={e.phone} name={e.volunteer_name} />
                       {e.message && <p className="text-xs text-gray-500 italic mt-1">"{e.message}"</p>}
                       {cvError[e.id] && <p role="alert" className="text-xs text-red-600 mt-1">{cvError[e.id]}</p>}
                     </div>

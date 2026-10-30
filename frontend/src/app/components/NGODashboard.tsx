@@ -16,6 +16,7 @@ import { Button, ButtonLink } from '../ui/Button';
 import { Meter, formatMoney, pct } from '../ui/Meter';
 import { useToast } from '../ui/UiProvider';
 import { PROJECT_STATUS_LABEL } from '../volunteering/status';
+import { EnrollmentPhone } from './EnrollmentPhone';
 
 const safeNum = (v: any, f = 0) => { const n = Number.parseFloat(v); return Number.isNaN(n) ? f : n; };
 
@@ -138,6 +139,7 @@ export function NGODashboard() {
                       <p className="text-[15px] font-semibold truncate">{e.volunteer_name}</p>
                       <p className="text-[13px] text-ink-soft truncate">{e.project_title}</p>
                       <p className="text-xs text-ink-muted truncate">{e.volunteer_email}</p>
+                      <EnrollmentPhone phone={e.phone} name={e.volunteer_name} />
                       {e.interview?.status === 'scheduled' && (
                         <p className="text-xs font-semibold text-ink-soft truncate">Entrevista: {interviewWhen(e.interview)}</p>
                       )}

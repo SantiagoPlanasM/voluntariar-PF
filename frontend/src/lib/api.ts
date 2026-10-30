@@ -118,8 +118,9 @@ export const api = {
     },
   },
   enrollments: {
-    enroll: (project_id: string, message?: string) =>
-      req<{ enrollment: Enrollment; message: string }>('/enrollments', { method: 'POST', body: JSON.stringify({ project_id, message }) }),
+    /** `phone` (§291): opcional; el backend lo valida (6 a 15 dígitos) y lo guarda solo para esta postulación. */
+    enroll: (project_id: string, extra: { message?: string; phone?: string } = {}) =>
+      req<{ enrollment: Enrollment; message: string }>('/enrollments', { method: 'POST', body: JSON.stringify({ project_id, ...extra }) }),
     my: () => req<{ enrollments: EnrollmentWithProject[] }>('/enrollments/my'),
     byProject: (id: string) => req<{ enrollments: EnrollmentWithVolunteer[] }>(`/enrollments/project/${id}`),
     updateStatus: (id: string, status: 'approved' | 'rejected') =>
@@ -359,6 +360,8 @@ export interface ProjectDetail extends Project {
 export interface Enrollment {
   id: string; user_id: string; project_id: string;
   status: 'pending' | 'approved' | 'rejected'; message?: string;
+  /** Teléfono de contacto que dejó al postularse (§291). Para la ONG, null si la postulación no está pendiente ni aprobada. */
+  phone?: string | null;
   hours_logged?: number; created_at: string;
   /** GET /enrollments/my y /enrollments/project/:id (§261): la entrevista programada, si no la última; null si nunca hubo. */
   interview?: Interview | null;

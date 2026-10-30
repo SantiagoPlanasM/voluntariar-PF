@@ -20,6 +20,7 @@ import { LogoMark } from '../ui/Logo';
 import { TypeBadge } from '../ui/TypeBadge';
 import { useToast } from '../ui/UiProvider';
 import { JoinButton } from './FeedPostCard';
+import { PROFILE_FIELD } from '../ui/fieldStyles';
 import { cardActions } from '../volunteering/cardActions';
 import { isRemote } from '../volunteering/isRemote';
 
@@ -46,6 +47,7 @@ export function ProjectDetails() {
   const [loadError, setLoadError] = useState<{ message: string; retry: boolean } | null>(null);
   const [enrolling, setEnrolling] = useState(false);
   const [enrollMsg, setEnrollMsg] = useState('');
+  const [phone, setPhone]         = useState('');   // teléfono opcional de la postulación (§291)
   const [showDonate, setShowDonate] = useState(false);   // modal "Donar" (§172)
   const [comment, setComment]     = useState('');
   const [commenting, setCommenting] = useState(false);
@@ -130,7 +132,8 @@ export function ProjectDetails() {
   const handleEnroll = async () => {
     if (!user) { openAuthModal('Iniciá sesión para inscribirte'); return; }
     setEnrolling(true); setEnrollMsg('');
-    try { await api.enrollments.enroll(id!); setEnrollMsg('Inscripción enviada.'); void load(id!); }
+    const p = phone.trim();
+    try { await api.enrollments.enroll(id!, p ? { phone: p } : {}); setEnrollMsg('Inscripción enviada.'); setPhone(''); void load(id!); }
     catch (e: any) { setEnrollMsg(e.message); }
     finally { setEnrolling(false); }
   };
@@ -237,6 +240,19 @@ export function ProjectDetails() {
       </div>
     );
   };
+
+  // §291: teléfono opcional, solo para un voluntario que todavía puede postularse. Se dibuja en la caja de escritorio y
+  // en la barra del celular con el mismo estado. Es una función (no un componente como ActionButtons): un componente
+  // definido acá se volvería a montar en cada render y el campo perdería el foco con cada tecla.
+  const phoneField = (where: 'escritorio' | 'movil') => user?.role === 'volunteer' && actions.join.kind === 'join' && (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={`enroll-phone-${where}`} className="text-xs font-semibold text-ink-soft">Teléfono de contacto (opcional)</label>
+      <input id={`enroll-phone-${where}`} type="tel" inputMode="tel" autoComplete="tel" maxLength={25}
+        value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Ej.: 351 555 1234"
+        aria-describedby={`enroll-phone-${where}-hint`} className={`${PROFILE_FIELD} !h-11`} />
+      <p id={`enroll-phone-${where}-hint`} className="text-[12px] text-ink-muted">Solo lo ve la ONG mientras tu postulación esté pendiente o aprobada.</p>
+    </div>
+  );
 
   const enrollNotice = enrollMsg && (
     <p role={enrollMsg === 'Inscripción enviada.' ? 'status' : 'alert'}
@@ -520,6 +536,7 @@ export function ProjectDetails() {
               <span className="text-[15px] font-bold">{(project.cost_per_person || 0) === 0 ? 'Sin costo' : formatMoney(project.cost_per_person)}</span>
             </div>
             {enrollNotice}
+            {phoneField('escritorio')}
             <ActionButtons />
             {noDonations}
           </aside>
@@ -529,6 +546,7 @@ export function ProjectDetails() {
       {/* ── Barra fija (celular) ──────────────────────────────────── */}
       <div className="md:hidden fixed inset-x-0 bottom-[calc(56px+env(safe-area-inset-bottom,0px))] z-20 bg-surface border-t border-hairline px-4 py-3 flex flex-col gap-2">
         {enrollNotice}
+        {phoneField('movil')}
         <ActionButtons />
       </div>
 
