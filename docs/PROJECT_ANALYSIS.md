@@ -8223,3 +8223,47 @@ Era un pendiente conocido de `CLAUDE.md`. El usuario autorizó arreglarlo el 30/
 
 ### ⚠️ NO verificado
 - La complejidad nueva de `auth.js` en SonarCloud: se ve en el análisis después del push.
+
+## 291. Teléfono de contacto en la postulación
+
+Lo pidió la entrevistada de FONBEC: para coordinar, a la ONG le sirve más un teléfono que un email. Había quedado sin decidir porque es un dato personal (`PLAN_CIERRE.md §2`). El usuario lo autorizó el 30/10.
+
+### Decisiones de privacidad
+- **Opcional y por postulación** (`enrollments.telefono`), no en el perfil: se da para un voluntariado puntual.
+- **La ONG lo ve solo con la postulación pendiente o aprobada,** igual que el CV (§165, §168). Rechazada o cancelada, la API manda `null`. El voluntario siempre ve el suyo.
+- No sale en ningún endpoint público. En la API se llama `phone`; `telefono` nunca.
+
+### Qué se hizo
+- **Backend:**
+  - `addColumnIfNotExists('enrollments', 'telefono', 'TEXT')`;
+  - `parsePhone` en `lib/inputs.js`: texto con dígitos, espacios, guiones, paréntesis y un `+` inicial, con 6 a 15 dígitos (el máximo de E.164) y hasta 25 caracteres; vacío → `null`; si no cumple, **400** "Teléfono inválido: …";
+  - `POST /api/enrollments` lo recibe como `phone`, y lo devuelven `GET /my`, `GET /project/:id` (con la regla de arriba) y las pendientes de `GET /ngos/me`.
+- **Arreglo de paso:** `GET /ngos/:id/dashboard` usaba `SELECT e.*` en las pendientes, así que el teléfono habría salido como `telefono` y el mensaje como `mensaje`. Ahora tiene columnas explícitas (ninguna pantalla lo llama; los tests solo miraban los ids).
+- **Frontend:**
+  - en el detalle del voluntariado, un voluntario con sesión que puede postularse ve "Teléfono de contacto (opcional)" (`type="tel"`) junto a "Inscribirme", con la aclaración de quién lo ve; está en la caja de escritorio y en la barra del celular, con el mismo estado;
+  - `EnrollmentPhone` (link `tel:` sin espacios ni paréntesis, con nombre accesible "Llamar a …") en el panel de la ONG y en el detalle del voluntariado;
+  - `api.enrollments.enroll(id, { message?, phone? })`.
+
+### Verificación
+- **Backend:** `enrollment-phone.test.js` (6), rojo antes. Cubre: guardado y visible para los dos, vacío → null, 8 valores inválidos sin crear la postulación, los bordes de 6 y 15 dígitos, rechazada oculta para la ONG pero visible para el voluntario, y `/ngos/me` y `/dashboard` con `phone` y sin `telefono`. SQLite y Postgres.
+- **Frontend:**
+  - `ProjectDetailsPhone.test.tsx` (5);
+  - `NGOEnrollmentPhone.test.tsx` (2);
+  - el contrato de `api.enroll` (con mensaje, con teléfono y sin nada).
+  
+  Rojo antes, salvo "sin campo" (sin sesión, ya postulado, empresa), que es una guarda.
+- **Mutación:**
+  - backend **19 de 19**: 13 de `parsePhone`, 2 del tope de 25 (agregué el caso de 27 caracteres) y 4 de la ruta: la ONG ve rechazadas, no se guarda, no corta en el error, y aprobadas ocultas;
+  - frontend **14 de 14**: trim, mandar siempre o nunca, campo para otros roles o ya postulado, ids repetidos, `type`, el campo de escritorio, el `tel:` con espacios o paréntesis, siempre dibujar, sin nombre accesible, y sin teléfono en cada pantalla.
+- **Suites finales** (con §289–§291):
+  - backend `npm test` **1058/1058** y `npm run test:pg` **1060/1060**, en UTC y en Córdoba, con la salida completa guardada y sin fallas;
+  - frontend **1133/1133**, con cobertura de sentencias 89,78 %, ramas 86,48 %, funciones 85,92 % y líneas 92,93 %;
+  - `npm run typecheck` sin errores.
+
+### Errores propios
+- **Un `edit` de docs hecho con un script no convertía a CRLF el texto que buscaba.** Cortó con "aparece 0 veces" sin escribir nada, porque el archivo se guarda solo si todos los reemplazos aparecen. Los dos que faltaban los hice con `Edit`.
+- **El primer JSON de mutantes de `inputs.js` lo escribí con un heredoc de bash,** que se comió una barra invertida del regex, y `JSON.parse` falló. Lo rehíce con `Write`.
+
+### ⚠️ NO verificado
+- **En pantalla:** cómo se ve el campo en la barra fija del celular, que queda más alta, y en oscuro. Tampoco que el `tel:` llame desde un celular real.
+- **Prueba con FONBEC:** que les sirva así; puede que prefieran WhatsApp.

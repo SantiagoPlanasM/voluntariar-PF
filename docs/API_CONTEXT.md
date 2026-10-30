@@ -285,17 +285,17 @@ Desde §290, las tres rutas de contraseña (`PUT /me/password`, `POST /forgot-pa
 ## Enrollments (`routes/enrollments.js`)
 
 ### `POST /api/enrollments` — Auth, role `volunteer`
-- **Body esperado por el backend:** `{ project_id, message }`. *(Corregido — antes el backend leía `mensaje`, hoy lee `message`, igual que lo envía el frontend; se guarda en la columna `mensaje` de la DB y se expone como `message` en todas las lecturas. Ver `PROJECT_ANALYSIS.md §13`.)*
+- **Body esperado por el backend:** `{ project_id, message, phone }`. **`phone` (§291), opcional:** teléfono de contacto para esta postulación (`enrollments.telefono`). Ausente, `null`, vacío o solo espacios → `null`. Si viene, tiene que ser texto con dígitos, espacios, guiones, paréntesis y un `+` inicial, con 6 a 15 dígitos y hasta 25 caracteres (`parsePhone` de `lib/inputs.js`); si no, **400** "Teléfono inválido: …" y no se crea la postulación. Se guarda sin los espacios de los bordes. *(Corregido — antes el backend leía `mensaje`, hoy lee `message`, igual que lo envía el frontend; se guarda en la columna `mensaje` de la DB y se expone como `message` en todas las lecturas. Ver `PROJECT_ANALYSIS.md §13`.)*
 - **Validación:** proyecto debe existir, `status='active'`, `cupos_ocupados < cupos`, y no debe existir ya una fila `(user_id, project_id)` (constraint `UNIQUE`).
 - **Efecto:** `INSERT` en `enrollments` con `status='pending'`; notificación fire-and-forget a la ONG dueña del proyecto.
 - **Respuesta 201:** `{ enrollment, message }`. **Errores:** `400` solo si falta `project_id`; `404` "Proyecto no encontrado o inactivo" (no existe o no está `active`); `409` "El proyecto no tiene cupos disponibles" y `409` "Ya estás inscripto en este proyecto" (también si dos altas iguales llegan a la vez: `isUniqueViolation`). *(Esta doc decía 400 para ya inscripto, sin cupos y no activo.)*
 
 ### `GET /api/enrollments/my` — Auth
-- **Respuesta 200:** `{ enrollments: Enrollment[] }` del usuario logueado, con datos del proyecto embebidos (JOIN) y `interview` (ver "Entrevistas" abajo).
+- **Respuesta 200:** `{ enrollments: Enrollment[] }` del usuario logueado, con datos del proyecto embebidos (JOIN), `phone` (el suyo, en cualquier estado; §291) y `interview` (ver "Entrevistas" abajo).
 
 ### `GET /api/enrollments/project/:projectId` — Auth, role `ngo` (dueño del proyecto)
 - **Query:** `status` opcional (`pending`/`approved`/`rejected`): filtra por estado; sin él, todas.
-- **Respuesta 200:** `{ enrollments: Enrollment[] }` de ese proyecto, del más nuevo al más viejo, con datos del voluntario embebidos (`volunteer_name`, `volunteer_email`, `volunteer_avatar`, `volunteer_bio`) y **`has_cv`** (boolean, §168). `has_cv` es `true` solo si la inscripción es `pending` o `approved` y el voluntario cargó un CV: es exactamente cuando esta ONG puede abrirlo con `GET /api/voluntarios/:userId/cv`. Nunca devuelve `cv_url` ni el public_id.
+- **Respuesta 200:** `{ enrollments: Enrollment[] }` de ese proyecto, del más nuevo al más viejo, con datos del voluntario embebidos (`volunteer_name`, `volunteer_email`, `volunteer_avatar`, `volunteer_bio`) y **`has_cv`** (boolean, §168). `has_cv` es `true` solo si la inscripción es `pending` o `approved` y el voluntario cargó un CV: es exactamente cuando esta ONG puede abrirlo con `GET /api/voluntarios/:userId/cv`. Nunca devuelve `cv_url` ni el public_id. **`phone` (§291)**, con el mismo criterio: el teléfono que dejó en esa postulación si está `pending` o `approved`; si no (o si no dejó), `null`.
 - **Errores:** **`403`** "Sin permiso sobre este proyecto" si el proyecto no existe o no pertenece a la ONG de la sesión (esta doc decía 404).
 
 ### `PATCH /api/enrollments/:id` — Auth, role `ngo` (dueño del proyecto de la inscripción)
@@ -369,7 +369,7 @@ Una entrevista es una fila de `reuniones` atada a una postulación (`enrollment_
 - Como todas las respuestas de proyectos, ONGs y empresas: solo los campos de las listas blancas (`fmt`/`fmtNgo`/`fmtEmpresa`, `PROJECT_ANALYSIS.md §86`). Ya no salen las columnas en español ni `created_at` de ONG/empresa/catálogos.
 
 ### `GET /api/ngos/:id/dashboard` — Auth, role `ngo` (dueño)
-- **Respuesta 200:** `{ ngo, projects, pending_enrollments, stats }`. `projects`: todos los de la ONG (cualquier estado) con la misma forma que `GET /api/projects` (`ngoProjects`: categoría, roles, requisitos y rating), del más nuevo al más viejo y desempatando por id. *(Hasta §146 salían de un `SELECT *`: `category: ''` y listas vacías.)* `stats`: `total_projects`, `active_projects`, `completed_projects`, `total_volunteers`, `total_funding`, `pending_enrollments`. Ninguna pantalla lo llama: `api.ts` no lo expone y `NGODashboard` usa `GET /api/ngos/me`. *(Esta doc decía que `NGODashboard` lo complementaba con requests por proyecto; ya no es así.)*
+- **Respuesta 200:** `{ ngo, projects, pending_enrollments, stats }`. `projects`: todos los de la ONG (cualquier estado) con la misma forma que `GET /api/projects` (`ngoProjects`: categoría, roles, requisitos y rating), del más nuevo al más viejo y desempatando por id. *(Hasta §146 salían de un `SELECT *`: `category: ''` y listas vacías.)* `stats`: `total_projects`, `active_projects`, `completed_projects`, `total_volunteers`, `total_funding`, `pending_enrollments`. `pending_enrollments` tiene columnas explícitas desde §291 (`id`, `user_id`, `project_id`, `status`, `message`, `phone`, `hours_logged`, `created_at`, `updated_at` y los datos del voluntario y del proyecto): antes era `e.*`, y el teléfono habría salido como `telefono` y el mensaje como `mensaje`. Ninguna pantalla lo llama: `api.ts` no lo expone y `NGODashboard` usa `GET /api/ngos/me`. *(Esta doc decía que `NGODashboard` lo complementaba con requests por proyecto; ya no es así.)*
 - **Errores:** **`403`** "Sin acceso" si la ONG `:id` no existe o no es la de la sesión.
 
 ### `GET /api/ngos/:id/empleados` — Auth, role `ngo` (dueño)

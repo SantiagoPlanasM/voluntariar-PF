@@ -152,6 +152,7 @@ id · project_id (FK→projects, CASCADE) · nombre (NOT NULL) · descripcion ·
 | status | TEXT | NOT NULL, DEFAULT `pending`, CHECK IN (`pending`,`approved`,`rejected`,`cancelled`) |
 | mensaje | TEXT | mensaje del voluntario a la ONG (la columna DB sigue en español; el backend lo recibe/expone como `message` en la API — ver `API_CONTEXT.md` y `PROJECT_ANALYSIS.md §13`) |
 | horas_realizadas | REAL | DEFAULT 0, CHECK ≥ 0 |
+| telefono | TEXT | **§291**, `addColumnIfNotExists`: teléfono de contacto opcional que deja el voluntario al postularse (NULL = no lo dejó). Dato personal: en la API sale como `phone` y la ONG solo lo ve con la postulación `pending` o `approved` |
 | created_at / updated_at | TIMESTAMP | |
 | — | — | `UNIQUE(user_id, project_id)` → un voluntario no puede inscribirse dos veces al mismo proyecto |
 
