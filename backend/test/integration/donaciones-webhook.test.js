@@ -205,6 +205,21 @@ describe('Aviso de Mercado Pago y conciliación', () => {
       assert.ok(!all.includes('v1='), 'la firma no se loguea');
     });
 
+    // §287 (SonarCloud S5145): un data.id que no es numérico no se escribe en el log (un id de pago es solo dígitos),
+    // igual que user_id. Antes pasaba por forLog(), que lo limpiaba, pero Sonar no lo reconocía en esta línea.
+    test('firma inválida con un data.id que no es numérico: el log dice data.id=? y no muestra lo inyectado', async () => {
+      const lines = [];
+      const warn = mock.method(console, 'warn', (...a) => lines.push(a.join(' ')));
+      try {
+        await notify(`type=payment&data.id=${encodeURIComponent('99\n[donaciones] pago acreditado FALSO')}`,
+          { headers: { 'x-signature': 'ts=1,v1=00', 'x-request-id': 'r' } });
+      } finally { warn.mock.restore(); }
+      const line = lines.find((l) => l.includes('firma inválida'));
+      assert.ok(line, lines.join('\n'));
+      assert.match(line, /data\.id=\?;/);
+      assert.ok(!line.includes('FALSO') && !line.includes('99'), line);
+    });
+
     // §175: en producción, los avisos REALES de pago no validan y el simulado del panel sí (§174). Para saber por qué,
     // la línea de "firma inválida" suma datos que no son secretos: si vino x-request-id, el ts, y del cuerpo live_mode y
     // user_id (de qué cuenta viene el aviso). Nunca el hash, el secreto ni otros headers.
