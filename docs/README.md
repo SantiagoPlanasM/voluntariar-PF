@@ -40,6 +40,7 @@ describen el estado actual (cada uno lo dice en su primera línea).
 |---|---|
 | [`PLAN_PATROCINIO.md`](PLAN_PATROCINIO.md) | El patrocinio como acuerdo negociado (puntos de cada parte, charla, aceptación por versión); hecho (§263–§266) |
 | [`PLAN_ENTREVISTAS.md`](PLAN_ENTREVISTAS.md) | Entrevistas que la ONG agenda ante una postulación pendiente (tabla `reuniones`); hecho (§261–§262) |
+| [`PLAN_EQUIPOS.md`](PLAN_EQUIPOS.md) | Equipo de la ONG con cuentas reales y empleados de empresa con cupos reservados; **plan sin código**, para después de la defensa (§281) |
 
 ## Vigentes: TP de Calidad ([`calidad/`](calidad/))
 

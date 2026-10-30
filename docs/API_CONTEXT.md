@@ -195,7 +195,7 @@
 ### `GET /api/projects/recommended` — Auth, role `volunteer`
 - **Query params:** `limit` (default 10, mín. 1, máx. 30; `clampInt(limit, 10, 1, 30)` de `lib/inputs.js`, como los otros listados: inválido, `0` o negativo → 10; más de 30 → 30). *(Antes `Math.min(parseInt(limit) || 10, 30)`: un negativo llegaba a `slice(0, -5)` y devolvía todos los candidatos menos 5, más de 30; `PROJECT_ANALYSIS.md §149`.)*
 - **Comportamiento (reescrito por el usuario 2026-09 — bastante más rico que un ranking simple):** scoring por 9 señales independientes, cada una suma puntos y agrega un `tag`/`reason` visible en la UI si aplica:
-  1. Afinidad de categoría con el historial de inscripciones.
+  1. Afinidad de categoría con el historial de inscripciones. Desde §280 una inscripción **aprobada pesa 2** y una pendiente o rechazada 1, y cada voluntariado **seguido** suma 1 a su categoría. `based_on_history` sigue hablando solo de inscripciones.
   2. Match de habilidades del voluntario contra los roles buscados del proyecto.
   3. ONG seguida por el voluntario (`ngo_follows`).
   4. Cercanía geográfica (`users.location` vs `ubicacion` del proyecto) o modalidad remota.
@@ -205,6 +205,7 @@
   8. Popularidad (`project_follows` del proyecto).
   9. Señal social: contactos que el voluntario sigue (`volunteer_follows`) y que están inscriptos/aprobados en ese proyecto.
   - **"Arranque en frío"** (`is_cold_start: true`): sin historial de inscripciones, sin ONGs/proyectos seguidos, sin habilidades que matcheen roles y sin voluntarios seguidos. No se saca ninguna señal (las que dependen de esos datos simplemente no suman): se **multiplican** las de cupos (×2), novedad (×2) y rating (×3), y un proyecto sin ningún motivo lleva el tag "🌟 Destacado".
+  - **Universo y orden (§280):** se evalúan hasta **500** candidatos (activos, con cupo, sin inscripción; antes, los 100 más nuevos). Después de ordenar por puntaje, **a lo sumo 2 de la misma ONG** van adelante (`MAX_PER_NGO`); los que sobran quedan detrás, en su orden. Todas las habilidades del catálogo tienen rol en `SKILL_TO_ROLE` (exportado; un test lo exige: Contabilidad y Jardinería no lo tenían).
 - **IMPORTANTE — orden de rutas:** esta ruta está declarada antes de `GET /:id` en `projects.js`. Si se moviera después, Express interpretaría `recommended` como el parámetro `:id` y la ruta dejaría de ser alcanzable — cualquier ruta nueva de `projects.js` sin parámetro debe declararse antes de `/:id`.
 - **Respuesta 200:** `{ recommendations: Project[], based_on_history: boolean, is_cold_start: boolean }` (`based_on_history`: el voluntario tiene inscripciones en proyectos con categoría; es lo único de los dos que tipa `api.ts`), cada `Project` con `recommendation_score` (número), `recommendation_reasons` (array de strings) y `recommendation_tags` (array de strings cortos con emoji, para chips en la UI).
 - **Errores:** `401` sin token, `403` si el rol no es `volunteer`.
@@ -337,7 +338,7 @@ Una entrevista es una fila de `reuniones` atada a una postulación (`enrollment_
 
 ### `GET /api/ngos/me` — Auth, role `ngo`
 - Devuelve el perfil completo de la ONG de la sesión, incluyendo `category` (mismo JOIN que `GET /api/ngos`; corregido — antes no lo incluía, ver `PROJECT_ANALYSIS.md §13`).
-- **Respuesta 200:** `{ ngo, projects, stats, pending_enrollments }`. `projects`: los de la ONG con la misma forma que `GET /api/projects` y el perfil público (`ngoProjects` + `fmt`, con categoría, roles, requisitos, rating y `ngo_name`/`ngo_logo`), del más nuevo al más viejo y desempatando por id. *(Hasta §144 salían de un `SELECT *`: `category: ''` y listas vacías.)* Cada solicitud pendiente trae la inscripción, `volunteer_name`/`volunteer_email`/`volunteer_avatar` y **`project_title`** (tipo `PendingEnrollment` en `api.ts`; `NGODashboard` lo muestra, `PROJECT_ANALYSIS.md §82`).
+- **Respuesta 200:** `{ ngo, projects, stats, pending_enrollments }`. `projects`: los de la ONG con la misma forma que `GET /api/projects` y el perfil público (`ngoProjects` + `fmt`, con categoría, roles, requisitos, rating y `ngo_name`/`ngo_logo`), del más nuevo al más viejo y desempatando por id. *(Hasta §144 salían de un `SELECT *`: `category: ''` y listas vacías.)* Cada solicitud pendiente trae la inscripción, `volunteer_name`/`volunteer_email`/`volunteer_avatar` y **`project_title`** (tipo `PendingEnrollment` en `api.ts`; `NGODashboard` lo muestra, `PROJECT_ANALYSIS.md §82`). Desde §279 trae también **`interview`**, con la misma consulta y la misma regla que las listas de postulaciones (`INTERVIEW_COLS`/`INTERVIEW_JOIN`/`withInterview`, exportadas de `routes/enrollments.js`): la programada si hay; si no, la última; `null` si nunca hubo.
 
 ### `GET /api/ngos/:id` — Público
 - Perfil público de una ONG por id, incluyendo `category` (corregido — antes no lo incluía). *(Corregido — la subquery de proyectos tenía una columna `id` ambigua entre `projects` y `categorias` que causaba un `500` en todos los casos. Ver `PROJECT_ANALYSIS.md §16`, bug B6.)*

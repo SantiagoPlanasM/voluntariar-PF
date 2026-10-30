@@ -7941,3 +7941,54 @@ Pendiente anotado en §272 ("no avisa por mail del cambio"), pedido por el usuar
 ### ⚠️ NO verificado
 - El email real (los tests usan un doble). En producción llega a la casilla de `EMAIL_REDIRECT_TO`.
 - **Sin desplegar** al escribir esto.
+
+## 279. La entrevista desde el panel de la ONG
+
+Pedido del usuario: "para la ONG ver lo de entrevistas fácil no se puede, tienen que entrar al voluntariado". §278 quedó desplegado: CI 40978779068 (9 jobs en verde, la cuarta corrida limpia desde §273) y Deploy 40979295546 (`/health` en `b07afff`).
+
+### Qué se hizo
+- **Backend:** `GET /api/ngos/me` trae `interview` en cada postulación pendiente, con la misma consulta que las otras listas (`INTERVIEW_COLS`, `INTERVIEW_JOIN` y `withInterview`, exportadas de `routes/enrollments.js` en vez de copiadas).
+- **Frontend:**
+  - en "Postulaciones sin responder", junto a Aceptar y Rechazar, **"Entrevista"** lleva a `/ngo/dashboard/project/<id>?postulacion=<id>` (en el celular, solo el ícono, con su nombre accesible), y la fila dice "Entrevista: <cuándo>" si hay una programada;
+  - en el detalle, la postulación marcada se resalta, queda a la vista (`scrollIntoView`) y su `InterviewPanel` arranca con el formulario abierto (`startOpen`) si se puede agendar.
+
+### Verificación
+- **Backend:** `ngo-pending-interviews.test.js` (3; rojo antes: "la fila trae el campo interview"): sin entrevista `null`, la programada con fecha, hora y lugar, y la cancelada como la última. También en Postgres.
+- **Frontend:** `NGODashboardInterview.test.tsx` (2) y 4 casos nuevos en `NGOProjectDetailInterview.test.tsx`. En rojo los 4 que esperan el cambio; "sin el parámetro, el formulario arranca cerrado" pasaba desde antes, como corresponde.
+- **Mutación (script, el código se commiteó antes):** 9 mutantes, 1 vivo en la primera pasada ("scroll a otra fila": con una sola postulación la marcada y la primera coinciden). Con un test de dos postulaciones, **9 de 9**.
+- **Suites:** frontend **1103/1103**, `npm run typecheck` 0 errores. Backend: ver §280 (las cuatro corridas incluyen este cambio).
+
+### ⚠️ NO verificado
+- La pantalla real (el botón en la fila, en el celular y en oscuro, y el scroll hasta la postulación).
+
+## 280. Recomendaciones: historial con pesos, seguidos, diversidad y universo más amplio
+
+Pedido del usuario: "veamos el sistema de recomendaciones, por si se puede mejorar".
+
+### Qué se hizo (en `GET /api/projects/recommended`)
+- **Historial con pesos:** una postulación aprobada pesa 2 y una pendiente o rechazada 1. Antes pesaban igual.
+- **Seguidos:** seguir un voluntariado suma 1 a su categoría. `based_on_history` sigue hablando solo de postulaciones.
+- **Diversidad:** a lo sumo 2 de la misma ONG adelante (`MAX_PER_NGO`); los que sobran quedan detrás, en su orden.
+- **Universo:** se evalúan hasta 500 candidatos, el mismo tope de Explorar. Antes eran los 100 más nuevos, y uno más viejo que encajaba no competía.
+- **Habilidades:** Contabilidad → Coordinador y Jardinería → Voluntario general. Estaban en el catálogo sin rol y no sumaban nada. `SKILL_TO_ROLE` se exporta para el test.
+
+### Errores propios
+- Le dije al usuario que el algoritmo "recomienda voluntariados vencidos, no mira `fecha_fin`". Es falso: `fecha_inicio` y `fecha_fin` existen en `migrate.js`, pero **ningún endpoint las usa** ni hay campo para cargarlas. Terminar un voluntariado es "Finalizar" (`status`), y las recomendaciones ya excluyen todo lo que no está activo. Lo dije leyendo el esquema sin buscar si se usaba; se corrigió antes de tocar código.
+- Las corridas con la TZ de Córdoba de §279 empezaron mientras escribía `recommended-quality.test.js` y levantaron sus tests en rojo (5 y 1 fallas). Se repitieron las cuatro con todo commiteado.
+
+### Verificación
+- **`recommended-quality.test.js` (5, rojo antes, cada uno por lo suyo):** la aprobada pesa más que la pendiente ("aprobada 22 > pendiente 22"), los seguidos suman su categoría, a lo sumo 2 de la misma ONG en los 5 primeros ("hay 5 de la misma ONG"), uno viejo que encaja aparece entre 110 nuevos, y toda habilidad tiene un rol que existe. También en Postgres.
+- **Mutación (script, commit antes):** 10 mutantes (pesos iguales o todos dobles, sin seguidos, `based_on_history` con seguidos, señal 1 solo con postulaciones, sin diversidad, tope 3, pool de 100, sin Jardinería, rol inexistente): **10 de 10**.
+- **Suites:** `npm test` **1010/1010**, con TZ de Córdoba **1010/1010**, `npm run test:pg` **1012/1012**, y Postgres con TZ de Córdoba **1012/1012**.
+
+### ⚠️ NO verificado
+- **La cercanía por distancia real:** quedó afuera. Los voluntariados tienen coordenadas, pero el voluntario no; haría falta pedírselas al navegador.
+- Que el cambio de orden se vea bien en "Para vos" con los datos de producción.
+
+## 281. Plan: equipo de la ONG y empleados de empresa con cupos reservados
+
+`docs/PLAN_EQUIPOS.md` (nuevo): el diseño de los dos pedidos grandes del usuario, para hacer **después de la defensa**.
+- **Equipo de la ONG:** `ngo_miembros`, invitación con consentimiento, permisos por rol y una función central `ngoAccess`, porque hoy el control está repartido en unos 28 lugares.
+- **Empleados de empresa:** `empresa_voluntarios`, del roadmap §2.4, y reservas de cupos desde el acuerdo de patrocinio, con la nueva regla `cupos_ocupados + reservados sin usar <= cupos`.
+
+El plan ordena los pasos y deja las decisiones abiertas para el usuario. Sin código.
