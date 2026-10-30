@@ -16,6 +16,9 @@ describe('validateStep', () => {
     expect(validateStep(1, form({ title: 'x'.repeat(81), description: 'x'.repeat(1001) }), null))
       .toEqual({ title: 'Máximo 80 caracteres', description: 'Máximo 1000 caracteres' });
     expect(validateStep(1, form({ title: 'x'.repeat(80), description: 'x'.repeat(1000) }), null)).toEqual({});
+    // los mínimos justos: 3 y 10 pasan; 2 y 9 no
+    expect(validateStep(1, form({ title: 'abc', description: 'x'.repeat(10) }), null)).toEqual({});
+    expect(validateStep(1, form({ title: 'ab', description: 'x'.repeat(9) }), null)).toEqual({ title: 'Mínimo 3 caracteres', description: 'Mínimo 10 caracteres' });
   });
 
   test('paso 2: lugar y pin según la modalidad, duración del fugaz, horas del sostenido y cupos', () => {
