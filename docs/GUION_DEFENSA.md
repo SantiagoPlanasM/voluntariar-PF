@@ -3,7 +3,7 @@
 > **A confirmar con la cátedra:** cuánto dura la defensa, si la demo es en vivo o grabada, y qué tienen que ver los
 > evaluadores (código, documentación, tests). Los tiempos de abajo son una sugerencia para unos 15 minutos de demo.
 >
-> Datos de demo: `docs/DEMO_DATOS.md`. Estado del proyecto: `docs/PLAN_FALTANTE.md`. Detalle técnico: `docs/PROJECT_ANALYSIS.md`.
+> Datos de demo: `docs/DEMO_DATOS.md`. Estado del proyecto: `docs/archivo/PLAN_FALTANTE.md`. Detalle técnico: `docs/PROJECT_ANALYSIS.md`.
 
 ## 1. Días antes (D-3 a D-1)
 

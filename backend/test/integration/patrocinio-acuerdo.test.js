@@ -1,4 +1,4 @@
-// test/integration/patrocinio-acuerdo.test.js — el patrocinio como acuerdo negociado, etapa 1 (docs/PLAN_PATROCINIO.md, §263).
+// test/integration/patrocinio-acuerdo.test.js — el patrocinio como acuerdo negociado, etapa 1 (docs/archivo/PLAN_PATROCINIO.md, §263).
 //
 // Un acuerdo es una fila de empresa_voluntariados con puntos: lo que aporta la empresa (lado `company`) y lo que pide u
 // ofrece la ONG (lado `ngo`). Criterio de esta etapa:

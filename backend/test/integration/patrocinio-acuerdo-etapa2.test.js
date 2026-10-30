@@ -1,5 +1,5 @@
 // test/integration/patrocinio-acuerdo-etapa2.test.js — acuerdo de patrocinio, etapa 2: charla y aceptación por versión
-// (docs/PLAN_PATROCINIO.md, §264).
+// (docs/archivo/PLAN_PATROCINIO.md, §264).
 //
 // Criterio:
 // - proponer cuenta como que la empresa acepta la versión vigente: sin cambios, la ONG acepta y se cierra como antes

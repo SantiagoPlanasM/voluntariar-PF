@@ -1,4 +1,4 @@
-// test/integration/entrevistas.test.js — entrevistas de la ONG con quienes se postulan (docs/PLAN_ENTREVISTAS.md).
+// test/integration/entrevistas.test.js — entrevistas de la ONG con quienes se postulan (docs/archivo/PLAN_ENTREVISTAS.md).
 //
 // Una entrevista es una fila de `reuniones` atada a una postulación (`enrollment_id`). La tabla existía desde el
 // primer esquema sin ningún endpoint; §261 le agrega la postulación, el lugar, la nota y `updated_at`.

@@ -1,6 +1,6 @@
 # PLAN_PRUEBAS.md — Plan de pruebas de VoluntariAR
 
-> TP Integrador de Calidad de Software (ejes 1, 3 y 6). Plan general del TP: `docs/PLAN_CALIDAD_TP.md`.
+> TP Integrador de Calidad de Software (ejes 1, 3 y 6). Plan general del TP: `docs/archivo/PLAN_CALIDAD_TP.md`.
 > Los números salen de corridas reales; cuando el pipeline exista (`.github/workflows/ci.yml`, T3), la fuente
 > pasa a ser el run del pipeline y este documento cita su número.
 

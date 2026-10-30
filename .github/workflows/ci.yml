@@ -1,4 +1,4 @@
-# .github/workflows/ci.yml — integración continua de VoluntariAR (TP de Calidad, docs/PLAN_CALIDAD_TP.md T3).
+# .github/workflows/ci.yml — integración continua de VoluntariAR (TP de Calidad, docs/archivo/PLAN_CALIDAD_TP.md T3).
 # Corre las pruebas del backend (SQLite y Postgres 16, en UTC y en la zona de Córdoba) con cobertura del runner
 # de Node, las del frontend con tipos y build, y npm audit. Publica los reportes. No despliega (eso es deploy.yml, T9).
 name: CI

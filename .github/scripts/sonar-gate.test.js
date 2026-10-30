@@ -1,4 +1,4 @@
-// .github/scripts/sonar-gate.test.js — el quality gate del TP (docs/PLAN_CALIDAD_TP.md §0, D5).
+// .github/scripts/sonar-gate.test.js — el quality gate del TP (docs/archivo/PLAN_CALIDAD_TP.md §0, D5).
 // Criterio de aceptación (escrito antes del código): el gate BLOQUEA si hay al menos un bug crítico
 // (BLOCKER o CRITICAL) abierto, si la duplicación supera el 5 % o si la cobertura del código nuevo es menor al
 // 80 %. En los bordes exactos (5 % y 80 %) pasa. Si falta un dato obligatorio (duplicación, bugs), bloquea: un

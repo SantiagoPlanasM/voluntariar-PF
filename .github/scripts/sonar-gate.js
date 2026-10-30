@@ -1,7 +1,7 @@
 // .github/scripts/sonar-gate.js — quality gate del TP de Calidad, evaluado con las métricas de SonarCloud.
 //
 // Por qué existe: el plan gratis de SonarCloud solo tiene el gate "Sonar way" (no permite gates propios), y el TP
-// pide umbrales concretos (docs/PLAN_CALIDAD_TP.md §0, D5). Este script espera a que SonarCloud termine de procesar
+// pide umbrales concretos (docs/archivo/PLAN_CALIDAD_TP.md §0, D5). Este script espera a que SonarCloud termine de procesar
 // el análisis del run, lee sus métricas y sale con código 1 si alguna condición falla:
 //   - bugs críticos: issues de tipo BUG con severidad BLOCKER o CRITICAL, abiertos → tiene que haber 0;
 //   - vulnerabilidades críticas: ídem con tipo VULNERABILITY → 0 (agregado tras el run #7, PROJECT_ANALYSIS §191);

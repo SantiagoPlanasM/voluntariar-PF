@@ -1,7 +1,7 @@
 // test/integration/enrollments-concurrency.test.js
 //
 // Integridad de projects.cupos_ocupados frente a requests CONCURRENTES
-// (docs/BACKEND_ROADMAP_ANALYSIS.md §1.5, PROJECT_ANALYSIS.md §34).
+// (docs/archivo/BACKEND_ROADMAP_ANALYSIS.md §1.5, PROJECT_ANALYSIS.md §34).
 //
 // Importante: este bug solo se manifiesta en POSTGRES (pool de conexiones). En
 // SQLite cada handler corre entero sin ceder el event loop, así que estos tests

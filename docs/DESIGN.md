@@ -315,7 +315,7 @@ components:
 > corrige cinco contradicciones que aparecieron al dibujarlo (marcadas con **Corregido en 1.1**) y
 > completa lo que figuraba como pendiente (sección **Lo que faltaba**, al final). Los mockups de
 > todo el documento, con la versión vieja al lado, están en el lienzo "VoluntariAR · Rediseño antes
-> y después" (link en `docs/PLAN_REDISENO_FRONTEND.md`). El plan para llevarlo al código está en ese
+> y después" (link en `docs/archivo/PLAN_REDISENO_FRONTEND.md`). El plan para llevarlo al código está en ese
 > mismo archivo.
 
 ## Resumen
@@ -1177,5 +1177,5 @@ Al construir una pantalla con este archivo:
 - Publicaciones de empresas, comentarios y guardados en publicaciones, "Seguido por…", patrocinadores
   en la tarjeta, lugares reservados por empresas, el rol elegido al inscribirse, intereses
   guardados, donación mensual, presencia en el chat y preferencias de avisos:
-  están diseñados acá, pero **necesitan backend** (ver `docs/PLAN_REDISENO_FRONTEND.md`, parte 4).
+  están diseñados acá, pero **necesitan backend** (ver `docs/archivo/PLAN_REDISENO_FRONTEND.md`, parte 4).
 - El reporte mensual descargable (PDF) de la ONG.

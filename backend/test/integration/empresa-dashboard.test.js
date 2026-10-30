@@ -1,6 +1,6 @@
 // test/integration/empresa-dashboard.test.js
 //
-// GET /api/empresas/me/dashboard (docs/BACKEND_ROADMAP_ANALYSIS.md §2.3).
+// GET /api/empresas/me/dashboard (docs/archivo/BACKEND_ROADMAP_ANALYSIS.md §2.3).
 //
 // Los valores esperados NO se toman de lo que devuelve el endpoint: salen de
 // las cuentas hechas a mano sobre los datos del seed (ver comentarios), para

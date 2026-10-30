@@ -1,4 +1,4 @@
-// test/integration/patrocinio-publico.test.js — "Patrocinado por" en público (docs/PLAN_PATROCINIO.md etapa 4, §266).
+// test/integration/patrocinio-publico.test.js — "Patrocinado por" en público (docs/archivo/PLAN_PATROCINIO.md etapa 4, §266).
 //
 // Criterio: GET /api/projects/:id suma `sponsors` (las empresas con el acuerdo ACEPTADO: id, nombre y logo) y
 // GET /api/empresas/:id suma `sponsored_projects` (los voluntariados con el acuerdo aceptado: id, título, imagen, ONG).

@@ -331,7 +331,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
   }
 });
 
-// ── Entrevistas (§261, docs/PLAN_ENTREVISTAS.md) ──────────────────────────
+// ── Entrevistas (§261, docs/archivo/PLAN_ENTREVISTAS.md) ──────────────────────────
 // Una entrevista es una fila de `reuniones` atada a la postulación. La fecha y la hora son las de Argentina
 // (UTC-3 todo el año, sin horario de verano): "futura" se compara contra ese instante.
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

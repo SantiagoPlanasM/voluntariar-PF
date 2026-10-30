@@ -318,7 +318,7 @@ Desde §290, las tres rutas de contraseña (`PUT /me/password`, `POST /forgot-pa
 - **Concurrencia:** varias cancelaciones simultáneas del mismo registro → una sola responde 200 y decrementa; las demás **404** (antes todas respondían 200 y cada una restaba un cupo).
 - **Respuesta 200:** `{ message: 'Inscripción cancelada' }`. **404** si ya no existe. **409** si el estado cambió justo antes de borrar.
 
-### Entrevistas (§261, `docs/PLAN_ENTREVISTAS.md`)
+### Entrevistas (§261, `docs/archivo/PLAN_ENTREVISTAS.md`)
 Una entrevista es una fila de `reuniones` atada a una postulación (`enrollment_id`). Formato: `interview = { id, enrollment_id, date, time, link, place, note, status }`, con `date` AAAA-MM-DD, `time` HH:MM (hora de Argentina, UTC-3) y `status` `scheduled`/`done`/`cancelled` (en la base: `programada`/`realizada`/`cancelada`). Las dos listas de postulaciones (`/my` y `/project/:projectId`) suman `interview`: la programada si hay; si no, la última; `null` si nunca hubo.
 
 #### `POST /api/enrollments/:id/entrevista` — Auth, role `ngo` (dueño del proyecto)
@@ -467,7 +467,7 @@ El dueño (la cuenta `ngo`) suma voluntarios a su equipo, con rol **`coordinator
 ### `GET /api/equipo/:ngoId/panel` — Auth, miembro activo
 - `{ ngo: { id, name, logo }, role, projects: [{ id, title, status, image, volunteers_needed, current_volunteers, pending }] }`; el coordinador recibe además `pending_enrollments` (la misma consulta que `GET /api/ngos/me`, `pendingEnrollmentsOf`). `pending` sale con `Number()` (en Postgres el `COUNT` es texto). Invitado, de otra ONG o el dueño: **403** (el dueño tiene su panel).
 
-## Acuerdo de patrocinio (§263, `docs/PLAN_PATROCINIO.md`) — `routes/patrocinios.js`
+## Acuerdo de patrocinio (§263, `docs/archivo/PLAN_PATROCINIO.md`) — `routes/patrocinios.js`
 La propuesta de siempre (`empresa_voluntariados`, abajo) suma **puntos** de cada parte y una **versión** (etapa 1, §263), y desde §264 **la aceptación por versión y la charla**: el acuerdo pasa a `aceptado` cuando **las dos partes aceptaron la versión vigente**. Proponer cuenta como que la empresa acepta, y el `PATCH` de la ONG de abajo es "aceptar mi parte": sin cambios en los puntos, se cierra como siempre.
 - Lo ven y lo tocan **solo las dos partes** (la empresa de la propuesta y la ONG dueña del proyecto); cualquier otro usuario, o un acuerdo que no existe: **404** "Acuerdo no encontrado" (no se revela que existe). Sin sesión: 401.
 - `agreement = { company_id, project_id, company_name, ngo_name, project_title, status, version, message, my_side, accepted: { company, ngo }, points[], messages[] }`; `accepted.*` es `true` si esa parte aceptó la versión **vigente** (una aceptación de una versión anterior no cuenta); `messages[] = { id, side, author_name, body, created_at }`, en orden; `status` con los valores de siempre (`propuesto`/`aceptado`/`rechazado`); `my_side` `company` o `ngo`; `points[] = { id, side, type, detail, amount, created_at, updated_at }`, primero los de la empresa. `type`: `money`, `supplies`, `volunteers`, `outreach`, `other` (en la base: `dinero`, `insumos`, `voluntarios`, `difusion`, `otro`). **`amount`** solo en `money` (número > 0, hasta 1.000.000.000): privado de las partes, no sale en ningún endpoint público.

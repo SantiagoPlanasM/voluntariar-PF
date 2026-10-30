@@ -500,13 +500,13 @@ async function migrate() {
   // la que se creó la preferencia. NULL = cobrada con la cuenta de la aplicación (donaciones de antes de §217). La
   // conciliación y el webhook solo aceptan un pago leído con ESA misma cuenta.
   await addColumnIfNotExists('donaciones', 'cobrador_mp_user_id', 'TEXT');
-  // Agregadas 2026-10-29 (entrevistas, PROJECT_ANALYSIS.md §261, docs/PLAN_ENTREVISTAS.md): una entrevista es una
+  // Agregadas 2026-10-29 (entrevistas, PROJECT_ANALYSIS.md §261, docs/archivo/PLAN_ENTREVISTAS.md): una entrevista es una
   // reunión atada a una postulación. Cancelar la postulación la borra (DELETE), y con ella sus entrevistas.
   await addColumnIfNotExists('reuniones', 'enrollment_id', 'TEXT REFERENCES enrollments(id) ON DELETE CASCADE');
   await addColumnIfNotExists('reuniones', 'lugar', 'TEXT');
   await addColumnIfNotExists('reuniones', 'nota', 'TEXT');
   await addColumnIfNotExists('reuniones', 'updated_at', NOW);
-  // Agregadas 2026-10-29 (patrocinio como acuerdo negociado, PROJECT_ANALYSIS.md §263, docs/PLAN_PATROCINIO.md):
+  // Agregadas 2026-10-29 (patrocinio como acuerdo negociado, PROJECT_ANALYSIS.md §263, docs/archivo/PLAN_PATROCINIO.md):
   // `version` sube con cada cambio de los puntos; cada parte acepta una versión (etapa 2).
   await addColumnIfNotExists('empresa_voluntariados', 'version', 'INTEGER NOT NULL DEFAULT 1');
   await addColumnIfNotExists('empresa_voluntariados', 'acepta_empresa_version', 'INTEGER');
