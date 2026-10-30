@@ -7,6 +7,7 @@ const { toMillis } = require('../lib/time');
 const { checkText, firstError, clampInt, toStrictInt } = require('../lib/inputs');
 const { hasBadWord } = require('../lib/badWords');
 const sellerAccounts = require('../lib/sellerAccounts');
+const { SKILL_TO_ROLE, compatibleRoles, scoreProject, rankRecommendations } = require('../lib/recommender');
 
 const router = express.Router();
 
@@ -400,26 +401,7 @@ router.get('/', optionalAuth, async (req, res) => {
 // fuera después, Express interpretaría "recommended" como si fuera el
 // parámetro :id y esta ruta nunca se alcanzaría.
 
-// Mapping de habilidades de voluntario → roles de proyecto compatibles
-const SKILL_TO_ROLE = {
-  'programación':       ['Programador'],
-  'fotografía':         ['Fotógrafo'],
-  'enseñanza':          ['Educador'],
-  'cocina':             ['Cocinero'],
-  'conducción':         ['Conductor'],
-  'primeros auxilios':  ['Médico / Enfermero'],
-  'comunicación':       ['Comunicador'],
-  'redes sociales':     ['Comunicador'],
-  'electricidad':       ['Técnico'],
-  'carpintería':        ['Técnico'],
-  'diseño gráfico':     ['Comunicador'],
-  'administración':     ['Coordinador'],
-  'idiomas':            ['Educador'],
-  // §280: estaban en el catálogo sin rol y no sumaban nada (un test exige que toda habilidad tenga uno).
-  'contabilidad':       ['Coordinador'],
-  'jardinería':         ['Voluntario general'],
-};
-const MAX_PER_NGO = 2;   // diversidad de las recomendaciones (§280)
+// El puntaje (9 señales, arranque en frío, diversidad) está en src/lib/recommender.js (§287); acá se juntan los datos.
 
 router.get('/recommended', requireAuth, requireRole('volunteer'), async (req, res) => {
   try {
@@ -487,11 +469,7 @@ router.get('/recommended', requireAuth, requireRole('volunteer'), async (req, re
        WHERE vh.user_id = $1`,
       [req.user.id]
     );
-    const myCompatibleRoles = new Set();
-    for (const { nombre } of mySkillRows) {
-      const mapped = SKILL_TO_ROLE[nombre.toLowerCase()];
-      if (mapped) mapped.forEach(r => myCompatibleRoles.add(r));
-    }
+    const myCompatibleRoles = compatibleRoles(mySkillRows.map(r => r.nombre));
 
     // ── 4b) Voluntarios que sigo (para señal social) ──────────────────
     const myFollowingRows = await db.all(
@@ -589,177 +567,15 @@ router.get('/recommended', requireAuth, requireRole('volunteer'), async (req, re
     }
 
 
-    // ── 8) Scoring: 9 señales, máximo ~115 puntos ─────────────────────
-    const now = Date.now();
+    // ── 8) Scoring y orden (src/lib/recommender.js) ───────────────────
+    const ctx = {
+      now: Date.now(), isColdStart, hasInterests, hasSkills, categoryFreq, catNameById, catsByProject, rolesByProject,
+      ratingByProject, socialByProject, compatibleRoles: myCompatibleRoles, myLocation,
+      followedNgos: followedNgoSet, interestedNgos: interestedNgoIds,
+    };
+    const scored = candidates.map(p => scoreProject(p, ctx));
 
-    const scored = candidates.map(p => {
-      const cats = catsByProject[p.id] || [];
-      const roles = rolesByProject[p.id] || [];
-      const rating = ratingByProject[p.id] || { avg: 0, count: 0 };
-      const spotsLeft = (p.cupos || 0) - (p.cupos_ocupados || 0);
-      const fillRatio = p.cupos > 0 ? (p.cupos_ocupados / p.cupos) : 0;
-      // created_at es string en SQLite y Date en Postgres: siempre vía toMillis() (src/lib/time.js).
-      // Sin fecha válida → Infinity: simplemente no recibe el bonus de "reciente", en vez de romper.
-      const createdMs = toMillis(p.created_at);
-      const daysOld = createdMs === null ? Infinity : (now - createdMs) / 86400000;
-      const reasons = [];
-      const tags = [];
-      let score = 0;
-
-      // ─── Señal 1: Afinidad temática (máx 30) ─────────────────────
-      if (hasInterests) {
-        const bestFreq = cats.reduce((best, c) => Math.max(best, categoryFreq[c] || 0), 0);
-        if (bestFreq >= 3) {
-          score += 30;
-        } else if (bestFreq === 2) {
-          score += 22;
-        } else if (bestFreq === 1) {
-          score += 15;
-        }
-        if (bestFreq > 0) {
-          const matchedCat = cats.find(c => categoryFreq[c] === bestFreq);
-          reasons.push(`Coincide con tu interés en "${catNameById[matchedCat] || 'esta categoría'}"`);
-          tags.push(`💚 ${catNameById[matchedCat]}`);
-        }
-      }
-
-      // ─── Señal 2: Match de habilidades (máx 20) ──────────────────
-      if (hasSkills && roles.length > 0) {
-        const matchedRoles = roles.filter(r => myCompatibleRoles.has(r));
-        if (matchedRoles.length >= 2) {
-          score += 20;
-          reasons.push(`Busca tus habilidades: ${matchedRoles.join(', ')}`);
-          tags.push('🎯 Match de habilidades');
-        } else if (matchedRoles.length === 1) {
-          score += 14;
-          reasons.push(`Busca tu habilidad: ${matchedRoles[0]}`);
-          tags.push('🎯 Match de habilidades');
-        }
-      }
-
-      // ─── Señal 3: Afinidad con ONG (máx 15) ──────────────────────
-      if (followedNgoSet.has(p.ngo_id)) {
-        score += 15;
-        reasons.push(`De ${p.ngo_name}, una ONG que seguís`);
-        tags.push(`❤️ ${p.ngo_name}`);
-      } else if (interestedNgoIds.has(p.ngo_id)) {
-        score += 10;
-        reasons.push(`De ${p.ngo_name}, que te podría interesar`);
-      }
-
-      // ─── Señal 4: Proximidad geográfica (máx 10) ─────────────────
-      if (myLocation) {
-        const projLoc = p.ubicacion?.trim().toLowerCase() || '';
-        const isRemote = p.modalidad === 'remoto' || projLoc.includes('remoto') || projLoc.includes('virtual');
-        if (projLoc === myLocation) {
-          score += 10;
-          reasons.push(`En tu zona: ${p.ubicacion}`);
-          tags.push('📍 Cerca tuyo');
-        } else if (myLocation.split(',')[0] && projLoc.includes(myLocation.split(',')[0].trim())) {
-          score += 6;
-          reasons.push(`Cerca tuyo, en ${p.ubicacion}`);
-        } else if (isRemote) {
-          score += 4;
-          reasons.push('Disponible en remoto');
-          tags.push('💻 Remoto');
-        }
-      }
-
-      // ─── Señal 5: Urgencia de cupos (máx 8) ──────────────────────
-      const urgencyMultiplier = isColdStart ? 2 : 1;
-      if (fillRatio >= 0.90) {
-        score += 8 * urgencyMultiplier;
-        reasons.push(`¡Últimos ${spotsLeft} cupo${spotsLeft === 1 ? '' : 's'}!`);
-        tags.push('🔥 Últimos cupos');
-      } else if (fillRatio >= 0.75) {
-        score += 5 * urgencyMultiplier;
-        reasons.push('Cupos limitados');
-        tags.push('⏳ Cupos limitados');
-      } else if (fillRatio >= 0.50) {
-        score += 2 * urgencyMultiplier;
-      }
-
-      // ─── Señal 6: Novedad (máx 7) ────────────────────────────────
-      const noveltyMultiplier = isColdStart ? 2 : 1;
-      if (daysOld <= 3) {
-        score += 7 * noveltyMultiplier;
-        reasons.push('Recién publicado');
-        tags.push('✨ Nuevo');
-      } else if (daysOld <= 7) {
-        score += 5 * noveltyMultiplier;
-        reasons.push('Publicado hace poco');
-        tags.push('🆕 Reciente');
-      } else if (daysOld <= 14) {
-        score += 2 * noveltyMultiplier;
-      }
-
-      // ─── Señal 7: Popularidad por rating (máx 5) ─────────────────
-      const ratingMultiplier = isColdStart ? 3 : 1;
-      if (rating.avg >= 4.5 && rating.count >= 3) {
-        score += 5 * ratingMultiplier;
-        reasons.push(`⭐ ${rating.avg.toFixed(1)}/5 (${rating.count} reseñas)`);
-        tags.push('⭐ Bien valorado');
-      } else if (rating.avg >= 4.0 && rating.count >= 2) {
-        score += 3 * ratingMultiplier;
-        reasons.push(`⭐ ${rating.avg.toFixed(1)}/5 (${rating.count} reseñas)`);
-      } else if (rating.avg >= 3.5 && rating.count >= 1) {
-        score += 1 * ratingMultiplier;
-      }
-
-      // ─── Señal 8: Momentum / followers (máx 5) ───────────────────
-      const followers = p.followers || 0;
-      if (followers >= 20) {
-        score += 5;
-        reasons.push(`${followers} personas siguen este proyecto`);
-        tags.push('🚀 Popular');
-      } else if (followers >= 10) {
-        score += 3;
-        reasons.push(`${followers} seguidores`);
-      } else if (followers >= 5) {
-        score += 1;
-      }
-
-      // ─── Señal 9: Actividad social / contactos que participan (máx 15) ─
-      const socialNames = socialByProject[p.id] || [];
-      if (socialNames.length >= 3) {
-        const socialMultiplier = isColdStart ? 1.5 : 1;
-        score += Math.round(15 * socialMultiplier);
-        reasons.push(`${socialNames.length} personas que seguís participan acá`);
-        tags.push('👥 Tus contactos participan');
-      } else if (socialNames.length === 2) {
-        const socialMultiplier = isColdStart ? 1.5 : 1;
-        score += Math.round(10 * socialMultiplier);
-        reasons.push(`${socialNames[0]} y ${socialNames[1]} participan acá`);
-        tags.push('👥 Tus contactos participan');
-      } else if (socialNames.length === 1) {
-        const socialMultiplier = isColdStart ? 1.5 : 1;
-        score += Math.round(6 * socialMultiplier);
-        reasons.push(`${socialNames[0]} participa acá`);
-        tags.push('👥 Un contacto participa');
-      }
-
-      // ─── Fallback ────────────────────────────────────────────────
-      if (reasons.length === 0) {
-        reasons.push('Podría interesarte');
-        if (isColdStart) tags.push('🌟 Destacado');
-      }
-
-      return { project: p, score, reasons, tags };
-    });
-
-    // ── 9) Ordenar y limitar ──────────────────────────────────────────
-    scored.sort((a, b) => b.score - a.score || (toMillis(b.project.created_at) ?? 0) - (toMillis(a.project.created_at) ?? 0));
-
-    // §280: diversidad. A lo sumo MAX_PER_NGO de la misma ONG adelante; los que sobran van detrás, en su orden.
-    const perNgo = {};
-    const ahead = [];
-    const behind = [];
-    for (const s of scored) {
-      const k = s.project.ngo_id;
-      if ((perNgo[k] || 0) < MAX_PER_NGO) { perNgo[k] = (perNgo[k] || 0) + 1; ahead.push(s); } else behind.push(s);
-    }
-
-    const top = [...ahead, ...behind].slice(0, limit).map(({ project, score, reasons, tags }) => ({
+    const top = rankRecommendations(scored, limit).map(({ project, score, reasons, tags }) => ({
       ...fmt({ ...project, category_name: catNameById[(catsByProject[project.id] || [])[0]] || '' }),
       recommendation_score: score,
       recommendation_reasons: reasons,
