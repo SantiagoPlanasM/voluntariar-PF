@@ -7,6 +7,7 @@ const { toMillis } = require('../lib/time');
 const { checkText, firstError, clampInt, toStrictInt } = require('../lib/inputs');
 const { hasBadWord } = require('../lib/badWords');
 const sellerAccounts = require('../lib/sellerAccounts');
+const storage = require('../lib/storage');   // por propiedad (storage.deleteImage), para poder reemplazarlo en tests
 const { SKILL_TO_ROLE, compatibleRoles, scoreProject, rankRecommendations } = require('../lib/recommender');
 
 const router = express.Router();
@@ -901,9 +902,20 @@ router.put('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
 router.delete('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
   try {
     const ngo = await db.get('SELECT id FROM ngos WHERE user_id=$1', [req.user.id]);
-    const p = await db.get('SELECT id FROM projects WHERE id=$1 AND ngo_id=$2', [req.params.id, ngo?.id]);
+    const p = await db.get('SELECT id, foto_provider_id FROM projects WHERE id=$1 AND ngo_id=$2', [req.params.id, ngo?.id]);
     if (!p) return res.status(404).json({ error: 'Proyecto no encontrado o sin permiso' });
-    await db.run('DELETE FROM projects WHERE id=$1', [req.params.id]);
+    // §289: los ids de Cloudinary se leen antes de borrar (los Momentos y sus fotos se van en cascada).
+    const media = await db.all(
+      'SELECT pm.provider_id FROM post_media pm JOIN posts po ON po.id = pm.post_id WHERE po.project_id=$1', [p.id]);
+    await db.run('DELETE FROM projects WHERE id=$1', [p.id]);
+
+    // Los archivos, después de borrar la fila y sin frenar la respuesta por un error (como el borrado de cuenta).
+    if (storage.isConfigured()) {
+      const ids = [p.foto_provider_id, ...media.map((m) => m.provider_id)].filter(Boolean);
+      const results = await Promise.allSettled(ids.map((id) => storage.deleteImage(id)));
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      if (failed) console.error(`DELETE /projects/:id: no se pudieron borrar ${failed} archivo(s) de Cloudinary`);
+    }
     res.json({ message: 'Proyecto eliminado' });
   } catch (err) { res.status(500).json({ error: 'Error al eliminar' }); }
 });
