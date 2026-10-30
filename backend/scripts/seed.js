@@ -1,11 +1,12 @@
 // scripts/seed.js
 //
-// Datos de prueba: 8 cuentas con la contraseña `Password1`, ONGs, empresa, proyectos, inscripciones...
+// Datos de prueba: 9 cuentas con la contraseña `Password1`, ONGs, empresa, proyectos, inscripciones, equipo...
 // SOLO para desarrollo y tests. Con NODE_ENV=production se niega (REVISION S9): esas cuentas quedarían
 // abiertas en producción. La guarda (al final del archivo) va ANTES de cargar el adaptador de la base, así
 // no se abre ninguna conexión ni se crea el archivo de SQLite.
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
+const { randomUUID } = require('node:crypto');
 let db;   // se carga recién después de la guarda de producción (ver el final del archivo)
 
 async function seed() {
@@ -17,6 +18,8 @@ async function seed() {
     { id: 'user-vol-1',  name: 'María García',        email: 'maria@example.com',           password: hash('Password1'), role: 'volunteer' },
     { id: 'user-vol-2',  name: 'Juan Pérez',           email: 'juan@example.com',            password: hash('Password1'), role: 'volunteer' },
     { id: 'user-vol-3',  name: 'Lucía Fernández',      email: 'lucia@example.com',           password: hash('Password1'), role: 'volunteer' },
+    // Coordinadora del equipo de Sustentando (§303). Aparte de las otras tres, que los tests usan como voluntarias sin acceso.
+    { id: 'user-vol-4',  name: 'Sofía Romero',         email: 'sofia@example.com',           password: hash('Password1'), role: 'volunteer' },
     { id: 'user-ngo-1',  name: 'Admin Sustentando',    email: 'admin@sustentando.org',       password: hash('Password1'), role: 'ngo' },
     { id: 'user-ngo-2',  name: 'Admin GreenCba',       email: 'admin@greencba.org',          password: hash('Password1'), role: 'ngo' },
     { id: 'user-ngo-3',  name: 'Admin Banco Alimentos',email: 'admin@bancoalimentos.org',    password: hash('Password1'), role: 'ngo' },
@@ -41,6 +44,7 @@ async function seed() {
     { user_id: 'user-vol-1', nombre: 'María',  apellido: 'García',    ubicacion: 'Córdoba Capital' },
     { user_id: 'user-vol-2', nombre: 'Juan',   apellido: 'Pérez',     ubicacion: 'Córdoba Capital' },
     { user_id: 'user-vol-3', nombre: 'Lucía',  apellido: 'Fernández', ubicacion: 'Alta Gracia, Córdoba' },
+    { user_id: 'user-vol-4', nombre: 'Sofía',  apellido: 'Romero',    ubicacion: 'Córdoba Capital' },
   ];
   for (const v of voluntarios) {
     const exists = await db.get('SELECT id FROM voluntarios WHERE user_id=$1', [v.user_id]);
@@ -407,11 +411,27 @@ async function seed() {
   }
   console.log('  ✅ Calificaciones (ratings)');
 
+  // ── Equipo de Sustentando (§303) ──────────────────────────────────────────
+  // Sofía, coordinadora activa; Lucía, invitada a Comunicación (ve el aviso en su Inicio). UNIQUE(ngo_id, user_id).
+  const team = [
+    { user_id: 'user-vol-4', rol: 'coordinador', estado: 'activo' },
+    { user_id: 'user-vol-3', rol: 'comunicador', estado: 'invitado' },
+  ];
+  for (const m of team) {
+    await db.run(
+      `INSERT INTO ngo_miembros (id, ngo_id, user_id, rol, estado, invitado_por) VALUES ($1,'ngo-1',$2,$3,$4,'user-ngo-1')
+       ON CONFLICT DO NOTHING`,
+      [randomUUID(), m.user_id, m.rol, m.estado]
+    );
+  }
+  console.log('  ✅ Equipo de Sustentando');
+
   console.log('\n✅ Seed completado');
   console.log('\n📬 Usuarios de prueba:');
   console.log('  maria@example.com         / Password1  (voluntario)');
   console.log('  juan@example.com          / Password1  (voluntario)');
-  console.log('  lucia@example.com         / Password1  (voluntario)');
+  console.log('  lucia@example.com         / Password1  (voluntario; invitada al equipo de Sustentando)');
+  console.log('  sofia@example.com         / Password1  (voluntario; coordinadora de Sustentando)');
   console.log('  admin@sustentando.org     / Password1  (ONG)');
   console.log('  admin@greencba.org        / Password1  (ONG)');
   console.log('  admin@bancoalimentos.org  / Password1  (ONG)');

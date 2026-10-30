@@ -20,7 +20,8 @@ npm run dev                # http://localhost:3001  (WebSocket del chat en ws://
 
 Sin las variables de Cloudinary, Mercado Pago o Resend, la API arranca igual y lo dice en el log: no se pueden subir
 fotos ni CV, no se puede donar y los emails se omiten. Usuarios de prueba (contraseña `Password1`):
-`maria@example.com`, `juan@example.com` y `lucia@example.com` (voluntarios), `admin@sustentando.org` (ONG) y
+`maria@example.com`, `juan@example.com`, `lucia@example.com` y `sofia@example.com` (voluntarios; Sofía coordina el
+equipo de Sustentando y Lucía tiene una invitación), `admin@sustentando.org` (ONG) y
 `admin@techcorp.com` (empresa); la lista completa la imprime `npm run db:seed`. El seed no corre con `NODE_ENV=production`.
 
 ## Tests

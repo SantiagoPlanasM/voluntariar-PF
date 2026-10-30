@@ -188,11 +188,14 @@ commit desplegado).
 
 ### Usuarios de prueba (solo local; el seed se niega a correr con `NODE_ENV=production`)
 
+En el equipo de Sustentando, Sofía es coordinadora y Lucía tiene una invitación pendiente (Comunicación).
+
 | Rol | Email | Contraseña |
 |-----|-------|------------|
 | Voluntario | maria@example.com | Password1 |
 | Voluntario | juan@example.com | Password1 |
 | Voluntario | lucia@example.com | Password1 |
+| Voluntario | sofia@example.com | Password1 |
 | ONG | admin@sustentando.org | Password1 |
 | ONG | admin@greencba.org | Password1 |
 | ONG | admin@bancoalimentos.org | Password1 |

@@ -60,6 +60,14 @@
 5. Como **ONG 1**: en el detalle del voluntariado, aprobar a Lucía (y **cargarle horas**), dejar a Martín **pendiente**, abrir su CV con **"Ver CV"** y **"Agendar entrevista"** para Martín (fecha futura, un link `https://…` o un lugar, y una nota). No lo apruebes: al aprobar o rechazar, la entrevista se cancela sola.
    Como **ONG 2**: rechazar a Sofía.
 
+### 2.5 Equipo de la ONG 1 (§293–§303)
+Para que en la defensa se vea el equipo sin armarlo en vivo:
+1. Como **ONG 1**: **Panel → "Equipo"** (el acceso está debajo de los números; en escritorio también en la barra lateral) → invitar a **Sofía** con el rol **Coordinación**.
+2. Como **Sofía**: en su **Inicio** aparece "ONG 1 te invitó a su equipo" → **"Aceptar"** → **"Abrir el panel"**.
+3. Como **ONG 1**: invitar a **Martín** con el rol **Comunicación** y dejar la invitación **pendiente** (Martín la acepta en vivo en la defensa).
+
+La invitación no manda mail: solo el aviso dentro de la app (campanita y el Inicio).
+
 ### 2.4 Contenido y actividad
 1. **Lucía**: **Crear → "Nueva publicación"** con 2 o 3 fotos del proyecto aprobado; un comentario y una **reseña** del proyecto.
 2. **ONG 1**: una publicación en Momentos desde su panel.
@@ -78,6 +86,9 @@
 - [ ] **"Patrocinado por"** en el proyecto con el acuerdo aceptado, y el proyecto en la pestaña Patrocinios del **perfil público de la empresa**. Sin montos a la vista.
 - [ ] **Martín → Mis voluntariados → Postulaciones**: el chip **"Entrevista"** con la fecha, la hora y el link o el lugar.
 - [ ] **ONG 1 → campanita**: "Nueva solicitud de inscripción" y "Recibiste una donación".
+- [ ] **ONG 1 → Panel**: los accesos Patrocinios, Publicaciones y "Equipo · 1 miembro · 1 invitación pendiente", también en el celular.
+- [ ] **Martín → Inicio**: el aviso de la invitación de la ONG 1 con "Aceptar" y "Rechazar".
+- [ ] **Sofía → Perfil → "Equipos" → "Panel"**: las postulaciones sin responder de la ONG 1 (incluida la de Martín).
 - [ ] **Perfil público** de Lucía: foto, habilidades, participaciones (con las horas de cada voluntariado, §271) y Momentos.
 - [ ] **ONG 1 → una entrevista agendada → "Agregar al calendario"** (Google Calendar o `.ics`, §271).
 - [ ] **Asistente** (Mensajes → "Asistente VoluntariAR", arriba de todo): responde una pregunta frecuente con los nombres de pantalla actuales (§246).

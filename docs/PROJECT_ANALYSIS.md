@@ -109,3 +109,21 @@ Antes, en el celular, la ONG llegaba a su equipo (`/ngo/equipo`) solo por Perfil
 
 ### ⚠️ NO verificado
 - Un teléfono angosto de verdad (la ventana de Chrome no bajó de 756 px).
+
+## 303. Equipo de demo: en el seed y en DEMO_DATOS
+
+### Qué se hizo
+- **Seed:** una voluntaria nueva, **Sofía Romero** (`user-vol-4`, `sofia@example.com`), coordinadora activa de Sustentando, y **Lucía** invitada a Comunicación. Es idempotente (`ON CONFLICT DO NOTHING` sobre `UNIQUE(ngo_id, user_id)`). Así, en local, el Panel muestra "1 miembro · 1 invitación pendiente" y el Inicio de Lucía, el aviso. Se agregó una cuenta nueva porque los tests usan a María, Juan y Lucía como voluntarios sin acceso.
+- **Producción:** el seed no corre ahí (a propósito). `DEMO_DATOS.md` suma el paso 2.5: la ONG 1 invita a Sofía (Coordinación), Sofía acepta desde su Inicio y Martín queda invitado (Comunicación) para aceptar en vivo. También suma tres puntos al chequeo final.
+- `README.md`, `backend/README.md` y `DATABASE_CONTEXT.md`: la cuenta nueva y el equipo.
+
+### Verificación
+- Test primero: `seed-team.test.js` (4 tests: miembros de la ONG, panel de Sofía, invitación de Lucía sin panel (403) y seed repetido sin duplicar). Rojo sin el cambio y verde con él.
+- Backend: **1092** en SQLite, **1094** en Postgres y **1092** con `TZ=America/Argentina/Cordoba`, 0 fallas y 0 canceladas (antes 1088/1090: +4 de `seed-team.test.js`).
+
+### Errores propios
+- Dije que ningún test chocaba con la invitación de Lucía, pero solo había revisado los tests del equipo. `ownership.test.js` la insertaba como miembro de `ngo-1` y chocó con el `UNIQUE`. Se cambió a María (`user-vol-1`), que el seed no pone en ningún equipo.
+- `seed-production.test.js` contaba 8 cuentas; ahora son 9.
+
+### ⚠️ NO verificado
+- Que la carga del paso 2.5 en producción salga como dice la guía: la hace el usuario por la interfaz.

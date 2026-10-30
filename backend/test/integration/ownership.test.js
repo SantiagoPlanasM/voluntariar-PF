@@ -277,17 +277,17 @@ describe('Autorización por dueño entre ONGs', () => {
 
   describe('equipo de la ONG (§294–§295)', () => {
     test('otra ONG no cambia el rol ni saca a un miembro ajeno, ni ve su equipo; la dueña sí', async () => {
-      // user-vol-3 (Lucía) es coordinadora activa de ngo-1.
-      await db.run(`INSERT INTO ngo_miembros (id, ngo_id, user_id, rol, estado) VALUES ('mbr-own-1','ngo-1','user-vol-3','coordinador','activo')`);
+      // user-vol-1 (María) es coordinadora activa de ngo-1. No Lucía: el seed ya la tiene invitada a ngo-1 (§303).
+      await db.run(`INSERT INTO ngo_miembros (id, ngo_id, user_id, rol, estado) VALUES ('mbr-own-1','ngo-1','user-vol-1','coordinador','activo')`);
       const row = () => db.get(`SELECT rol, estado FROM ngo_miembros WHERE id='mbr-own-1'`);
-      assert.equal((await api('/api/equipo/miembros/user-vol-3', { token: other, method: 'PATCH', body: { role: 'communicator' } })).status, 404);
-      assert.equal((await api('/api/equipo/miembros/user-vol-3', { token: other, method: 'DELETE' })).status, 404);
+      assert.equal((await api('/api/equipo/miembros/user-vol-1', { token: other, method: 'PATCH', body: { role: 'communicator' } })).status, 404);
+      assert.equal((await api('/api/equipo/miembros/user-vol-1', { token: other, method: 'DELETE' })).status, 404);
       const list = await api('/api/equipo/miembros', { token: other });
-      assert.ok(!list.body.members.some((m) => m.user_id === 'user-vol-3'), 'la otra ONG no ve el equipo ajeno');
+      assert.ok(!list.body.members.some((m) => m.user_id === 'user-vol-1'), 'la otra ONG no ve el equipo ajeno');
       assert.deepEqual(await row(), { rol: 'coordinador', estado: 'activo' });
-      assert.equal((await api('/api/equipo/miembros/user-vol-3', { token: owner, method: 'PATCH', body: { role: 'communicator' } })).status, 200);
+      assert.equal((await api('/api/equipo/miembros/user-vol-1', { token: owner, method: 'PATCH', body: { role: 'communicator' } })).status, 200);
       assert.equal((await row()).rol, 'comunicador');
-      assert.equal((await api('/api/equipo/miembros/user-vol-3', { token: owner, method: 'DELETE' })).status, 200);
+      assert.equal((await api('/api/equipo/miembros/user-vol-1', { token: owner, method: 'DELETE' })).status, 200);
       assert.equal(await row(), undefined);
     });
   });

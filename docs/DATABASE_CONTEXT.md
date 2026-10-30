@@ -129,7 +129,7 @@ No hay índices de texto: las búsquedas `ILIKE` sobre título y descripción re
 
 ## 5. Seed (`backend/scripts/seed.js`)
 
-- Es idempotente, con ids legibles (`user-vol-1`, `ngo-1`, `project-…`) y contraseña `Password1` (las credenciales están en el `README.md` de la raíz). Carga voluntarios, ONG, una empresa, unos 12 proyectos con roles y requisitos, y seguimientos.
+- Es idempotente, con ids legibles (`user-vol-1`, `ngo-1`, `project-…`) y contraseña `Password1` (las credenciales están en el `README.md` de la raíz). Carga voluntarios, ONG, una empresa, unos 12 proyectos con roles y requisitos, seguimientos y el equipo de Sustentando (`ngo_miembros`: Sofía, `user-vol-4`, coordinadora activa; Lucía, invitada a Comunicación). Sofía está solo para eso: los tests usan a María, Juan y Lucía como voluntarios sin acceso al equipo.
 - **No corre en producción:** con `NODE_ENV=production` sale con código 1 antes de abrir la base. Para una base local con ese `.env`: `NODE_ENV=development npm run db:seed`.
 
 ## 6. Problemas conocidos

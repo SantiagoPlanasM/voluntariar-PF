@@ -16,7 +16,7 @@ Respondé en español rioplatense (voseo).
 - La historia de cada cosa ("§N") está en `docs/PROJECT_ANALYSIS.md` (índice) y `docs/archivo/`. No la cargues si no hace falta.
 
 ## Verificación (todo tiene que dar verde)
-- **Backend:** `npm test` y `npm run test:pg`. Hoy **1088** en SQLite y **1090** en Postgres (+2 solo de Postgres). El conteo incluye `test/integration/helpers.js`, que no es un test: los reales son **1087**. Un `before()` que falla deja los tests como **cancelled** (no `fail`): mirá ese número y el código de salida.
+- **Backend:** `npm test` y `npm run test:pg`. Hoy **1092** en SQLite y **1094** en Postgres (+2 solo de Postgres). El conteo incluye `test/integration/helpers.js`, que no es un test: los reales son **1091**. Un `before()` que falla deja los tests como **cancelled** (no `fail`): mirá ese número y el código de salida.
   - `test:pg` necesita Postgres en `localhost:5432` (`TEST_PG_*` en `helpers.js`): `docker run --rm -d -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=voluntariar_test postgres:16`.
   - `email-redos.test.js` tiene 1500 ms de umbral (con 500 fallaba a veces en local).
   - Scripts del CI aparte: `node --test ".github/scripts/*.test.js"` (con comillas).

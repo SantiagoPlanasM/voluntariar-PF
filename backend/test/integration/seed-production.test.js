@@ -1,6 +1,6 @@
 // test/integration/seed-production.test.js
 //
-// REVISION S9: `scripts/seed.js` crea 8 cuentas con la contraseña `Password1`. Correrlo contra la base de
+// REVISION S9: `scripts/seed.js` crea 9 cuentas con la contraseña `Password1`. Correrlo contra la base de
 // producción (`npm run db:seed` con el .env de Render) dejaría esas cuentas abiertas. Con
 // NODE_ENV=production tiene que negarse: salir con error y un mensaje claro, SIN tocar la base.
 // Se corre el script de verdad, como proceso hijo, contra la base temporal de los tests (SQLite o el schema
@@ -69,9 +69,9 @@ describe('scripts/seed.js', () => {
     let r;
     before(() => { r = runSeed({ extra: { NODE_ENV: 'development' } }); });
 
-    test('sale con 0 y crea las 8 cuentas de prueba', async () => {
+    test('sale con 0 y crea las 9 cuentas de prueba', async () => {
       assert.equal(r.code, 0, r.err);
-      assert.equal(await count('users'), 8);
+      assert.equal(await count('users'), 9);
     });
 
     test('el resumen final lista TODAS las cuentas que creó, la empresa incluida (admin@techcorp.com)', async () => {
