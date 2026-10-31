@@ -147,3 +147,23 @@ Antes, en el celular, la ONG llegaba a su equipo (`/ngo/equipo`) solo por Perfil
 
 ### ⚠️ NO verificado
 - No se probó en producción ni en un teléfono físico. Sí se vio en Chrome local (tema oscuro): a 390 px, en un iframe, los tres accesos uno debajo del otro y sin scroll horizontal; en escritorio, una fila de tres.
+
+## 305. Contador de invitaciones a equipos en "Perfil"
+
+### Qué se hizo
+- El aviso de una invitación a un equipo se veía solo en el Inicio y en "Equipos" del perfil (§301). Ahora el ítem **Perfil** del voluntario (barra inferior y lateral) muestra cuántas invitaciones tiene sin responder, con el mismo globito que Mensajes y Notificaciones. No cuenta los equipos activos.
+- `navConfig`: `badge: 'team'` en Perfil del voluntario. `useBadges`: pide `GET /equipo/mias` solo si la sesión es de un voluntario, y lo repite al cambiar de pantalla, como las notificaciones: aceptar o rechazar borra el contador en la navegación siguiente.
+
+### Verificación
+- Test primero (`AppShell.test.tsx`, +4): el contador en las dos barras, sin contador con solo equipos activos o si falla el pedido, otra consulta al cambiar de pantalla, y ONG y empresa sin consultar. Los tres primeros, rojos sin el cambio. El de ONG y empresa ya pasaba: es una guarda contra pedidos de más.
+- Frontend: **1213** tests (+4), `npm run typecheck` sin errores. Cobertura: sentencias 90,62 %, ramas 87,14 %, funciones 87 %, líneas 93,39 %.
+- Mutación (6 mutantes, con la corrida de control): ningún sobreviviente. Los fuentes quedaron iguales a la copia previa.
+- Backend: no cambió.
+
+### Errores propios
+- El primer `tail` de la salida de la mutación dejó afuera la línea del control; se corrió el control aparte (24/24) antes de dar por muertos los mutantes.
+
+### ⚠️ NO verificado
+- En Chrome: el globito en Perfil (el mismo componente que Mensajes y Notificaciones).
+- Al aceptar desde el aviso del Inicio, el contador sigue hasta la navegación siguiente (por ejemplo, "Abrir el panel"): no se actualiza en el momento.
+- Un pedido más por navegación para los voluntarios; no se midió el costo.

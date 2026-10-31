@@ -15,6 +15,7 @@ main.tsx: StrictMode > AuthProvider > ChatProvider > UiProvider > RouterProvider
 ```
 
 - **Navegación:** los ítems de cada rol salen de una sola lista, `app/layout/navConfig.ts` (`NAV[rol].tabs` y `.side`).
+- **Contadores (`useBadges` en `AppShell`):** Mensajes (no leídos del chat), Notificaciones (`GET /notifications`) y, solo para el voluntario, **Perfil** con las invitaciones a equipos sin responder (`GET /equipo/mias`). Los dos pedidos se repiten al cambiar de pantalla; si fallan, no hay contador.
 - **`ScrollToTop`:** una navegación nueva vuelve arriba; "atrás" y los `#ancla`, no.
 - **`RequireRole`:** muestra "cargando" mientras verifica. Sin sesión, va al inicio con el login abierto; con otro rol, al inicio de ese rol (`homeFor`). Es solo experiencia de uso: la autorización está en el backend.
 

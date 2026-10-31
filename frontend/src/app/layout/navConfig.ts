@@ -14,8 +14,8 @@ export interface NavItem {
   icon: LucideIcon;
   /** Rellenar el ícono cuando está activo (los que tienen forma cerrada). */
   fill?: boolean;
-  /** Contador de no leídos que muestra el ítem. */
-  badge?: 'messages' | 'notifications';
+  /** Contador que muestra el ítem: no leídos, o invitaciones a equipos de ONG pendientes (§305). */
+  badge?: 'messages' | 'notifications' | 'team';
   /** Prefijos extra de ruta que también lo dejan activo. */
   also?: string[];
   /** El ítem de perfil se dibuja con el avatar de la persona. */
@@ -37,7 +37,7 @@ const volunteer: NavSet = (() => {
   const home: NavItem = { to: '/feed', label: 'Inicio', icon: Home, fill: true };
   const create: NavItem = { to: '/momentos?crear=1', label: 'Crear', icon: SquarePlus };
   const mine: NavItem = { to: '/participation', label: 'Mis voluntariados', icon: CalendarCheck };
-  const profile: NavItem = { to: '/profile', label: 'Perfil', icon: User, avatar: true };
+  const profile: NavItem = { to: '/profile', label: 'Perfil', icon: User, avatar: true, badge: 'team' };
   return {
     tabs: [home, explore, create, mine, profile],
     side: [

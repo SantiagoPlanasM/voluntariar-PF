@@ -19,7 +19,9 @@ vi.mock('../../lib/ChatContext', () => ({ useChatOptional: () => chat }));
 vi.mock('../components/AuthModal', () => ({ AuthModal: () => null }));
 vi.mock('../../lib/api', async () => {
   const actual = await vi.importActual<typeof import('../../lib/api')>('../../lib/api');
-  return { ...actual, api: { ...actual.api, notifications: { ...actual.api.notifications, list: vi.fn() } } };
+  return { ...actual, api: { ...actual.api,
+    notifications: { ...actual.api.notifications, list: vi.fn() },
+    team: { ...actual.api.team, mine: vi.fn() } } };
 });
 
 import { api } from '../../lib/api';
@@ -54,6 +56,7 @@ beforeEach(() => {
   auth.logout.mockReset();
   auth.openAuthModal.mockReset();
   vi.mocked(api.notifications.list).mockReset().mockResolvedValue({ notifications: [], unread: 0 } as never);
+  vi.mocked(api.team.mine).mockReset().mockResolvedValue({ memberships: [] });
   localStorage.clear();
 });
 
@@ -127,6 +130,48 @@ describe('<AppShell />', () => {
     const messages = within(sideBar()).getByRole('link', { name: 'Mensajes' });
     expect(within(messages).getAllByText('9+').length).toBeGreaterThan(0);
     expect(within(within(sideBar()).getByRole('link', { name: 'Explorar' })).queryByText('9+')).not.toBeInTheDocument();
+  });
+
+  // §305: la invitación a un equipo se ve en el Inicio y en "Equipos" del perfil; el punto en Perfil avisa desde
+  // cualquier pantalla. Solo cuenta las invitaciones (los equipos activos no).
+  test('invitaciones a equipos: el contador va en Perfil (barra inferior y lateral)', async () => {
+    const m = (ngo_id: string, status: 'invited' | 'active') => ({ ngo_id, ngo_name: ngo_id, ngo_logo: null, role: 'coordinator' as const, status });
+    vi.mocked(api.team.mine).mockResolvedValue({ memberships: [m('ngo-1', 'invited'), m('ngo-2', 'invited'), m('ngo-4', 'active')] });
+    app('/explore');
+    const tab = within(tabBar()).getByRole('link', { name: 'Perfil' });
+    await waitFor(() => expect(within(tab).getByText('2')).toBeInTheDocument());
+    expect(within(within(sideBar()).getByRole('link', { name: 'Perfil' })).getAllByText('2').length).toBeGreaterThan(0);
+    expect(within(within(tabBar()).getByRole('link', { name: 'Inicio' })).queryByText('2')).not.toBeInTheDocument();
+  });
+
+  test('invitaciones: sin pendientes o si falla el pedido, Perfil va sin contador', async () => {
+    vi.mocked(api.team.mine).mockResolvedValueOnce({ memberships: [{ ngo_id: 'ngo-4', ngo_name: 'T', ngo_logo: null, role: 'communicator', status: 'active' }] });
+    const { unmount } = app('/explore');
+    await waitFor(() => expect(api.team.mine).toHaveBeenCalled());
+    expect(within(within(tabBar()).getByRole('link', { name: 'Perfil' })).queryByText(/\d/)).not.toBeInTheDocument();
+    unmount();
+    vi.mocked(api.team.mine).mockRejectedValueOnce(new Error('red'));
+    app('/explore');
+    await waitFor(() => expect(api.team.mine).toHaveBeenCalledTimes(2));
+    expect(within(within(tabBar()).getByRole('link', { name: 'Perfil' })).queryByText(/\d/)).not.toBeInTheDocument();
+  });
+
+  test('invitaciones: al cambiar de pantalla se vuelve a consultar (aceptar borra el contador)', async () => {
+    const invited = { ngo_id: 'ngo-1', ngo_name: 'S', ngo_logo: null, role: 'coordinator' as const, status: 'invited' as const };
+    vi.mocked(api.team.mine).mockResolvedValueOnce({ memberships: [invited] })
+      .mockResolvedValue({ memberships: [{ ...invited, status: 'active' }] });
+    app('/feed');
+    const tab = () => within(tabBar()).getByRole('link', { name: 'Perfil' });
+    await waitFor(() => expect(within(tab()).getByText('1')).toBeInTheDocument());
+    fireEvent.click(within(tabBar()).getByRole('link', { name: 'Explorar' }));
+    await waitFor(() => expect(within(tab()).queryByText('1')).not.toBeInTheDocument());
+  });
+
+  test('ONG y empresa no consultan invitaciones (son de voluntarios)', async () => {
+    as('ngo');
+    app('/ngo/dashboard');
+    await waitFor(() => expect(api.notifications.list).toHaveBeenCalled());
+    expect(api.team.mine).not.toHaveBeenCalled();
   });
 
   test('barra superior en el Inicio del voluntario: logo, notificaciones y mensajes con su contador', async () => {

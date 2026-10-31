@@ -22,7 +22,14 @@ function useBadges() {
     if (!user) { setNotifications(0); return; }
     api.notifications.list().then(r => setNotifications(Number(r.unread) || 0)).catch(() => {});
   }, [user, pathname]);
-  return { messages: unreadTotal, notifications };
+  // Invitaciones a equipos de ONG sin responder (§305), en Perfil: solo las tiene un voluntario. Se vuelve a pedir
+  // al cambiar de pantalla, como las notificaciones, para que aceptar o rechazar borre el contador.
+  const [team, setTeam] = useState(0);
+  useEffect(() => {
+    if (user?.role !== 'volunteer') { setTeam(0); return; }
+    api.team.mine().then(r => setTeam(r.memberships.filter(m => m.status === 'invited').length)).catch(() => {});
+  }, [user, pathname]);
+  return { messages: unreadTotal, notifications, team };
 }
 
 function Badge({ n, className = '' }: { n: number; className?: string }) {
