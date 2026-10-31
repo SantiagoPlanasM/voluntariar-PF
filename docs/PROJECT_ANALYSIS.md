@@ -167,3 +167,19 @@ Antes, en el celular, la ONG llegaba a su equipo (`/ngo/equipo`) solo por Perfil
 - En Chrome: el globito en Perfil (el mismo componente que Mensajes y Notificaciones).
 - Al aceptar desde el aviso del Inicio, el contador sigue hasta la navegación siguiente (por ejemplo, "Abrir el panel"): no se actualiza en el momento.
 - Un pedido más por navegación para los voluntarios; no se midió el costo.
+
+## 306. Guion de la defensa con el equipo de la ONG
+
+### Qué se hizo
+- `GUION_DEFENSA.md`, recorrido: el equipo tiene su propio minuto (6–7). Muestra los accesos del Panel (§304); Martín con el globito en Perfil (§305) y el aviso del Inicio → Aceptar → Abrir el panel (§301); y Sofía, desde "Equipos" de su perfil, con las postulaciones sin responder. La ONG pasa de 4–7 a 4–6. Se sacó la mención al equipo que estaba metida en la fila de la ONG, en medio de la frase de la entrevista.
+- Avisa que no se responda la postulación de Martín, porque aprobar o rechazar cancela su entrevista (que se muestra en otro minuto).
+- Días antes: el equipo en los datos de demo (paso 2.5 de `DEMO_DATOS`), una captura más y el seed del plan B. El día: una sesión para Martín y Sofía.
+
+### Verificación
+- Solo documentación: no se corrieron las suites. Se revisó que los nombres de pantalla y de botón ("Aceptar", "Abrir el panel", "Equipos", "Panel", "Publicar un Momento") coincidan con los de las pantallas y con el paso 2.5 de `DEMO_DATOS`.
+
+### Errores propios
+- Ninguno en este cambio.
+
+### ⚠️ NO verificado
+- Que el minuto 6–7 alcance: depende de cuánto tarde cambiar de sesión entre Martín y Sofía.
