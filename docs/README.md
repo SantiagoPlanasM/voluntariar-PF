@@ -44,7 +44,7 @@ cumplió su función: se conserva sin cambios porque la bitácora y el informe l
 | [`calidad/DISENO_CASOS.md`](calidad/DISENO_CASOS.md) | Técnicas de diseño de casos |
 | [`calidad/REGISTRO_DEFECTOS.md`](calidad/REGISTRO_DEFECTOS.md) | Los 32 defectos, con su Issue, su test y su commit |
 | [`calidad/SESION_EXPLORATORIA.md`](calidad/SESION_EXPLORATORIA.md) | La sesión exploratoria y sus hallazgos |
-| [`calidad/METRICAS.md`](calidad/METRICAS.md) | Métricas; §7–§8 son los cortes posteriores al informe |
+| [`calidad/METRICAS.md`](calidad/METRICAS.md) | Métricas; §7–§9 son los cortes posteriores al informe |
 | [`calidad/TRIAGE_SONAR.md`](calidad/TRIAGE_SONAR.md) | Qué se arregló y qué se aceptó de SonarCloud |
 | [`calidad/HERRAMIENTA_NUEVA.md`](calidad/HERRAMIENTA_NUEVA.md) | SonarCloud: proceso y matriz de decisión |
 | [`calidad/INTEGRACION_MERCADOPAGO.md`](calidad/INTEGRACION_MERCADOPAGO.md) | Cómo se prueba la integración externa |

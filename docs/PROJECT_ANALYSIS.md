@@ -183,3 +183,29 @@ Antes, en el celular, la ONG llegaba a su equipo (`/ngo/equipo`) solo por Perfil
 
 ### ⚠️ NO verificado
 - Que el minuto 6–7 alcance: depende de cuánto tarde cambiar de sesión entre Martín y Sofía.
+
+## 307. Documentación al día para la defensa
+
+### Qué se hizo
+- **Comparación contra el código:** los 109 endpoints de `routes/`, las 38 tablas, las 36 rutas del frontend y las bibliotecas de `src/lib/` están documentados, y no hay links rotos en los docs vigentes. `API_CONTEXT`, `DATABASE_CONTEXT`, `BACKEND_CONTEXT` y `FRONTEND_CONTEXT` no necesitaron cambios.
+- **`README.md`:** 38 tablas (decía 36); entrevistas, equipo y patrocinio por acuerdo en las funciones y los roles; `/api/patrocinios` y `/api/equipo` en las rutas; números de calidad del corte `f4e2995` (eran los del 23/10).
+- **`GUION_DEFENSA.md`:** números, cobertura y complejidad al último corte (`routes/projects.js` está en 265, no en 257). Se sacó del trabajo futuro el chat empresa ↔ ONG, que ya existe.
+- **`PLAN_CIERRE.md`:** reescrito con lo que falta al 4/11. Lo hecho se sacó, los datos de prueba de producción dejaron de figurar como pendiente, y se sumó Cloudinary por carpetas. La base de Render quedó primera después de la defensa.
+- **`DEMO_DATOS.md`:** Martín y Sofía con su papel en el equipo en la tabla de cuentas, y la sección 2.5 después de la 2.4.
+- **`METRICAS.md` §9:** corte final de `f4e2995`. Se sacó el "no verificado" de las calificaciones A/A, que ya salen de análisis del CI.
+- `PLAN_EQUIPOS.md` (encabezado contradictorio), `PROJECT_CONTEXT.md` (fecha) y `docs/README.md` (índice).
+- **Hallazgo:** `deploy.yml` no filtra por rutas, así que un push de solo documentación también despliega. Quedó escrito en `GUION_DEFENSA.md` y `PLAN_CIERRE.md`.
+
+### Verificación
+- Solo documentación: no se corrieron las suites, porque el código no cambió desde `f4e2995`.
+- Cobertura: del `lcov.info` de los artefactos del CI 41149847508 (backend, `backend-sqlite-0`; frontend, `frontend-tests-0`). Sonar: API pública, análisis de `f4e2995`. Pipeline: `gh run list`. `/health` y `npm audit` (0 y 0), corridos el 4/11.
+- La comparación con el código es por script (texto contra texto): dice que cada cosa está nombrada, no que su descripción sea exacta.
+
+### Errores propios
+- El `README.md` quedó atrás desde §293: los cambios de esas secciones actualizaron los `*_CONTEXT.md`, pero no el `README`.
+- `GUION_DEFENSA.md` decía que `routes/projects.js` bajó a 257 sin aclarar que después subió a 265. El dato estaba en `METRICAS.md` §8.
+
+### ⚠️ NO verificado
+- Si el paso 2.5 de `DEMO_DATOS` ya está cargado en producción: no se ve desde afuera sin sesión.
+- Los mensajes del log de arranque de Render (el punto sigue abierto en el guion).
+- **Commit local, sin push:** va después de la defensa, para no desplegar. Hasta entonces, GitHub muestra los docs anteriores.

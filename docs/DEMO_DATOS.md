@@ -24,8 +24,8 @@
 | 2 | ONG | "Banco de Alimentos Barrial" | Alimentación, con proyectos sin meta |
 | 3 | Empresa | "TecnoSur S.A." | Patrocinio y panel de la empresa |
 | 4 | Voluntario/a | "Lucía Gómez" | El caso completo: CV, aprobada, horas, Momentos, reseña |
-| 5 | Voluntario/a | "Martín Ruiz" | Inscripción pendiente (la ONG ve su CV) |
-| 6 | Voluntario/a | "Sofía Paz" | Inscripción rechazada, seguidores |
+| 5 | Voluntario/a | "Martín Ruiz" | Inscripción pendiente con entrevista (la ONG ve su CV) e invitación pendiente al equipo de la ONG 1 |
+| 6 | Voluntario/a | "Sofía Paz" | Inscripción rechazada, seguidores y coordinadora del equipo de la ONG 1 |
 | — | Comprador de prueba de Mercado Pago | (ya lo tenés) | Pagar las donaciones (no es una cuenta de la app) |
 
 ## 2. Orden de carga
@@ -60,14 +60,6 @@
 5. Como **ONG 1**: en el detalle del voluntariado, aprobar a Lucía (y **cargarle horas**), dejar a Martín **pendiente**, abrir su CV con **"Ver CV"** y **"Agendar entrevista"** para Martín (fecha futura, un link `https://…` o un lugar, y una nota). No lo apruebes: al aprobar o rechazar, la entrevista se cancela sola.
    Como **ONG 2**: rechazar a Sofía.
 
-### 2.5 Equipo de la ONG 1 (§293–§303)
-Para que en la defensa se vea el equipo sin armarlo en vivo:
-1. Como **ONG 1**: **Panel → "Equipo"** (el acceso está debajo de los números; en escritorio también en la barra lateral) → invitar a **Sofía** con el rol **Coordinación**.
-2. Como **Sofía**: en su **Inicio** aparece "ONG 1 te invitó a su equipo" → **"Aceptar"** → **"Abrir el panel"**.
-3. Como **ONG 1**: invitar a **Martín** con el rol **Comunicación** y dejar la invitación **pendiente** (Martín la acepta en vivo en la defensa).
-
-La invitación no manda mail: solo el aviso dentro de la app (campanita y el Inicio).
-
 ### 2.4 Contenido y actividad
 1. **Lucía**: **Crear → "Nueva publicación"** con 2 o 3 fotos del proyecto aprobado; un comentario y una **reseña** del proyecto.
 2. **ONG 1**: una publicación en Momentos desde su panel.
@@ -77,6 +69,14 @@ La invitación no manda mail: solo el aviso dentro de la app (campanita y el Ini
    - una a un proyecto **sin meta** de la ONG 2.
 
    Cada una tiene que terminar en "¡Gracias!".
+
+### 2.5 Equipo de la ONG 1 (§293–§303)
+Para que en la defensa se vea el equipo sin armarlo en vivo:
+1. Como **ONG 1**: **Panel → "Equipo"** (el acceso está debajo de los números; en escritorio también en la barra lateral) → invitar a **Sofía** con el rol **Coordinación**.
+2. Como **Sofía**: en su **Inicio** aparece "ONG 1 te invitó a su equipo" → **"Aceptar"** → **"Abrir el panel"**.
+3. Como **ONG 1**: invitar a **Martín** con el rol **Comunicación** y dejar la invitación **pendiente** (Martín la acepta en vivo en la defensa).
+
+La invitación no manda mail: solo el aviso dentro de la app (campanita y el Inicio).
 
 ## 3. Chequeo final (antes de la defensa)
 

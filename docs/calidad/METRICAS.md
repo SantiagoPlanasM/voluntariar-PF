@@ -205,9 +205,30 @@ Igual que la sección 7, no entra en el informe. Fuentes: la API pública de Son
 
 **Lectura:** el equipo de la ONG (§293–§296) y el encuadre de la foto (§297) sumaron código y tests en proporción: la cobertura subió apenas y la densidad de pruebas quedó igual. `routes/projects.js` subió de 257 a 265 con los permisos del equipo. Los dos refactors del frontend (§298–§299) bajaron `CreateVoluntariado.tsx` un 32 %. `ProjectDetails.tsx` bajó poco, porque casi toda su complejidad está en el JSX. La falla nueva del CI es la de `81fb24a` (§292): un timeout de `CreateVoluntariado` que seguía corriendo después del test; se arregló en el commit siguiente.
 
+## 9. Corte final antes de la defensa: `f4e2995` (31/10/2026)
+
+Igual que las secciones 7 y 8, no entra en el informe. Es lo que está en producción. Fuentes: el CI 41149847508 (9 jobs en verde; cobertura calculada del `lcov.info` de sus artefactos), la API pública de SonarCloud (análisis de `f4e2995`, consultada el 4/11) y `gh run list`.
+
+| Métrica | `199259a` | `f4e2995` |
+|---|---|---|
+| Tests backend SQLite / Postgres | 1088 / 1090 | **1092 / 1094** (1091 reales en SQLite: el runner cuenta `helpers.js`) |
+| Tests frontend | 1187 | **1213** |
+| Cobertura del backend en el CI (líneas / ramas / funciones) | sin medir en este corte | **94,19 % / 87,20 % / 91,13 %** |
+| Cobertura del frontend en el CI (líneas / ramas / funciones) | sin medir en este corte | **93,40 % / 87,18 % / 87,01 %** |
+| Cobertura total en SonarCloud | 91,9 % (backend 92,6 %) | **92,0 %** (backend 92,6 %) |
+| Cobertura del código nuevo | 93,4 % | **93,5 %** |
+| ncloc / duplicación | 19.430 / 1,2 % (backend 7.045); código nuevo 0,1 % | **19.581 / 1,2 %** (backend 7.062); código nuevo 0,1 % |
+| Complejidad ciclomática / cognitiva | 5.170 / 3.268 | **5.213 / 3.282** |
+| Archivos más complejos (cognitiva) | `routes/projects.js` 265, `ProjectDetails.tsx` 105, `routes/enrollments.js` 94, `ProjectMap.tsx` 89, `CreateVoluntariado.tsx` 84 | **Los mismos, con los mismos valores** (también `FilterModal.tsx` 84) |
+| Bugs / vulnerabilidades / code smells / hotspots | 0 / 0 / 0 / 0 | **0 / 0 / 0 / 0** (A / A / A, gate OK, deuda 0) |
+| Aceptadas | 3 | **3** |
+| Tasa del pipeline | CI 58/62 (93,5 %), Deploy 49/53 (92,5 %) | **CI 63/67 (94,0 %)**, **Deploy 54/58 (93,1 %)** |
+| Densidad de pruebas (tests/KLOC) | backend 154,3 | **backend 154,5** (1091 / 7,062) |
+
+**Lectura:** los accesos al equipo y el aviso de invitación (§301–§306) sumaron 26 tests de frontend y 4 de backend con muy poco código: las métricas casi no se movieron. Los 5 CI que terminaron y los 5 Deploy de este tramo dieron verde (uno más se canceló al llegar otro push). La falla del runner del CI (§273) no volvió a aparecer en ese tramo, pero 5 corridas son pocas para darla por resuelta.
+
 ## ⚠️ No verificado
 
 - La duración de los deploys (1,3 min de media) mide el workflow de GitHub, que espera a que `/health` muestre el commit nuevo. No es el tiempo de build de Render.
 - Los tiempos de recuperación incluyen el tiempo de trabajo (análisis y correcciones), no solo el de la máquina.
 - La deuda técnica de SonarCloud es una estimación de la herramienta (minutos por regla), no una medición.
-- Las calificaciones A/A del estado actual salen de las medidas vivas de SonarCloud después de aceptar las issues. No hay un análisis nuevo del CI con ese estado (se verá en el próximo push).

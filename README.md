@@ -29,9 +29,9 @@
 VoluntariAR es una plataforma web que permite:
 
 - **Explorar sin cuenta:** voluntariados activos con búsqueda, filtros, categorías y mapa
-- **Voluntarios:** inscribirse, seguir ONG y voluntariados, ver sus participaciones y las horas que la ONG les certifica, y recibir recomendaciones ("Para vos")
-- **ONG:** publicar voluntariados (fugaces o sostenidos), aceptar o rechazar postulaciones, certificar horas, cargar KPIs de impacto y gestionar su equipo
-- **Empresas:** proponer patrocinios (RSE) y ver el impacto de lo que patrocinan
+- **Voluntarios:** inscribirse, seguir ONG y voluntariados, ver sus participaciones y las horas que la ONG les certifica, coordinar entrevistas, recibir recomendaciones ("Para vos") y sumarse al equipo de una ONG
+- **ONG:** publicar voluntariados (fugaces o sostenidos), aceptar o rechazar postulaciones, agendar entrevistas, certificar horas, cargar KPIs de impacto y dar acceso a su equipo (coordinación y comunicación), cada miembro con su cuenta
+- **Empresas:** negociar patrocinios (RSE) con la ONG, en un acuerdo por puntos que aceptan las dos partes, y ver el impacto de lo que patrocinan
 - **Donaciones con Mercado Pago** (Checkout Pro, **modo prueba**): cada ONG cobra en **su propia cuenta** (marketplace); la plataforma no toca la plata ni cobra comisión
 - **Momentos:** fotos de las jornadas, con "me gusta", de quien participó o de la ONG
 - **Mensajes:** chat en tiempo real y un **Asistente** de preguntas frecuentes (sin IA)
@@ -42,9 +42,9 @@ VoluntariAR es una plataforma web que permite:
 
 | Rol | Acceso |
 |-----|--------|
-| `volunteer` | Inicio, Explorar, inscripciones, Mis voluntariados, perfil con CV, Momentos (con inscripción aprobada), mensajes, donar |
-| `ngo` | Panel, crear y editar voluntariados, postulaciones, horas, KPIs, equipo, patrocinios, Momentos de sus proyectos, cuenta de Mercado Pago |
-| `company` | Panel con el impacto de lo patrocinado, propuestas de patrocinio, mensajes, donar |
+| `volunteer` | Inicio, Explorar, inscripciones, entrevistas, Mis voluntariados, perfil con CV, Momentos (con inscripción aprobada), mensajes, donar, panel del equipo si una ONG lo sumó |
+| `ngo` | Panel, crear y editar voluntariados, postulaciones, entrevistas, horas, KPIs, equipo, patrocinios, Momentos de sus proyectos, cuenta de Mercado Pago |
+| `company` | Panel con el impacto de lo patrocinado, acuerdos de patrocinio, mensajes, donar |
 
 ---
 
@@ -98,13 +98,14 @@ El adaptador de `backend/src/db/index.js` cambia según `USE_POSTGRES` y traduce
 │ /ngos /empresas /voluntarios         │      └──────────────────────┘
 │ /follows /posts /messages            │
 │ /notifications /donaciones /faqs     │
+│ /patrocinios /equipo                 │
 │ /ngos/me/mercadopago · /ws (chat)    │
 └──────────────┬───────────────────────┘
                │ SQL
                ▼
 ┌──────────────────────────────────────┐
 │ SQLite (local) · PostgreSQL (prod)   │
-│ 36 tablas                            │
+│ 38 tablas                            │
 └──────────────────────────────────────┘
 ```
 
@@ -165,7 +166,7 @@ cd backend
 npm install
 
 cp .env.example .env       # sirve como está para desarrollo
-npm run db:reset           # 36 tablas + datos base + usuarios y proyectos de prueba
+npm run db:reset           # 38 tablas + datos base + usuarios y proyectos de prueba
 npm run dev                # → API en http://localhost:3001
 ```
 
@@ -224,9 +225,9 @@ npm run build
 
 ## Calidad y CI/CD
 
-Al 23/10/2026 (CI #41): **932 tests de backend en SQLite y 934 en PostgreSQL** (en UTC y con la zona horaria de
-Córdoba), **954 de frontend**, cobertura de líneas del 93,23 % y del 90,81 %, SonarCloud con 0 issues abiertas y
-`npm audit` en 0.
+Al 31/10/2026 (CI de `f4e2995`): **1092 tests de backend en SQLite y 1094 en PostgreSQL** (en UTC y con la zona horaria
+de Córdoba; el conteo incluye `helpers.js`, que no es un test), **1213 de frontend**, cobertura de líneas del 94,19 % y
+del 93,40 %, SonarCloud con 0 issues abiertas y `npm audit` en 0. El informe del TP quedó congelado en el corte del CI #41.
 
 - **CI** (`.github/workflows/ci.yml`, en cada push): tipos y build del frontend, todas las suites, cobertura con umbral,
   SonarCloud con quality gate y `npm audit`.
@@ -293,16 +294,18 @@ Render lee `render.yaml` (**New → Blueprint**) y crea la base `voluntariar-db`
 ## API
 
 Cada ruta, con su autenticación, cuerpo, respuestas y errores, está en [`docs/API_CONTEXT.md`](docs/API_CONTEXT.md)
-(88 rutas). Acá van los grupos:
+(más de 100 rutas). Acá van los grupos:
 
 | Prefijo | Archivo | Qué hace |
 |---|---|---|
-| `/api/auth` | `routes/auth.js` | Registro, login, perfil propio, foto, borrar la cuenta |
-| `/api/projects` | `routes/projects.js` | Voluntariados: listado y búsqueda, detalle, alta y edición, comentarios, reseñas, recomendaciones, KPIs |
-| `/api/enrollments` | `routes/enrollments.js` | Inscripciones: postularse, cancelar, aceptar o rechazar (ONG) y certificar horas (ONG) |
-| `/api/ngos` | `routes/ngos.js` | Perfil de ONG, panel, equipo |
+| `/api/auth` | `routes/auth.js`, `routes/authPassword.js` | Registro, login, perfil propio, foto, borrar la cuenta, cambiar y recuperar la contraseña |
+| `/api/projects` | `routes/projects.js`, `routes/projectPhoto.js` | Voluntariados: listado y búsqueda, detalle, alta y edición, foto, comentarios, reseñas, recomendaciones, KPIs |
+| `/api/enrollments` | `routes/enrollments.js` | Inscripciones: postularse, cancelar, aceptar o rechazar (ONG), entrevistas y certificar horas (ONG) |
+| `/api/ngos` | `routes/ngos.js` | Perfil de ONG, panel, fichas de empleados (sin uso desde el equipo) |
 | `/api/ngos/me/mercadopago` | `routes/mercadopago.js` | Vincular y desvincular la cuenta de Mercado Pago de la ONG |
-| `/api/empresas` | `routes/empresas.js` | Perfil de empresa, patrocinios, panel |
+| `/api/empresas` | `routes/empresas.js` | Perfil de empresa, panel |
+| `/api/patrocinios` | `routes/patrocinios.js` | Acuerdo de patrocinio: puntos de cada parte, charla y aceptación por versión |
+| `/api/equipo` | `routes/ngoTeam.js` | Equipo de la ONG: invitar, aceptar, roles y panel del miembro |
 | `/api/voluntarios` | `routes/voluntarios.js` | Perfil de voluntario, habilidades, CV |
 | `/api/follows` | `routes/follows.js` | Seguir ONG, voluntariados y voluntarios; el Inicio |
 | `/api/posts` | `routes/posts.js` | Momentos: publicar fotos, "me gusta", moderación |
@@ -317,17 +320,18 @@ Cada ruta, con su autenticación, cuerpo, respuestas y errores, está en [`docs/
 
 ## Base de datos
 
-**36 tablas**, creadas por `scripts/migrate.js`, que también agrega columnas e índices y actualiza los datos base sin
+**38 tablas**, creadas por `scripts/migrate.js`, que también agrega columnas e índices y actualiza los datos base sin
 borrar nada. Detalle de cada tabla y columna: [`docs/DATABASE_CONTEXT.md`](docs/DATABASE_CONTEXT.md).
 
 | Grupo | Tablas |
 |---|---|
-| Usuarios y perfiles | `users`, `voluntarios`, `ngos`, `empresas`, `empleados`, `account_deletion_tokens` |
+| Usuarios y perfiles | `users`, `voluntarios`, `ngos`, `empresas`, `ngo_miembros`, `empleados`, `account_deletion_tokens`, `password_reset_tokens` |
 | Catálogos | `categorias`, `habilidades`, `roles`, `faqs` |
 | Voluntariados | `projects`, `requisitos`, `kpis`, `enrollments`, `comments`, `ratings`, `reuniones` |
 | Plata | `donaciones`, `ngo_cuentas_mp`, `mp_oauth_states` |
+| Patrocinio | `empresa_voluntariados`, `patrocinio_puntos`, `patrocinio_mensajes` |
 | Social | `posts`, `post_media`, `post_likes`, `messages`, `notifications` |
-| Relaciones N:M | `ngo_categorias`, `empresa_categorias`, `project_categorias`, `project_roles`, `voluntario_habilidades`, `empresa_voluntariados`, `ngo_follows`, `project_follows`, `volunteer_follows` |
+| Relaciones N:M | `ngo_categorias`, `empresa_categorias`, `project_categorias`, `project_roles`, `voluntario_habilidades`, `ngo_follows`, `project_follows`, `volunteer_follows` |
 
 ---
 

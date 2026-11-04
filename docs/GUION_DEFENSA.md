@@ -3,13 +3,13 @@
 > **A confirmar con la cátedra:** cuánto dura la defensa, si la demo es en vivo o grabada, y qué tienen que ver los
 > evaluadores (código, documentación, tests). Los tiempos de abajo son una sugerencia para unos 15 minutos de demo.
 >
-> Datos de demo: `docs/DEMO_DATOS.md`. Estado del proyecto: `docs/archivo/PLAN_FALTANTE.md`. Detalle técnico: `docs/PROJECT_ANALYSIS.md`.
+> Datos de demo: `docs/DEMO_DATOS.md`. Lo que queda: `docs/PLAN_CIERRE.md`. Detalle técnico: `docs/PROJECT_ANALYSIS.md`.
 
 ## 1. Días antes (D-3 a D-1)
 
 - [ ] **Datos de demo cargados** en producción (incluido el **equipo de la ONG 1**, paso 2.5), y el checklist de `DEMO_DATOS.md §3` completo.
-- [ ] **Último deploy** de los dos servicios (`voluntariar-api` y `voluntariar`) con el commit final. En el log de arranque de la API:
-      `Fotos: Cloudinary (…)`, `Pagos: Mercado Pago` y `Email: …`.
+- [x] **Último deploy** de los dos servicios: `f4e2995` (CI y Deploy en verde el 31/10; `/health` confirmado el 4/11).
+- [ ] En el log de arranque de la API: `Fotos: Cloudinary (…)`, `Pagos: Mercado Pago` y `Email: …`.
 - [ ] **Una donación de prueba completa** (con el comprador de prueba) que termine en "¡Gracias!". El proyecto tiene que ser de una ONG con **Mercado Pago vinculado** (la ONG SANTI, vinculada a mano con el vendedor de prueba): sin cuenta vinculada, el botón "Donar" no aparece (§215).
 - [ ] **Credenciales a mano**, en papel o en el celular, no en el repo: las cuentas de la demo, el **usuario comprador de prueba**
       de Mercado Pago y la tarjeta de prueba (titular `APRO`).
@@ -25,7 +25,7 @@
       El seed trae el equipo de Sustentando: `sofia@example.com` coordinadora y `lucia@example.com` invitada.
       Sin Cloudinary, Mercado Pago ni Resend configurados, se ve todo menos subir fotos y CV y donar.
 - [ ] **La base gratuita vence el 14 de noviembre**: no la toques después de cargar los datos.
-- [ ] **Sin deploys del 3 al 5 de noviembre** (decisión del usuario): lo que no esté en producción el 2/11 no entra en la demo.
+- [ ] **Sin deploys del 3 al 5 de noviembre** (decisión del usuario): lo que no esté en producción el 2/11 no entra en la demo. Ojo: **cualquier push a `main` despliega**, aunque sea solo de documentación (`deploy.yml` no filtra por rutas).
 
 ## 2. El día (30 minutos antes)
 
@@ -58,8 +58,8 @@
 ## 4. Qué contar de lo técnico (si preguntan)
 
 - **Arquitectura:** React + Vite en el frontend; Express con SQL a mano (sin ORM) en el backend. **SQLite** en desarrollo y tests, **Postgres** en producción, con un adaptador único.
-- **Calidad (TP de Calidad, `docs/calidad/informe/`):** el informe tiene el corte del 23/10 (**932 tests de backend en SQLite y 934 en Postgres**, y **954 de frontend**); al 30/10, con las entrevistas, el patrocinio negociado, las contraseñas, la foto del voluntariado, el embudo, la transparencia y el teléfono (§272–§291), son **1088, 1090 y 1187** (1087 reales en el backend: el runner cuenta `helpers.js`), con el equipo de la ONG, el encuadre de la foto y los refactors del frontend (§293–§299). Todos corren en UTC y con la zona horaria de Córdoba, en cada push (GitHub Actions). Cobertura de líneas al 30/10: backend 94,26 % (CI) y frontend 92,93 % (local). SonarCloud con 0 issues abiertas, 3 aceptadas con su motivo y quality gate en verde (`docs/calidad/METRICAS.md §7`).
-  **Complejidad:** el archivo más complejo (`routes/projects.js`, 342 de complejidad cognitiva) bajó a 257 al sacar el puntaje de las recomendaciones a funciones puras (`lib/recommender.js`, con 15 tests unitarios y una prueba diferencial: 65 recomendaciones iguales antes y después, §287). Las contraseñas salieron de `routes/auth.js`, que bajó de 108 a 74 (§290). La lógica de los formularios del frontend pasó a módulos con tests y mutación: `CreateVoluntariado.tsx` bajó de 124 a 84 y `ProjectDetails.tsx` de 112 a 105 (§298–§299; corte del 30/10 en `docs/calidad/METRICAS.md §8`). Deploy con smoke y E2E contra Mercado Pago. Tipos de TypeScript sin errores y `npm audit` en 0.
+- **Calidad (TP de Calidad, `docs/calidad/informe/`):** el informe tiene el corte del 23/10 (**932 tests de backend en SQLite y 934 en Postgres**, y **954 de frontend**); al 31/10, con las entrevistas, el patrocinio negociado, las contraseñas, la foto del voluntariado, el embudo, la transparencia, el teléfono, el equipo de la ONG, el encuadre de la foto y los refactors del frontend (§261–§305), son **1092, 1094 y 1213** (1091 reales en SQLite: el runner cuenta `helpers.js`). Todos corren en UTC y con la zona horaria de Córdoba, en cada push (GitHub Actions). Cobertura de líneas al 31/10 (CI): backend 94,19 % y frontend 93,40 %. SonarCloud con 0 issues abiertas, 3 aceptadas con su motivo y quality gate en verde (`docs/calidad/METRICAS.md §9`).
+  **Complejidad:** el archivo más complejo (`routes/projects.js`, 342 de complejidad cognitiva) bajó a 257 al sacar el puntaje de las recomendaciones a funciones puras (`lib/recommender.js`, con 15 tests unitarios y una prueba diferencial: 65 recomendaciones iguales antes y después, §287), y hoy está en 265 por los permisos del equipo. Las contraseñas salieron de `routes/auth.js`, que bajó de 108 a 74 (§290). La lógica de los formularios del frontend pasó a módulos con tests y mutación: `CreateVoluntariado.tsx` bajó de 124 a 84 y `ProjectDetails.tsx` de 112 a 105 (§298–§299; último corte en `docs/calidad/METRICAS.md §9`). Deploy con smoke y E2E contra Mercado Pago. Tipos de TypeScript sin errores y `npm audit` en 0.
   Además, **mutation testing** en cada cambio (se rompe el código a propósito y se comprueba que algún test lo detecte), **32 defectos registrados** en GitHub Issues, todos corregidos, y una **sesión exploratoria** que encontró 8 defectos que la suite no veía (contraste en modo oscuro, textos viejos del asistente).
 - **Concurrencia y plata:** las acreditaciones van en una transacción, con *compare-and-swap*. Un aviso repetido o cinco a la vez acreditan una sola vez, y eso está probado contra Postgres con conexiones en paralelo. Lo mismo en el acuerdo de patrocinio (las dos partes aceptando a la vez lo cierran una sola vez, §264) y en las entrevistas (una sola programada por postulación, con un índice único parcial, §261).
 - **Integraciones sin SDK:** Cloudinary y Mercado Pago van por su API REST, con `fetch`. La firma y las rutas se verificaron contra la documentación oficial y el **código del SDK oficial**, sin sumar dependencias.
@@ -84,7 +84,7 @@
 | ¿Las ONG están verificadas? | **No.** Los datos de transparencia (CUIT y link a balances) los carga la ONG, y el perfil lo dice: "VoluntariAR no los verifica". El CUIT se valida con el dígito verificador de AFIP, pero eso no prueba que sea de esa ONG. La verificación (objetivo 11) queda como trabajo futuro, y esto es el primer paso |
 | ¿Por qué un teléfono y no solo el email? | Lo pidió FONBEC: para coordinar, les sirve más. Es opcional, se da por postulación (no queda en el perfil) y la ONG lo ve solo mientras la postulación está pendiente o aprobada |
 
-**Trabajo futuro** (decidido, sin hacer): **probar en vivo la vinculación por OAuth** (necesita credenciales productivas), **pagar el patrocinio por Mercado Pago** desde el acuerdo, recordatorios de entrevistas, empleados de empresa con invitación (`BACKEND_ROADMAP_ANALYSIS.md §2.4`), chat empresa ↔ ONG y voluntarios (§2.5), conciliación de donaciones pendientes, `recaudado` en `NUMERIC`, paginación real y un chatbot con IA.
+**Trabajo futuro** (decidido, sin hacer): **probar en vivo la vinculación por OAuth** (necesita credenciales productivas), **pagar el patrocinio por Mercado Pago** desde el acuerdo, recordatorios de entrevistas, empleados de empresa con cupos reservados (`PLAN_EQUIPOS.md`, pasos 3 y 4), conciliación de donaciones pendientes, `recaudado` en `NUMERIC`, paginación real y un chatbot con IA.
 
 ## 6. Plan B
 

@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md — VoluntariAR
 
 > Documento maestro: leer primero. Cada capa se detalla en `BACKEND_CONTEXT.md`, `API_CONTEXT.md`,
-> `DATABASE_CONTEXT.md` y `FRONTEND_CONTEXT.md`; las reglas de trabajo están en `AI_RULES.md`. Estado al 30/10/2026.
+> `DATABASE_CONTEXT.md` y `FRONTEND_CONTEXT.md`; las reglas de trabajo están en `AI_RULES.md`. Estado al 4/11/2026.
 
 ## Qué es
 
