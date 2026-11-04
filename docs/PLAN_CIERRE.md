@@ -20,7 +20,6 @@
 - el patrocinio, las entrevistas y el equipo en un celular real.
 
 **Defensa:**
-- plan B local;
 - confirmar el formato con la cátedra;
 - ensayar `GUION_DEFENSA.md`, cronometrando el cambio de sesión entre Martín y Sofía;
 - la presentación.
@@ -54,4 +53,5 @@
 - **Notificaciones instantáneas,** recordatorios de entrevistas y reputación de usuarios.
 - **Recomendaciones por distancia real** (coordenadas del navegador), paginación de los listados y estado compartido para escalar.
 - **Material de capacitación por voluntariado** y un asistente que guíe al donante.
+- **Detalles vistos al probar el plan B (§308):** `npm run dev` se reinicia solo en Windows (`node --watch` detecta cambios en `node_modules`), y `NGOProjectDetail.tsx` muestra lo recaudado con el formato del navegador (`$8,500` en un Chrome en inglés).
 - **Seguir bajando la complejidad:** quedan `routes/projects.js` (265), `ProjectDetails.tsx` (105), `routes/enrollments.js` (94) y el JSX de los pasos de `CreateVoluntariado.tsx` (84), sin apuro: Sonar no marca issues.

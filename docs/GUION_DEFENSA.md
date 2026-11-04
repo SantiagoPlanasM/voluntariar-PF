@@ -21,9 +21,7 @@
   - el **acuerdo de patrocinio** con puntos de los dos lados y "Patrocinado por" en un voluntariado;
   - la donación con "¡Gracias!" y el panel de la empresa;
   - el Panel de la ONG con los accesos (**Patrocinios · Publicaciones · Equipo**) y el aviso de invitación en el Inicio de Martín. **Las capturas viejas no sirven:** el frontend se rediseñó entero el 21/10 (§240).
-- [ ] **Plan B local** probado en tu notebook: backend con `npm run db:reset` (seed) y `npm run dev`, frontend con `npm run dev`.
-      El seed trae el equipo de Sustentando: `sofia@example.com` coordinadora y `lucia@example.com` invitada.
-      Sin Cloudinary, Mercado Pago ni Resend configurados, se ve todo menos subir fotos y CV y donar.
+- [x] **Plan B local** probado en la notebook el 4/11: ver "Plan B local: cómo se usa" en la sección 6. Hay que levantar la API con `npm start`, no con `npm run dev`.
 - [ ] **La base gratuita vence el 14 de noviembre**: no la toques después de cargar los datos.
 - [ ] **Sin deploys del 3 al 5 de noviembre** (decisión del usuario): lo que no esté en producción el 2/11 no entra en la demo. Ojo: **cualquier push a `main` despliega**, aunque sea solo de documentación (`deploy.yml` no filtra por rutas).
 
@@ -94,3 +92,36 @@
 | Mercado Pago falla en el checkout | Verificá que estés **logueado con el comprador de prueba**. Si igual falla, mostrá una donación ya hecha (lo recaudado y la notificación) y explicá el flujo |
 | El email de borrar la cuenta no llega | Explicá la limitación del remitente de prueba (`/privacidad` → "Limitaciones de esta demo") |
 | Se cae la red | Datos del celular o plan B local |
+
+### Plan B local: cómo se usa
+
+Probado el 4/11 con Node 24, en SQLite y con la API local (§308).
+
+```bash
+# Terminal 1
+cd backend
+npm run db:reset
+npm start        # no "npm run dev": el watcher reinicia la API solo
+
+# Terminal 2
+cd frontend
+npm run dev      # → http://localhost:5173
+```
+
+- **Usá `npm start`, no `npm run dev`.** Con `dev`, `node --watch` reinició la API dos veces sin que nadie tocara nada, y el Inicio mostró "No pudimos cargar tu feed" justo después del login.
+- **Las cuentas son las del seed** (`README.md`, "Usuarios de prueba"), no las de `DEMO_DATOS`:
+
+  | En el guion | En el plan B |
+  |---|---|
+  | ONG 1 | Sustentando (`admin@sustentando.org`) |
+  | ONG 2 | Green Córdoba |
+  | Empresa | TechCorp |
+  | Martín (acepta la invitación) | **Lucía** (`lucia@example.com`) |
+  | Sofía (coordinación) | Sofía (`sofia@example.com`) |
+  | Postulación con entrevista | **Juan** en "Reforestación Urbana" |
+
+- **Lo que el seed no trae y hay que hacer en vivo o antes:** la entrevista de Juan (1 minuto) y el acuerdo de patrocinio (2 minutos). Tampoco hay Momentos ni conversaciones.
+- **`db:reset` no vuelve a cero:** solo agrega lo que falta. Después de un ensayo, Lucía sigue aceptada y la entrevista y el acuerdo siguen ahí. Para empezar de nuevo, con la API apagada, renombrá `backend/data/voluntariar.sqlite` (y sus `-wal` y `-shm`, si están) y corré `npm run db:reset`.
+- **Donar no funciona:** falta `MP_ACCESS_TOKEN` en el `.env` local, y el detalle dice "Esta ONG todavía no recibe donaciones". Mostrá las capturas de una donación en producción.
+- **Fotos y mails usan tus claves reales del `.env`:** una foto subida va al Cloudinary de verdad, y los mails llegan a tu casilla de prueba.
+- **Sin internet:** los datos cargan, pero las fotos de ejemplo, los avatares y el mapa vienen de servicios externos y no se van a ver. Eso no se probó.

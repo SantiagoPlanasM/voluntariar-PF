@@ -209,3 +209,37 @@ Antes, en el celular, la ONG llegaba a su equipo (`/ngo/equipo`) solo por Perfil
 - Si el paso 2.5 de `DEMO_DATOS` ya está cargado en producción: no se ve desde afuera sin sesión.
 - Los mensajes del log de arranque de Render (el punto sigue abierto en el guion).
 - **Commit local, sin push:** va después de la defensa, para no desplegar. Hasta entonces, GitHub muestra los docs anteriores.
+
+## 308. Plan B local probado de punta a punta
+
+### Qué se hizo
+- Se probó el plan B en la notebook: `db:reset`, la API y Vite, y el recorrido del guion en Chrome.
+- `GUION_DEFENSA.md` §6 suma "Plan B local: cómo se usa": la API con `npm start`, cuentas del seed contra las del guion, lo que hay que hacer en vivo y cómo volver a cero. `PLAN_CIERRE.md`, al día.
+
+### Verificación
+Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin claves de Resend ni Cloudinary, para no mandar mails ni subir archivos. Sin errores en la consola del navegador en las pantallas donde se la leyó.
+- **Voluntaria:** portada, login por la interfaz, Inicio, Explorar con "Para vos", mapa (10 pines), detalle, Mis voluntariados, Configuración, Asistente y un mensaje a la ONG, que la ONG recibe.
+- **ONG:** Panel con embudo, accesos, equipo y postulación sin responder.
+- **Equipo:** el aviso y el globito de Lucía, Aceptar, panel de Comunicación; Sofía por "Equipos" y panel de Coordinación con la postulación de Juan.
+- **Entrevista:** agendada por Sofía desde la pantalla; Juan ve el chip, Google Calendar y `.ics`.
+- **Patrocinio:** las dos partes aceptan en la pantalla del acuerdo (puntos y mensaje cargados por API). "Acuerdo cerrado: Aceptado", "Patrocinado por TechCorp" sin montos y panel de la empresa.
+- `db:reset` también anduvo sobre una copia de `backend/data/voluntariar.sqlite` (13/10): 38 tablas, 9 usuarios, 12 proyectos, 2 miembros. El original no cambió (mismo md5).
+
+### Hallazgos
+- **`npm run dev`:** `node --watch` reinició la API dos veces sin cambios en el código ("Change detected" en archivos de `node_modules`), e Inicio mostró "No pudimos cargar tu feed" después del login. Con `npm start`, el login completo por la interfaz cargó bien el Inicio. Producción usa `npm start`: no le pasa.
+- **`db:reset` no vuelve a cero:** el seed es idempotente; las entrevistas, los acuerdos, los mensajes y la aceptación de Lucía quedan.
+- **Seed:** no trae entrevistas, acuerdos, Momentos ni conversaciones.
+- **`NGOProjectDetail.tsx:170`:** `toLocaleString()` sin idioma muestra `$8,500` en un Chrome en inglés; el resto de la app usa `es-AR`. Sin arreglar: no se despliega hasta después de la defensa.
+
+### Errores propios
+- Antes de esto, `GUION_DEFENSA.md` indicaba `npm run dev` para la API y no avisaba que el seed no vuelve a cero.
+- En el recorrido usé una ruta inexistente de la pantalla (`/my-volunteering`) y otra de la API; clicks fuera del campo cuando cambió el tamaño de la ventana. Ninguno es un defecto de la app.
+
+### ⚠️ NO verificado
+- Que el watcher sea la causa del error del feed: coincide, y sin él no volvió a pasar, pero es **una** falla y **un** login limpio. No se reprodujo a propósito. Tampoco se sabe por qué `node --watch` ve cambios en `node_modules`.
+- Sin internet: las imágenes de ejemplo, los avatares y el mapa dependen de servicios externos.
+- Con Node 22, la versión del CI y de Render: acá corrió Node 24.
+- Subir fotos o CV, y mails: se dejaron apagados a propósito. Donar: no está configurado en local.
+- Chat en tiempo real entre dos sesiones: el mensaje llegó a la ONG por la API, no se vio en una segunda pantalla abierta.
+- Celular: todo fue en escritorio, en tema oscuro.
+- **Commit local, sin push**, igual que §307.
