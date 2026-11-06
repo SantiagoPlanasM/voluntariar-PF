@@ -1,6 +1,8 @@
 # PLAN_CIERRE.md — Lo que queda (y lo que se puede hacer) al 4/11/2026
 
-> Fechas: **del 3 al 5/11, sin deploys.** **5/11** defensa. **14/11** vence la base gratuita de Render.
+> **Reemplazado por [`PLAN_FEBRERO.md`](PLAN_FEBRERO.md):** el 5/11 fue la presentación de avances y la final es después de febrero. Queda por los pendientes del IPI (§1).
+>
+> Fechas: **del 3 al 5/11, sin deploys.** **5/11** presentación de avances. **14/11** vence la base gratuita de Render.
 >
 > Producción está en `f4e2995` (CI y Deploy en verde el 31/10; `/health` confirmado el 4/11). **Cualquier push a `main`
 > despliega, aunque sea solo de documentación:** `deploy.yml` corre con cada CI en verde y no filtra por rutas. Hasta

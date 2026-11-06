@@ -243,3 +243,21 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - Chat en tiempo real entre dos sesiones: el mensaje llegó a la ONG por la API, no se vio en una segunda pantalla abierta.
 - Celular: todo fue en escritorio, en tema oscuro.
 - **Commit local, sin push**, igual que §307.
+
+## 309. Plan hasta la presentación final
+
+### Qué se hizo
+- `PLAN_FEBRERO.md`: etapas hasta la presentación final, con la devolución de los directores del 5/11 y lo que le toca al usuario. `PLAN_CIERRE.md` y `docs/README.md` apuntan a ese plan.
+- Informe de Mercado Pago, fuera del repo: Checkout Pro, Suscripciones, comisiones oficiales vigentes desde el 6/3/2026, requisitos y aspectos fiscales.
+
+### Verificación
+- Solo documentación: no se corrieron las suites. El informe cita páginas abiertas el 5/11. Las de costos y Mercado Libre Solidario rechazaron la lectura automática y se leyeron desde Chrome.
+
+### Errores propios
+- La comisión de referencia del IPI (6,29 %) es la de CABA, no la de Córdoba (6,60 %). Quedó anotado en el plan: el IPI está fuera de git.
+
+### ⚠️ NO verificado
+- Si Suscripciones funciona con el token de cada ONG por OAuth, los costos propios de Suscripciones y Link de pago, y si hay tarifa especial para ONG.
+- Si una donación por Mercado Pago es deducible de Ganancias.
+- El orden de las etapas 3 y 4 es una propuesta: el usuario no lo confirmó.
+- **Commit local, sin push**, igual que §307 y §308.

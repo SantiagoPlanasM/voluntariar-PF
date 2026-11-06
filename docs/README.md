@@ -30,7 +30,8 @@ cumplió su función: se conserva sin cambios porque la bitácora y el informe l
 
 | Documento | Para qué |
 |---|---|
-| [`PLAN_CIERRE.md`](PLAN_CIERRE.md) | Lo que queda antes y después de la defensa |
+| [`PLAN_FEBRERO.md`](PLAN_FEBRERO.md) | **Lo que sigue** hasta la presentación final, después de febrero |
+| [`PLAN_CIERRE.md`](PLAN_CIERRE.md) | Pendientes del IPI; el resto pasó a `PLAN_FEBRERO.md` |
 | [`GUION_DEFENSA.md`](GUION_DEFENSA.md) | Checklist, recorrido, preguntas esperables y plan B |
 | [`DEMO_DATOS.md`](DEMO_DATOS.md) | Qué datos cargar en producción y en qué orden |
 | [`PLAN_EQUIPOS.md`](PLAN_EQUIPOS.md) | Equipo de la ONG (hecho, §293–§296) y empleados de empresa con cupos reservados (después del 5/11) |
