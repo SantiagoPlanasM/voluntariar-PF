@@ -25,6 +25,10 @@
 - [ ] Si funciona, plan y desarrollo de la donación mensual: alta, baja por el donante y aviso a la ONG.
 - [ ] Mostrarle a la ONG cuánto recibe según el plazo, aclarando que depende de su provincia.
 - [ ] Decidir si el patrocinio se paga por la pasarela (6,60 % al instante en Córdoba) o por transferencia.
+- [ ] Contracargos y devoluciones: hoy el webhook ignora `chargebacks`. Revisar cómo se refleja una donación devuelta en lo recaudado y procesar el aviso.
+- [ ] Desvinculación: procesar el evento `mp-connect`, para ocultar el botón y avisarle a la ONG. Hoy no se escucha.
+- [ ] Si hay suscripciones, probar qué pasa con las activas al vencer o revocar el token.
+- [ ] Confirmar en la documentación oficial lo que dijo el asistente de Mercado Pago antes de citarlo.
 
 ## Etapa 2. Patrocinio (espera el Figma del usuario)
 
