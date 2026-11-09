@@ -245,6 +245,7 @@ async function applyPayment(paymentId, { expectDonationId, accessToken, mpUserId
 //     usa es el de la QUERY, que es lo firmado; nunca el del cuerpo) y se llama a applyPayment;
 //   - contracargo (§311): `?type=topic_chargebacks_wh&data.id=<id del contracargo>` (o `chargebacks`), misma firma;
 //     se consulta el contracargo y applyPayment repasa cada pago afectado;
+//   - desvinculación (§313): `?type=mp-connect`, misma firma (puede venir sin data.id); ver handleMpConnect;
 //   - IPN: `?topic=payment&id=<id>`. Según la doc, no se puede validar con la clave: se responde 200 y no se procesa
 //     (la acreditación llega por el webhook o por la conciliación de GET /:id).
 // Respuestas: 200 si se procesó o no hay nada que hacer; 401 firma inválida; 500 si falló Mercado Pago o la base, para
@@ -278,6 +279,7 @@ router.post('/webhook', async (req, res) => {
   // §311: contracargos. La guía de Checkout Pro nombra el tópico `topic_chargebacks_wh`; `chargebacks` es el nombre
   // viejo. data.id es el id del contracargo (lo firmado): se consulta y se repasa cada pago con applyPayment.
   const isChargeback = q.type === 'topic_chargebacks_wh' || q.type === 'chargebacks';
+  if (q.type === 'mp-connect') return handleMpConnect(req, res, dataId);
   if (q.type !== 'payment' && !isChargeback) {   // merchant_order, …: no se usan
     console.log(`[donaciones] aviso de tipo ${forLog(q.type, 40)} ignorado`);
     return res.json({ received: true });
@@ -314,6 +316,30 @@ router.post('/webhook', async (req, res) => {
   }
   res.json({ received: true });
 });
+
+// §313: aviso `mp-connect` (una ONG vinculó o desvinculó la aplicación). Ya pasó la firma. La documentación no
+// muestra su formato: se juntan los ids de vendedor posibles (data.id de la query, que es lo firmado, y user_id del
+// cuerpo, que no lo está), y por cada uno que sea de una ONG vinculada se le pregunta a Mercado Pago si su token sigue
+// valiendo (sellerAccounts.checkRevoked). El aviso solo dispara la verificación: uno falso no corta nada.
+async function handleMpConnect(req, res, dataId) {
+  const ids = [];
+  for (const v of [dataId, req.body?.user_id]) {
+    const id = String(v ?? '');
+    if (/^\d{1,20}$/.test(id) && !ids.includes(id)) ids.push(id);
+  }
+  try {
+    for (const mpUserId of ids) {
+      const ngoId = await sellerAccounts.findNgoByMpUser(mpUserId);
+      if (!ngoId) continue;
+      const result = await sellerAccounts.checkRevoked(ngoId);
+      console.log(`[donaciones] aviso mp-connect del vendedor ${mpUserId} (ONG ${ngoId}): ${result}`);
+    }
+  } catch (err) {
+    console.error('POST /donaciones/webhook: no se pudo procesar el aviso mp-connect:', forLog(err.message));
+    return res.status(500).json({ error: 'No pudimos procesar el aviso' });
+  }
+  res.json({ received: true });
+}
 
 // ── GET /api/donaciones/:id?payment_id=… — estado y conciliación (§171) ────
 // Solo quien donó (otra persona → 404, igual que si no existiera). Si sigue pendiente y viene `payment_id` (Mercado

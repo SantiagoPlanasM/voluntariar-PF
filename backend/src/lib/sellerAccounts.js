@@ -177,6 +177,30 @@ async function findNgoByMpUser(mpUserId) {
   return row?.ngo_id ?? null;
 }
 
+/**
+ * Desvinculación (§313): ¿Mercado Pago sigue aceptando el token de la ONG? Lo dispara el aviso `mp-connect`, cuyo
+ * formato la documentación no muestra; por eso el aviso no decide nada: decide la respuesta de Mercado Pago. Revocar
+ * el acceso borra los tokens (guía de OAuth, "Revocación de la autorización"), así que GET /users/me responde 401.
+ * Devuelve 'revoked' (la marcó "requiere reconexión" y avisó a la ONG) | 'active' | 'needs_reconnect' (ya lo estaba,
+ * o la marcó otro) | 'not_linked'. Si Mercado Pago falla por otra cosa, LANZA (el webhook responde 500 y reintenta).
+ */
+async function checkRevoked(ngoId) {
+  let current;
+  try {
+    current = await getValidToken(ngoId);
+  } catch (err) {
+    if (err.code === 'not_linked' || err.code === 'needs_reconnect') return err.code;
+    throw err;
+  }
+  try {
+    await payments.getSellerUser(current.accessToken);
+    return 'active';
+  } catch (err) {
+    if (err.code !== 'unauthorized') throw err;
+    return (await markNeedsReconnect(ngoId, current.version)) ? 'revoked' : 'needs_reconnect';
+  }
+}
+
 /** ¿La ONG puede recibir donaciones? (una cuenta vinculada y activa) */
 async function acceptsDonations(ngoId) {
   return Boolean(await db.get(`SELECT 1 AS ok FROM ngo_cuentas_mp WHERE ngo_id=$1 AND estado='activa'`, [ngoId]));
@@ -184,5 +208,5 @@ async function acceptsDonations(ngoId) {
 
 module.exports = {
   publicAccount, saveAccount, deleteAccount,
-  SellerAccountError, getValidToken, markNeedsReconnect, findNgoByMpUser, acceptsDonations,
+  SellerAccountError, getValidToken, markNeedsReconnect, findNgoByMpUser, acceptsDonations, checkRevoked,
 };

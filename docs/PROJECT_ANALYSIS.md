@@ -299,7 +299,7 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - Mutation testing a mano sobre el código nuevo, con corrida de control: 27 mutantes, sobrevivieron 2. Uno no era equivalente (sacar `payment_id` del contracargo): se sumó un test. El otro sí lo era (`data.id ?? id` contra `id`): se simplificó el código. Final: 26 mutantes, 0 sobreviven.
 
 ### Errores propios
-- Un `d` se perdió al escapar el script de edición (`/^d{1,30}$/`); lo detectó el test unitario.
+- Un `\d` se perdió al escapar el script de edición (quedó `/^d{1,30}$/`); lo detectó el test unitario.
 - El test de la notificación hacía `JSON.parse` de `data`, que en Postgres es JSONB y llega como objeto: falló solo en `test:pg`.
 
 ### ⚠️ NO verificado
@@ -322,3 +322,27 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 
 ### ⚠️ NO verificado
 - Nada más allá de lo que confirme el CI.
+
+## 313. Desvinculación de Mercado Pago (aviso `mp-connect`)
+
+### Qué se hizo
+- El webhook procesa `type=mp-connect`, el aviso que manda Mercado Pago cuando una ONG vincula o desvincula la aplicación. La documentación confirma que el tópico existe y que revocar el acceso borra los tokens, pero no muestra el formato del aviso.
+- Por eso el aviso solo dispara una verificación. Se juntan los ids de vendedor (`data.id` de la query, que está firmado, y `user_id` del cuerpo, que no), solo numéricos y sin repetir. Por cada uno que sea de una ONG vinculada, `sellerAccounts.checkRevoked` (nuevo) prueba su token con `GET /users/me`:
+  - 401 → `markNeedsReconnect` (ya existía): la cuenta pasa a `requiere_reconexion`, se oculta el botón de donar y la ONG recibe `mp_reconnect_needed`;
+  - el token anda (vinculación nueva o aviso falso) → no cambia nada;
+  - ya requería reconexión → no consulta ni avisa de nuevo;
+  - Mercado Pago caído o falta `MP_TOKEN_KEY` → 500, para que Mercado Pago reintente.
+- Un aviso `mp-connect` firmado sin `data.id` no es un 400.
+
+### Verificación
+- Tests primero: 12 de integración (`mp-desvinculacion.test.js`). Rojo con 8 fallas reales antes del cambio.
+- Backend: 1129/1129 en SQLite, 1131/1131 en Postgres 18, y lo mismo con `TZ=America/Argentina/Cordoba`. `npm audit` en 0. El frontend no cambió (`mp_reconnect_needed` ya tenía destino): no se corrió.
+- Mutation testing a mano con corrida de control: 15 mutantes, sobrevivieron 3. Dos no eran equivalentes y se sumaron tests: el log con "ONG null" para un vendedor desconocido, y sin `MP_TOKEN_KEY` respondía 200 en vez de 500. El tercero es equivalente: sacar el filtro de ids numéricos no cambia nada, porque `mp_user_id` siempre es numérico. El filtro queda como defensa. Final: 1 sobreviviente, equivalente.
+
+### Errores propios
+- Otra vez se perdió un `\d` al escapar el script de edición (como en §311); lo agarraron los tests. Para regex, editar con `Edit`.
+
+### ⚠️ NO verificado
+- El formato real del aviso `mp-connect`: si trae el vendedor en `data.id`, en `user_id` o en otro campo, y si viene firmado como los de pagos. Si el vendedor viene en otro campo, el aviso no hace nada (la cuenta se marca igual en la próxima donación, cuando Mercado Pago rechace el token).
+- Que `GET /users/me` responda 401 después de revocar. La guía dice que se borran los tokens, pero no se probó en vivo; el OAuth no se puede probar sin las credenciales productivas.
+- Falta activar el evento **Vinculación de aplicaciones** en el panel de Webhooks.

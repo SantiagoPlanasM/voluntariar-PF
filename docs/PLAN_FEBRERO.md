@@ -26,7 +26,7 @@
 - [ ] Mostrarle a la ONG cuánto recibe según el plazo, aclarando que depende de su provincia.
 - [ ] Decidir si el patrocinio se paga por la pasarela (6,60 % al instante en Córdoba) o por transferencia.
 - [x] Contracargos y devoluciones (§311): la donación pasa a `reembolsada` y deja de sumar. Falta activar el evento **Contracargos** en el panel de Webhooks.
-- [ ] Desvinculación: procesar el evento `mp-connect`, para ocultar el botón y avisarle a la ONG. Hoy no se escucha.
+- [x] Desvinculación (§313): el aviso `mp-connect` hace probar el token de la ONG; si Mercado Pago lo rechaza, se oculta el botón y se le avisa. Falta activar el evento **Vinculación de aplicaciones** en el panel de Webhooks.
 - [ ] Si hay suscripciones, probar qué pasa con las activas al vencer o revocar el token.
 - [ ] Confirmar en la documentación oficial lo que dijo el asistente de Mercado Pago antes de citarlo.
 

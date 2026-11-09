@@ -544,6 +544,10 @@ Solo cuentan los activos. Editar voluntariados, KPIs, Mercado Pago, patrocinios 
 - **Contracargo** `?type=topic_chargebacks_wh&data.id=…` (también `chargebacks`): misma firma; `data.id` es el id del contracargo.
   - Consulta `GET /v1/chargebacks/:id` (`payments.getChargeback`, con el token de la ONG) y llama a `applyPayment` por cada pago afectado.
   - Hay que activar el evento **Contracargos** en el panel de Webhooks de la aplicación.
+- **Desvinculación** `?type=mp-connect`: misma firma, puede venir sin `data.id`. El aviso no decide nada: dispara una verificación.
+  - Junta los ids de vendedor (`data.id` de la query y `user_id` del cuerpo, solo numéricos). Por cada uno que sea de una ONG vinculada, `sellerAccounts.checkRevoked` prueba su token con `GET /users/me`.
+  - Si Mercado Pago responde 401, la cuenta pasa a `requiere_reconexion` (se oculta el botón de donar) y la ONG recibe `mp_reconnect_needed`. Si el token sigue andando, no cambia nada.
+  - Hay que activar el evento **Vinculación de aplicaciones** en el panel de Webhooks.
 - **IPN** (`?topic=…`): 200 sin procesar.
 - **Respuestas:** 200 `{ received: true }` (procesado, de otro tipo o pago inexistente) · 401 "Firma inválida" · 400 sin `data.id` · **500** "No pudimos procesar el aviso", para que Mercado Pago reintente.
 - **Log:** una línea `[donaciones] …`, nunca con la firma ni secretos.
