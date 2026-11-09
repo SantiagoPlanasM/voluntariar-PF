@@ -95,7 +95,7 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
   - `VolunteerPublicProfile` muestra las horas verificadas y `MomentsGrid` (por id de usuario).
 - **`VolunteerProfile`:** habilidades con nivel. Si falla una carga, muestra "—" y no pisa las habilidades al guardar. La foto de una persona es siempre `avatar`, nunca `foto_perfil`.
 - **`ProfilePhotoPicker`:** comprime (`compressImage`), sube con `api.auth.uploadPhoto` y actualiza la sesión (`updateUser`).
-- **`NotificationsScreen`:** usa `unread` del backend. `notificationHref(n, role)` lleva a la pantalla de cada aviso: entrevistas a `/participation` y acuerdos a su pantalla según el rol.
+- **`NotificationsScreen`:** usa `unread` del backend. `notificationHref(n, role)` lleva a la pantalla de cada aviso: entrevistas a `/participation`, donaciones recibidas o revertidas (`donation_reversed`) al voluntariado en el panel de la ONG y acuerdos a su pantalla según el rol.
 - **`ReviewsModal`:** reseñas y formulario. Cada vez que se abre pide `GET /api/projects/:id`.
 - **`DonateModal`:** monto inicial $ 2.500, con atajos de $ 1.000 a $ 10.000 y "Otro monto". Valida con `checkDonationAmount` y redirige a `checkout_url`.
 - **`DonationReturn`:** lo que muestra lo decide el backend, que concilia el pago. Si está pendiente, vuelve a preguntar hasta 5 veces cada 3 s.

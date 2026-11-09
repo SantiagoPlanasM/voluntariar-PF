@@ -86,7 +86,7 @@ Notación: `FK→tabla` con su `ON DELETE` (CASCADE si no se dice otra cosa). To
 - **`post_likes`**: PK (post_id, user_id); la API usa `ON CONFLICT DO NOTHING`.
 
 ### Dinero
-- **`donaciones`**: id · user_id FK→users · project_id FK SET NULL · ngo_id FK SET NULL · monto (> 0, REAL: pesos enteros) · fecha · estado (`pendiente`/`completada`/`fallida`/`reembolsada`).
+- **`donaciones`**: id · user_id FK→users · project_id FK SET NULL · ngo_id FK SET NULL · monto (> 0, REAL: pesos enteros) · fecha · estado (`pendiente`/`completada`/`fallida`/`reembolsada`; `reembolsada` = devolución o contracargo perdido del pago que la acreditó, y ya no suma a `projects.recaudado`).
   - **Columnas de Mercado Pago:**
     - `external_id`: la preferencia.
     - `external_payment_id`: el pago que la acreditó.

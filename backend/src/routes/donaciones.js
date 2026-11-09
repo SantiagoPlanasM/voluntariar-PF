@@ -14,6 +14,8 @@
 //   - El estado SOLO cambia después de consultar el pago a Mercado Pago (payments.getPayment), nunca por el cuerpo de
 //     un aviso ni por la URL de vuelta. Y solo `approved` lo cambia: un rechazo deja la donación pendiente, porque
 //     Mercado Pago permite reintentar el pago con la misma preferencia.
+//   - Devolución o contracargo perdido del pago que la acreditó (§311): 'completada' → 'reembolsada' y `recaudado`
+//     baja, también en una transacción. Una donación revertida no se vuelve a acreditar.
 //   - Acreditar = compare-and-swap 'pendiente' → 'completada' + `recaudado = recaudado + monto`, en UNA transacción
 //     (regla 21). La notificación a la ONG va después del COMMIT.
 //
@@ -115,9 +117,59 @@ router.post('/', requireAuth, requireRole('volunteer', 'company'), async (req, r
   }
 });
 
+// ── Devoluciones y contracargos (§311) ─────────────────────────────────────
+// Revierte una donación el pago que la acreditó si Mercado Pago lo informa devuelto (`refunded`, devolución total) o
+// con un contracargo perdido (`charged_back`, salvo `in_process`: en disputa, la plata queda retenida; y `reimbursed`:
+// lo ganó la ONG). Un detalle desconocido se trata como perdido. La devolución parcial (el pago sigue `approved`) no
+// se trata. Una vez 'reembolsada', la donación no se vuelve a acreditar.
+const CHARGEBACK_NOT_LOST = new Set(['in_process', 'reimbursed']);
+const isReversal = (p) => p.status === 'refunded' || (p.status === 'charged_back' && !CHARGEBACK_NOT_LOST.has(p.statusDetail));
+
+// Compare-and-swap 'completada' → 'reembolsada' (y solo si ESTE pago fue el que la acreditó) + `recaudado` baja sin
+// quedar negativo, en UNA transacción (regla 21). Devuelve true si la revirtió esta llamada. El aviso a la ONG va
+// después del COMMIT. Sobre una donación pendiente no hace nada: sigue el camino de un pago no aprobado.
+async function reverseDonation(d, p) {
+  const monto = Number(d.monto);
+  let reversed = false;
+  await db.transaction(async (tx) => {
+    const upd = await tx.run(
+      `UPDATE donaciones SET estado='reembolsada', external_status=$1
+       WHERE id=$2 AND estado='completada' AND external_payment_id=$3`,
+      [p.status, d.id, p.id]
+    );
+    if (upd.changes !== 1) return;
+    reversed = true;
+    if (d.project_id) {
+      await tx.run(
+        `UPDATE projects SET recaudado = CASE WHEN COALESCE(recaudado, 0) > $1 THEN recaudado - $1 ELSE 0 END WHERE id=$2`,
+        [monto, d.project_id]
+      );
+    }
+  });
+  if (!reversed) return false;
+
+  if (d.project_id) {
+    try {
+      const ngo = await db.get(
+        'SELECT n.user_id, p.titulo FROM projects p JOIN ngos n ON n.id = p.ngo_id WHERE p.id=$1', [d.project_id]);
+      if (ngo) {
+        const why = p.status === 'refunded' ? 'se devolvió' : 'tuvo un contracargo';
+        await db.run(
+          `INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,'donation_reversed','Se revirtió una donación',$2,$3)`,
+          [ngo.user_id, `Una donación de $${monto.toLocaleString('es-AR')} a "${ngo.titulo}" ${why} y ya no suma a lo recaudado`,
+            JSON.stringify({ project_id: d.project_id, donation_id: d.id })]
+        );
+      }
+    } catch (err) {
+      console.error('reverseDonation: no se pudo avisar a la ONG:', err.message);
+    }
+  }
+  return true;
+}
+
 // ── applyPayment ───────────────────────────────────────────────────────────
 // Consulta el pago a Mercado Pago y, si corresponde, acredita la donación. Devuelve { result, donationId? }:
-//   credited | already | amount_mismatch | not_approved | mismatch | unknown_donation | ignored.
+//   credited | reversed (§311) | already | amount_mismatch | not_approved | mismatch | unknown_donation | ignored.
 // Si Mercado Pago falla al consultar, o la base a mitad de la transacción, LANZA: el que llama decide (el webhook
 // responde 5xx para que Mercado Pago reintente).
 // Marketplace (§217): `accessToken`/`mpUserId` son los de la cuenta con la que se consulta (sin ellos, la de la
@@ -134,6 +186,11 @@ async function applyPayment(paymentId, { expectDonationId, accessToken, mpUserId
   if ((d.cobrador_mp_user_id ?? null) !== (mpUserId ?? null)) {
     console.error(`applyPayment: el pago ${forLog(p.id)} se leyó con otra cuenta que la que cobró la donación ${d.id}`);
     return { result: 'mismatch', donationId: d.id };
+  }
+
+  if (isReversal(p)) {
+    const reversed = await reverseDonation(d, p);
+    if (reversed) return { result: 'reversed', donationId: d.id };
   }
 
   if (p.status !== 'approved') {
@@ -186,6 +243,8 @@ async function applyPayment(paymentId, { expectDonationId, accessToken, mpUserId
 // Público: Mercado Pago no manda sesión. Formatos (doc oficial de notificaciones):
 //   - webhook: `?type=payment&data.id=<id>` + headers `x-signature`/`x-request-id` → se verifica la firma (el id que se
 //     usa es el de la QUERY, que es lo firmado; nunca el del cuerpo) y se llama a applyPayment;
+//   - contracargo (§311): `?type=topic_chargebacks_wh&data.id=<id del contracargo>` (o `chargebacks`), misma firma;
+//     se consulta el contracargo y applyPayment repasa cada pago afectado;
 //   - IPN: `?topic=payment&id=<id>`. Según la doc, no se puede validar con la clave: se responde 200 y no se procesa
 //     (la acreditación llega por el webhook o por la conciliación de GET /:id).
 // Respuestas: 200 si se procesó o no hay nada que hacer; 401 firma inválida; 500 si falló Mercado Pago o la base, para
@@ -216,11 +275,15 @@ router.post('/webhook', async (req, res) => {
       + `ts=${tsMatch ? forLog(tsMatch[1]) : '?'}; live_mode=${liveMode}; user_id=${forLog(userId)})`);   // ya son solo dígitos; forLog para que todo valor externo pase por el mismo lugar (S5145)
     return res.status(401).json({ error: 'Firma inválida' });
   }
-  if (q.type !== 'payment') {   // merchant_order, chargebacks, …: no se usan
+  // §311: contracargos. La guía de Checkout Pro nombra el tópico `topic_chargebacks_wh`; `chargebacks` es el nombre
+  // viejo. data.id es el id del contracargo (lo firmado): se consulta y se repasa cada pago con applyPayment.
+  const isChargeback = q.type === 'topic_chargebacks_wh' || q.type === 'chargebacks';
+  if (q.type !== 'payment' && !isChargeback) {   // merchant_order, …: no se usan
     console.log(`[donaciones] aviso de tipo ${forLog(q.type, 40)} ignorado`);
     return res.json({ received: true });
   }
-  if (!dataId) return res.status(400).json({ error: 'Falta el id del pago' });
+  if (!dataId) return res.status(400).json({ error: isChargeback ? 'Falta el id del contracargo' : 'Falta el id del pago' });
+  const what = isChargeback ? `contracargo ${forLog(dataId, 40)}` : `pago ${forLog(dataId, 40)}`;
 
   try {
     // Marketplace (§217): `user_id` (el vendedor) viene en el cuerpo, que NO está firmado: solo elige con qué token
@@ -228,11 +291,22 @@ router.post('/webhook', async (req, res) => {
     const sellerId = /^\d{1,20}$/.test(String(req.body?.user_id ?? '')) ? String(req.body.user_id) : null;
     const ngoId = sellerId ? await sellerAccounts.findNgoByMpUser(sellerId) : null;
     const seller = ngoId ? await sellerAccounts.getValidToken(ngoId) : null;   // si la cuenta cayó, lanza → 500 y reintento
-    const { result } = await applyPayment(dataId, seller ? { accessToken: seller.accessToken, mpUserId: seller.mpUserId } : {});
-    console.log(`[donaciones] aviso del pago ${forLog(dataId, 40)}: ${result}`);
+    const account = seller ? { accessToken: seller.accessToken, mpUserId: seller.mpUserId } : {};
+    if (isChargeback) {
+      const cb = await payments.getChargeback(dataId, { accessToken: account.accessToken });
+      const results = [];
+      for (const paymentId of cb.paymentIds) {
+        const { result } = await applyPayment(paymentId, account);
+        results.push(`${paymentId} ${result}`);
+      }
+      console.log(`[donaciones] aviso del ${what}: ${results.length ? results.join(', ') : 'sin pagos'}`);
+    } else {
+      const { result } = await applyPayment(dataId, account);
+      console.log(`[donaciones] aviso del ${what}: ${result}`);
+    }
   } catch (err) {
     if (err?.code === 'not_found') {   // reintentar no lo va a encontrar
-      console.log(`[donaciones] aviso del pago ${forLog(dataId, 40)}: Mercado Pago no lo encuentra`);
+      console.log(`[donaciones] aviso del ${what}: Mercado Pago no lo encuentra`);
       return res.json({ received: true });
     }
     console.error('POST /donaciones/webhook: no se pudo procesar el aviso:', forLog(err.message));

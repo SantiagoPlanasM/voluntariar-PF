@@ -111,10 +111,30 @@ async function getPayment(paymentId, { accessToken } = {}) {
   return {
     id: String(data.id ?? id),
     status: data.status ?? null,
+    statusDetail: data.status_detail ?? null,   // §311: distingue un contracargo en disputa, ganado o perdido
     externalReference: data.external_reference ?? null,
     amount: Number.isFinite(amount) ? amount : null,
     currency: data.currency_id ?? null,
   };
+}
+
+/**
+ * Consulta un contracargo (§311) y devuelve { id, paymentIds }: los pagos afectados, sin repetir y solo ids numéricos.
+ * Fuente: la guía de contracargos de Checkout Pro (`GET /v1/chargebacks/{id}`, campos `payments` y `payment_id`);
+ * la página de referencia de la API dio 404 el 2026-11-09, así que se aceptan ids sueltos u objetos con `id`.
+ * Lo que decide si se revierte una donación es el estado de cada PAGO (getPayment), no el contracargo.
+ */
+async function getChargeback(chargebackId, { accessToken } = {}) {
+  const id = typeof chargebackId === 'number' ? String(chargebackId) : typeof chargebackId === 'string' ? chargebackId.trim() : '';
+  if (!id) throw new PaymentError('Falta el id del contracargo', { code: 'bad_request' });
+  const data = await call('GET', `/v1/chargebacks/${encodeURIComponent(id)}`, { accessToken });
+  const raw = [data.payment_id, ...(Array.isArray(data.payments) ? data.payments : [])];
+  const paymentIds = [];
+  for (const p of raw) {
+    const pid = String(p !== null && typeof p === 'object' ? p.id ?? '' : p ?? '');
+    if (/^\d{1,30}$/.test(pid) && !paymentIds.includes(pid)) paymentIds.push(pid);
+  }
+  return { id, paymentIds };
 }
 
 // ── OAuth del Marketplace (§215): cada ONG vincula su cuenta de vendedor ──────────────────────────────────────────
@@ -239,6 +259,6 @@ function describePaymentsConfig() {
 }
 
 module.exports = {
-  PaymentError, isConfigured, createPreference, getPayment, verifyWebhookSignature, describePaymentsConfig, CURRENCY,
+  PaymentError, isConfigured, createPreference, getPayment, getChargeback, verifyWebhookSignature, describePaymentsConfig, CURRENCY,
   isOAuthConfigured, authorizationUrl, exchangeCode, refreshAccessToken, getSellerUser,
 };

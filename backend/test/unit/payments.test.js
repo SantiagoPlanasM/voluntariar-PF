@@ -211,7 +211,7 @@ describe('createPreference() / getPayment() / configuración', () => {
       assert.equal(calls[0].url, 'https://api.mercadopago.com/v1/payments/987654321');
       assert.equal(calls[0].opts.method, 'GET');
       assert.equal(calls[0].opts.headers.Authorization, 'Bearer TEST-1234-token-secreto');
-      assert.deepEqual(p, { id: '987654321', status: 'approved', externalReference: 'don-1', amount: 1500, currency: 'ARS' });
+      assert.deepEqual(p, { id: '987654321', status: 'approved', statusDetail: 'accredited', externalReference: 'don-1', amount: 1500, currency: 'ARS' });
     });
 
     test('el id va codificado en la ruta (no se puede salir de /v1/payments/)', async () => {
@@ -222,7 +222,7 @@ describe('createPreference() / getPayment() / configuración', () => {
 
     test('campos ausentes → null (y el monto como número)', async () => {
       fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ id: 5, transaction_amount: '12.5' }) });
-      assert.deepEqual(await fresh().getPayment('5'), { id: '5', status: null, externalReference: null, amount: 12.5, currency: null });
+      assert.deepEqual(await fresh().getPayment('5'), { id: '5', status: null, statusDetail: null, externalReference: null, amount: 12.5, currency: null });
       fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ id: 5 }) });
       assert.strictEqual((await fresh().getPayment('5')).amount, null, 'sin monto: null, no NaN');
       fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ id: 5, transaction_amount: 'abc' }) });
@@ -253,6 +253,52 @@ describe('createPreference() / getPayment() / configuración', () => {
       delete process.env.MP_ACCESS_TOKEN;
       const { getPayment, PaymentError } = fresh();
       await assert.rejects(getPayment('1'), (e) => e instanceof PaymentError && e.code === 'not_configured');
+      assert.equal(calls.length, 0);
+    });
+  });
+
+  // §311. GET /v1/chargebacks/:id: la página de referencia dio 404 el 2026-11-09; según la guía de contracargos de
+  // Checkout Pro trae `payments` (los pagos afectados) y `payment_id`. Se aceptan ids sueltos u objetos con id, y
+  // solo ids numéricos (un id de pago es solo dígitos).
+  describe('getChargeback()', () => {
+    test('GET a /v1/chargebacks/:id (codificado) con el token; junta los pagos de payments y payment_id, sin repetir', async () => {
+      fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({
+        id: 233000061680860000, payment_id: 81968653106, payments: [81968653106, '81968653107', { id: 81968653108 }],
+        coverage_applied: null, documentation_status: 'pending',
+      }) });
+      const c = await fresh().getChargeback('233000061680860000', { accessToken: 'APP_USR-de-la-ong' });
+      assert.equal(calls[0].url, 'https://api.mercadopago.com/v1/chargebacks/233000061680860000');
+      assert.equal(calls[0].opts.method, 'GET');
+      assert.equal(calls[0].opts.headers.Authorization, 'Bearer APP_USR-de-la-ong');
+      assert.deepEqual(c, { id: '233000061680860000', paymentIds: ['81968653106', '81968653107', '81968653108'] });
+    });
+
+    test('el id va codificado en la ruta', async () => {
+      fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ id: 1 }) });
+      await fresh().getChargeback('1/../payments');
+      assert.equal(calls[0].url, 'https://api.mercadopago.com/v1/chargebacks/1%2F..%2Fpayments');
+    });
+
+    test('sin pagos, o con ids que no son numéricos → lista vacía (lo raro se descarta)', async () => {
+      fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ id: 7 }) });
+      assert.deepEqual(await fresh().getChargeback('7'), { id: '7', paymentIds: [] });
+      fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ id: 7, payments: 'basura', payment_id: 'x;1' }) });
+      assert.deepEqual((await fresh().getChargeback('7')).paymentIds, []);
+      fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ id: 7, payments: [null, {}, { id: '1/2' }, '', 5] }) });
+      assert.deepEqual((await fresh().getChargeback('7')).paymentIds, ['5']);
+    });
+
+    test('con solo payment_id (sin la lista payments) también trae ese pago', async () => {
+      fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ id: 8, payment_id: 81968653106 }) });
+      assert.deepEqual(await fresh().getChargeback('8'), { id: '8', paymentIds: ['81968653106'] });
+    });
+
+    test('404 → PaymentError not_found; id vacío → PaymentError sin llamar a la red', async () => {
+      const { getChargeback, PaymentError } = fresh();
+      fetchImpl = async () => ({ ok: false, status: 404, json: async () => ({ message: 'not found' }) });
+      await assert.rejects(getChargeback('1'), (e) => e instanceof PaymentError && e.code === 'not_found');
+      calls.length = 0;
+      for (const id of ['', '  ', undefined, null, {}]) await assert.rejects(getChargeback(id), PaymentError, String(id));
       assert.equal(calls.length, 0);
     });
   });

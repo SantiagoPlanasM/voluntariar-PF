@@ -45,6 +45,7 @@ export function notificationHref(n: Pick<AppNotification, 'type' | 'data'>, role
   switch (n.type) {
     case 'new_enrollment':       // a la ONG: las postulaciones de ese voluntariado
     case 'donation_received':    // a la ONG: el voluntariado que recibió la donación
+    case 'donation_reversed':    // a la ONG: una donación devuelta o con contracargo (§311)
       return project ? `/ngo/dashboard/project/${project}` : '/ngo/dashboard';
     case 'sponsor_proposal':     // a la ONG: las propuestas de patrocinio
       return '/ngo/patrocinios';

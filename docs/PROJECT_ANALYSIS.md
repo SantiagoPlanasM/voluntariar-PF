@@ -281,3 +281,29 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - Cómo toma Render el paso de `fromDatabase` a `sync: false` al sincronizar el blueprint, y si quitar la base del blueprint la borra antes del 14/11.
 - Que la API funcione contra Neon: se verifica con el Deploy (smoke + E2E) de este commit.
 - Prod corre en Postgres 18 y el CI prueba en 16 (ya era así con Render).
+
+## 311. Devoluciones y contracargos de donaciones
+
+### Qué se hizo
+- `applyPayment` revierte una donación acreditada cuando Mercado Pago informa que **el pago que la acreditó** quedó `refunded` (devolución total) o `charged_back` perdido.
+  - Un contracargo en disputa (`in_process`) o ganado por la ONG (`reimbursed`) no cambia nada; un `status_detail` desconocido se trata como perdido.
+  - En una transacción: compare-and-swap `completada` → `reembolsada` (con `external_payment_id` igual al pago) y `recaudado` baja sin quedar negativo. Después del COMMIT, notificación `donation_reversed` a la ONG. Resultado `reversed` en el log.
+  - Una donación revertida no se vuelve a acreditar. Una pendiente con el pago devuelto sigue pendiente (solo anota `external_status`).
+- Webhook: acepta `type=topic_chargebacks_wh` (y `chargebacks`) con la misma firma. Consulta el contracargo (`payments.getChargeback`, nuevo) y repasa cada pago con `applyPayment`.
+- `payments.getPayment` devuelve `statusDetail`. Frontend: `donation_reversed` lleva al voluntariado en el panel de la ONG.
+- Prueba de Suscripciones (Etapa 1): el usuario la pospuso. El script quedó fuera del repo.
+
+### Verificación
+- Tests primero: 20 de integración (`donaciones-reversiones.test.js`, con avisos concurrentes), 5 unitarios de `getChargeback` y 2 ajustados de `getPayment`, 1 del frontend. Rojo antes del cambio (el de integración, primero *cancelled* porque `getChargeback` no existía; con la función, 15 fallas reales).
+- Backend: 1117/1117 en SQLite, 1117/1117 con `TZ=America/Argentina/Cordoba`, 1119/1119 en Postgres **16 y 18**. Scripts del CI: 38/38. Frontend: 1214/1214, typecheck sin errores. `npm audit`: 0 en los dos paquetes.
+- Mutation testing a mano sobre el código nuevo, con corrida de control: 27 mutantes, sobrevivieron 2. Uno no era equivalente (sacar `payment_id` del contracargo): se sumó un test. El otro sí lo era (`data.id ?? id` contra `id`): se simplificó el código. Final: 26 mutantes, 0 sobreviven.
+
+### Errores propios
+- Un `d` se perdió al escapar el script de edición (`/^d{1,30}$/`); lo detectó el test unitario.
+- El test de la notificación hacía `JSON.parse` de `data`, que en Postgres es JSONB y llega como objeto: falló solo en `test:pg`.
+
+### ⚠️ NO verificado
+- La documentación oficial está incompleta: las páginas de referencia de `GET /v1/chargebacks/{id}` y `GET /v1/payments/{id}` dieron 404. Sin confirmar: que el aviso de contracargo venga con `type` y `data.id` en la query y firmado como el de pagos; los campos exactos del contracargo; y los `status_detail` de `charged_back` en la API de Payments (la tabla leída es de la API de Orders).
+- Que una devolución dispare un aviso `payment` (si no llega, la donación sigue `completada`).
+- Con credenciales de prueba, Mercado Pago puede no mandar avisos: no se probó en vivo. Falta activar el evento **Contracargos** en el panel de Webhooks.
+- La devolución parcial no se trata. La interfaz de la notificación no se vio.

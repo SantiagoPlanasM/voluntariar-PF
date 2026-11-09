@@ -11,6 +11,10 @@ describe('notificationHref', () => {
   it('una donación recibida lleva al voluntariado que la recibió', () => {
     expect(notificationHref(n('donation_received', { project_id: 'p2', donation_id: 'd1' }))).toBe('/ngo/dashboard/project/p2');
   });
+  it('una donación revertida (devolución o contracargo, §311) lleva al voluntariado; sin proyecto, al panel', () => {
+    expect(notificationHref(n('donation_reversed', { project_id: 'p2', donation_id: 'd1' }))).toBe('/ngo/dashboard/project/p2');
+    expect(notificationHref(n('donation_reversed', {}))).toBe('/ngo/dashboard');
+  });
   it('una propuesta de patrocinio lleva a Patrocinios', () => {
     expect(notificationHref(n('sponsor_proposal', { project_id: 'p1', empresa_id: 'e1' }))).toBe('/ngo/patrocinios');
   });

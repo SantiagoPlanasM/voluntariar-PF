@@ -541,6 +541,9 @@ Solo cuentan los activos. Editar voluntariados, KPIs, Mercado Pago, patrocinios 
   - Verifica la firma (`x-signature`, `x-request-id`, `MP_WEBHOOK_SECRET`) con el id de la **query**, nunca el del cuerpo.
   - El `user_id` del cuerpo no está firmado: solo elige el token con el que consultar.
   - Llama a `applyPayment`.
+- **Contracargo** `?type=topic_chargebacks_wh&data.id=…` (también `chargebacks`): misma firma; `data.id` es el id del contracargo.
+  - Consulta `GET /v1/chargebacks/:id` (`payments.getChargeback`, con el token de la ONG) y llama a `applyPayment` por cada pago afectado.
+  - Hay que activar el evento **Contracargos** en el panel de Webhooks de la aplicación.
 - **IPN** (`?topic=…`): 200 sin procesar.
 - **Respuestas:** 200 `{ received: true }` (procesado, de otro tipo o pago inexistente) · 401 "Firma inválida" · 400 sin `data.id` · **500** "No pudimos procesar el aviso", para que Mercado Pago reintente.
 - **Log:** una línea `[donaciones] …`, nunca con la firma ni secretos.
@@ -556,10 +559,14 @@ Solo cuentan los activos. Editar voluntariados, KPIs, Mercado Pago, patrocinios 
    - `ignored`: sin `external_reference`;
    - `mismatch`: otra donación, u otra cuenta que la que cobró;
    - `unknown_donation`.
-3. No aprobado → `not_approved`: solo anota `external_status`.
-4. Monto o moneda distintos → `amount_mismatch`.
-5. Aprobado: en una transacción, compare-and-swap `pendiente` → `completada` y `recaudado += monto` → `credited`. Si ya estaba completada → `already`.
-6. Después del COMMIT avisa a la ONG (`donation_received`). Si Mercado Pago o la base fallan, **lanza**.
+3. Devolución o contracargo perdido → `reversed`: el pago está `refunded`, o `charged_back` con un `status_detail` distinto de `in_process` (en disputa) y `reimbursed` (ganado por la ONG).
+   - En una transacción, compare-and-swap `completada` → `reembolsada`, solo si **ese** pago fue el que la acreditó, y `recaudado` baja sin quedar negativo.
+   - Después del COMMIT avisa a la ONG (`donation_reversed`). Una donación revertida no se vuelve a acreditar.
+   - La devolución parcial (el pago sigue `approved`) no se trata.
+4. No aprobado → `not_approved`: solo anota `external_status` (también si una donación pendiente tiene el pago devuelto).
+5. Monto o moneda distintos → `amount_mismatch`.
+6. Aprobado: en una transacción, compare-and-swap `pendiente` → `completada` y `recaudado += monto` → `credited`. Si ya estaba completada → `already`.
+7. Después del COMMIT avisa a la ONG (`donation_received`). Si Mercado Pago o la base fallan, **lanza**.
 
 ## Cuenta de Mercado Pago de la ONG (`routes/mercadopago.js`)
 
