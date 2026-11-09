@@ -261,3 +261,23 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - Si una donación por Mercado Pago es deducible de Ganancias.
 - El orden de las etapas 3 y 4 es una propuesta: el usuario no lo confirmó.
 - **Commit local, sin push**, igual que §307 y §308.
+
+## 310. Base de producción en Neon
+
+### Qué se hizo
+- La base gratuita de Render vencía el 14/11/2026. El usuario eligió Neon (plan gratis, no vence; se suspende sin uso y se despierta sola). Proyecto en Neon con Postgres 18, la misma versión que la de Render.
+- Copia de los datos con `pg_dump -Fc --no-owner --no-acl | pg_restore` (imagen `postgres:18`), corrida por el usuario para que las cadenas no pasaran por el chat. Se conservan la vinculación de Mercado Pago de la ONG SANTI y el proyecto "Test" del E2E.
+- `render.yaml`: `DATABASE_URL` pasa de `fromDatabase` a `sync: false` (cadena directa de Neon, sin pooling, cargada en el panel) y se quita el bloque `databases`. README, `PROJECT_CONTEXT.md` y `PLAN_FEBRERO.md` al día.
+- El backend no cambia: con `DATABASE_URL` ya conecta por SSL (`src/db/index.js`).
+
+### Verificación
+- Conteo de filas de cada tabla en las dos bases (`query_to_xml` sobre `information_schema.tables`): 38 tablas, archivos idénticos byte a byte (13 usuarios, 65 donaciones, 1 cuenta de MP vinculada).
+- No se corrieron las suites: no cambia código.
+
+### Errores propios
+- Primero propuse el comando con `postgres:16` sin saber la versión de Render; era 18 y se corrigió antes de correrlo.
+
+### ⚠️ NO verificado
+- Cómo toma Render el paso de `fromDatabase` a `sync: false` al sincronizar el blueprint, y si quitar la base del blueprint la borra antes del 14/11.
+- Que la API funcione contra Neon: se verifica con el Deploy (smoke + E2E) de este commit.
+- Prod corre en Postgres 18 y el CI prueba en 16 (ya era así con Render).

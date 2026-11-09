@@ -19,10 +19,10 @@ services:
         value: production
       - key: USE_POSTGRES
         value: "true"
+      # Base en Neon (plan gratis, no vence; la base gratuita de Render vencía el 14/11/2026).
+      # Cadena directa, sin pooling. Se carga en el panel de Render, nunca en este archivo.
       - key: DATABASE_URL
-        fromDatabase:
-          name: voluntariar-db
-          property: connectionString
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRES_IN
@@ -87,9 +87,3 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
-
-# ── Base de datos PostgreSQL ─────────────────────────────────────────────
-databases:
-  - name: voluntariar-db
-    databaseName: voluntariar
-    plan: free

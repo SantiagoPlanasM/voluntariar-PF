@@ -36,7 +36,7 @@ Express ── adaptador dual (src/db/index.js) ──► SQLite (dev y tests) |
 |---|---|
 | Backend | Express 4.19, `jsonwebtoken` 9, `bcryptjs` 2.4, `better-sqlite3` 13 (binarios precompilados; `backend/.npmrc` con `ignore-scripts=true`), `pg` 8, `multer` 2 (subidas), `ws` 8 (chat), `cors`, `dotenv`. Sin devDependencies: tests con `node:test`, recarga con `node --watch` |
 | Frontend | React 18.3, React Router 7.13, Vite 6, Tailwind 4.1, `lucide-react`, `leaflet` (mapas con OpenStreetMap). TypeScript 7 con `strict` (`npm run typecheck`; Vite no chequea tipos). Vitest 5 + Testing Library 16 |
-| Infra | Render (API, sitio estático y Postgres gratis; la base vence el 14/11/2026). CI y deploy en GitHub Actions; SonarCloud |
+| Infra | Render (API y sitio estático gratis) y Postgres 18 en Neon (gratis, no vence). CI y deploy en GitHub Actions; SonarCloud |
 
 **No se usa** (regla 18): ORM, migraciones versionadas, Redux/Zustand, React Query, linter.
 
@@ -62,5 +62,5 @@ Express ── adaptador dual (src/db/index.js) ──► SQLite (dev y tests) |
 - **Escala horizontal:** las conexiones del chat y el limitador de intentos viven en memoria.
 - **Validaciones duplicadas** en los dos lados (regex de auth, palabras prohibidas). Un test exige que `backend/src/lib/badWords.js` y `frontend/src/lib/badWords.ts` sean iguales.
 - En `projects.js`, `ngos.js` y `empresas.js` hay rutas registradas después de `module.exports`: es el patrón para exportar helpers (`fmt`, `validateProject`, `hasBadWord`).
-- **Render gratis:** la API se duerme a los 15 minutos y la base vence el 14/11/2026.
+- **Render gratis:** la API se duerme a los 15 minutos. La base está en Neon: se suspende sin uso y se despierta sola.
 - `NGOEmpleados` (`/ngo/empleados/:id`, fichas sin cuenta) ya no tiene links: se saca después de la defensa (`PLAN_CIERRE.md` §4).

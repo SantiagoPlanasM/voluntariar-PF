@@ -16,8 +16,8 @@
 
 ## Etapa 0. Antes del 14/11 (tiene fecha)
 
-- [ ] **Decidir qué hacer con la base de Render**, que vence el 14/11: migrarla, pagarla o exportarla y recrearla. Decisión del usuario. Sin base viva no hay sitio ni deploy.
-- [ ] Pushear los commits locales y verificar CI y Deploy. Todo push a `main` despliega, aun solo de docs. Avisar antes.
+- [x] Base de Render (vencía el 14/11): copiada a Neon con `pg_dump`/`pg_restore`, mismos conteos en las 38 tablas (§310).
+- [x] Pushear los commits locales y verificar CI y Deploy (2dd1de2, 8/11).
 
 ## Etapa 1. Mercado Pago
 
@@ -58,7 +58,6 @@ En este orden, salvo que el usuario diga otra cosa (orden propuesto, sin confirm
 
 ## Te toca a vos
 
-- [ ] Decisión sobre la base de Render.
 - [ ] Figma del patrocinio.
 - [ ] Consultar a un contador si la donación por Mercado Pago es deducible de Ganancias.
 - [ ] Preguntar a Mercado Libre Solidario por los requisitos y si hay tarifa para ONG. Lo hace la ONG, no la plataforma.

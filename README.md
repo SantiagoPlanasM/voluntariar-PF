@@ -243,8 +243,9 @@ Cómo correr cada suite: [`docs/calidad/COMO_CORRER_PRUEBAS.md`](docs/calidad/CO
 
 ## Deploy en Render
 
-Render lee `render.yaml` (**New → Blueprint**) y crea la base `voluntariar-db`, la API `voluntariar-api` y el sitio
-`voluntariar`. La API corre `npm run db:migrate && npm start` al arrancar.
+Render lee `render.yaml` (**New → Blueprint**) y crea la API `voluntariar-api` y el sitio `voluntariar`. La base
+PostgreSQL está en **Neon** (plan gratis): su cadena directa, sin pooling, va en `DATABASE_URL` del panel de la API.
+La API corre `npm run db:migrate && npm start` al arrancar.
 
 - **El auto-deploy de Render está apagado.** Despliega `deploy.yml` con los deploy hooks de los dos servicios
   (secrets `RENDER_DEPLOY_HOOK_API` y `RENDER_DEPLOY_HOOK_WEB`), y el E2E usa sus propios secrets de la cuenta de prueba.
@@ -254,8 +255,8 @@ Render lee `render.yaml` (**New → Blueprint**) y crea la base `voluntariar-db`
 ### ⚠️ Plan gratuito de Render
 
 - Los servicios **se duermen tras 15 minutos** sin uso; el primer pedido tarda ~1 minuto.
-- La base PostgreSQL gratuita **vence a los 30 días**. La de este proyecto vence el **14 de noviembre de 2026**; después
-  hay que crear otra y volver a cargar los datos (`docs/DEMO_DATOS.md`).
+- La base PostgreSQL gratuita de Render vence a los 30 días: por eso la base está en Neon, cuyo plan gratis no vence.
+  Neon suspende la base sin uso y la despierta con la primera conexión (unos segundos más en ese pedido).
 
 ---
 
