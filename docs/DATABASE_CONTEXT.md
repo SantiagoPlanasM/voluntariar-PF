@@ -37,7 +37,7 @@
 Notación: `FK→tabla` con su `ON DELETE` (CASCADE si no se dice otra cosa). Todas tienen `created_at`; las marcadas con `upd` tienen también `updated_at`.
 
 ### Usuarios y perfiles
-- **`users`** (upd): id · name NOT NULL · email NOT NULL UNIQUE · password (hash bcrypt) · role (`volunteer`/`ngo`/`company`, default `volunteer`) · avatar · bio · location.
+- **`users`** (upd): id · name NOT NULL · email NOT NULL UNIQUE · password (hash bcrypt) · role (`volunteer`/`ngo`/`company`, default `volunteer`) · avatar · bio · location · google_sub (UNIQUE, NULL sin Google; §314).
   - `avatar` es **la foto de la persona**: la usan el chat, Momentos y comentarios. La escriben `PUT /api/auth/me` y `/me/photo`.
 - **`voluntarios`** (upd): id · user_id UNIQUE FK→users · nombre · apellido · descripcion · ubicacion · foto_perfil · banner · cv_url · followers.
   - **`cv_url` guarda el `public_id` de un PDF privado de Cloudinary, no una URL.** Ninguna respuesta lo expone.

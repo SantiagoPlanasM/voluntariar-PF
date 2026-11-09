@@ -346,3 +346,37 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - El formato real del aviso `mp-connect`: si trae el vendedor en `data.id`, en `user_id` o en otro campo, y si viene firmado como los de pagos. Si el vendedor viene en otro campo, el aviso no hace nada (la cuenta se marca igual en la próxima donación, cuando Mercado Pago rechace el token).
 - Que `GET /users/me` responda 401 después de revocar. La guía dice que se borran los tokens, pero no se probó en vivo; el OAuth no se puede probar sin las credenciales productivas.
 - Falta activar el evento **Vinculación de aplicaciones** en el panel de Webhooks.
+
+## 314. Iniciar sesión con Google
+
+### Qué se hizo
+- Decisiones del usuario (9/11): pantalla de rol la primera vez; un mail que ya tiene cuenta se vincula solo si Google lo da por verificado; verificación con la librería oficial `google-auth-library`.
+- Backend:
+  - `lib/googleAuth.js` verifica el ID token (firma, emisor, vencimiento y audiencia igual a `GOOGLE_CLIENT_ID`).
+  - `routes/authGoogle.js`: `POST /api/auth/google` y `/google/register`. El segundo paso vuelve a verificar la misma credencial, sin estado en el servidor.
+  - `users.google_sub` (UNIQUE). Vinculación con compare-and-swap. Tope de 60 pedidos por IP en 15 minutos.
+  - `lib/accounts.js`: validación y alta de usuario + perfil, sacadas de `/register` y compartidas (regla 3).
+  - `google-auth-library` fijada en 11.3.1, la última con más de dos semanas: la 11.3.4 había salido ese mismo día.
+- Frontend:
+  - `lib/googleSignIn.ts` carga el script de Google Identity Services una sola vez y dibuja su botón.
+  - `AuthModal`: "Continuar con Google" en las dos pestañas, solo con `VITE_GOOGLE_CLIENT_ID`, y `GoogleSignupForm` (rol y nombre). `RolePicker` y `useGoHome` reemplazan el bloque de rol y las tres navegaciones repetidas.
+- `.env.example` de los dos paquetes, README, `API_CONTEXT`, `DATABASE_CONTEXT`, `FRONTEND_CONTEXT`, `PROJECT_CONTEXT` y `PLAN_FEBRERO`.
+
+### Verificación
+- Tests primero:
+  - Backend: 8 unitarios y 19 de integración. El rojo empezó débil (el módulo no existía); con la librería escrita, las rutas fallaban 16 de 16.
+  - Frontend: 6 de `googleSignIn`, 8 del modal y 2 del contrato de `api.ts`.
+- Backend: 1156/1156 en SQLite y 1158/1158 en Postgres 18, también con `TZ=America/Argentina/Cordoba`. Frontend: 1230/1230, typecheck sin errores, build bien. `npm audit` en 0 en los dos paquetes.
+- Mutation testing a mano con corrida de control: 37 mutantes, sobrevivieron 8. Se corrigieron así:
+  - Dos ramas eran código muerto o redundante (`not_configured` después de `isConfigured()`, y el chequeo previo de `google_sub` antes del compare-and-swap): se sacaron.
+  - Se sumaron tests: el mensaje del 409, la carrera de vinculación hecha determinística (se intercepta el `UPDATE`) y cerrar y reabrir el modal en la pantalla de rol.
+  - Final: 35 mutantes, 0 sobreviven.
+
+### Errores propios
+- Dejé en un test del modal un `getByLabelText` mal escrito, que habría tirado error. Lo vi antes de correrlo.
+- La primera corrida del frontend con cobertura falló por el test de contrato de `api.ts`: faltaban los dos métodos nuevos.
+
+### ⚠️ NO verificado
+- **El login real con Google**: falta el Client ID. Tampoco se probó el botón de Google en el navegador ni el popup en el celular.
+- Falta cargar `GOOGLE_CLIENT_ID` (API) y `VITE_GOOGLE_CLIENT_ID` (sitio) en Render. Eso toca `render.yaml`, que necesita OK del usuario.
+- Una corrida de `npm run test:coverage` dio 1 falla y no se pudo saber cuál: en 4 corridas más y 10 de los archivos nuevos no se repitió. Puede ser uno de los tests que pasan los 5 s en esa corrida.

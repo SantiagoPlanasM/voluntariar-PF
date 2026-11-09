@@ -101,6 +101,7 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
 - **`DonationReturn`:** lo que muestra lo decide el backend, que concilia el pago. Si está pendiente, vuelve a preguntar hasta 5 veces cada 3 s.
 - **Cuenta:**
   - `AuthModal` (pestañas `role="tab"`, con "¿Olvidaste tu contraseña?" → `ForgotPasswordForm`) y `ResetPasswordPage` (no inicia sesión sola).
+  - "Continuar con Google" (§314) en las dos pestañas, solo con `VITE_GOOGLE_CLIENT_ID`: el botón lo dibuja Google (`lib/googleSignIn.ts`). Sin cuenta → `GoogleSignupForm` (rol con `RolePicker`, compartido con el registro, y nombre con el de Google).
   - `PasswordSection`: tres campos con su `<label>` visible.
   - `CvSection`: valida con `checkCvFile` y abre el CV con `openCv`, porque el link vence.
   - `DeleteAccountSection` y `DeleteAccountPage`.
@@ -163,7 +164,7 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
 
 ## 4. Contextos y cliente HTTP
 
-- **`AuthContext`** (`useAuth`): `user`, `token`, `initializing`, `login`, `register`, `logout`, `updateUser`, `openAuthModal(mode)`, `closeAuthModal`.
+- **`AuthContext`** (`useAuth`): `user`, `token`, `initializing`, `login`, `register`, `googleLogin`, `googleRegister`, `logout`, `updateUser`, `openAuthModal(mode)`, `closeAuthModal`.
   - Al montar, revalida con `GET /auth/me`. Cierra la sesión **solo** ante un 401 o 404; con otros errores (por ejemplo, un 502 de Render dormido) conserva `v_user`.
   - `logout` solo borra `v_token` y `v_user`: el token no se invalida en el servidor.
 - **`ChatContext`** (`useChat`): `conversations`, `unreadTotal`, `connected`, `refreshConversations`, `onMessage(cb)`.

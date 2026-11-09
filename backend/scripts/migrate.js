@@ -506,6 +506,9 @@ async function migrate() {
   await addColumnIfNotExists('reuniones', 'lugar', 'TEXT');
   await addColumnIfNotExists('reuniones', 'nota', 'TEXT');
   await addColumnIfNotExists('reuniones', 'updated_at', NOW);
+  // Agregada 2026-11-09 (login con Google, PROJECT_ANALYSIS.md §314): el `sub` de la cuenta de Google vinculada (su id
+  // estable; el mail puede cambiar). NULL = sin Google. Único: una cuenta de Google entra a una sola cuenta.
+  await addColumnIfNotExists('users', 'google_sub', 'TEXT');
   // Agregadas 2026-10-29 (patrocinio como acuerdo negociado, PROJECT_ANALYSIS.md §263, docs/archivo/PLAN_PATROCINIO.md):
   // `version` sube con cada cambio de los puntos; cada parte acepta una versión (etapa 2).
   await addColumnIfNotExists('empresa_voluntariados', 'version', 'INTEGER NOT NULL DEFAULT 1');
@@ -607,6 +610,7 @@ async function migrate() {
     `CREATE INDEX IF NOT EXISTS idx_post_likes_user       ON post_likes(user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_account_deletion_user ON account_deletion_tokens(user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_password_reset_user   ON password_reset_tokens(user_id)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_sub ON users(google_sub)`,   // §314 (los NULL no chocan)
     `CREATE INDEX IF NOT EXISTS idx_mp_oauth_states_ngo   ON mp_oauth_states(ngo_id)`,
   ];
 

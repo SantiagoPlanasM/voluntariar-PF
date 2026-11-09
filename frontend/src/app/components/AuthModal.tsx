@@ -1,12 +1,13 @@
 // src/app/components/AuthModal.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, User, Heart, Building2, Check } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useNavigate } from 'react-router';
 import { Modal } from './Modal';
 import { Logo } from '../ui/Logo';
 import { PasswordInput } from '../ui/PasswordInput';
-import { api } from '../../lib/api';
+import { api, GoogleProfile, User as AppUser } from '../../lib/api';
+import { googleClientId, renderGoogleButton } from '../../lib/googleSignIn';
 import { userMessage } from '../../lib/format';
 
 type Tab = 'login' | 'register';
@@ -127,12 +128,129 @@ const ROLES = [
   { id: 'ngo'       as const, label: 'ONG',        icon: Heart,     hint: 'Publico voluntariados y recibo ayuda' },
   { id: 'company'   as const, label: 'Empresa',    icon: Building2, hint: 'Patrocino y sumo a mi equipo' },
 ];
+type Role = typeof ROLES[number]['id'];
+
+// Tipo de cuenta: lo usan el registro y la pantalla de rol de Google (§314).
+function RolePicker({ role, onChange }: { role: Role; onChange: (r: Role) => void }) {
+  return (
+    <div className="mb-5">
+      <p id="tipo-cuenta" className={`${lbl} mb-2`}>Elegí cómo vas a usar la app</p>
+      <div role="radiogroup" aria-labelledby="tipo-cuenta" className="flex flex-col gap-2">
+        {ROLES.map(({ id, label, icon: Icon, hint }) => {
+          const on = role === id;
+          return (
+            <button key={id} type="button" role="radio" aria-checked={on} onClick={() => onChange(id)}
+              className={`min-h-16 px-3.5 py-2.5 rounded-xl border-[1.5px] flex items-center gap-3 text-left transition-colors ${on ? 'border-ink' : 'border-hairline hover:bg-surface-soft'}`}>
+              <span className={`w-10 h-10 bg-surface-soft flex items-center justify-center flex-shrink-0 ${id === 'volunteer' ? 'rounded-full' : 'rounded-[28%]'}`}>
+                <Icon size={20} strokeWidth={1.75} aria-hidden="true" />
+              </span>
+              <span className="flex-1 min-w-0 flex flex-col">
+                <span className="text-[15px] font-semibold">{label}</span>
+                <span className="text-[13px] text-ink-muted">{hint}</span>
+              </span>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${on ? 'bg-ink text-on-ink' : 'border-[1.5px] border-border-strong'}`} aria-hidden="true">
+                {on && <Check size={14} strokeWidth={3} />}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// A dónde va cada rol después de entrar (login, registro y Google).
+function useGoHome() {
+  const navigate = useNavigate();
+  return (u: AppUser) => {
+    if (u.role === 'ngo') navigate('/ngo/dashboard');
+    else if (u.role === 'company') navigate('/company/profile');
+    else if (window.location.pathname === '/') navigate('/feed');
+  };
+}
+
+// §314: el botón lo dibuja Google (lib/googleSignIn). Si Google no carga, no se muestra nada (ni el separador).
+function GoogleSection({ onCredential }: { onCredential: (credential: string) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const latest = useRef(onCredential);
+  latest.current = onCredential;
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let alive = true;
+    renderGoogleButton(el, (c) => latest.current(c))
+      .then((ok) => { if (alive && !ok) setFailed(true); })
+      .catch(() => { if (alive) setFailed(true); });
+    return () => { alive = false; el.replaceChildren(); };
+  }, []);
+  if (failed) return null;
+  return (
+    <div className="mt-4 flex flex-col gap-4">
+      <div className="flex items-center gap-3 text-[13px] text-ink-muted" aria-hidden="true">
+        <span className="h-px flex-1 bg-hairline" />o<span className="h-px flex-1 bg-hairline" />
+      </div>
+      <div ref={ref} className="flex justify-center min-h-11" />
+    </div>
+  );
+}
+
+// §314: primera vez con Google y sin cuenta. Rol (decisión del usuario: una pantalla para elegirlo) y el nombre, que
+// arranca con el de Google. El mail es el de Google: no se puede cambiar.
+const NAME_LABEL: Record<Role, string> = { volunteer: 'Nombre completo', ngo: 'Nombre de la ONG', company: 'Nombre de la empresa' };
+function GoogleSignupForm({ credential, profile, onBack }: { credential: string; profile: GoogleProfile; onBack: () => void }) {
+  const { googleRegister, loading } = useAuth();
+  const goHome = useGoHome();
+  const [role, setRole] = useState<Role>('volunteer');
+  const [name, setName] = useState(profile.name ?? '');
+  const [nameError, setNameError] = useState('');
+  const [error, setError] = useState('');
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const err = validateName(name);
+    if (err) { setNameError(err); return; }
+    setError('');
+    try {
+      goHome(await googleRegister(credential, role, name.trim()));
+    } catch (err) {
+      setError(userMessage(err, 'No pudimos crear la cuenta. Probá de nuevo.'));
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-3.5">
+      <h2 className="text-[17px] font-bold text-ink">Crear tu cuenta</h2>
+      <p className="text-[15px] leading-snug text-ink-soft">Vas a entrar con <span className="font-semibold text-ink break-all">{profile.email}</span>.</p>
+      <RolePicker role={role} onChange={(r) => { setRole(r); setError(''); }} />
+      <form onSubmit={submit} className="flex flex-col gap-3.5" noValidate>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="google-name" className={lbl}>{NAME_LABEL[role]}</label>
+          <input id="google-name" className={inp(!!nameError)} aria-label={NAME_LABEL[role]}
+            value={name} onChange={e => { setName(e.target.value); setNameError(''); setError(''); }} />
+          {nameError && <p role="alert" className="text-[13px] text-critical">{nameError}</p>}
+        </div>
+        {error && <p role="alert" className="text-[13px] font-medium text-critical">{error}</p>}
+        <button type="submit" disabled={loading} className={primaryBtn}>{loading ? 'Un momento…' : 'Crear cuenta'}</button>
+        <p className="text-center text-[13px] leading-snug text-ink-muted">
+          Al crear tu cuenta aceptás{' '}
+          <a href="/privacidad" target="_blank" rel="noopener noreferrer" className="font-semibold text-ink underline underline-offset-2">la política de privacidad y los términos de uso</a>.
+        </p>
+      </form>
+      <p className="text-center text-[13px]">
+        <button type="button" onClick={onBack} className={linkBtn}>Volver</button>
+      </p>
+    </div>
+  );
+}
 
 export function AuthModal() {
-  const { showAuthModal, closeAuthModal, authModalIntent, authModalTab, login, register, loading, user } = useAuth();
-  const navigate = useNavigate();
+  const { showAuthModal, closeAuthModal, authModalIntent, authModalTab, login, register, googleLogin, loading } = useAuth();
+  const goHome = useGoHome();
   const [tab, setTab]         = useState<Tab>('login');
-  const [role, setRole]       = useState<'volunteer' | 'ngo' | 'company'>('volunteer');
+  const [role, setRole]       = useState<Role>('volunteer');
+  // §314: primera vez con Google, sin cuenta → pantalla de rol con la misma credencial.
+  const [googleSignup, setGoogleSignup] = useState<{ credential: string; profile: GoogleProfile } | null>(null);
   const [error, setError]     = useState('');
   const [fieldErrors, setFieldErrors] = useState({ name: '', email: '', password: '' });
   const [form, setForm]       = useState({ name: '', email: '', password: '' });
@@ -149,6 +267,7 @@ export function AuthModal() {
     setError(''); setFieldErrors({ name: '', email: '', password: '' });
     setForm({ name: '', email: '', password: '' });
     setForgot(null);
+    setGoogleSignup(null);
   }, [tab, showAuthModal]);
 
   if (!showAuthModal) return null;
@@ -166,15 +285,19 @@ export function AuthModal() {
     if (emailErr) { setFieldErrors(fe => ({ ...fe, email: emailErr })); return; }
     setError('');
     try {
-      const loggedUser = await login(form.email, form.password);
-      if (loggedUser.role === 'ngo') {
-        navigate('/ngo/dashboard');
-      } else if (loggedUser.role === 'company') {
-        navigate('/company/profile');
-      } else if (window.location.pathname === '/') {
-        navigate('/feed');
-      }
+      goHome(await login(form.email, form.password));
     } catch (err: any) { setError(err.message); }
+  };
+
+  const handleGoogle = async (credential: string) => {
+    setError('');
+    try {
+      const r = await googleLogin(credential);
+      if ('user' in r) goHome(r.user);
+      else setGoogleSignup({ credential, profile: r.profile });
+    } catch (err) {
+      setError(userMessage(err, 'No pudimos entrar con Google. Probá de nuevo.'));
+    }
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -187,19 +310,12 @@ export function AuthModal() {
     if (nameErr || emailErr || passErr) return;
     setError('');
     try {
-      const registeredUser = await register(form.name, form.email, form.password, role);
-      if (registeredUser.role === 'ngo') {
-        navigate('/ngo/dashboard');
-      } else if (registeredUser.role === 'company') {
-        navigate('/company/profile');
-      } else if (window.location.pathname === '/') {
-        navigate('/feed');
-      }
+      goHome(await register(form.name, form.email, form.password, role));
     } catch (err: any) { setError(err.message); }
   };
 
   return (
-    <Modal onClose={closeAuthModal} label={forgot ? 'Recuperar la contraseña' : tab === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
+    <Modal onClose={closeAuthModal} label={forgot ? 'Recuperar la contraseña' : googleSignup ? 'Crear tu cuenta' : tab === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
       overlayClassName="fixed inset-0 bg-[var(--scrim)] z-50 flex items-end sm:items-center justify-center animate-fadeIn"
       className="bg-surface text-ink w-full sm:max-w-md rounded-t-[24px] sm:rounded-2xl shadow-[var(--elev-sheet)] sm:shadow-[var(--elev-popover)] overflow-hidden max-h-[95dvh] overflow-y-auto animate-sheetUp sm:animate-riseIn">
 
@@ -220,7 +336,9 @@ export function AuthModal() {
         </div>
 
         <div className="px-5 pt-2 pb-6">
-          {forgot ? <ForgotPasswordForm initialEmail={forgot.email} onBack={() => setForgot(null)} /> : <>
+          {forgot ? <ForgotPasswordForm initialEmail={forgot.email} onBack={() => setForgot(null)} />
+          : googleSignup ? <GoogleSignupForm credential={googleSignup.credential} profile={googleSignup.profile} onBack={() => setGoogleSignup(null)} />
+          : <>
           <div role="tablist" aria-label="Acceso" className="flex h-11 p-1 rounded-[10px] bg-surface-soft mb-5">
             {(['login', 'register'] as Tab[]).map(t => (
               <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
@@ -231,31 +349,7 @@ export function AuthModal() {
           </div>
 
           {/* Tipo de cuenta */}
-          {tab === 'register' && (
-            <div className="mb-5">
-              <p id="tipo-cuenta" className={`${lbl} mb-2`}>Elegí cómo vas a usar la app</p>
-              <div role="radiogroup" aria-labelledby="tipo-cuenta" className="flex flex-col gap-2">
-                {ROLES.map(({ id, label, icon: Icon, hint }) => {
-                  const on = role === id;
-                  return (
-                    <button key={id} type="button" role="radio" aria-checked={on} onClick={() => setRole(id)}
-                      className={`min-h-16 px-3.5 py-2.5 rounded-xl border-[1.5px] flex items-center gap-3 text-left transition-colors ${on ? 'border-ink' : 'border-hairline hover:bg-surface-soft'}`}>
-                      <span className={`w-10 h-10 bg-surface-soft flex items-center justify-center flex-shrink-0 ${id === 'volunteer' ? 'rounded-full' : 'rounded-[28%]'}`}>
-                        <Icon size={20} strokeWidth={1.75} aria-hidden="true" />
-                      </span>
-                      <span className="flex-1 min-w-0 flex flex-col">
-                        <span className="text-[15px] font-semibold">{label}</span>
-                        <span className="text-[13px] text-ink-muted">{hint}</span>
-                      </span>
-                      <span className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${on ? 'bg-ink text-on-ink' : 'border-[1.5px] border-border-strong'}`} aria-hidden="true">
-                        {on && <Check size={14} strokeWidth={3} />}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          {tab === 'register' && <RolePicker role={role} onChange={setRole} />}
 
           <form onSubmit={tab === 'login' ? handleLogin : handleRegister} className="flex flex-col gap-3.5" noValidate>
             {tab === 'register' && (
@@ -301,6 +395,8 @@ export function AuthModal() {
               </p>
             )}
           </form>
+
+          {googleClientId() && <GoogleSection onCredential={handleGoogle} />}
 
           <p className="text-center text-[13px] text-ink-muted mt-4">
             {tab === 'login' ? '¿No tenés cuenta?' : '¿Ya tenés cuenta?'}{' '}

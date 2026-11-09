@@ -1,6 +1,6 @@
 // src/lib/AuthContext.tsx
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { api, ApiError, getToken, setToken, removeToken, getUser, setUser, removeUser, User } from './api';
+import { api, ApiError, getToken, setToken, removeToken, getUser, setUser, removeUser, User, GoogleProfile } from './api';
 
 interface Ctx {
   loading: boolean;
@@ -13,6 +13,9 @@ interface Ctx {
   closeAuthModal(): void;
   login(email: string, password: string): Promise<User>;
   register(name: string, email: string, password: string, role: string): Promise<User>;
+  /** §314: con cuenta → { user } y la sesión iniciada; sin cuenta → { profile } para la pantalla de rol. */
+  googleLogin(credential: string): Promise<{ user: User } | { profile: GoogleProfile }>;
+  googleRegister(credential: string, role: string, name: string): Promise<User>;
   logout(): void;
   /** Reemplaza el usuario de la sesión (p. ej. después de cambiar la foto), en memoria y en localStorage. */
   updateUser(u: User): void;
@@ -90,11 +93,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally { setLoading(false); }
   };
 
+  // §314: "Continuar con Google". Si la cuenta existe, deja la sesión igual que login; si no, devuelve el perfil de
+  // Google para la pantalla de rol (el modal sigue abierto).
+  const startSession = (t: string, u: User) => {
+    setToken(t); setUser(u); setT(t); setU(u);
+    setShowAuthModal(false);
+  };
+  const googleLogin = async (credential: string): Promise<{ user: User } | { profile: GoogleProfile }> => {
+    setLoading(true);
+    try {
+      const r = await api.auth.google({ credential });
+      if ('needs_registration' in r) return { profile: r.profile };
+      startSession(r.token, r.user);
+      return { user: r.user };
+    } finally { setLoading(false); }
+  };
+  const googleRegister = async (credential: string, role: string, name: string) => {
+    setLoading(true);
+    try {
+      const { token: t, user: u } = await api.auth.googleRegister({ credential, role, name });
+      startSession(t, u);
+      return u;
+    } finally { setLoading(false); }
+  };
+
   const logout = () => { removeToken(); removeUser(); setT(null); setU(null); };
   const updateUser = (u: User) => { setUser(u); setU(u); };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, initializing, showAuthModal, authModalIntent, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, token, loading, initializing, showAuthModal, authModalIntent, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, register, googleLogin, googleRegister, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

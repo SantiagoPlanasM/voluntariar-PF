@@ -19,6 +19,7 @@
 |---|---|---|---|
 | GET | `/health`, `/api/categorias`, `/api/roles`, `/api/habilidades`, `/api/stats` | No | — |
 | POST | `/api/auth/register`, `/api/auth/login` | No | — |
+| POST | `/api/auth/google`, `/api/auth/google/register` | No (ID token de Google) | — |
 | GET, PUT | `/api/auth/me` | Sí | cualquiera |
 | PUT | `/api/auth/me/photo`, `/api/auth/me/password` | Sí | cualquiera |
 | POST | `/api/auth/me/delete-request` | Sí | cualquiera |
@@ -124,6 +125,17 @@
   - Después borra en Cloudinary el CV, los Momentos y, si es ONG, las fotos de sus voluntariados.
   - **200:** `{ deleted: true }`.
   - **Errores:** 400 "El link no es válido o ya se usó…" · 400 "El link venció…" · 500 sin borrar nada (el link sirve para reintentar).
+
+### Login con Google (`routes/authGoogle.js`)
+- Las dos rutas reciben `credential`, el ID token del botón de Google. `lib/googleAuth.js` lo verifica con `google-auth-library`: firma, emisor, vencimiento y audiencia igual a `GOOGLE_CLIENT_ID`.
+- **Comunes:** 503 "El inicio de sesión con Google no está disponible" sin `GOOGLE_CLIENT_ID` · 401 "No pudimos verificar tu cuenta de Google. Probá de nuevo." · 403 "Tu mail de Google no está verificado" · 429 con más de 60 pedidos por IP en 15 minutos.
+- **`POST /google`** `{ credential }`:
+  - Cuenta con ese `google_sub` → 200 `{ message, token, user }` (igual que `/login`).
+  - Si no, cuenta con ese mail → se vincula con compare-and-swap (`WHERE google_sub IS NULL`) y entra. Si ya estaba vinculada a otra cuenta de Google → 409 "Esa cuenta ya está vinculada a otra cuenta de Google".
+  - Sin cuenta → 200 `{ needs_registration: true, profile: { email, name, given_name, family_name } }`. No crea nada.
+- **`POST /google/register`** `{ credential, role, name, apellido? }`: las validaciones del registro (`lib/accounts.js`, compartido con `/register`).
+  - **201** `{ message, token, user }`. La cuenta queda con `google_sub` y una contraseña no usable (hash de 32 bytes al azar). Si quiere una, usa "¿Olvidaste tu contraseña?".
+  - **Errores:** 400 (nombre, apellido o rol) · 409 "Ya existe una cuenta con ese email" (hay que entrar con `/google`) · 409 "Esa cuenta ya está vinculada…".
 
 ### "¿Olvidaste tu contraseña?"
 - **`POST /forgot-password`** `{ email }`:

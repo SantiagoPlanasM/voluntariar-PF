@@ -34,7 +34,7 @@ Express ── adaptador dual (src/db/index.js) ──► SQLite (dev y tests) |
 
 | Capa | Tecnologías |
 |---|---|
-| Backend | Express 4.19, `jsonwebtoken` 9, `bcryptjs` 2.4, `better-sqlite3` 13 (binarios precompilados; `backend/.npmrc` con `ignore-scripts=true`), `pg` 8, `multer` 2 (subidas), `ws` 8 (chat), `cors`, `dotenv`. Sin devDependencies: tests con `node:test`, recarga con `node --watch` |
+| Backend | Express 4.19, `jsonwebtoken` 9, `bcryptjs` 2.4, `better-sqlite3` 13 (binarios precompilados; `backend/.npmrc` con `ignore-scripts=true`), `pg` 8, `multer` 2 (subidas), `ws` 8 (chat), `google-auth-library` 11.3.1 (login con Google, versión fija), `cors`, `dotenv`. Sin devDependencies: tests con `node:test`, recarga con `node --watch` |
 | Frontend | React 18.3, React Router 7.13, Vite 6, Tailwind 4.1, `lucide-react`, `leaflet` (mapas con OpenStreetMap). TypeScript 7 con `strict` (`npm run typecheck`; Vite no chequea tipos). Vitest 5 + Testing Library 16 |
 | Infra | Render (API y sitio estático gratis) y Postgres 18 en Neon (gratis, no vence). CI y deploy en GitHub Actions; SonarCloud |
 

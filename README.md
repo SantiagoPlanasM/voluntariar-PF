@@ -269,7 +269,7 @@ La API corre `npm run db:migrate && npm start` al arrancar.
 | `NODE_ENV` | `development` | `production` |
 | `PORT` | `3001` | Automático (Render) |
 | `USE_POSTGRES` | `false` | `true` |
-| `DATABASE_URL` | — | URL interna de Render |
+| `DATABASE_URL` | — | Cadena directa de Neon, sin pooling (§310) |
 | `JWT_SECRET` | el de `.env.example` | **obligatorio**, largo y seguro (sin él, la API no arranca en producción) |
 | `JWT_EXPIRES_IN` | `7d` | `7d` |
 | `CORS_ORIGINS` | `http://localhost:5173` | URL del sitio |
@@ -283,12 +283,14 @@ La API corre `npm run db:migrate && npm start` al arrancar.
 | `MP_WEBHOOK_SECRET` | opcional | Clave para validar la firma de los avisos |
 | `MP_TOKEN_KEY` | opcional | Clave (32 bytes en base64) para cifrar los tokens de las ONG. **Tiene que ser la misma en Render y en el `.env` local** |
 | `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_OAUTH_REDIRECT_URI` | opcionales | OAuth para que cada ONG vincule su cuenta (hecho, sin probar en vivo) |
+| `GOOGLE_CLIENT_ID` | opcional (sin él, no hay login con Google) | ID de cliente de OAuth de Google (no es secreto; el mismo que `VITE_GOOGLE_CLIENT_ID`) |
 
 ### Frontend (`frontend/.env`)
 
 | Variable | Local | Producción |
 |----------|-------|------------|
 | `VITE_API_URL` | `http://localhost:3001/api` | `https://voluntariar-api-lxq7.onrender.com/api` |
+| `VITE_GOOGLE_CLIENT_ID` | opcional (sin él, no hay botón de Google) | El mismo ID de cliente que `GOOGLE_CLIENT_ID` |
 
 ---
 

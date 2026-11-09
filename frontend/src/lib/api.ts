@@ -68,6 +68,12 @@ export const api = {
       req<{ token: string; user: User }>('/auth/register', { method: 'POST', body: JSON.stringify(b) }),
     login: (b: { email: string; password: string }) =>
       req<{ token: string; user: User }>('/auth/login', { method: 'POST', body: JSON.stringify(b) }),
+    /** §314: "Continuar con Google". Con cuenta → sesión; sin cuenta → `needs_registration` y va a la pantalla de rol. */
+    google: (b: { credential: string }) =>
+      req<GoogleLoginResult>('/auth/google', { method: 'POST', body: JSON.stringify(b) }),
+    /** §314: crea la cuenta con el rol elegido, con la MISMA credencial de Google (dura una hora). */
+    googleRegister: (b: { credential: string; role: string; name: string }) =>
+      req<{ token: string; user: User }>('/auth/google/register', { method: 'POST', body: JSON.stringify(b) }),
     // `profile` es la fila del rol; del voluntario solo se lee `has_cv` (§165). Puede ser null.
     me: () => req<{ user: User; profile?: { has_cv?: boolean } | null }>('/auth/me'),
     updateMe: (b: { name?: string; bio?: string; location?: string; avatar?: string }) =>
@@ -302,6 +308,9 @@ export interface User {
   id: string; name: string; email: string;
   role: UserRole; avatar?: string; bio?: string; location?: string;
 }
+/** POST /auth/google (§314): la sesión, o los datos de Google para la pantalla de rol. */
+export interface GoogleProfile { email: string; name: string | null; given_name: string | null; family_name: string | null }
+export type GoogleLoginResult = { token: string; user: User } | { needs_registration: true; profile: GoogleProfile };
 export interface Project {
   id: string; ngo_id: string; title: string; description: string;
   full_description?: string; image?: string; category: string;
