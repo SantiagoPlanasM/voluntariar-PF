@@ -1,5 +1,5 @@
 # .github/workflows/ci.yml — integración continua de VoluntariAR (TP de Calidad, docs/archivo/PLAN_CALIDAD_TP.md T3).
-# Corre las pruebas del backend (SQLite y Postgres 16, en UTC y en la zona de Córdoba) con cobertura del runner
+# Corre las pruebas del backend (SQLite y Postgres 18 —la versión de producción, en Neon—, en UTC y en la zona de Córdoba) con cobertura del runner
 # de Node, las del frontend con tipos y build, y npm audit. Publica los reportes. No despliega (eso es deploy.yml, T9).
 name: CI
 
@@ -76,7 +76,7 @@ jobs:
           path: backend/reports/
 
   backend-postgres:
-    name: Backend · Postgres 16 · ${{ matrix.tz }}
+    name: Backend · Postgres 18 · ${{ matrix.tz }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
@@ -85,7 +85,7 @@ jobs:
         tz: [UTC, America/Argentina/Cordoba]
     services:
       postgres:
-        image: postgres:16
+        image: postgres:18
         env:
           POSTGRES_HOST_AUTH_METHOD: trust     # igual que el docker run de CLAUDE.md
           POSTGRES_DB: voluntariar_test

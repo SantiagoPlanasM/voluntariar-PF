@@ -307,3 +307,18 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - Que una devolución dispare un aviso `payment` (si no llega, la donación sigue `completada`).
 - Con credenciales de prueba, Mercado Pago puede no mandar avisos: no se probó en vivo. Falta activar el evento **Contracargos** en el panel de Webhooks.
 - La devolución parcial no se trata. La interfaz de la notificación no se vio.
+
+## 312. Tests de Postgres en la versión 18
+
+### Qué se hizo
+- Producción corre Postgres 18 en Neon (§310) y el CI probaba en 16. El servicio del CI pasa a `postgres:18`; `CLAUDE.md` y `calidad/COMO_CORRER_PRUEBAS.md` dan el `docker run` con 18. El contenedor y la imagen locales de 16 se borraron.
+- Las métricas y registros del informe del TP (`calidad/METRICAS.md`, `REGISTRO_DEFECTOS.md`, `PLAN_PRUEBAS.md`, `HERRAMIENTA_NUEVA.md`) siguen diciendo 16: describen lo que se midió en ese momento.
+
+### Verificación
+- `npm run test:pg` local contra `postgres:18`: 1119/1119 en UTC (§311) y 1119/1119 con `TZ=America/Argentina/Cordoba`. El CI con 18 se verifica con este push.
+
+### Errores propios
+- Ninguno.
+
+### ⚠️ NO verificado
+- Nada más allá de lo que confirme el CI.

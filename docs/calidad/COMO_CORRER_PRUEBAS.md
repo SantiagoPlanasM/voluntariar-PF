@@ -6,8 +6,8 @@
 ## Requisitos
 
 - **Node ≥ 22** e instalar las dependencias: `npm install` en `backend/` y en `frontend/`.
-- **Para Postgres:** un Postgres 16 en `localhost:5432`, por ejemplo
-  `docker run --rm -d -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=voluntariar_test postgres:16`.
+- **Para Postgres:** un Postgres 18 (la versión de producción) en `localhost:5432`, por ejemplo
+  `docker run --rm -d -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=voluntariar_test postgres:18`.
 - **Para la carga:** [k6](https://k6.io) instalado, o Docker con la imagen `grafana/k6` (abajo).
 
 ## Comandos
@@ -15,7 +15,7 @@
 | Tipo | Comando | Dónde | Qué corre |
 |---|---|---|---|
 | **Unitarias + integración (API) del backend, SQLite** | `npm test` | `backend/` | `node --test`: `test/unit/` y `test/integration/` contra una base SQLite temporal (808 en el CI #15; 807 reales) |
-| **Las mismas contra Postgres** | `npm run test:pg` | `backend/` | Toda la suite contra Postgres 16 (810: +2 de concurrencia real) |
+| **Las mismas contra Postgres** | `npm run test:pg` | `backend/` | Toda la suite contra Postgres 18 (810: +2 de concurrencia real) |
 | Con la zona horaria de Córdoba | `TZ=America/Argentina/Cordoba npm test` (en PowerShell: `$env:TZ='America/Argentina/Cordoba'; npm test`) | `backend/` | Detecta fechas corridas un día |
 | **Cobertura del backend** | `node --test --experimental-test-coverage --test-coverage-include='src/**' --test-coverage-include='scripts/**'` | `backend/` | La misma medición que el CI |
 | **Unitarias / componentes del frontend** | `npm test` | `frontend/` | Vitest + Testing Library (699) |
