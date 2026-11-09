@@ -79,6 +79,7 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
   - Los dos mapas encuadran todos los pines (`fitToProjects`, zoom hasta 13) y vuelven a encuadrar al filtrar.
 - **`LocationPicker`:** busca con `geocodeAddress` (Nominatim; una búsqueda por segundo, sin autocompletar), toca el mapa o arrastra el pin. Guarda 6 decimales.
 - **`ProjectDetails`:** los datos y la validación del comentario están en `volunteering/projectFacts.ts`.
+  - Con fecha (§315), muestra cuándo es (`scheduleLabel`) y "Agregar a Google Calendar" / "Descargar .ics" (`projectEvent`). Con hora, evento con hora; sin hora, o varios días sin hora de fin, día completo.
   - **Reseña:** formulario propio, solo con la postulación aprobada. Se precarga con la reseña propia ("Actualizar reseña") en un `useLayoutEffect`, una vez por proyecto y sin pisar lo que se está escribiendo.
   - **Postularse:** teléfono opcional (`type="tel"`, ≤ 25). El campo es una función que devuelve JSX, para que no pierda el foco.
   - **Donar:** solo si el proyecto está `active`, quien mira no es una ONG y `accepts_donations` es verdadero. Si no, "Esta ONG todavía no recibe donaciones". Un visitante ve "Iniciá sesión para donar".
@@ -87,6 +88,7 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
 - **`MyParticipation`:** pestañas Próximos, Postulaciones, Seguidos y Realizados.
   - Postulaciones tiene "Cancelar postulación" en el menú "···".
   - Una postulación con entrevista programada muestra el chip "Entrevista", con fecha, lugar, link y "Agregar a Google Calendar" / "Descargar .ics" (`lib/calendar.ts`, RFC 5545).
+  - Un voluntariado aprobado con fecha (§315) muestra cuándo es y los mismos dos links.
   - En Realizados: "Dejá tu reseña" y "Certificado", solo si el voluntariado está `completed`.
 - **`CertificatePage`:** "Imprimir o guardar como PDF" con `window.print()`. Muestra las horas verificadas por la ONG.
 - **Perfiles públicos:**
@@ -114,7 +116,7 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
   - la campanita en el celular.
 
   Con un 401 vuelve al inicio.
-- **`CreateVoluntariado`:** la lógica del formulario está en `volunteering/projectForm.ts`. En edición:
+- **`CreateVoluntariado`:** la lógica del formulario está en `volunteering/projectForm.ts`. El paso 2 tiene "¿Cuándo es? (opcional)": fecha y hora de inicio y de fin (§315), con las reglas del backend. En edición:
   - el tipo queda fijo;
   - manda solo lo que cambió (`changedFields`), con `null` para borrar;
   - sin `can_manage`, muestra `LoadError`.

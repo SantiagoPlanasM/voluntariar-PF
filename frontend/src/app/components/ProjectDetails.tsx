@@ -4,8 +4,9 @@
 import { useParams, useNavigate, Link } from 'react-router';
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import {
-  ArrowLeft, Briefcase, Check, Clock, Laptop, Globe, MapPin, Send, Share2, Star, Bell,
+  ArrowLeft, Briefcase, CalendarDays, Check, Clock, Laptop, Globe, MapPin, Send, Share2, Star, Bell,
 } from 'lucide-react';
+import { googleCalendarUrl, icsHref, projectEvent, toIcs } from '../../lib/calendar';
 import { api, ProjectDetail } from '../../lib/api';
 import { useLatestRequest } from '../../lib/useLatestRequest';
 import { LoadError, describeLoadError } from './LoadError';
@@ -21,7 +22,7 @@ import { useToast } from '../ui/UiProvider';
 import { JoinButton } from './FeedPostCard';
 import { PROFILE_FIELD } from '../ui/fieldStyles';
 import { imagePositionClass } from '../volunteering/imagePosition';
-import { projectFacts, commentError } from '../volunteering/projectFacts';
+import { projectFacts, commentError, scheduleLabel } from '../volunteering/projectFacts';
 import { cardActions } from '../volunteering/cardActions';
 import { isRemote } from '../volunteering/isRemote';
 
@@ -196,6 +197,8 @@ export function ProjectDetails() {
   const remote = isRemote(project);
   // Los datos que se muestran (app/volunteering/projectFacts, §299).
   const { hasFunding, hoursLabel, avg, spotsLeft, active, goalMet, canDonate, mapsHref } = projectFacts(project, user?.role);
+  const when = scheduleLabel(project);   // §315
+  const calendarEvent = projectEvent(project, `${window.location.origin}/project/${project.id}`);
   const actions = cardActions(project, project.my_enrollment?.status ?? null, user?.role ?? null);
 
   /** Los botones de acción: se dibujan en la barra fija (celular) y en la caja de la derecha (escritorio). */
@@ -346,6 +349,19 @@ export function ProjectDetails() {
               <span className="flex-1 min-w-0">{remote ? (project.location && project.location.toLowerCase() !== 'remoto' ? `Remoto · ${project.location}` : '100% remoto') : project.location}</span>
               {mapsHref && !remote && <a href={mapsHref} target="_blank" rel="noopener noreferrer" className="font-semibold flex-shrink-0">Cómo llegar</a>}
             </div>
+            {/* §315: cuándo es, y agregarlo al calendario (Google, o el .ics para cualquier otro). */}
+            {when && calendarEvent && (
+              <div className="px-4 md:px-6 pb-6 -mt-3 flex items-start gap-2 text-[15px]">
+                <CalendarDays size={16} strokeWidth={1.75} aria-hidden="true" className="flex-shrink-0 mt-[3px]" />
+                <span className="flex-1 min-w-0 flex flex-col gap-1">
+                  <span>{when}</span>
+                  <span className="flex flex-wrap gap-x-3 gap-y-1 text-[13px]">
+                    <a href={googleCalendarUrl(calendarEvent)} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-text underline">Agregar a Google Calendar</a>
+                    <a href={icsHref(toIcs(calendarEvent, project.id, new Date(), 'voluntariado'))} download="voluntariado.ics" className="font-semibold text-brand-text underline">Descargar .ics</a>
+                  </span>
+                </span>
+              </div>
+            )}
 
             {/* La doble meta en el celular; en escritorio vive en la caja de la derecha. */}
             <div className="md:hidden px-4">

@@ -55,7 +55,7 @@ Notación: `FK→tabla` con su `ON DELETE` (CASCADE si no se dice otra cosa). To
 - **`faqs`**: id · categoria · pregunta · respuesta · keywords (todas NOT NULL salvo categoria) · orden · activo (BOOL).
 
 ### Voluntariados
-- **`projects`** (upd): id · ngo_id FK→ngos · titulo, descripcion, ubicacion NOT NULL · descripcion_full · foto_perfil · banner · alias UNIQUE · fechas `fecha_inicio`, `fecha_fin` (TEXT `YYYY-MM-DD`) · followers.
+- **`projects`** (upd): id · ngo_id FK→ngos · titulo, descripcion, ubicacion NOT NULL · descripcion_full · foto_perfil · banner · alias UNIQUE · fechas `fecha_inicio`, `fecha_fin` (TEXT `YYYY-MM-DD`) y horas `hora_inicio`, `hora_fin` (TEXT `HH:MM`, hora de Argentina; §315), todas opcionales · followers.
   - **Tipo y estado:** `tipo` (`fugaz`/`sostenido`, default `fugaz`) · `status` (`active`/`completed`/`cancelled`).
   - **Cupos:** `cupos` y `cupos_ocupados` (≥ 0). **No hay CHECK de `cupos_ocupados <= cupos`**: lo impone el código (regla 20).
   - **Fondos:** `meta_financiera`, `recaudado`, `costo` (REAL ≥ 0).

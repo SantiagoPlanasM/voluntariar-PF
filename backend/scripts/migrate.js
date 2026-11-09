@@ -509,6 +509,10 @@ async function migrate() {
   // Agregada 2026-11-09 (login con Google, PROJECT_ANALYSIS.md §314): el `sub` de la cuenta de Google vinculada (su id
   // estable; el mail puede cambiar). NULL = sin Google. Único: una cuenta de Google entra a una sola cuenta.
   await addColumnIfNotExists('users', 'google_sub', 'TEXT');
+  // Agregadas 2026-11-09 (cuándo es un voluntariado, PROJECT_ANALYSIS.md §315): hora de inicio y de fin ("HH:MM", hora
+  // de Argentina), opcionales. Van con projects.fecha_inicio / fecha_fin, que existían desde el principio sin uso.
+  await addColumnIfNotExists('projects', 'hora_inicio', 'TEXT');
+  await addColumnIfNotExists('projects', 'hora_fin', 'TEXT');
   // Agregadas 2026-10-29 (patrocinio como acuerdo negociado, PROJECT_ANALYSIS.md §263, docs/archivo/PLAN_PATROCINIO.md):
   // `version` sube con cada cambio de los puntos; cada parte acepta una versión (etapa 2).
   await addColumnIfNotExists('empresa_voluntariados', 'version', 'INTEGER NOT NULL DEFAULT 1');

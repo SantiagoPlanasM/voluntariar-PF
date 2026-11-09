@@ -1,7 +1,8 @@
 // Los datos que muestra el detalle de un voluntariado (ProjectDetails.tsx), sin la pantalla. Sacados en §299 para
 // bajar la complejidad del componente (PLAN_CIERRE §2) y probarlos aislados; el comportamiento es el mismo.
-import type { ProjectDetail, User } from '../../lib/api';
+import type { ProjectDetail, ProjectSchedule, User } from '../../lib/api';
 import { hasBadWord } from '../../lib/badWords';
+import { formatDateOnly } from '../../lib/format';
 
 export function projectFacts(project: ProjectDetail, role: User['role'] | null | undefined) {
   const hasFunding = (project.funding_goal || 0) > 0;
@@ -19,6 +20,17 @@ export function projectFacts(project: ProjectDetail, role: User['role'] | null |
     mapsHref: project.latitude != null && project.longitude != null
       ? `https://www.google.com/maps/search/?api=1&query=${project.latitude},${project.longitude}` : null,
   };
+}
+
+/** §315: "Cuándo" es el voluntariado, para el detalle. Sin fecha de inicio → null. La hora es la de Argentina. */
+export function scheduleLabel(p: ProjectSchedule): string | null {
+  if (!p.start_date) return null;
+  const at = (date: string, time?: string | null) => `${formatDateOnly(date)}${time ? `, ${time} h` : ''}`;
+  if (p.end_date && p.end_date !== p.start_date) {
+    return `Del ${at(p.start_date, p.start_time)} al ${at(p.end_date, p.end_time)}`;
+  }
+  if (p.start_time && p.end_time) return `${formatDateOnly(p.start_date)}, de ${p.start_time} a ${p.end_time} h`;
+  return at(p.start_date, p.start_time);
 }
 
 /** El error de un comentario ('' si se puede mandar): como el backend, mínimo 3 caracteres y sin palabras no permitidas. */

@@ -2,7 +2,8 @@
 // complejidad de ProjectDetails.tsx). Tests de caracterización: fijan lo que ya hacía el componente.
 import { describe, test, expect } from 'vitest';
 import type { ProjectDetail } from '../../lib/api';
-import { projectFacts, commentError } from './projectFacts';
+import { projectFacts, commentError, scheduleLabel } from './projectFacts';
+import { formatDateOnly } from '../../lib/format';
 
 const p = (over: Partial<ProjectDetail> = {}) => ({
   id: 'p1', type: 'fugaz', duration: '2 días', hours_per_week: undefined, avg_rating: 0, volunteers_needed: 10,
@@ -55,5 +56,27 @@ describe('commentError', () => {
     expect(commentError('   ok   ')).toBe('Muy corto');   // los espacios no cuentan
     expect(commentError('Muy lindo')).toBe('');
     expect(commentError('sos un idiota')).toBe('Contiene palabras no permitidas');
+  });
+});
+
+// §315: el "Cuándo" del detalle. Las fechas con formatDateOnly (como el resto de las fechas sin hora).
+describe('scheduleLabel', () => {
+  const f = formatDateOnly;
+  const s = (over: Record<string, string | null>) => scheduleLabel({ start_date: '2026-12-05', end_date: null, start_time: null, end_time: null, ...over });
+
+  test('sin fecha de inicio → null', () => {
+    expect(scheduleLabel({})).toBeNull();
+    expect(s({ start_date: null })).toBeNull();
+  });
+  test('un día, con y sin horas', () => {
+    expect(s({})).toBe(f('2026-12-05'));
+    expect(s({ end_date: '2026-12-05' })).toBe(f('2026-12-05'));
+    expect(s({ start_time: '09:00' })).toBe(`${f('2026-12-05')}, 09:00 h`);
+    expect(s({ start_time: '09:00', end_time: '13:30' })).toBe(`${f('2026-12-05')}, de 09:00 a 13:30 h`);
+  });
+  test('varios días, con y sin horas', () => {
+    expect(s({ end_date: '2027-01-31' })).toBe(`Del ${f('2026-12-05')} al ${f('2027-01-31')}`);
+    expect(s({ end_date: '2026-12-06', start_time: '18:00' })).toBe(`Del ${f('2026-12-05')}, 18:00 h al ${f('2026-12-06')}`);
+    expect(s({ end_date: '2026-12-06', start_time: '18:00', end_time: '12:00' })).toBe(`Del ${f('2026-12-05')}, 18:00 h al ${f('2026-12-06')}, 12:00 h`);
   });
 });

@@ -380,3 +380,31 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - **El login real con Google**: falta el Client ID. Tampoco se probó el botón de Google en el navegador ni el popup en el celular.
 - Falta cargar `GOOGLE_CLIENT_ID` (API) y `VITE_GOOGLE_CLIENT_ID` (sitio) en Render. Eso toca `render.yaml`, que necesita OK del usuario.
 - Una corrida de `npm run test:coverage` dio 1 falla y no se pudo saber cuál: en 4 corridas más y 10 de los archivos nuevos no se repitió. Puede ser uno de los tests que pasan los 5 s en esa corrida.
+
+## 315. Fechas de los voluntariados y Calendar
+
+### Qué se hizo
+- Los voluntariados no tenían fechas: `projects.fecha_inicio` y `fecha_fin` existían desde el principio, pero ninguna ruta las usaba. Decisión del usuario (9/11): fecha de inicio y de fin opcionales, con hora de inicio y de fin opcional.
+- Backend:
+  - Columnas nuevas `hora_inicio` y `hora_fin`.
+  - `readSchedule`/`scheduleError` en `routes/projects.js`: las mismas reglas en el alta y en la edición parcial (lo que viene + lo que ya estaba).
+  - `fmt` devuelve `start_date`, `end_date`, `start_time` y `end_time`; `GET /enrollments/my` también.
+- Frontend:
+  - "¿Cuándo es? (opcional)" en el paso 2 de `CreateVoluntariado`, con validación espejo en `projectForm.ts`.
+  - `calendar.ts`: `projectEvent` y eventos de día completo (`VALUE=DATE`, fin exclusivo). La entrevista no cambia.
+  - `scheduleLabel` en `projectFacts.ts`. El detalle del voluntariado y "Próximos" (solo aprobados) muestran cuándo es, con Google Calendar y el .ics.
+  - Con hora de inicio: evento con hora si es un solo día o tiene hora de fin; sin hora de fin dura una hora, como la entrevista. Si no, es de día completo.
+
+### Verificación
+- Tests primero: backend 23 (`projects-schedule.test.js`; rojo con 21 fallas reales). Frontend: 9 de `calendar`, 4 de `projectForm`, 3 de `scheduleLabel` y 7 de pantallas (formulario, detalle y Mis voluntariados).
+- Backend: 1179/1179 en SQLite y 1181/1181 en Postgres 18, también con `TZ=America/Argentina/Cordoba`. Frontend: 1253/1253, typecheck sin errores, build bien; 8 corridas seguidas con cobertura sin fallas. `npm audit` en 0 en los dos paquetes.
+- Mutation testing a mano con corrida de control: 40 mutantes, sobrevivieron 4, ninguno equivalente. Se sumaron casos: "solo hora de fin" en el backend y en el formulario, `fromProject` con fecha de fin, y la pendiente en la pestaña Postulaciones. Final: 40 mutantes, 0 sobreviven.
+
+### Errores propios
+- Escribí `interface Project {…} & ProjectSchedule`, que no es TypeScript válido. Se cambió por `extends` antes de correr nada.
+- Los tests de `scheduleLabel` se escribieron antes que la función, pero no se corrieron en rojo antes de implementarla.
+- `MyParticipationSchedule` guardaba la fila antes de que la pantalla se terminara de redibujar. Primero lo atribuí mal a los espacios de la fecha y agregué una normalización que no hacía falta (la saqué). Después falló 1 de 4 corridas con cobertura; se arregló consultando la pantalla con `waitFor`.
+
+### ⚠️ NO verificado
+- Que Google Calendar, Outlook y Apple abran bien los eventos (con hora y de día completo): no se probó en un calendario real. Tampoco se vieron los campos de fecha y hora en el navegador ni en el celular.
+- Las fechas no avisan si son pasadas. Los voluntariados existentes siguen sin fecha hasta que la ONG la cargue.

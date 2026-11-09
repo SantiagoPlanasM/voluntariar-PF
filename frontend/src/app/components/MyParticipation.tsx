@@ -17,7 +17,8 @@ import { useConfirm, useToast } from '../ui/UiProvider';
 import { VolunteeringTile } from '../volunteering/VolunteeringTile';
 import { userMessage } from '../../lib/format';
 import { interviewWhen } from './InterviewPanel';
-import { googleCalendarUrl, icsHref, interviewEvent, toIcs } from '../../lib/calendar';
+import { googleCalendarUrl, icsHref, interviewEvent, projectEvent, toIcs } from '../../lib/calendar';
+import { scheduleLabel } from '../volunteering/projectFacts';
 
 type TabKey = 'upcoming' | 'applications' | 'following' | 'done';
 
@@ -123,6 +124,9 @@ export function MyParticipation() {
 
   const row = (item: EnrollmentWithProject, opts: { menu?: boolean; review?: boolean; hours?: boolean } = {}) => {
     const iv = item.status === 'pending' && item.interview?.status === 'scheduled' ? item.interview : null;
+    // §315: un voluntariado en el que ya me aceptaron, si tiene fecha, se puede agregar al calendario.
+    const ev = item.status === 'approved'
+      ? projectEvent({ ...item, title: item.title }, `${window.location.origin}/project/${item.project_id}`) : null;
     return (
     <li key={item.id} className="relative flex flex-wrap items-center gap-3 min-h-[72px]">
       <Link to={`/project/${item.project_id}`} className="flex items-center gap-3 flex-1 min-w-0">
@@ -177,6 +181,16 @@ export function MyParticipation() {
             <a href={googleCalendarUrl(interviewEvent(iv, item.title, item.ngo_name))} target="_blank" rel="noopener noreferrer"
               className="font-semibold text-brand-text underline">Agregar a Google Calendar</a>
             <a href={icsHref(toIcs(interviewEvent(iv, item.title, item.ngo_name), iv.id))} download="entrevista.ics"
+              className="font-semibold text-brand-text underline">Descargar .ics</a>
+          </span>
+        </div>
+      )}
+      {ev && (
+        <div className="basis-full pl-[68px] -mt-1 pb-1 flex flex-col gap-0.5 text-[13px]">
+          <span className="font-semibold">{scheduleLabel(item)}</span>
+          <span className="flex flex-wrap gap-x-3 gap-y-1 mt-0.5">
+            <a href={googleCalendarUrl(ev)} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-text underline">Agregar a Google Calendar</a>
+            <a href={icsHref(toIcs(ev, item.project_id, new Date(), 'voluntariado'))} download="voluntariado.ics"
               className="font-semibold text-brand-text underline">Descargar .ics</a>
           </span>
         </div>

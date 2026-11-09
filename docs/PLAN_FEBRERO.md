@@ -42,7 +42,7 @@ En este orden, salvo que el usuario diga otra cosa (orden propuesto, sin confirm
 
 1. [ ] **Validación de ONG con panel de administración.** Es el único objetivo no cumplido y completa el panel general. Falta definir qué se valida y quién administra.
 2. [x] **Iniciar sesión con Google** (§314): pantalla de rol la primera vez; un mail con cuenta se vincula solo si Google lo da por verificado. Falta el Client ID de Google Cloud.
-   - [ ] **Fechas de los voluntariados y Calendar** (decisión del 9/11): inicio y fin opcionales, con hora opcional; botón de Google Calendar y .ics. Las entrevistas ya lo tienen (§268).
+   - [x] **Fechas de los voluntariados y Calendar** (§315): inicio y fin opcionales, con hora opcional; Google Calendar y .ics en el detalle y en "Próximos". Las entrevistas ya lo tenían (§268).
 3. [ ] **Notificaciones instantáneas**, por el WebSocket que ya existe.
 4. [ ] **Reputación de ONG y usuarios.**
 5. [ ] **Empleados de empresa con cupos reservados** (`PLAN_EQUIPOS.md`, pasos 3 y 4). Toca la invariante de cupos: con cuidado.

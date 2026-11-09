@@ -189,7 +189,7 @@
 - **Errores:** 404. Los cancelados se abren igual.
 
 ### `POST /api/projects` — ngo
-- **Body (en inglés):** `{ title, description, full_description?, image?, image_position?, category?, location, type?, duration?, hours_per_week?, volunteers_needed, funding_goal?, cost_per_person?, modality?|modalidad?, latitude?|latitud?, longitude?|longitud?, roles_needed?: string[], requirements?: string[] }`.
+- **Body (en inglés):** `{ title, description, full_description?, image?, image_position?, category?, location, type?, duration?, hours_per_week?, volunteers_needed, funding_goal?, cost_per_person?, modality?|modalidad?, latitude?|latitud?, longitude?|longitud?, roles_needed?: string[], requirements?: string[], start_date?, end_date?, start_time?, end_time? }`.
 - **Validación** (todo antes de crear nada → 400):
   - **Textos:** título de 3 a 80 · descripción de 10 a 1000 · `full_description` ≤ 5000 · `location` obligatoria, ≤ 150 · `duration` ≤ 100, obligatoria si es `fugaz` · `image` ≤ 1000.
   - **Tipo y modalidad:** `type` es `fugaz` (por defecto) o `sostenido`. `modality` es `presencial`, `remoto` o `hibrido`; si falta, se deduce de la ubicación.
@@ -197,13 +197,15 @@
   - **Coordenadas:** latitud de −90 a 90 y longitud de −180 a 180 (vacío = sin coordenadas).
   - **Listas:** `roles_needed` y `requirements` son arrays de strings, hasta 20 cada uno (rol de 2 a 40, requisito de 3 a 100), recortados y sin repetidos.
   - **Otros:** `category` ≤ 60; `image_position` es `top`, `center` (por defecto) o `bottom`.
+  - **Cuándo** (§315), todo opcional (`null` o `''` = sin dato): `start_date`/`end_date` son fechas `AAAA-MM-DD` que existen; `start_time`/`end_time` son `HH:MM` (hora de Argentina). La fecha de fin y las horas necesitan fecha de inicio; la hora de fin, hora de inicio; el fin no es anterior al inicio; en un mismo día, la hora de fin es posterior.
+  - Las respuestas de un proyecto (`fmt`) traen `start_date`, `end_date`, `start_time` y `end_time` (o `null`), y `GET /enrollments/my` también.
 - **Efecto:** en una transacción, el proyecto, la categoría y los roles (que se crean en el catálogo si no existen) y los requisitos. No pasa por `hasBadWord`.
 - **201:** `{ project }`, con lo que quedó guardado.
 - **Errores:** 400 · 404 sin perfil de ONG.
 
 ### `PUT /api/projects/:id` — ngo dueña
 - **Parcial:** un campo que no viene conserva su valor. `null` o `''` borra los opcionales; en los montos, los deja en 0.
-- Valida el resultado combinado como el alta. `status` es `active`, `completed` o `cancelled`. `roles_needed`, `requirements` y `category`, si vienen, **reemplazan** a los actuales.
+- Valida el resultado combinado como el alta, también las fechas y horas (lo que viene + lo que ya estaba). `status` es `active`, `completed` o `cancelled`. `roles_needed`, `requirements` y `category`, si vienen, **reemplazan** a los actuales.
 - **Capacidad:** si `volunteers_needed` falta o es `null`, se conserva. No se puede bajar de los aprobados → 400 "No podés bajar la capacidad a N: ya hay M voluntarios aprobados.". La condición va en el propio `UPDATE` (`AND cupos_ocupados <= $n`).
 - **Quién lo usa:** la edición (`CreateVoluntariado`, que manda solo lo que cambió) y el estado del panel (`{ status }` para finalizar, cancelar o volver a activar).
 - **200:** `{ project }` releído.

@@ -129,6 +129,7 @@ router.get('/my', requireAuth, async (req, res) => {
               e.horas_realizadas AS hours_logged, e.created_at, e.updated_at,
               p.titulo AS title, p.foto_perfil AS image, p.tipo AS type,
               p.ubicacion AS location, p.status AS project_status,
+              p.fecha_inicio AS start_date, p.fecha_fin AS end_date, p.hora_inicio AS start_time, p.hora_fin AS end_time,
               n.nombre AS ngo_name, n.foto_perfil AS ngo_logo,
               COALESCE(c.nombre, '') AS category,
               ${INTERVIEW_COLS}

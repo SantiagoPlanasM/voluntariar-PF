@@ -10,6 +10,8 @@ export type Form = {
   title: string; description: string; full_description: string; category: string; location: string;
   modality: 'presencial' | 'remoto' | 'hibrido'; type: 'fugaz' | 'sostenido';
   duration: string; hours_per_week: string; volunteers_needed: string; funding_goal: string; cost_per_person: string;
+  /** §315: "AAAA-MM-DD" y "HH:MM" de los <input type="date|time">; "" = sin dato. */
+  start_date: string; end_date: string; start_time: string; end_time: string;
 };
 export type Coords = { lat: number; lng: number } | null;
 
@@ -19,6 +21,7 @@ export const EMPTY_FORM: Form = {
   modality: 'presencial', type: 'fugaz',
   duration: '', hours_per_week: '',
   volunteers_needed: '', funding_goal: '', cost_per_person: '',
+  start_date: '', end_date: '', start_time: '', end_time: '',
 };
 
 // Lo que se manda al backend, igual para crear y para editar. Al editar, "sin valor" es null (el PUT es parcial:
@@ -43,6 +46,11 @@ export function toBody(form: Form, roles: string[], requirements: string[], coor
     cost_per_person: Number.parseFloat(form.cost_per_person) || 0,
     roles_needed: roles,
     requirements,
+    // §315: cuándo. Lo vacío no se manda al crear y va null al editar (para poder borrarlo).
+    start_date: form.start_date || (none as undefined),
+    end_date: form.end_date || (none as undefined),
+    start_time: form.start_time || (none as undefined),
+    end_time: form.end_time || (none as undefined),
   };
 }
 
@@ -56,6 +64,7 @@ export function fromProject(p: ProjectDetail): { form: Form; roles: string[]; re
       modality: p.modality ?? 'presencial', type: p.type,
       duration: p.duration ?? '', hours_per_week: num(p.hours_per_week),
       volunteers_needed: num(p.volunteers_needed), funding_goal: num(p.funding_goal), cost_per_person: num(p.cost_per_person),
+      start_date: p.start_date ?? '', end_date: p.end_date ?? '', start_time: p.start_time ?? '', end_time: p.end_time ?? '',
     },
     roles: p.roles_needed ?? [],
     requirements: p.requirements ?? [],
@@ -94,6 +103,17 @@ function validateDetails(form: Form, coords: Coords, e: Record<string, string>) 
     e.hours_per_week = 'Ingresá horas por semana (mín. 1)';
   if (!isPositiveInt(form.volunteers_needed))
     e.volunteers_needed = '¿Cuántos voluntarios necesitás?';
+  validateSchedule(form, e);
+}
+
+// §315: las mismas reglas que el backend (routes/projects.js, scheduleError). Las fechas "AAAA-MM-DD" y las horas
+// "HH:MM" se comparan como texto: el orden es el mismo.
+function validateSchedule({ start_date: sd, end_date: ed, start_time: st, end_time: et }: Form, e: Record<string, string>) {
+  if (ed && !sd) e.end_date = 'Primero elegí la fecha de inicio';
+  else if (ed && ed < sd) e.end_date = 'No puede ser anterior a la fecha de inicio';
+  if ((st || et) && !sd) e.start_time = 'Elegí también la fecha de inicio';
+  else if (et && !st) e.end_time = 'Primero elegí la hora de inicio';
+  else if (et && (!ed || ed === sd) && et <= st) e.end_time = 'Tiene que ser después de la hora de inicio';
 }
 
 /** Los errores del paso (1: lo básico; 2: lugar, tiempo y cupos; 3: nada), por campo. */

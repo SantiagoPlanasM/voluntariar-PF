@@ -83,3 +83,42 @@ describe('toBody, fromProject y changedFields', () => {
       .toEqual({ volunteers_needed: 3 });
   });
 });
+
+// §315: cuándo es el voluntariado. Todo opcional; las mismas reglas que el backend (routes/projects.js, scheduleError).
+describe('fechas y horas del voluntariado', () => {
+  const pin = { lat: -31.4, lng: -64.2 };
+  const errs = (over: Partial<Form>) => validateStep(2, form(over), pin);
+
+  test('vacío o completo y coherente: sin errores', () => {
+    expect(errs({})).toEqual({});
+    expect(errs({ start_date: '2026-12-05' })).toEqual({});
+    expect(errs({ start_date: '2026-12-05', end_date: '2026-12-05', start_time: '09:00', end_time: '13:30' })).toEqual({});
+    expect(errs({ start_date: '2026-12-05', end_date: '2026-12-06', start_time: '18:00', end_time: '12:00' })).toEqual({});
+  });
+
+  test('fin sin inicio, fin antes del inicio, horas sin fecha, fin sin hora de inicio y fin antes en el mismo día', () => {
+    expect(errs({ end_date: '2026-12-05' })).toEqual({ end_date: 'Primero elegí la fecha de inicio' });
+    expect(errs({ start_date: '2026-12-05', end_date: '2026-12-04' })).toEqual({ end_date: 'No puede ser anterior a la fecha de inicio' });
+    expect(errs({ start_time: '09:00' })).toEqual({ start_time: 'Elegí también la fecha de inicio' });
+    expect(errs({ end_time: '12:00' })).toEqual({ start_time: 'Elegí también la fecha de inicio' });
+    expect(errs({ start_date: '2026-12-05', end_time: '12:00' })).toEqual({ end_time: 'Primero elegí la hora de inicio' });
+    expect(errs({ start_date: '2026-12-05', start_time: '10:00', end_time: '10:00' })).toEqual({ end_time: 'Tiene que ser después de la hora de inicio' });
+    expect(errs({ start_date: '2026-12-05', end_date: '2026-12-05', start_time: '10:00', end_time: '09:00' })).toEqual({ end_time: 'Tiene que ser después de la hora de inicio' });
+  });
+
+  test('toBody: al crear, lo vacío no se manda; al editar, va null (para poder borrarlo)', () => {
+    const f = form({ start_date: '2026-12-05', start_time: '09:00' });
+    const create = toBody(f, [], [], pin, false);
+    expect([create.start_date, create.end_date, create.start_time, create.end_time]).toEqual(['2026-12-05', undefined, '09:00', undefined]);
+    const edit = toBody(f, [], [], pin, true);
+    expect([edit.start_date, edit.end_date, edit.start_time, edit.end_time]).toEqual(['2026-12-05', null, '09:00', null]);
+  });
+
+  test('fromProject: precarga las fechas, y "" si no hay', () => {
+    const p = { title: 'X', type: 'fugaz', start_date: '2026-12-05', end_date: null, start_time: '09:00', end_time: null } as unknown as ProjectDetail;
+    const f = fromProject(p).form;
+    expect([f.start_date, f.end_date, f.start_time, f.end_time]).toEqual(['2026-12-05', '', '09:00', '']);
+    const full = fromProject({ ...p, end_date: '2026-12-06', end_time: '12:00' } as unknown as ProjectDetail).form;
+    expect([full.end_date, full.end_time]).toEqual(['2026-12-06', '12:00']);
+  });
+});

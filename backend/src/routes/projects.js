@@ -91,6 +91,11 @@ function fmt(p) {
     current_funding:    p.recaudado    || 0,
     cost_per_person:    p.costo        || 0,
     hours_per_week:     p.horas_semanales || null,
+    // Cuándo (§315): "AAAA-MM-DD" y "HH:MM" (hora de Argentina), o null.
+    start_date:         p.fecha_inicio ?? null,
+    end_date:           p.fecha_fin ?? null,
+    start_time:         p.hora_inicio ?? null,
+    end_time:           p.hora_fin ?? null,
     duration:           p.duracion     || null,
     roles_needed:       parseJson(p.roles_json),
     requirements:       parseJson(p.requisitos_json),
@@ -158,6 +163,38 @@ function parseMoney(value, label) {
   if (value === null || value === '') return { value: 0 };
   const n = Number(value);
   return Number.isFinite(n) && n >= 0 ? { value: n } : { error: `${label} tiene que ser un número mayor o igual a 0` };
+}
+
+// ── Cuándo es el voluntariado (§315) ──────────────────────────────────────
+// Fecha de inicio y de fin, y hora de inicio y de fin, todas opcionales (decisión del usuario del 9/11). La hora es
+// de Argentina. Reglas: la fecha de fin y las horas necesitan una fecha de inicio; la hora de fin, una de inicio; la
+// fecha de fin no es anterior a la de inicio; en un mismo día, la hora de fin es posterior a la de inicio.
+const SCHEDULE_KEYS = ['start_date', 'end_date', 'start_time', 'end_time'];
+const SCHEDULE_COLS = { start_date: 'fecha_inicio', end_date: 'fecha_fin', start_time: 'hora_inicio', end_time: 'hora_fin' };
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+// Lo que viene en el body (null o '' = sin dato) y, en la edición, lo que ya estaba para lo que no viene.
+function readSchedule(body, current = null) {
+  const out = {};
+  for (const k of SCHEDULE_KEYS) {
+    const v = body[k];
+    if (v === undefined) out[k] = current ? current[SCHEDULE_COLS[k]] ?? null : null;
+    else out[k] = v === null || v === '' ? null : v;
+  }
+  return out;
+}
+
+function scheduleError({ start_date: sd, end_date: ed, start_time: st, end_time: et }) {
+  if (sd !== null && !isIsoDate(sd)) return 'La fecha de inicio tiene que ser una fecha válida (AAAA-MM-DD)';
+  if (ed !== null && !isIsoDate(ed)) return 'La fecha de fin tiene que ser una fecha válida (AAAA-MM-DD)';
+  if (st !== null && (typeof st !== 'string' || !TIME_RE.test(st))) return 'La hora de inicio tiene que tener el formato HH:MM';
+  if (et !== null && (typeof et !== 'string' || !TIME_RE.test(et))) return 'La hora de fin tiene que tener el formato HH:MM';
+  if (ed !== null && sd === null) return 'La fecha de fin necesita una fecha de inicio';
+  if (ed !== null && ed < sd) return 'La fecha de fin no puede ser anterior a la de inicio';
+  if ((st !== null || et !== null) && sd === null) return 'La hora necesita una fecha de inicio';
+  if (et !== null && st === null) return 'La hora de fin necesita una hora de inicio';
+  if (et !== null && (ed === null || ed === sd) && et <= st) return 'La hora de fin tiene que ser posterior a la de inicio';
+  return null;
 }
 
 function validateProject(body) {
@@ -705,6 +742,9 @@ router.post('/', requireAuth, requireRole('ngo'), async (req, res) => {
     if (err) return res.status(400).json({ error: err });
     const modErr = modalityError(req.body);
     if (modErr) return res.status(400).json({ error: modErr });
+    const when = readSchedule(req.body);   // §315
+    const whenErr = scheduleError(when);
+    if (whenErr) return res.status(400).json({ error: whenErr });
     // Coordenadas: `latitude` o, si no viene (o es null), `latitud`; ausentes = sin coordenadas.
     const lat = parseLat(latitude ?? latitud ?? null);
     if (lat.error) return res.status(400).json({ error: lat.error });
@@ -742,14 +782,16 @@ router.post('/', requireAuth, requireRole('ngo'), async (req, res) => {
       await tx.run(
         `INSERT INTO projects (id, ngo_id, titulo, descripcion, descripcion_full, foto_perfil,
           tipo, status, ubicacion, duracion, cupos, cupos_ocupados,
-          meta_financiera, recaudado, costo, horas_semanales, latitud, longitud, modalidad, foto_posicion)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,'active',$8,$9,$10,0,$11,0,$12,$13,$14,$15,$16,$17)`,
+          meta_financiera, recaudado, costo, horas_semanales, latitud, longitud, modalidad, foto_posicion,
+          fecha_inicio, fecha_fin, hora_inicio, hora_fin)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'active',$8,$9,$10,0,$11,0,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
         [projectId, ngo.id, title.trim(), description.trim(), full_description?.trim() || null,
          image || null, tipo, location.trim(), duration?.trim() || null,
          toStrictInt(volunteers_needed), meta.value,
          costo.value,
          tipo === 'sostenido' ? toStrictInt(hours_per_week) : null,
-         lat.value, lng.value, mod, pos.value]
+         lat.value, lng.value, mod, pos.value,
+         when.start_date, when.end_date, when.start_time, when.end_time]
       );
 
       // Categoría y roles: se crean en el catálogo si no existen (ON CONFLICT: otra alta concurrente
@@ -820,6 +862,10 @@ router.put('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
     const newCupos = toStrictInt(m.cupos);
     const modErr = modalityError(b);
     if (modErr) return res.status(400).json({ error: modErr });
+    // Cuándo (§315): lo que viene + lo que ya estaba, con las mismas reglas que el alta.
+    const when = readSchedule(b, project);
+    const whenErr = scheduleError(when);
+    if (whenErr) return res.status(400).json({ error: whenErr });
     // Coordenadas: si vienen (`latitude` o, si no, `latitud`) se validan como en el alta y null/'' las borra; si
     // no viene ninguna, se conserva la actual.
     const coord = (en, es, current, parse) => (b[en] !== undefined ? parse(b[en])
@@ -858,7 +904,8 @@ router.put('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
       const upd = await tx.run(
         `UPDATE projects SET titulo=$1, descripcion=$2, descripcion_full=$3, foto_perfil=$4,
          ubicacion=$5, tipo=$6, status=$7, duracion=$8, cupos=$9, meta_financiera=$10,
-         costo=$11, horas_semanales=$12, latitud=$13, longitud=$14, modalidad=$15, foto_posicion=$16, updated_at=CURRENT_TIMESTAMP
+         costo=$11, horas_semanales=$12, latitud=$13, longitud=$14, modalidad=$15, foto_posicion=$16,
+         fecha_inicio=$18, fecha_fin=$19, hora_inicio=$20, hora_fin=$21, updated_at=CURRENT_TIMESTAMP
          WHERE id=$17 AND cupos_ocupados <= $9`,
         [m.titulo.trim(), m.descripcion.trim(),
          has('full_description') ? (b.full_description?.trim() || null) : project.descripcion_full,
@@ -867,7 +914,8 @@ router.put('/:id', requireAuth, requireRole('ngo'), async (req, res) => {
          newCupos, meta.value, costo.value,
          m.tipo === 'sostenido' ? toStrictInt(m.horas) : null,
          lat.value, lng.value, mod, pos.value,
-         req.params.id]
+         req.params.id,
+         when.start_date, when.end_date, when.start_time, when.end_time]
       );
       if (upd.changes === 0) return { capacity: true };
 

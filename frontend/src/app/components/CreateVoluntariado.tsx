@@ -424,6 +424,38 @@ export function CreateVoluntariado() {
                 </div>
               )}
 
+              {/* §315: cuándo es. Todo opcional; con fecha, quien se suma lo puede agregar a su calendario. */}
+              <fieldset className="space-y-3">
+                <legend className={lbl}>¿Cuándo es? (opcional)</legend>
+                <p className={hint}>Con una fecha, los voluntarios lo pueden agregar a su calendario. Sin hora, queda como día completo.</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div id="field-start_date">
+                    <label htmlFor="crear-fecha-inicio" className={lbl}>Fecha de inicio</label>
+                    <input id="crear-fecha-inicio" type="date" className={inp('start_date')} aria-label="Fecha de inicio"
+                      value={form.start_date} onChange={e => set('start_date', e.target.value)} />
+                    {err('start_date')}
+                  </div>
+                  <div id="field-end_date">
+                    <label htmlFor="crear-fecha-fin" className={lbl}>Fecha de fin</label>
+                    <input id="crear-fecha-fin" type="date" className={inp('end_date')} aria-label="Fecha de fin"
+                      min={form.start_date || undefined} value={form.end_date} onChange={e => set('end_date', e.target.value)} />
+                    {err('end_date')}
+                  </div>
+                  <div id="field-start_time">
+                    <label htmlFor="crear-hora-inicio" className={lbl}>Hora de inicio</label>
+                    <input id="crear-hora-inicio" type="time" className={inp('start_time')} aria-label="Hora de inicio"
+                      value={form.start_time} onChange={e => set('start_time', e.target.value)} />
+                    {err('start_time')}
+                  </div>
+                  <div id="field-end_time">
+                    <label htmlFor="crear-hora-fin" className={lbl}>Hora de fin</label>
+                    <input id="crear-hora-fin" type="time" className={inp('end_time')} aria-label="Hora de fin"
+                      value={form.end_time} onChange={e => set('end_time', e.target.value)} />
+                    {err('end_time')}
+                  </div>
+                </div>
+              </fieldset>
+
               <div id="field-volunteers_needed">
                 <label htmlFor="crear-voluntarios" className={lbl}>Voluntarios necesarios *</label>
                 <div className="relative">

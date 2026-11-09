@@ -311,7 +311,7 @@ export interface User {
 /** POST /auth/google (§314): la sesión, o los datos de Google para la pantalla de rol. */
 export interface GoogleProfile { email: string; name: string | null; given_name: string | null; family_name: string | null }
 export type GoogleLoginResult = { token: string; user: User } | { needs_registration: true; profile: GoogleProfile };
-export interface Project {
+export interface Project extends ProjectSchedule {
   id: string; ngo_id: string; title: string; description: string;
   full_description?: string; image?: string; category: string;
   /** Qué parte de la foto se ve cuando la tarjeta la recorta (§297). Sin dato: al centro. */
@@ -326,6 +326,10 @@ export interface Project {
   modality?: 'presencial' | 'remoto' | 'hibrido';
   recommendation_score?: number; recommendation_reasons?: string[];
   avg_rating?: number | null; ratings_count?: number;
+}
+/** Cuándo es el voluntariado (§315): "AAAA-MM-DD" y "HH:MM" (hora de Argentina), o null. Todo opcional. */
+export interface ProjectSchedule {
+  start_date?: string | null; end_date?: string | null; start_time?: string | null; end_time?: string | null;
 }
 export interface FeedProject extends Project {
   avg_rating?: number | null;
@@ -398,7 +402,8 @@ export interface Interview {
 }
 /** Lo que manda el formulario de la entrevista (los campos vacíos no se mandan). */
 export interface InterviewInput { date: string; time: string; link?: string; place?: string; note?: string }
-export interface EnrollmentWithProject extends Enrollment {
+/** GET /enrollments/my: la inscripción con datos del voluntariado, incluido cuándo es (§315). */
+export interface EnrollmentWithProject extends Enrollment, ProjectSchedule {
   title: string; image?: string; category: string; type: string;
   location: string; project_status: string; ngo_name: string; ngo_logo?: string;
 }

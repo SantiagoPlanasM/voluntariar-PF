@@ -4,7 +4,7 @@
 // con una hora de duración. El .ics es un VCALENDAR/VEVENT válido (CRLF, UID, DTSTAMP) con título, lugar, link y nota,
 // y escapa `\`, `;`, `,` y los saltos de línea. El link de Google Calendar lleva las mismas fechas y textos.
 import { describe, test, expect } from 'vitest';
-import { interviewEvent, toIcs, googleCalendarUrl } from './calendar';
+import { interviewEvent, projectEvent, toIcs, googleCalendarUrl } from './calendar';
 
 const iv = { id: 'int-1', date: '2026-11-10', time: '18:00', link: 'https://meet.google.com/abc', place: 'Sede; piso 2, oficina', note: 'Traé el DNI\nY el CV' };
 
@@ -60,5 +60,71 @@ describe('calendario de la entrevista', () => {
     expect(url.searchParams.get('text')).toBe('Entrevista: Limpieza del lago (ONG Verde)');
     expect(url.searchParams.get('location')).toBe('Sede; piso 2, oficina');
     expect(url.searchParams.get('details')).toContain('Traé el DNI');
+  });
+});
+
+// §315: el voluntariado. Con hora → evento con hora (de Argentina, en UTC); sin hora, o varios días sin hora de fin →
+// día completo (fechas sin hora, con el fin EXCLUSIVO: el día siguiente al último, como piden iCalendar y Google).
+describe('calendario del voluntariado', () => {
+  const p = {
+    id: 'proj-9', title: 'Plantación', ngo_name: 'ONG Verde', location: 'Costanera, Córdoba',
+    start_date: '2026-12-05', end_date: null as string | null, start_time: '09:00' as string | null, end_time: '13:30' as string | null,
+  };
+  const URL_P = 'https://voluntariar.example/project/proj-9';
+
+  test('sin fecha de inicio no hay evento', () => {
+    expect(projectEvent({ ...p, start_date: null }, URL_P)).toBeNull();
+  });
+
+  test('un día con hora de inicio y de fin: evento con hora en UTC', () => {
+    const e = projectEvent(p, URL_P)!;
+    expect(e.allDay).toBe(false);
+    expect([e.start, e.end]).toEqual(['20261205T120000Z', '20261205T163000Z']);
+    expect(e.title).toBe('Voluntariado: Plantación (ONG Verde)');
+    expect(e.location).toBe('Costanera, Córdoba');
+    expect(e.description).toBe(`Más información: ${URL_P}`);
+  });
+
+  test('un día con hora de inicio y sin hora de fin: dura una hora', () => {
+    const e = projectEvent({ ...p, end_time: null }, URL_P)!;
+    expect([e.start, e.end]).toEqual(['20261205T120000Z', '20261205T130000Z']);
+  });
+
+  test('varios días con hora de fin: con hora, de punta a punta', () => {
+    const e = projectEvent({ ...p, end_date: '2026-12-06', start_time: '18:00', end_time: '12:00' }, URL_P)!;
+    expect(e.allDay).toBe(false);
+    expect([e.start, e.end]).toEqual(['20261205T210000Z', '20261206T150000Z']);
+  });
+
+  test('sin hora: día completo, con el fin exclusivo (un día → hasta el siguiente)', () => {
+    const e = projectEvent({ ...p, start_time: null, end_time: null }, URL_P)!;
+    expect(e.allDay).toBe(true);
+    expect([e.start, e.end]).toEqual(['20261205', '20261206']);
+  });
+
+  test('varios días sin hora de fin: día completo de inicio a fin (cruza mes y año)', () => {
+    const e = projectEvent({ ...p, start_date: '2026-12-01', end_date: '2027-01-31', end_time: null }, URL_P)!;
+    expect(e.allDay).toBe(true);
+    expect([e.start, e.end]).toEqual(['20261201', '20270201']);
+  });
+
+  test('el .ics de día completo usa VALUE=DATE y el UID del voluntariado', () => {
+    const ics = toIcs(projectEvent({ ...p, start_time: null, end_time: null }, URL_P)!, 'proj-9', new Date(0), 'voluntariado');
+    const lines = ics.split('\r\n');
+    expect(lines).toContain('UID:voluntariado-proj-9@voluntariar');
+    expect(lines).toContain('DTSTART;VALUE=DATE:20261205');
+    expect(lines).toContain('DTEND;VALUE=DATE:20261206');
+    expect(lines.some((l) => l.startsWith('DTSTART:'))).toBe(false);
+  });
+
+  test('Google Calendar de día completo: dates con fechas sin hora', () => {
+    const url = new URL(googleCalendarUrl(projectEvent({ ...p, start_time: null, end_time: null }, URL_P)!));
+    expect(url.searchParams.get('dates')).toBe('20261205/20261206');
+  });
+
+  test('la entrevista sigue igual: sin allDay y con su UID de siempre', () => {
+    const ics = toIcs(interviewEvent(iv, 'X', 'Y'), 'int-1', new Date(0));
+    expect(ics).toContain('UID:entrevista-int-1@voluntariar');
+    expect(ics).toContain('DTSTART:20261110T210000Z');
   });
 });
