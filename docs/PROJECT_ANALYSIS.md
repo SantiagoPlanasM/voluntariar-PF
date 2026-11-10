@@ -423,3 +423,23 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 
 ### ⚠️ NO verificado
 - Si Render aplica solo los cambios de `render.yaml` (sincronización del blueprint).
+
+## 317. Validación de ONG: backend (el frontend sigue en otra sección)
+
+### Qué se hizo
+- Decisiones del usuario (10/11): admins por `ADMIN_EMAILS` (sin rol nuevo: el CHECK de `users.role` no se puede cambiar en SQLite, regla 12); CUIT + tipo de personería + estatuto y constancia en PDF privados (como el CV); "validada" es solo la insignia.
+- Tabla `ngo_validaciones` (una por ONG). `lib/ngoValidation.js`: estados, personerías, `requireAdmin`, `isAdmin` y `verifiedSql` (la insignia se calcula con EXISTS).
+- `/api/ngos/me/validacion` (GET, POST multipart con regla 24, GET documento con link firmado) y `/api/admin/validaciones` (listar, documento, aprobar, rechazar con motivo de 10 a 500; compare-and-swap; aviso y mail después).
+- `/auth/me` devuelve `is_admin`; `fmtNgo` trae `verified` y los proyectos `ngo_verified`; borrar la cuenta borra también estos PDF.
+
+### Verificación
+- 26 tests nuevos (`ngo-validacion.test.js`), primero en rojo (26 de 26). Backend: 1205/1205 en SQLite y 1207/1207 en Postgres 18, también en Córdoba. `npm audit` en 0.
+- Mutation testing a mano: 31 mutantes, sobreviven 3. Dos son equivalentes: el atajo con `ADMIN_EMAILS` vacía, y pasar el mail de la base a minúsculas (el registro siempre lo guarda en minúsculas). El otro no: el `AND estado='rechazada'` del reenvío solo importa en una carrera y no tiene test.
+
+### Errores propios
+- En el test usé mails que no estaban en el seed y un token de borrado en hex (la app usa base64url). Además, el tope de envíos se gastaba entre tests. Lo corregí en el test.
+- `ngo_verified` rompió dos tests de forma (regla 10) hasta agregarlo también en `ngoProjects`.
+
+### ⚠️ NO verificado
+- **Falta el frontend** (pantalla "Validar la ONG", panel de admin, insignia) y cargar `ADMIN_EMAILS` en Render. La API sola no se ve.
+- El test de la carrera del reenvío. La subida real a Cloudinary (los tests usan dobles).

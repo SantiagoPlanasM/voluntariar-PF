@@ -13,6 +13,7 @@ const { fmt: fmtProject } = require('./projects');
 const { acceptVersion } = require('./patrocinios'); // aceptar por versión (§264)
 const { INTERVIEW_COLS, INTERVIEW_JOIN, withInterview } = require('./enrollments'); // la entrevista de cada postulación (§279)
 const { attachAssoc } = require('../lib/projectAssoc');
+const { verifiedSql } = require('../lib/ngoValidation');   // §317: la insignia
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
@@ -41,6 +42,8 @@ function fmtNgo(n) {
     // §285: transparencia, cargada por la ONG y pública a propósito (no es una verificación).
     cuit:             n.cuit || null,
     transparency_url: n.transparencia_url || null,
+    // §317: la insignia azul (validación aprobada). Solo la traen las consultas que piden `verified`.
+    ...(n.verified !== undefined ? { verified: Boolean(n.verified) } : {}),
   };
 }
 
@@ -81,7 +84,7 @@ async function ngoProjects(ngoId, status) {
   let where = 'p.ngo_id=$1';
   if (status) { where += ' AND p.status=$2'; params.push(status); }
   const projects = await db.all(
-    `SELECT p.*, n.nombre AS ngo_name, n.foto_perfil AS ngo_logo,
+    `SELECT p.*, n.nombre AS ngo_name, n.foto_perfil AS ngo_logo, ${verifiedSql('p.ngo_id')} AS ngo_verified,
             COALESCE(n.followers, 0) AS ngo_followers,
             COALESCE(r.avg_rating, 0) AS avg_rating,
             COALESCE(r.ratings_count, 0) AS ratings_count
@@ -208,7 +211,7 @@ router.get('/me', requireAuth, requireRole('ngo'), async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const ngo = await db.get(
-      `SELECT n.*, COALESCE(c.nombre, '') AS categoria_nombre
+      `SELECT n.*, COALESCE(c.nombre, '') AS categoria_nombre, ${verifiedSql('n.id')} AS verified
        FROM ngos n
        LEFT JOIN ngo_categorias nc ON nc.ngo_id = n.id
        LEFT JOIN categorias c ON c.id = nc.categoria_id
@@ -570,4 +573,5 @@ router.patch('/me/patrocinios/:empresaId/:projectId', requireAuth, requireRole('
 module.exports = router;
 // Compartido con routes/follows.js (no copiarlo: regla 4).
 module.exports.fmtNgo = fmtNgo;
+module.exports.parseCuit = parseCuit;   // la validación de la ONG pide el CUIT con la misma regla (§317)
 module.exports.pendingEnrollmentsOf = pendingEnrollmentsOf;   // panel del equipo (§294)

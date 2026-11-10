@@ -513,6 +513,23 @@ async function migrate() {
   // de Argentina), opcionales. Van con projects.fecha_inicio / fecha_fin, que existían desde el principio sin uso.
   await addColumnIfNotExists('projects', 'hora_inicio', 'TEXT');
   await addColumnIfNotExists('projects', 'hora_fin', 'TEXT');
+  // Agregada 2026-11-10 (validación de ONG, PROJECT_ANALYSIS.md §317; DESIGN.md "Validación de ONGs"): una por ONG.
+  // estatuto_id / constancia_id son public_id de PDF PRIVADOS de Cloudinary (como el CV): nunca salen por la API.
+  // "Validada" es solo la insignia; se calcula con EXISTS (lib/ngoValidation.js), no se guarda en ngos.
+  await db.query(`CREATE TABLE IF NOT EXISTS ngo_validaciones (
+      id            ${UUID_PK},
+      ngo_id        TEXT NOT NULL UNIQUE REFERENCES ngos(id) ON DELETE CASCADE,
+      cuit          TEXT NOT NULL,
+      personeria    TEXT NOT NULL CHECK(personeria IN ('asociacion_civil','fundacion','cooperativa','mutual','otra')),
+      estatuto_id   TEXT NOT NULL,
+      constancia_id TEXT NOT NULL,
+      estado        TEXT NOT NULL DEFAULT 'en_revision' CHECK(estado IN ('en_revision','aprobada','rechazada')),
+      motivo        TEXT,
+      revisado_por  TEXT REFERENCES users(id) ON DELETE SET NULL,
+      revisado_at   TEXT,
+      created_at    ${NOW},
+      updated_at    ${NOW}
+    )`);
   // Agregadas 2026-10-29 (patrocinio como acuerdo negociado, PROJECT_ANALYSIS.md §263, docs/archivo/PLAN_PATROCINIO.md):
   // `version` sube con cada cambio de los puntos; cada parte acepta una versión (etapa 2).
   await addColumnIfNotExists('empresa_voluntariados', 'version', 'INTEGER NOT NULL DEFAULT 1');

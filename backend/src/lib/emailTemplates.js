@@ -184,8 +184,28 @@ function passwordChangedEmail({ name, appUrl }) {
   };
 }
 
+/** §317: a la ONG cuando el equipo de VoluntariAR aprueba o rechaza su validación (con el motivo). */
+function ngoValidationEmail({ ngoName, approved, reason, appUrl }) {
+  return {
+    subject: approved ? 'Tu ONG ya está validada en VoluntariAR' : 'Revisamos la validación de tu ONG',
+    html: wrapper(
+      approved ? '¡Tu ONG está validada!' : 'Necesitamos que revises la validación',
+      approved
+        ? `<p>Hola ${esc(ngoName) || ''},</p>
+           <p>Revisamos la documentación y <strong>tu ONG quedó validada</strong>. Desde ahora aparece con la insignia azul.</p>`
+        : `<p>Hola ${esc(ngoName) || ''},</p>
+           <p>Revisamos la documentación y no pudimos validar tu ONG por este motivo:</p>
+           <p><strong>${esc(reason)}</strong></p>
+           <p>Podés corregirlo y volver a enviarla desde tu panel.</p>`,
+      approved ? 'Ver mi panel' : 'Volver a enviar',
+      appUrl ? `${appUrl}/ngo/validacion` : undefined
+    ),
+  };
+}
+
 module.exports = {
   newEnrollmentEmail, enrollmentApprovedEmail, enrollmentRejectedEmail, interviewScheduledEmail,
   sponsorProposalEmail, sponsorDecisionEmail, accountDeletionEmail, passwordResetEmail, passwordChangedEmail,
+  ngoValidationEmail,
   esc, // lo reusa lib/email.js para el aviso del modo prueba
 };

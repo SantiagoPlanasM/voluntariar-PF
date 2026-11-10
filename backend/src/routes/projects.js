@@ -8,6 +8,7 @@ const { checkText, firstError, clampInt, toStrictInt } = require('../lib/inputs'
 const { hasBadWord } = require('../lib/badWords');
 const sellerAccounts = require('../lib/sellerAccounts');
 const storage = require('../lib/storage');   // por propiedad (storage.deleteImage), para poder reemplazarlo en tests
+const { verifiedSql } = require('../lib/ngoValidation');   // §317: la insignia de la ONG
 const { SKILL_TO_ROLE, compatibleRoles, scoreProject, rankRecommendations } = require('../lib/recommender');
 
 const router = express.Router();
@@ -73,6 +74,8 @@ function fmt(p) {
     status:             p.status,
     created_at:         p.created_at,
     ngo_name:           p.ngo_name,
+    // §317: la insignia de la ONG. Solo en las consultas que la piden (si no, no viene: la interfaz no la muestra).
+    ...(p.ngo_verified !== undefined ? { ngo_verified: Boolean(p.ngo_verified) } : {}),
     ngo_logo:           p.ngo_logo,
     title:              p.titulo,
     description:        p.descripcion,
@@ -294,6 +297,7 @@ router.get('/', optionalAuth, async (req, res) => {
         p.*,
         n.nombre    AS ngo_name,
         n.foto_perfil AS ngo_logo,
+        ${verifiedSql('p.ngo_id')} AS ngo_verified,
         COALESCE(n.followers, 0) AS ngo_followers,
         c.nombre    AS category_name,
         COALESCE(r.avg_rating, 0) AS avg_rating,
@@ -359,7 +363,7 @@ router.get('/', optionalAuth, async (req, res) => {
     } else {
       // SQLite: query simple sin agregación, roles y requisitos se cargan aparte
       let simpleSql = `
-        SELECT p.*, n.nombre AS ngo_name, n.foto_perfil AS ngo_logo,
+        SELECT p.*, n.nombre AS ngo_name, n.foto_perfil AS ngo_logo, ${verifiedSql('p.ngo_id')} AS ngo_verified,
                COALESCE(n.followers, 0) AS ngo_followers,
                '[]' AS roles_json, '[]' AS requisitos_json, NULL AS category_name,
                COALESCE(r.avg_rating, 0) AS avg_rating,
@@ -644,7 +648,7 @@ router.get('/recommended', requireAuth, requireRole('volunteer'), async (req, re
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
     const project = await db.get(
-      `SELECT p.*, n.nombre AS ngo_name, n.foto_perfil AS ngo_logo
+      `SELECT p.*, n.nombre AS ngo_name, n.foto_perfil AS ngo_logo, ${verifiedSql('p.ngo_id')} AS ngo_verified
        FROM projects p JOIN ngos n ON n.id = p.ngo_id WHERE p.id = $1`,
       [req.params.id]
     );

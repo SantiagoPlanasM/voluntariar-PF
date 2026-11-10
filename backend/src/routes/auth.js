@@ -14,6 +14,7 @@ const { accountDeletionEmail } = require('../lib/emailTemplates');
 const { forLog } = require('../lib/logSafe');   // S5145 (§202)
 const { EMAIL_RE, validateEmail, validateName, validatePassword, tooMany, sha256, appUrl } = require('../lib/authCommon');   // §290
 const { validateSignup, createAccount } = require('../lib/accounts');   // §314: compartido con el registro de Google
+const { isAdmin } = require('../lib/ngoValidation');   // §317
 
 const router = express.Router();
 
@@ -152,7 +153,8 @@ router.get('/me', requireAuth, async (req, res) => {
     }
 
     // Sin fila de perfil, db.get da undefined y la clave desaparecía del JSON: `null`, como dice la doc (§158).
-    res.json({ user, profile: profile ?? null });
+    // §317: `is_admin` (ADMIN_EMAILS) solo decide si la interfaz muestra el panel; la API lo vuelve a controlar.
+    res.json({ user, profile: profile ?? null, is_admin: await isAdmin(user.id) });
   } catch (err) {
     res.status(500).json({ error: 'Error interno' });
   }
@@ -349,6 +351,9 @@ router.post('/delete-account', async (req, res) => {
     const projectPhotos = await db.all(
       `SELECT pr.foto_provider_id AS provider_id FROM projects pr JOIN ngos n ON n.id = pr.ngo_id
        WHERE n.user_id = $1 AND pr.foto_provider_id IS NOT NULL`, [userId]);
+    // §317: los PDF de la validación de la ONG (privados), que también se van en cascada.
+    const validationDocs = await db.all(
+      `SELECT nv.estatuto_id, nv.constancia_id FROM ngo_validaciones nv JOIN ngos n ON n.id = nv.ngo_id WHERE n.user_id = $1`, [userId]);
 
     let deleted = false;
     await db.transaction(async (tx) => {
@@ -369,6 +374,7 @@ router.post('/delete-account', async (req, res) => {
     if (storage.isConfigured()) {
       const jobs = [];
       if (cv?.cv_url) jobs.push(storage.deletePdf(cv.cv_url));
+      for (const v of validationDocs) jobs.push(storage.deletePdf(v.estatuto_id), storage.deletePdf(v.constancia_id));
       for (const m of [...media, ...projectPhotos]) if (m.provider_id) jobs.push(storage.deleteImage(m.provider_id));
       const results = await Promise.allSettled(jobs);
       const failed = results.filter((r) => r.status === 'rejected').length;

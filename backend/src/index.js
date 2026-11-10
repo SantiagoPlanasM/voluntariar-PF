@@ -43,6 +43,8 @@ app.use('/api/projects',       require('./routes/projects'));
 app.use('/api/projects',       require('./routes/projectPhoto'));   // PUT /:id/photo, la foto del voluntariado (§282)
 app.use('/api/enrollments',    require('./routes/enrollments'));
 app.use('/api/ngos/me/mercadopago', require('./routes/mercadopago'));   // antes que /api/ngos (§216)
+app.use('/api/ngos/me/validacion', require('./routes/ngoValidacion'));  // ídem (§317)
+app.use('/api/admin',          require('./routes/admin'));         // solo ADMIN_EMAILS (§317)
 app.use('/api/ngos',           require('./routes/ngos'));
 app.use('/api/empresas',       require('./routes/empresas'));
 app.use('/api/faqs',           require('./routes/faqs'));
