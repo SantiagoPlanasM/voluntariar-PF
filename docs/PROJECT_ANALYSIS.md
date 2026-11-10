@@ -408,3 +408,18 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 ### ⚠️ NO verificado
 - Que Google Calendar, Outlook y Apple abran bien los eventos (con hora y de día completo): no se probó en un calendario real. Tampoco se vieron los campos de fecha y hora en el navegador ni en el celular.
 - Las fechas no avisan si son pasadas. Los voluntariados existentes siguen sin fecha hasta que la ONG la cargue.
+
+## 316. Client ID de Google en Render
+
+### Qué se hizo
+- `render.yaml`: `GOOGLE_CLIENT_ID` (API) y `VITE_GOOGLE_CLIENT_ID` (sitio) con el ID de cliente que creó el usuario en Google Cloud. No es secreto: va como valor, no `sync: false`. Con el OK del usuario (archivo de "no tocar sin avisar").
+- Por si el blueprint no se sincroniza solo, el usuario carga las dos variables también en el panel de Render.
+
+### Verificación
+- Con el Deploy de este push, más la revisión en Chrome descrita en el informe al usuario.
+
+### Errores propios
+- Ninguno.
+
+### ⚠️ NO verificado
+- Si Render aplica solo los cambios de `render.yaml` (sincronización del blueprint).

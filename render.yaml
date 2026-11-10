@@ -68,6 +68,10 @@ services:
         sync: false
       - key: MP_OAUTH_REDIRECT_URI
         value: https://voluntariar-g0u6.onrender.com/ngo/mercadopago/vuelta
+      # Login con Google (§314): el "ID de cliente" de OAuth (Aplicación web). NO es secreto; el mismo que
+      # VITE_GOOGLE_CLIENT_ID del sitio. Orígenes autorizados en Google Cloud: el sitio y localhost.
+      - key: GOOGLE_CLIENT_ID
+        value: 499959135340-5dgrftns6k7vgs4bu49ksscd9v0sfo5m.apps.googleusercontent.com
     healthCheckPath: /health
 
   # ── Frontend (Static Site, gratis) ───────────────────────────────────────
@@ -83,6 +87,9 @@ services:
       # Si Render asigna otra URL a la API, corregir esta.
       - key: VITE_API_URL
         value: https://voluntariar-api-lxq7.onrender.com/api
+      # Login con Google (§314): sin él no aparece el botón. Se lee al compilar: un cambio necesita un deploy del sitio.
+      - key: VITE_GOOGLE_CLIENT_ID
+        value: 499959135340-5dgrftns6k7vgs4bu49ksscd9v0sfo5m.apps.googleusercontent.com
     routes:
       - type: rewrite
         source: /*
