@@ -15,6 +15,7 @@ import { Root } from './components/Root';
 import { NotFoundPage } from './components/NotFoundPage';
 import { NGOValidationScreen } from './components/NGOValidation';
 import { AdminValidations } from './components/AdminValidations';
+import { NGOApplications } from './components/NGOApplications';
 
 // createBrowserRouter normaliza `Component: X` a `element: <X />`: se compara el tipo del elemento.
 const componentOf = (route?: { element?: unknown }) => (route?.element as ReactElement | undefined)?.type;
@@ -49,6 +50,19 @@ describe('rutas de la validación de ONG', () => {
   test('/admin/validaciones es el panel de admin, dentro del layout de Root', () => {
     expect(leaf('/admin/validaciones')).toBe(AdminValidations);
     expect(layout('/admin/validaciones')).toBe(Root);
+  });
+});
+
+// §319: la pantalla de postulaciones, para la dueña y para la coordinación del equipo.
+describe('rutas de la pantalla de postulaciones', () => {
+  test('/ngo/postulaciones (layout de la ONG) y /equipo/:ngoId/postulaciones (Root, con team)', () => {
+    expect(leaf('/ngo/postulaciones')).toBe(NGOApplications);
+    expect(layout('/ngo/postulaciones')).toBe(NGOLayout);
+    const m = matchRoutes(router.routes, '/equipo/ngo-1/postulaciones');
+    const el = m?.[m.length - 1].route.element as ReactElement<{ team?: boolean }>;
+    expect(el.type).toBe(NGOApplications);
+    expect(el.props.team).toBe(true);
+    expect(layout('/equipo/ngo-1/postulaciones')).toBe(Root);
   });
 });
 

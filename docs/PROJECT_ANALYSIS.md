@@ -474,3 +474,31 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - La subida real a Cloudinary y la apertura real de los PDF firmados (los tests usan dobles).
 - `ADMIN_EMAILS` en Render: la carga el usuario. **Riesgo:** el registro con contraseña no verifica el mail, así que un mail de la lista que todavía no tenga cuenta lo puede registrar cualquiera y quedaría como admin. Hay que usar el mail de una cuenta que ya exista y sea suya. Exigirle Google al admin queda ofrecido, sin hacer.
 - El índice de `DATABASE_CONTEXT.md` (38 índices) no se revisó: el `UNIQUE` de `ngo_validaciones.ngo_id` crea uno implícito.
+
+## 319. Pantalla de postulaciones: todas las de la ONG, con filtros y decisión en lote
+
+### Qué se hizo
+- Pedido del usuario (11/11): una pantalla aparte para manejar más de 200 postulaciones. Decidió **todas las de la ONG juntas** (con filtro por voluntariado) y **acciones en lote con tope de cupos**.
+- Backend (`routes/enrollments.js`):
+  - `GET /api/enrollments/ngo[?ngo_id=]`: las de todos los voluntariados, con `project_title`, más la lista de voluntariados con sus cupos. Dueña sin `ngo_id`; coordinación activa con él (`ngoAccess`). Tope de 2000 filas con `truncated`.
+  - `POST /api/enrollments/bulk { ids, status }`: de 1 a 500, en el orden recibido; cada una con la misma transacción que `PATCH /:id`, que pasó a `applyDecision` (compare-and-swap y cupo atómico, regla 20). Resultado por id (`applied`, `unchanged`, `full`, `stale`, `not_found`) y resumen; 404 si ninguna es gestionable. Avisos después de cada COMMIT; mails después de responder, de a uno y cada 500 ms (`sendSpaced`).
+  - `fmtManaged`, `notifyDecision` y `decisionEmail` salen de `PATCH /:id` y `/project/:projectId`, que siguen igual.
+- Frontend: `NGOApplications` en `/ngo/postulaciones` y `/equipo/:ngoId/postulaciones` (lógica en `lib/applications.ts`): pestañas por estado con cantidades, filtros (voluntariado con cupos, entrevista, solo con CV, búsqueda sin tildes, orden), de a 50 con "Mostrar más", selección con barra "Elegidas" (confirmación; de la más vieja a la más nueva; tandas de 500; resumen) y acciones por fila. Accesos: primero en `NGOShortcuts`, "Ver todas las postulaciones" en el Panel y en `TeamPanel`.
+
+### Verificación
+- Backend: 23 tests nuevos (`enrollments-bulk.test.js`, más 2 en `ownership.test.js`, regla 15). Rojo antes del código: 19 fallas por 404 (endpoints inexistentes). Ahora 1228/1228 en SQLite y 1230/1230 en Postgres 18, en UTC y en `America/Argentina/Cordoba`. `npm audit` en 0.
+- Frontend: 1360/1360 (antes 1319; +41), `typecheck` sin errores, `npm audit` en 0. Cobertura: sentencias 91,48 %, ramas 88,15 %, funciones 88,33 %, líneas 94,03 %; `NGOApplications` 100 % de líneas (ramas 95,58 %) y `lib/applications.ts` 100 % (ramas 96,42 %).
+- Mutation testing (scripts con corrida de control y respaldo):
+  - Backend: 26 mutantes. Sobrevivían 6; con 3 tests más mueren 3. Quedan: dos equivalentes (`req.user.role === 'ngo'`: un voluntario no es dueño de una ONG; `Number(p.cupos)`: INTEGER llega como número en los dos motores) y uno sin test, la relectura del `stale` en el lote, que solo importa en una carrera.
+  - Frontend: 36 mutantes. Sobrevivían 4; con un test más muere 1. Quedan tres equivalentes: `sensitivity: 'base'` (el orden en castellano ya junta "Á" con "A"), `scope = ngoId` (la ruta de la dueña no tiene `:ngoId`) y `filtered.length > 0` en "Elegir todas" (sin resultados, el control no se dibuja).
+
+### Errores propios
+- La pantalla y `lib/applications.ts` solo estuvieron en rojo porque el módulo no existía (rojo débil); los accesos sí fallaron por comportamiento (4).
+- En el test, dos postulaciones podían quedar con la misma fecha (sumaba dos contadores) y el orden empataba; y usé `LIKE` sobre `notifications.data`, que en Postgres es `jsonb` (pasó a `CAST(data AS TEXT)`). Los dos, en el test.
+- El test de "Mostrar más" con 120 filas pasaba los 5 s bajo cobertura; lo bajé a 60.
+
+### ⚠️ NO verificado
+- Todo lo visual: no veo la interfaz (la barra fija de "Elegidas" sobre la barra inferior del celular, la grilla de filtros, 50 filas en un teléfono).
+- El tope real de Resend con muchos mails seguidos: la separación de 500 ms es una precaución, sin dato del proveedor. Los tests no mandan mails.
+- El rendimiento con miles de postulaciones reales (los tests llegan a 501 en el frontend y a 500 ids en el backend).
+- La carrera del `stale` dentro de un lote (sin test, como el reenvío de §317).

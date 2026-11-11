@@ -15,6 +15,14 @@ beforeEach(() => {
   vi.spyOn(api.ngos.validation, 'get').mockResolvedValue({ validation: { status: 'none' } });
 });
 
+// §319: la pantalla de postulaciones, primero en los accesos (aunque no haya pendientes: también son las aprobadas).
+test('el Panel tiene el acceso a Postulaciones, el primero', () => {
+  render(<MemoryRouter><NGOShortcuts /></MemoryRouter>);
+  const links = within(screen.getByRole('navigation', { name: 'Accesos del panel' })).getAllByRole('link');
+  expect(links[0]).toHaveAttribute('href', '/ngo/postulaciones');
+  expect(links[0]).toHaveTextContent('Filtrá, buscá y decidí varias juntas');
+});
+
 // §317: DESIGN.md pide "Validar la ONG" desde el Panel.
 test('el Panel tiene el acceso a la validación', async () => {
   render(<MemoryRouter><NGOShortcuts /></MemoryRouter>);

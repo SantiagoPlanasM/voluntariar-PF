@@ -95,6 +95,21 @@ describe('Autorización por dueño entre ONGs', () => {
       assert.deepEqual(await project1(), before, 'el cupo no cambió');
     });
 
+    // §319: la pantalla de postulaciones de toda la ONG y la decisión en lote.
+    test('ver las postulaciones de toda la ONG ajena, ni decidirlas en lote', async () => {
+      const list = await api('/api/enrollments/ngo?ngo_id=ngo-1', { token: other });
+      assert.equal(list.status, 403);
+      assert.ok(!JSON.stringify(list.body).includes('@example.com'), 'no filtra emails de voluntarios');
+      const own = await api('/api/enrollments/ngo', { token: other });
+      assert.ok(own.body.enrollments.every((e) => e.id !== pendingId && e.id !== approvedId), 'su propia lista no trae las ajenas');
+      const before = await project1();
+      const b = await api('/api/enrollments/bulk', { token: other, method: 'POST', body: { ids: [pendingId, approvedId], status: 'rejected' } });
+      assert.equal(b.status, 404);
+      assert.equal((await enrollment(pendingId)).status, 'pending');
+      assert.equal((await enrollment(approvedId)).status, 'approved');
+      assert.deepEqual(await project1(), before, 'el cupo no cambió');
+    });
+
     test('cargar horas en una inscripción de un proyecto ajeno', async () => {
       const before = (await enrollment(approvedId)).horas_realizadas;
       const r = await api(`/api/enrollments/${approvedId}/horas`, { token: other, method: 'PATCH', body: { horas: 99 } });
@@ -294,6 +309,15 @@ describe('Autorización por dueño entre ONGs', () => {
 
   // Control: con los MISMOS ids, la dueña sí puede. Va después de los rechazos porque modifica los datos.
   describe('la ONG dueña SÍ puede (mismos ids)', () => {
+    test('ver las postulaciones de toda la ONG y decidirlas en lote (§319)', async () => {
+      const list = await api('/api/enrollments/ngo', { token: owner });
+      assert.equal(list.status, 200);
+      assert.ok(list.body.enrollments.some((e) => e.id === pendingId) && list.body.enrollments.some((e) => e.id === approvedId));
+      const b = await api('/api/enrollments/bulk', { token: owner, method: 'POST', body: { ids: [approvedId], status: 'approved' } });
+      assert.equal(b.status, 200);
+      assert.deepEqual(b.body.results, [{ id: approvedId, outcome: 'unchanged' }]);
+    });
+
     test('ver inscripciones, cargar horas y aprobar', async () => {
       const list = await api('/api/enrollments/project/proj-1', { token: owner });
       assert.equal(list.status, 200);

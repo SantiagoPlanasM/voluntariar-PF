@@ -8,7 +8,7 @@ const {
 } = require('../lib/emailTemplates');
 const { isUniqueViolation } = require('../lib/dbErrors');
 const { checkText, firstError, parsePhone } = require('../lib/inputs');
-const { projectAccess, canManageEnrollments, managedNgoOfEnrollment } = require('../lib/ngoAccess');
+const { ngoAccess, projectAccess, canManageEnrollments, managedNgoOfEnrollment } = require('../lib/ngoAccess');
 const crypto = require('node:crypto');
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
@@ -174,18 +174,196 @@ router.get('/project/:projectId', requireAuth, requireRole('ngo', 'volunteer'), 
     if (status) { sql += ' AND e.status = $2'; params.push(status); }
     sql += ' ORDER BY e.created_at DESC';
 
-    // has_cv (§168): true solo si la ONG puede abrir el CV con GET /api/voluntarios/:userId/cv (inscripción
-    // pendiente o aprobada, §165). cv_url es el public_id de un PDF privado: no sale de acá. El teléfono (§291), con el
-    // mismo criterio: rechazada o cancelada, null.
-    const enrollments = (await db.all(sql, params)).map(withInterview).map(({ cv_url, ...e }) => {
-      const open = e.status === 'pending' || e.status === 'approved';
-      return { ...e, phone: open ? e.phone : null, has_cv: Boolean(cv_url) && open };
-    });
-    res.json({ enrollments });
+    res.json({ enrollments: (await db.all(sql, params)).map(fmtManaged) });
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener inscripciones' });
   }
 });
+
+// ── GET /api/enrollments/ngo[?ngo_id=] ────────────────────────────────────
+// §319: la pantalla de postulaciones. Todas las de los voluntariados de la ONG, de la más nueva a la más vieja, con
+// la misma forma que /project/:projectId más `project_title`, y la lista de voluntariados con sus cupos (para filtrar).
+// La dueña no manda ngo_id (es la suya); un coordinador activo manda el de su ONG. Tope de filas: `truncated`.
+router.get('/ngo', requireAuth, requireRole('ngo', 'volunteer'), async (req, res) => {
+  try {
+    let ngoId = typeof req.query.ngo_id === 'string' && req.query.ngo_id ? req.query.ngo_id : null;
+    if (!ngoId) {
+      const own = req.user.role === 'ngo' ? await db.get('SELECT id FROM ngos WHERE user_id=$1', [req.user.id]) : null;
+      if (!own) return res.status(400).json({ error: 'Falta la ONG (ngo_id)' });
+      ngoId = own.id;
+    }
+    if (!canManageEnrollments(await ngoAccess(req.user.id, ngoId))) {
+      return res.status(403).json({ error: 'Sin permiso sobre las postulaciones de esta ONG' });
+    }
+    const ngo = await db.get('SELECT id, nombre FROM ngos WHERE id=$1', [ngoId]);
+    const limit = router.manageLimit;
+    const rows = await db.all(
+      `SELECT e.id, e.user_id, e.project_id, e.status, e.mensaje AS message, e.telefono AS phone,
+              e.horas_realizadas AS hours_logged, e.created_at, e.updated_at,
+              u.name AS volunteer_name, u.email AS volunteer_email,
+              u.avatar AS volunteer_avatar, u.bio AS volunteer_bio,
+              v.cv_url, p.titulo AS project_title, ${INTERVIEW_COLS}
+       FROM enrollments e
+       JOIN projects p ON p.id = e.project_id
+       JOIN users u ON u.id = e.user_id
+       LEFT JOIN voluntarios v ON v.user_id = e.user_id
+       ${INTERVIEW_JOIN}
+       WHERE p.ngo_id = $1
+       ORDER BY e.created_at DESC, e.id DESC
+       LIMIT $2`,
+      [ngoId, limit + 1]);
+    const projects = await db.all(
+      `SELECT id, titulo, status, cupos, cupos_ocupados FROM projects WHERE ngo_id=$1 ORDER BY created_at DESC, id DESC`, [ngoId]);
+    res.json({
+      ngo: { id: ngo.id, name: ngo.nombre },
+      projects: projects.map((p) => ({ id: p.id, title: p.titulo, status: p.status,
+        volunteers_needed: Number(p.cupos) || 0, current_volunteers: Number(p.cupos_ocupados) || 0 })),
+      enrollments: rows.slice(0, limit).map(fmtManaged),
+      truncated: rows.length > limit,
+    });
+  } catch (err) {
+    console.error('GET /enrollments/ngo error:', err);
+    res.status(500).json({ error: 'Error al obtener las postulaciones' });
+  }
+});
+router.manageLimit = 2000;   // tope de filas de GET /ngo (una propiedad para poder bajarlo en los tests)
+
+// ── POST /api/enrollments/bulk { ids, status } ────────────────────────────
+// §319: aprobar o rechazar varias, en el orden pedido. Cada una es la misma decisión que PATCH /:id (applyDecision:
+// compare-and-swap y cupo atómico, regla 20): al llenarse un voluntariado, las que siguen quedan pendientes ('full').
+// Las ajenas o inexistentes → 'not_found' (si no queda ninguna gestionable, 404). Avisos después de cada COMMIT; los
+// mails, espaciados y sin esperar la respuesta (son muchos de una vez).
+const BULK_MAX = 500;
+router.post('/bulk', requireAuth, requireRole('ngo', 'volunteer'), async (req, res) => {
+  try {
+    const { ids, status } = req.body || {};
+    if (!['approved', 'rejected'].includes(status)) return res.status(400).json({ error: 'Status debe ser: approved o rejected' });
+    if (!Array.isArray(ids) || ids.length === 0 || ids.length > BULK_MAX || ids.some((id) => typeof id !== 'string' || !id)) {
+      return res.status(400).json({ error: `Elegí de 1 a ${BULK_MAX} postulaciones` });
+    }
+    const unique = [...new Set(ids)];
+    const rows = await db.all(
+      `SELECT e.*, p.titulo, p.ngo_id, u.email AS volunteer_email, u.name AS volunteer_name, n.nombre AS ngo_name
+       FROM enrollments e
+       JOIN projects p ON p.id = e.project_id
+       JOIN ngos n ON n.id = p.ngo_id
+       JOIN users u ON u.id = e.user_id
+       WHERE e.id IN (${unique.map((_, i) => `$${i + 1}`).join(',')})`, unique);
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    const allowed = new Map();   // ngo_id → ¿puede gestionar? (una consulta por ONG)
+    for (const r of rows) {
+      if (!allowed.has(r.ngo_id)) allowed.set(r.ngo_id, canManageEnrollments(await ngoAccess(req.user.id, r.ngo_id)));
+    }
+    const managed = (id) => byId.has(id) && allowed.get(byId.get(id).ngo_id);
+    if (!unique.some(managed)) return res.status(404).json({ error: 'Postulaciones no encontradas o sin permiso' });
+
+    const results = [];
+    const changed = [];
+    for (const id of unique) {
+      if (!managed(id)) { results.push({ id, outcome: 'not_found' }); continue; }
+      const e = byId.get(id);
+      let outcome = e.status === status ? 'unchanged' : await applyDecision(e, status);
+      if (outcome === 'stale') {
+        const current = await db.get('SELECT status FROM enrollments WHERE id=$1', [id]);
+        if (current?.status === status) outcome = 'unchanged';
+      }
+      if (outcome === 'applied') { changed.push(e); await notifyDecision(e, status); }
+      results.push({ id, outcome });
+    }
+    const summary = { applied: 0, unchanged: 0, full: 0, stale: 0, not_found: 0 };
+    for (const r of results) summary[r.outcome] += 1;
+    res.json({ results, summary });
+
+    sendSpaced(changed.map((e) => decisionEmail(e, status)));
+  } catch (err) {
+    console.error('POST /enrollments/bulk error:', err);
+    res.status(500).json({ error: 'Error al actualizar las postulaciones' });
+  }
+});
+router.bulkEmailGapMs = 500;   // entre mail y mail de un lote, para no pegarle de golpe al proveedor (no verificado su tope)
+
+/** Manda los mails de a uno, separados por bulkEmailGapMs. `send` se puede reemplazar en los tests. */
+async function sendSpaced(messages, send = sendEmail) {
+  for (const [i, m] of messages.entries()) {
+    if (i > 0) await new Promise((r) => { const t = setTimeout(r, router.bulkEmailGapMs); t.unref?.(); });
+    await send(m).catch(() => {});
+  }
+}
+
+// ── La decisión sobre una postulación (PATCH /:id y POST /bulk) ───────────
+/** La postulación para la vista de la ONG. has_cv (§168): true solo si la ONG puede abrir el CV con
+ *  GET /api/voluntarios/:userId/cv (pendiente o aprobada, §165); cv_url es el public_id de un PDF privado y no sale. El
+ *  teléfono (§291), con el mismo criterio: rechazada o cancelada, null. */
+function fmtManaged(row) {
+  const { cv_url, ...e } = withInterview(row);
+  const open = e.status === 'pending' || e.status === 'approved';
+  return { ...e, phone: open ? e.phone : null, has_cv: Boolean(cv_url) && open };
+}
+
+/**
+ * Estado + cupo en UNA transacción (antes eran queries sueltas: una falla a mitad dejaba el contador desincronizado).
+ * El UPDATE es un compare-and-swap: solo aplica si el estado sigue siendo `enrollment.status` (el que se leyó). Sin
+ * esto, dos requests concurrentes (doble click, reintento) leen el mismo estado y suman/restan el cupo dos veces — bug
+ * propio de Postgres (pool de conexiones). Notificaciones y emails van DESPUÉS del COMMIT: son "best effort" y una query
+ * fallida dentro de una transacción de Postgres la aborta entera.
+ * @returns {'applied' | 'full' | 'stale'}
+ */
+async function applyDecision(enrollment, status) {
+  const oldStatus = enrollment.status;
+  return db.transaction(async (tx) => {
+    const swap = await tx.run(
+      'UPDATE enrollments SET status=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2 AND status=$3',
+      [status, enrollment.id, oldStatus]
+    );
+    if (swap.changes === 0) return 'stale';
+
+    if (status === 'approved' && oldStatus !== 'approved') {
+      // Cupo condicional y atómico: solo suma si todavía queda lugar (invariante cupos_ocupados <= cupos, regla 20).
+      // `cupos_ocupados` cuenta solo aprobadas, así que pueden acumularse pendientes por encima del tope. Sin
+      // leer-y-después-escribir: en Postgres, dos aprobaciones simultáneas con un solo cupo libre se serializan sobre
+      // la fila del proyecto y la segunda ve 0 filas afectadas.
+      const slot = await tx.run(
+        'UPDATE projects SET cupos_ocupados = cupos_ocupados + 1 WHERE id=$1 AND cupos_ocupados < cupos',
+        [enrollment.project_id]
+      );
+      if (slot.changes === 0) throw new NoCapacityError(); // → ROLLBACK: la inscripción sigue como estaba
+    } else if (status === 'rejected' && oldStatus === 'approved') {
+      await tx.run(RELEASE_SLOT_SQL, [enrollment.project_id]);
+    }
+    // Decidida la postulación, una entrevista que seguía programada ya no va (§261); la realizada queda.
+    await tx.run(
+      `UPDATE reuniones SET estado='cancelada', updated_at=CURRENT_TIMESTAMP WHERE enrollment_id=$1 AND estado='programada'`,
+      [enrollment.id]
+    );
+    return 'applied';
+  }).catch((err) => {
+    if (err instanceof NoCapacityError) return 'full';
+    throw err;
+  });
+}
+
+/** El aviso al voluntario (después del COMMIT; si falla, no frena). */
+function notifyDecision(enrollment, status) {
+  const approved = status === 'approved';
+  return db.run(
+    `INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,$2,$3,$4,$5)`,
+    [enrollment.user_id,
+     approved ? 'enrollment_approved' : 'enrollment_rejected',
+     approved ? `¡Inscripción aprobada en "${enrollment.titulo}"!` : `Inscripción no seleccionada en "${enrollment.titulo}"`,
+     approved ? 'Ya podés ver los detalles en "Mis participaciones".' : 'Gracias por tu interés. Seguí explorando otros proyectos.',
+     JSON.stringify({ project_id: enrollment.project_id })]
+  ).catch(() => {});
+}
+
+/** El mail al voluntario: { to, subject, html }. */
+function decisionEmail(enrollment, status) {
+  const templateFn = status === 'approved' ? enrollmentApprovedEmail : enrollmentRejectedEmail;
+  const { subject, html } = templateFn({
+    volunteerName: enrollment.volunteer_name, projectTitle: enrollment.titulo,
+    ngoName: enrollment.ngo_name, appUrl: APP_URL,
+  });
+  return { to: enrollment.volunteer_email, subject, html };
+}
 
 // ── PATCH /api/enrollments/:id ────────────────────────────────────────────
 router.patch('/:id', requireAuth, requireRole('ngo', 'volunteer'), async (req, res) => {
@@ -215,45 +393,7 @@ router.patch('/:id', requireAuth, requireRole('ngo', 'volunteer'), async (req, r
     // notificación/email duplicados (antes cada re-aprobación mandaba otro email).
     if (oldStatus === status) return res.json({ message: doneMessage });
 
-    // Estado + cupo en UNA transacción (antes eran queries sueltas: una falla a
-    // mitad dejaba el contador desincronizado). El UPDATE es un compare-and-swap:
-    // solo aplica si el estado sigue siendo el que leímos arriba. Sin esto, dos
-    // requests concurrentes (doble click, reintento) leen el mismo `oldStatus` y
-    // suman/restan el cupo dos veces — bug propio de Postgres (pool de conexiones).
-    // Notificaciones y emails van DESPUÉS del COMMIT: son "best effort" y una query
-    // fallida dentro de una transacción de Postgres la aborta entera.
-    const outcome = await db.transaction(async (tx) => {
-      const swap = await tx.run(
-        'UPDATE enrollments SET status=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2 AND status=$3',
-        [status, req.params.id, oldStatus]
-      );
-      if (swap.changes === 0) return 'stale';
-
-      if (status === 'approved' && oldStatus !== 'approved') {
-        // Cupo condicional y atómico: solo suma si todavía queda lugar. Impone la invariante
-        // cupos_ocupados <= cupos (AI_RULES regla 20), que antes no se verificaba al aprobar:
-        // el alta ya devolvía 409 con el proyecto lleno, pero como `cupos_ocupados` cuenta solo
-        // aprobadas, podían acumularse pendientes y la ONG las aprobaba por encima del tope.
-        // Sin leer-y-después-escribir: en Postgres, dos aprobaciones simultáneas con un solo
-        // cupo libre se serializan sobre la fila del proyecto y la segunda ve 0 filas afectadas.
-        const slot = await tx.run(
-          'UPDATE projects SET cupos_ocupados = cupos_ocupados + 1 WHERE id=$1 AND cupos_ocupados < cupos',
-          [enrollment.project_id]
-        );
-        if (slot.changes === 0) throw new NoCapacityError(); // → ROLLBACK: la inscripción sigue pendiente
-      } else if (status === 'rejected' && oldStatus === 'approved') {
-        await tx.run(RELEASE_SLOT_SQL, [enrollment.project_id]);
-      }
-      // Decidida la postulación, una entrevista que seguía programada ya no va (§261); la realizada queda.
-      await tx.run(
-        `UPDATE reuniones SET estado='cancelada', updated_at=CURRENT_TIMESTAMP WHERE enrollment_id=$1 AND estado='programada'`,
-        [req.params.id]
-      );
-      return 'applied';
-    }).catch((err) => {
-      if (err instanceof NoCapacityError) return 'full';
-      throw err;
-    });
+    const outcome = await applyDecision(enrollment, status);
 
     if (outcome === 'full') {
       return res.status(409).json({ error: 'El proyecto no tiene cupos disponibles' });
@@ -266,29 +406,8 @@ router.patch('/:id', requireAuth, requireRole('ngo', 'volunteer'), async (req, r
       return res.status(409).json({ error: 'La inscripción cambió mientras la revisabas. Actualizá la pantalla e intentá de nuevo.' });
     }
 
-    // Notificar al voluntario
-    const notifTitle = status === 'approved'
-      ? `¡Inscripción aprobada en "${enrollment.titulo}"!`
-      : `Inscripción no seleccionada en "${enrollment.titulo}"`;
-
-    await db.run(
-      `INSERT INTO notifications (user_id, type, title, body, data)
-       VALUES ($1,$2,$3,$4,$5)`,
-      [enrollment.user_id,
-       status === 'approved' ? 'enrollment_approved' : 'enrollment_rejected',
-       notifTitle,
-       status === 'approved'
-         ? 'Ya podés ver los detalles en "Mis participaciones".'
-         : 'Gracias por tu interés. Seguí explorando otros proyectos.',
-       JSON.stringify({ project_id: enrollment.project_id })]
-    ).catch(() => {});
-
-    const templateFn = status === 'approved' ? enrollmentApprovedEmail : enrollmentRejectedEmail;
-    const { subject, html } = templateFn({
-      volunteerName: enrollment.volunteer_name, projectTitle: enrollment.titulo,
-      ngoName: enrollment.ngo_name, appUrl: APP_URL,
-    });
-    sendEmail({ to: enrollment.volunteer_email, subject, html }).catch(() => {});
+    await notifyDecision(enrollment, status);
+    sendEmail(decisionEmail(enrollment, status)).catch(() => {});
 
     res.json({ message: doneMessage });
   } catch (err) {
@@ -517,3 +636,4 @@ module.exports = router;
 module.exports.INTERVIEW_COLS = INTERVIEW_COLS;
 module.exports.INTERVIEW_JOIN = INTERVIEW_JOIN;
 module.exports.withInterview = withInterview;
+module.exports.sendSpaced = sendSpaced;

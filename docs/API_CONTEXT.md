@@ -34,6 +34,7 @@
 | POST | `/api/enrollments` | Sí | volunteer |
 | GET | `/api/enrollments/my` | Sí | cualquiera |
 | GET | `/api/enrollments/project/:projectId` | Sí | ngo dueña o coordinación |
+| GET · POST | `/api/enrollments/ngo[?ngo_id=]` · `/api/enrollments/bulk` | Sí | ngo dueña o coordinación |
 | PATCH | `/api/enrollments/:id`, `/:id/horas` · POST, PATCH `/:id/entrevista` | Sí | ngo dueña o coordinación |
 | DELETE | `/api/enrollments/:id` | Sí | el voluntario |
 | GET | `/api/ngos`, `/api/ngos/:id`, `/api/ngos/:id/projects` | No | — |
@@ -269,6 +270,20 @@
   - `has_cv` y `phone`: solo si la postulación está `pending` o `approved`.
   - `interview`.
 - **Errores:** 403 "Sin permiso sobre este proyecto".
+
+### `GET /api/enrollments/ngo[?ngo_id=]` — ngo dueña o coordinación
+- La pantalla de postulaciones: las de **todos** los voluntariados de la ONG. La dueña no manda `ngo_id` (sin él y sin ser dueña de una ONG → 400); un coordinador activo manda el de su ONG (`ngoAccess` → si no puede, 403). Un `ngo_id` repetido llega como lista y se ignora.
+- **200:** `{ ngo: { id, name }, projects, enrollments, truncated }`.
+  - `enrollments`: de la más nueva a la más vieja, con la forma de `/project/:projectId` (`fmtManaged`: `has_cv` y `phone` solo pendiente o aprobada) más `project_title`. Todos los estados, también `cancelled`.
+  - `projects`: `{ id, title, status, volunteers_needed, current_volunteers }` de todos sus voluntariados (para el filtro).
+  - Tope de 2000 filas (`router.manageLimit`): si hay más, `truncated: true`.
+
+### `POST /api/enrollments/bulk` — ngo dueña o coordinación
+- **Body:** `{ ids: string[] (1 a 500, se ignoran los repetidos), status: 'approved'|'rejected' }` → 400 si no.
+- Las decide **en el orden recibido** (la pantalla manda de la más vieja a la más nueva), cada una con la misma transacción que `PATCH /:id` (`applyDecision`). Al llenarse un voluntariado, las que siguen quedan como estaban.
+- **200:** `{ results: [{ id, outcome }], summary }`. `outcome`: `applied` · `unchanged` (ya estaba así; sin aviso) · `full` (sin cupo) · `stale` (cambió mientras tanto) · `not_found` (ajena o inexistente). `summary` cuenta cada uno.
+- Si ninguna es gestionable → 404, sin cambiar nada.
+- Después de cada COMMIT, el aviso en la app. Los mails salen después de responder, de a uno y separados por `router.bulkEmailGapMs` (500 ms).
 
 ### `PATCH /api/enrollments/:id` — ngo dueña o coordinación
 - **Body:** `{ status: 'approved'|'rejected' }`.

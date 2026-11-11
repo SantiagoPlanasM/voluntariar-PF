@@ -55,7 +55,11 @@ export function TeamPanel() {
 
         {coordinator && (
           <section aria-label="Postulaciones sin responder" className="flex flex-col gap-2">
-            <h2 className="px-1 text-xs font-semibold text-ink-soft">Postulaciones sin responder</h2>
+            <div className="px-1 flex items-center justify-between gap-2">
+              <h2 className="text-xs font-semibold text-ink-soft">Postulaciones sin responder</h2>
+              {/* §319: todas, con filtros y decisión en lote */}
+              <Link to={`${base}/postulaciones`} className="text-[13px] font-semibold text-ink hover:underline">Ver todas las postulaciones</Link>
+            </div>
             {(panel.pending_enrollments ?? []).length === 0 ? (
               <p className="rounded-xl bg-surface border border-hairline p-4 text-[13px] text-ink-soft">No hay postulaciones sin responder.</p>
             ) : (

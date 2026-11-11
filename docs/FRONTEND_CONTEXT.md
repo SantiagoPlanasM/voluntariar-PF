@@ -53,6 +53,7 @@ frontend/src/
 | `/admin/validaciones` | `AdminValidations` (panel de administración) | con sesión; la API exige `ADMIN_EMAILS` (403 → "solo para el equipo de VoluntariAR") |
 | `/equipo/:ngoId` | `TeamPanel` | miembro activo |
 | `/equipo/:ngoId/project/:projectId` | `NGOProjectDetail team` (sin editar, KPIs ni estado) | coordinación |
+| `/equipo/:ngoId/postulaciones` | `NGOApplications team` | coordinación |
 | `/privacidad`, `/cuenta/borrar`, `/restablecer`, `/donaciones/vuelta` | `PrivacyPage`, `DeleteAccountPage`, `ResetPasswordPage`, `DonationReturn` | público; el código del link autoriza |
 | `*` | `NotFoundPage` (con `LoadError`) | — |
 | `/ngo`, `/ngo/dashboard` | `NGODashboard` | ngo |
@@ -62,6 +63,7 @@ frontend/src/
 | `/ngo/patrocinios`, `/ngo/patrocinios/:empresaId/:projectId` | `NGOPatrocinios`, `SponsorshipAgreementScreen` | ngo |
 | `/ngo/momentos`, `/ngo/equipo`, `/ngo/kpis/:projectId` | `NGOMoments`, `NGOTeam`, `NGOKPIs` | ngo |
 | `/ngo/validacion` | `NGOValidationScreen` ("Validar la ONG") | ngo |
+| `/ngo/postulaciones` | `NGOApplications` (todas las postulaciones) | ngo |
 | `/ngo/empleados/:id` | `NGOEmpleados` (sin links; se saca después de la defensa) | ngo |
 | `/company`, `/company/profile`, `/company/dashboard`, `/company/patrocinios/:empresaId/:projectId` | `CompanyOwnProfile`, `CompanyDashboard`, `SponsorshipAgreementScreen` | company |
 
@@ -134,7 +136,12 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
 - **`NGOTransparency`:** muestra los datos con "Los carga la organización; VoluntariAR no los verifica".
 - **`MercadoPagoReturn`:** manda `code` y `state` **una sola vez** (un ref la protege de StrictMode).
 - **`NGOTeam`:** invita, cambia el rol o saca. Se llega por "Equipo" en la barra lateral (escritorio), por el acceso del Panel y por Configuración.
-- **`NGOShortcuts`:** los accesos del Panel de la ONG (`ShortcutCard`, uno por pantalla) a Patrocinios, Publicaciones, Equipo (`NGOTeamCard`, con miembros e invitaciones pendientes; sin números si falla la carga) y Validación (`NGOValidationCard`, con el estado; sin él si falla la carga). En el celular son el único camino a esas pantallas: la barra inferior tiene cinco ítems como máximo. En escritorio van en una grilla de dos.
+- **`NGOShortcuts`:** los accesos del Panel de la ONG (`ShortcutCard`, uno por pantalla) a Postulaciones (primero y a lo ancho), Patrocinios, Publicaciones, Equipo (`NGOTeamCard`, con miembros e invitaciones pendientes; sin números si falla la carga) y Validación (`NGOValidationCard`, con el estado; sin él si falla la carga). En el celular son el único camino a esas pantallas: la barra inferior tiene cinco ítems como máximo. En escritorio van en una grilla de dos.
+- **`NGOApplications`** (§319; lógica en `lib/applications.ts`): todas las postulaciones de la ONG (`enrollments.manage`), para cientos.
+  - Pestañas por estado con su cantidad ("Pendientes" por defecto; "Todas" incluye canceladas) y filtros: voluntariado (con sus cupos), entrevista, "Solo con CV", búsqueda (nombre, mail o voluntariado, sin tildes) y orden. Se ven de a 50 ("Mostrar más").
+  - Cambiar un filtro vacía la selección. La barra "Elegidas" aprueba o rechaza con `useConfirm`: manda de la más vieja a la más nueva (`bulkOrder`), en tandas de 500, recarga y muestra el resumen (`summaryText`).
+  - Por fila: Aprobar/Rechazar sin preguntar, CV, Entrevista (al detalle del voluntariado, con `?postulacion=`) y teléfono.
+  - Accesos: el primero de `NGOShortcuts`, "Ver todas las postulaciones" en el Panel y, para la coordinación, en `TeamPanel`.
 - **Validación de la ONG (`NGOValidation.tsx`, `lib/ngoValidation.ts`):** `NGOValidationScreen` muestra el estado como chip (`ValidationChip`: "Sin validar", "En revisión", "Validada" en azul con la insignia, "Rechazada").
   - Sin pedido o rechazada: los tres pasos (datos, documentación, revisión) y el formulario multipart (`cuit`, `legal_type`, `statute`, `registration`). Antes de mandar chequea lo mismo que el backend con sus mensajes (`checkValidationDoc`; el dígito verificador del CUIT lo controla solo el backend). Rechazada: el motivo, y el CUIT y la personería de antes.
   - En revisión o validada: los datos enviados y "Ver estatuto"/"Ver constancia" (`openSignedLink`).

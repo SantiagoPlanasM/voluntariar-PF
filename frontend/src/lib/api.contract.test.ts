@@ -50,6 +50,11 @@ const CASES: Case[] = [
   ['enrollments.updateStatus', () => api.enrollments.updateStatus('e1', 'approved'), 'PATCH', '/enrollments/e1', { status: 'approved' }],
   ['enrollments.cancel', () => api.enrollments.cancel('e1'), 'DELETE', '/enrollments/e1'],
   ['enrollments.logHours (campo "horas")', () => api.enrollments.logHours('e1', 6), 'PATCH', '/enrollments/e1/horas', { horas: 6 }],
+  // pantalla de postulaciones (§319)
+  ['enrollments.manage (la dueña)', () => api.enrollments.manage(), 'GET', '/enrollments/ngo'],
+  ['enrollments.manage (un coordinador)', () => api.enrollments.manage('ngo/1'), 'GET', '/enrollments/ngo?ngo_id=ngo%2F1'],
+  ['enrollments.bulk (campos "ids" y "status")', () => api.enrollments.bulk(['e1', 'e2'], 'approved'), 'POST', '/enrollments/bulk',
+    { ids: ['e1', 'e2'], status: 'approved' }],
   // equipo de la ONG (§294–§296)
   ['team.members', () => api.team.members(), 'GET', '/equipo/miembros'],
   ['team.invite', () => api.team.invite('a@b.com', 'coordinator'), 'POST', '/equipo/miembros', { email: 'a@b.com', role: 'coordinator' }],

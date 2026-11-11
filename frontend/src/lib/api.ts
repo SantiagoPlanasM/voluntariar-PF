@@ -140,6 +140,12 @@ export const api = {
       req<{ interview: Interview }>(`/enrollments/${id}/entrevista`, { method: 'POST', body: JSON.stringify(body) }),
     updateInterview: (id: string, body: InterviewInput | { status: 'cancelled' | 'done' }) =>
       req<{ interview: Interview }>(`/enrollments/${id}/entrevista`, { method: 'PATCH', body: JSON.stringify(body) }),
+    /** §319: todas las postulaciones de la ONG. La dueña sin `ngoId`; un coordinador con el de su ONG. */
+    manage: (ngoId?: string) =>
+      req<NgoEnrollmentsPage>(`/enrollments/ngo${ngoId ? `?ngo_id=${encodeURIComponent(ngoId)}` : ''}`),
+    /** §319: aprobar o rechazar varias (1 a 500), en el orden dado; respeta los cupos de cada voluntariado. */
+    bulk: (ids: string[], status: 'approved' | 'rejected') =>
+      req<BulkDecision>('/enrollments/bulk', { method: 'POST', body: JSON.stringify({ ids, status }) }),
   },
   ngos: {
     list: () => req<{ ngos: NGO[] }>('/ngos'),
@@ -468,6 +474,22 @@ export interface TeamPanel {
 export interface PendingEnrollment extends EnrollmentWithVolunteer {
   project_title: string;
 }
+/** GET /enrollments/ngo (§319): una postulación de cualquier estado, con el título del voluntariado. */
+export interface NgoEnrollment extends Omit<EnrollmentWithVolunteer, 'status'> {
+  status: Enrollment['status'] | 'cancelled';
+  project_title: string;
+}
+export interface NgoEnrollmentsPage {
+  ngo: { id: string; name: string };
+  projects: { id: string; title: string; status: Project['status']; volunteers_needed: number; current_volunteers: number }[];
+  enrollments: NgoEnrollment[];
+  /** Hay más postulaciones que el tope del backend (se ven las más nuevas). */
+  truncated: boolean;
+}
+/** POST /enrollments/bulk (§319). `full`: el voluntariado se llenó y quedó como estaba; `stale`: cambió mientras tanto. */
+export type BulkOutcome = 'applied' | 'unchanged' | 'full' | 'stale' | 'not_found';
+export type BulkSummary = Record<BulkOutcome, number>;
+export interface BulkDecision { results: { id: string; outcome: BulkOutcome }[]; summary: BulkSummary }
 export interface Empleado {
   id: string; nombre: string; apellido: string;
   email: string; rol: string; foto_perfil?: string;

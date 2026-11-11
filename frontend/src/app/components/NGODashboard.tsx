@@ -134,7 +134,11 @@ export function NGODashboard() {
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] items-start">
           {pending.length > 0 && (
             <section aria-labelledby="pend" className="rounded-xl bg-surface border border-hairline overflow-hidden">
-              <h2 id="pend" className="px-4 pt-4 pb-2 text-lg font-bold tracking-[-0.2px]">Postulaciones sin responder ({pending.length})</h2>
+              <div className="px-4 pt-4 pb-2 flex items-baseline justify-between gap-2">
+                <h2 id="pend" className="text-lg font-bold tracking-[-0.2px]">Postulaciones sin responder ({pending.length})</h2>
+                {/* §319: todas, con filtros y decisión en lote */}
+                <Link to="/ngo/postulaciones" className="text-[13px] font-semibold text-ink hover:underline flex-shrink-0">Ver todas las postulaciones</Link>
+              </div>
               <ul className="max-h-[28rem] overflow-y-auto">
                 {pending.map(e => (
                   <li key={e.id} className="px-4 py-3 border-t border-hairline flex items-center gap-3">

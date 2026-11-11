@@ -16,11 +16,11 @@ Respondé en español rioplatense (voseo).
 - La historia de cada cosa ("§N") está en `docs/PROJECT_ANALYSIS.md` (índice) y `docs/archivo/`. No la cargues si no hace falta.
 
 ## Verificación (todo tiene que dar verde)
-- **Backend:** `npm test` y `npm run test:pg`. Hoy **1205** en SQLite y **1207** en Postgres (+2 solo de Postgres). El conteo incluye `test/integration/helpers.js`, que no es un test: los reales son **1204**. Un `before()` que falla deja los tests como **cancelled** (no `fail`): mirá ese número y el código de salida.
+- **Backend:** `npm test` y `npm run test:pg`. Hoy **1228** en SQLite y **1230** en Postgres (+2 solo de Postgres). El conteo incluye `test/integration/helpers.js`, que no es un test: los reales son **1227**. Un `before()` que falla deja los tests como **cancelled** (no `fail`): mirá ese número y el código de salida.
   - `test:pg` necesita Postgres en `localhost:5432` (`TEST_PG_*` en `helpers.js`): `docker run --rm -d -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=voluntariar_test postgres:18` (la versión de producción).
   - `email-redos.test.js` tiene 1500 ms de umbral (con 500 fallaba a veces en local).
   - Scripts del CI aparte: `node --test ".github/scripts/*.test.js"` (con comillas).
-- **Frontend:** `npm test`, **solo** (a la par de las suites del backend varios pasan los 5 s). Hoy **1319** tests; cobertura: sentencias 91,27 %, ramas 87,93 %, funciones 87,87 %, líneas 93,87 % (`npm run test:coverage`, reportes en `frontend/reports/`).
+- **Frontend:** `npm test`, **solo** (a la par de las suites del backend varios pasan los 5 s). Hoy **1360** tests; cobertura: sentencias 91,48 %, ramas 88,15 %, funciones 88,33 %, líneas 94,03 % (`npm run test:coverage`, reportes en `frontend/reports/`).
   - Tipos: `npm run typecheck` (TypeScript 7), **0 errores**. Nunca `npx tsc`: el paquete `tsc` de npm no es TypeScript.
   - `src/styles/paletteContrast.test.ts` exige 4,5:1 a todo `text-white` sobre la paleta y a los textos de color, en claro y oscuro. Para texto: `text-people-text`/`text-brand-text`, no `text-people`/`text-brand`.
 - **CI:** `.github/workflows/ci.yml` corre todo en Node 22, SQLite y Postgres 18, UTC y Córdoba, con cobertura mínima del 80 % en el backend.

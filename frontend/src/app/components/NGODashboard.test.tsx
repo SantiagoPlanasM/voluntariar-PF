@@ -83,6 +83,12 @@ describe('NGODashboard: solicitudes pendientes', () => {
     expect(within(box).getByText('Huerta Comunitaria')).toBeInTheDocument();
   });
 
+  test('"Ver todas" lleva a la pantalla de postulaciones (§319)', async () => {
+    render(<MemoryRouter><NGODashboard /></MemoryRouter>);
+    const box = (await screen.findByRole('heading', { name: /Postulaciones sin responder/ })).closest('section')!;
+    expect(within(box).getByRole('link', { name: 'Ver todas las postulaciones' })).toHaveAttribute('href', '/ngo/postulaciones');
+  });
+
   test('la misma persona en dos proyectos: los botones dicen cuál aprueban o rechazan', async () => {
     render(<MemoryRouter><NGODashboard /></MemoryRouter>);
     expect(await screen.findByRole('button', { name: 'Aprobar a Juan Pérez en Reforestación Urbana' })).toBeInTheDocument();

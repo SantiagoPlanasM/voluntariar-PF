@@ -63,6 +63,18 @@ describe('Panel del equipo', () => {
     expect(await screen.findByText('No hay postulaciones sin responder.')).toBeInTheDocument();
   });
 
+  // §319: la pantalla de postulaciones, también para la coordinación (con o sin pendientes).
+  test('coordinación: "Ver todas las postulaciones" lleva a la pantalla del equipo; comunicación no lo ve', async () => {
+    const panel = vi.spyOn(api.team, 'panel').mockResolvedValue({ ngo: { id: 'ngo-1', name: 'Sustentando', logo: null }, role: 'coordinator', projects, pending_enrollments: [] });
+    const { unmount } = mount();
+    expect(await screen.findByRole('link', { name: 'Ver todas las postulaciones' })).toHaveAttribute('href', '/equipo/ngo-1/postulaciones');
+    unmount();
+    panel.mockResolvedValue({ ngo: { id: 'ngo-1', name: 'Sustentando', logo: null }, role: 'communicator', projects });
+    mount();
+    await screen.findByText('Comunicación');
+    expect(screen.queryByRole('link', { name: 'Ver todas las postulaciones' })).toBeNull();
+  });
+
   test('sin acceso: el mensaje del backend', async () => {
     vi.spyOn(api.team, 'panel').mockRejectedValue(new ApiError('No sos parte del equipo de esta ONG', 403));
     mount();
