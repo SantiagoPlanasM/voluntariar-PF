@@ -14,18 +14,24 @@ export function checkCvFile(file: File): string | null {
 }
 
 /**
- * Abre el CV de `userId` en una pestaña nueva. El link vence a los 10 minutos, así que se pide en el momento.
+ * Abre un PDF privado (el CV, los documentos de la validación de la ONG, §317) en una pestaña nueva. El link firmado
+ * vence en minutos, así que `getLink` lo pide en el momento.
  * La pestaña se abre ANTES del pedido: abierta después de un `await`, el navegador la toma como ventana emergente
  * y la bloquea. Si no se pudo abrir, se va al link en la misma pestaña. Si el pedido falla, se cierra la pestaña
  * vacía y se relanza el error (la pantalla muestra el mensaje).
  */
-export async function openCv(userId: string, assign: (url: string) => void = (url) => window.location.assign(url)): Promise<void> {
+export async function openSignedLink(getLink: () => Promise<{ url: string }>,
+  assign: (url: string) => void = (url) => window.location.assign(url)): Promise<void> {
   const tab = window.open('', '_blank');
   try {
-    const { url } = await api.voluntarios.cv.link(userId);
+    const { url } = await getLink();
     if (tab) tab.location.href = url; else assign(url);
   } catch (err) {
     tab?.close();
     throw err;
   }
 }
+
+/** Abre el CV de `userId` (el link vence a los 10 minutos). */
+export const openCv = (userId: string, assign?: (url: string) => void) =>
+  openSignedLink(() => api.voluntarios.cv.link(userId), assign);

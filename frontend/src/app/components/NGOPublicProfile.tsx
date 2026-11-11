@@ -133,6 +133,7 @@ export function NGOPublicProfile() {
             name={ngo.name}
             avatar={ngo.logo}
             kind="org"
+            verified={ngo.verified === true}
             subtitle={[ngo.category, ngo.location].filter(Boolean).join(' · ')}
             bio={aboutText}
             onBack={() => navigate(-1)}

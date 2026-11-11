@@ -37,6 +37,8 @@ import { NGOMoments } from './components/NGOMoments';
 import { NotFoundPage } from './components/NotFoundPage';
 import { NGOTeam } from './components/NGOTeam';
 import { TeamPanel } from './components/TeamPanel';
+import { NGOValidationScreen } from './components/NGOValidation';
+import { AdminValidations } from './components/AdminValidations';
 
 export const router = createBrowserRouter([
   {
@@ -66,6 +68,7 @@ export const router = createBrowserRouter([
       { path: 'settings',        Component: SettingsScreen },         // configuración: CV, tema, cerrar sesión, borrar cuenta (§240)
       { path: 'equipo/:ngoId',   Component: TeamPanel },                // panel del miembro del equipo de una ONG (§296)
       { path: 'equipo/:ngoId/project/:projectId', element: <NGOProjectDetail team /> }, // la gestión de un voluntariado, desde el equipo
+      { path: 'admin/validaciones', Component: AdminValidations },   // panel de admin (§317): cualquier rol; la API exige ADMIN_EMAILS
       { path: '*',               Component: NotFoundPage },           // URL que no existe: antes, la pantalla de desarrollador de React Router (D28, §247)
     ],
   },
@@ -85,6 +88,7 @@ export const router = createBrowserRouter([
       { path: 'patrocinios/:empresaId/:projectId', Component: SponsorshipAgreementScreen }, // el acuerdo (§265)
       { path: 'momentos',                         Component: NGOMoments },
       { path: 'equipo',                           Component: NGOTeam },   // acceso del equipo (§296)
+      { path: 'validacion',                       Component: NGOValidationScreen }, // "Validar la ONG" (§317)
       { path: 'empleados/:id',                    Component: NGOEmpleados },
       { path: 'kpis/:projectId',                  Component: NGOKPIs },
       { path: 'messages',                         Component: MessagesScreen },

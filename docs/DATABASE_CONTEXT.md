@@ -18,11 +18,11 @@
 - Las otras 4 tienen otra PK: los dos tokens de un solo uso y `mp_oauth_states`, el hash del código; `ngo_cuentas_mp`, el `ngo_id`.
 - En SQLite, dos filas del mismo segundo empatan en `created_at`: no usarlo para identificar ni para ordenar estrictamente.
 
-## 1. Tablas (38)
+## 1. Tablas (39)
 
 | Grupo | Tablas |
 |---|---|
-| Usuarios y perfiles | `users`, `voluntarios`, `ngos`, `empresas`, `ngo_miembros` (equipo de la ONG), `empleados` (fichas sin cuenta, sin uso desde el equipo) |
+| Usuarios y perfiles | `users`, `voluntarios`, `ngos`, `empresas`, `ngo_miembros` (equipo de la ONG), `ngo_validaciones`, `empleados` (fichas sin cuenta, sin uso desde el equipo) |
 | Catálogos | `categorias`, `habilidades`, `roles`, `faqs` |
 | Voluntariados | `projects`, `requisitos`, `kpis`, `project_categorias`, `project_roles` |
 | Participación | `enrollments`, `reuniones` (entrevistas), `comments`, `ratings` |
@@ -48,6 +48,9 @@ Notación: `FK→tabla` con su `ON DELETE` (CASCADE si no se dice otra cosa). To
 - **`ngo_miembros`** (upd): id · ngo_id FK→ngos · user_id FK→users (un voluntario) · rol (`coordinador`/`comunicador`) · estado (`invitado`/`activo`, default `invitado`) · invitado_por FK→users SET NULL · `UNIQUE(ngo_id, user_id)`.
   - El dueño no está acá: es `ngos.user_id`.
   - Solo cuentan los `activo` (`lib/ngoAccess.js`), y una persona puede estar en varias ONG.
+- **`ngo_validaciones`** (upd): id · ngo_id UNIQUE FK→ngos · cuit (normalizado) · personeria (`asociacion_civil`/`fundacion`/`cooperativa`/`mutual`/`otra`) · estatuto_id · constancia_id · estado (`en_revision`/`aprobada`/`rechazada`, default `en_revision`) · motivo · revisado_por FK→users SET NULL · revisado_at.
+  - `estatuto_id` y `constancia_id` son `public_id` de PDF **privados** de Cloudinary, como `cv_url`; ninguna respuesta los expone.
+  - "Validada" no se guarda en `ngos`: la insignia se calcula con `EXISTS` sobre `estado = 'aprobada'`. Los admins no son un rol: salen de `ADMIN_EMAILS`.
 - **`empleados`**: id · ngo_id FK→ngos · nombre · apellido · email · foto_perfil · rol (`coordinador`/`comunicador`/`admin`/`otro`). Es el directorio viejo, que se saca después de la defensa.
 
 ### Catálogos
@@ -111,8 +114,8 @@ Notación: `FK→tabla` con su `ON DELETE` (CASCADE si no se dice otra cosa). To
 ## 3. Borrado
 
 - **Todo es borrado físico en cascada,** sin soft-delete. Borrar un `user` elimina su perfil, sus proyectos (si es ONG, con sus postulaciones, comentarios, KPIs, etc.), sus postulaciones, mensajes, avisos, seguimientos y Momentos.
-- **Excepciones con `SET NULL`:** `donaciones.project_id` y `.ngo_id`, `reuniones.empleado_id`, y los `autor_id` / `invitado_por`.
-- **Archivos de Cloudinary:** la base no los borra. Lo hacen las rutas: borrar un voluntariado borra su foto y las de sus Momentos; borrar la cuenta borra el CV, los Momentos y, si es ONG, las fotos de sus voluntariados. Las fotos de perfil anteriores quedan.
+- **Excepciones con `SET NULL`:** `donaciones.project_id` y `.ngo_id`, `reuniones.empleado_id`, `ngo_validaciones.revisado_por`, y los `autor_id` / `invitado_por`.
+- **Archivos de Cloudinary:** la base no los borra. Lo hacen las rutas: borrar un voluntariado borra su foto y las de sus Momentos; borrar la cuenta borra el CV, los Momentos y, si es ONG, las fotos de sus voluntariados y los PDF de su validación. Las fotos de perfil anteriores quedan.
 
 ## 4. Índices (38)
 

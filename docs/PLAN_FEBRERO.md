@@ -40,7 +40,7 @@
 
 En este orden, salvo que el usuario diga otra cosa (orden propuesto, sin confirmar):
 
-1. [ ] **Validación de ONG con panel de administración.** Backend hecho (§317). Falta el frontend: pantalla "Validar la ONG", panel de admin e insignia; y `ADMIN_EMAILS` en Render.
+1. [x] **Validación de ONG con panel de administración** (§317 backend, §318 frontend): pantalla "Validar la ONG", panel de admin e insignia azul. Falta que el usuario cargue `ADMIN_EMAILS` en Render (con un mail que ya tenga cuenta).
 2. [x] **Iniciar sesión con Google** (§314): pantalla de rol la primera vez; un mail con cuenta se vincula solo si Google lo da por verificado. Falta el Client ID de Google Cloud.
    - [x] **Fechas de los voluntariados y Calendar** (§315): inicio y fin opcionales, con hora opcional; Google Calendar y .ics en el detalle y en "Próximos". Las entrevistas ya lo tenían (§268).
 3. [ ] **Notificaciones instantáneas**, por el WebSocket que ya existe.

@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Avatar } from './Avatar';
+import { VerifiedBadge } from './VerifiedBadge';
 
 export interface ProfileStat { n: number | string; label: string; onClick?: () => void }
 
@@ -20,9 +21,11 @@ interface Props {
   onBack?: () => void;
   /** Acción de la esquina (por ejemplo, Configuración en el perfil propio). */
   corner?: ReactNode;
+  /** §317: ONG validada → la insignia azul junto al nombre. */
+  verified?: boolean;
 }
 
-export function ProfileHeader({ name, avatar, kind, stats, subtitle, bio, actions, notice, onBack, corner }: Props) {
+export function ProfileHeader({ name, avatar, kind, stats, subtitle, bio, actions, notice, onBack, corner, verified }: Props) {
   return (
     <>
       <header className="h-[52px] pl-1 pr-1 flex items-center justify-between gap-1">
@@ -33,6 +36,7 @@ export function ProfileHeader({ name, avatar, kind, stats, subtitle, bio, action
             </button>
           )}
           <h1 className={`text-lg font-bold tracking-[-0.2px] truncate ${onBack ? '' : 'pl-3'}`}>{name}</h1>
+          {verified && <VerifiedBadge size={18} />}
         </div>
         {corner}
       </header>
@@ -50,7 +54,7 @@ export function ProfileHeader({ name, avatar, kind, stats, subtitle, bio, action
       </div>
 
       <div className="px-4 pt-3 flex flex-col gap-1.5">
-        <p className="text-[15px] font-semibold">{name}</p>
+        <p className="text-[15px] font-semibold flex items-center gap-1">{name}{verified && <VerifiedBadge />}</p>
         {subtitle && <p className="text-[13px] text-ink-muted">{subtitle}</p>}
         {bio && <p className="text-[15px] leading-[1.45] whitespace-pre-line break-words">{bio}</p>}
       </div>

@@ -41,6 +41,8 @@
 | GET | `/api/ngos/:id/dashboard` · GET, POST `/:id/empleados` | Sí | ngo dueña |
 | GET · PATCH | `/api/ngos/me/patrocinios` · `/me/patrocinios/:empresaId/:projectId` | Sí | ngo |
 | GET, POST, DELETE | `/api/ngos/me/mercadopago` (+ POST `/connect`, `/callback`) | Sí | ngo |
+| GET, POST · GET | `/api/ngos/me/validacion` · `/me/validacion/documento/:tipo` | Sí | ngo |
+| GET · GET · POST | `/api/admin/validaciones` · `/:id/documento/:tipo` · `/:id/aprobar`, `/:id/rechazar` | Sí | mail en `ADMIN_EMAILS` |
 | GET | `/api/empresas`, `/api/empresas/:id` | No | — |
 | GET, PUT · GET | `/api/empresas/me` · `/me/dashboard` | Sí | company |
 | GET, POST · DELETE | `/api/empresas/me/patrocinios` · `/me/patrocinios/:projectId` | Sí | company |
@@ -91,7 +93,7 @@
 - El tope de 72 bytes solo se aplica al registrarse.
 
 ### `GET /me`
-- **200:** `{ user, profile }`.
+- **200:** `{ user, profile, is_admin }`. `is_admin`: el mail actual está en `ADMIN_EMAILS` (solo muestra el panel; cada endpoint de admin lo vuelve a controlar).
   - `user`: `id, name, email, role, avatar, bio, location, created_at`.
   - `profile`: la fila del rol, con una lista blanca de columnas en español. El voluntario lleva `has_cv` en vez de `cv_url`. Es `null` si no hay fila.
 - **Errores:** 401 · 404 si el usuario ya no existe.
@@ -321,7 +323,9 @@
 
 ## NGOs (`routes/ngos.js`)
 
-**`fmtNgo`** devuelve `id, user_id, followers, founded, name, logo, cover_image, description, mission, location, category, cuit, transparency_url`. No devuelve `alias`.
+**`fmtNgo`** devuelve `id, user_id, followers, founded, name, logo, cover_image, description, mission, location, category, cuit, transparency_url`, y `verified` (boolean) solo en `GET /:id`. No devuelve `alias`.
+
+**Insignia (`verified` / `ngo_verified`):** validación aprobada, calculada con `verifiedSql` (`lib/ngoValidation.js`). `ngo_verified` viene en los proyectos de `GET /api/projects`, `/api/projects/:id` y los de `ngoProjects`; no en `/recommended` ni en el feed de seguidos.
 
 **`ngoProjects`** da forma a los proyectos de `/me`, `/:id`, `/:id/projects` y `/:id/dashboard`, igual que `GET /api/projects`: del más nuevo al más viejo, cada uno una vez.
 
@@ -359,6 +363,22 @@
 - No hay `PUT` ni `DELETE`.
 
 ---
+
+## Validación de la ONG (`routes/ngoValidacion.js`, `routes/admin.js`, `lib/ngoValidation.js`)
+
+Una por ONG (tabla `ngo_validaciones`). Estados en la API: `none` (sin pedido) · `pending` · `approved` · `rejected`. Personería: `civil_association`, `foundation`, `cooperative`, `mutual`, `other`. La forma (`fmtValidation`): `{ status, cuit, legal_type, reason, submitted_at, reviewed_at }`, o `{ status: 'none' }`. Nunca devuelve los ids de los PDF.
+
+### `/api/ngos/me/validacion` — ngo
+- **`GET /`:** `{ validation }` · 404 sin perfil de ONG.
+- **`POST /`** (multipart, regla 24): `cuit` (con dígito verificador, como `PUT /ngos/me`), `legal_type`, `statute` y `registration` (PDF por cabecera, ≤ 5 MB cada uno). **201:** `{ validation }` en `pending`.
+  - Se puede sin pedido o después de un rechazo (compare-and-swap sobre `rechazada`; los PDF viejos se borran después).
+  - **Errores:** 400 (dato o PDF; mensaje en castellano) · 409 en revisión o ya validada · 413 · 429 pasados 10 envíos por hora · 502 si falla Cloudinary (borra lo subido) · 503 sin Cloudinary.
+- **`GET /documento/:tipo`** (`statute` | `registration`): `{ url, expires_at }`, link firmado · 404.
+
+### `/api/admin/validaciones` — mail en `ADMIN_EMAILS` (si no, 403)
+- **`GET /`:** `{ validations }` en revisión, de la más vieja a la más nueva; `?status=all`, todas. Cada una: la forma de arriba con `id, ngo_id, ngo_name`.
+- **`GET /:id/documento/:tipo`:** link firmado, como el de la ONG.
+- **`POST /:id/aprobar`** · **`POST /:id/rechazar`** `{ reason }` (10 a 500): `{ validation }`. Compare-and-swap sobre `en_revision` → 409 si ya se decidió. Después, aviso `ngo_validation_approved`/`_rejected` (`data: { ngo_id }`) y email a la ONG.
 
 ## Empresas (`routes/empresas.js`)
 

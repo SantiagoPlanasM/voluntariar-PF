@@ -1,5 +1,5 @@
 // src/lib/AuthContext.tsx
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { api, ApiError, getToken, setToken, removeToken, getUser, setUser, removeUser, User, GoogleProfile } from './api';
 
 interface Ctx {
@@ -21,6 +21,8 @@ interface Ctx {
   updateUser(u: User): void;
   token: string | null;
   user: User | null;
+  /** §317: el mail está en ADMIN_EMAILS (is_admin de /auth/me). Solo muestra el panel; la API lo vuelve a controlar. */
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<Ctx | null>(null);
@@ -34,12 +36,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalIntent, setAuthModalIntent] = useState('');
   const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
+  const [isAdmin, setIsAdmin] = useState(false);
+  // Cada sesión tiene su número: una respuesta de /auth/me que llega después de cerrar la sesión (o de otra) no cuenta.
+  const session = useRef(0);
 
   useEffect(() => {
     const savedToken = getToken();
     if (savedToken) {
       api.auth.me()
-        .then(({ user: u }) => { setU(u); setUser(u); })
+        .then(({ user: u, is_admin }) => { setU(u); setUser(u); setIsAdmin(is_admin === true); })
         .catch((err) => {
           // Solo se cierra la sesión si de verdad no vale: token inválido/vencido (401) o usuario que ya no
           // existe (404). Antes se cerraba ante CUALQUIER error: con Render "dormido" (502), sin red o con
@@ -73,12 +78,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   const closeAuthModal = () => setShowAuthModal(false);
 
+  // Deja la sesión iniciada (login, registro y Google). El login no trae `is_admin` (§317): se pregunta a /auth/me
+  // aparte, sin esperar; si falla, queda en false (solo se pierde el link al panel hasta recargar).
+  const startSession = (t: string, u: User) => {
+    setToken(t); setUser(u); setT(t); setU(u);
+    setShowAuthModal(false);
+    setIsAdmin(false);
+    const mine = ++session.current;
+    api.auth.me()
+      .then(({ is_admin }) => { if (session.current === mine) setIsAdmin(is_admin === true); })
+      .catch(() => {});
+  };
+
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
       const { token: t, user: u } = await api.auth.login({ email, password });
-      setToken(t); setUser(u); setT(t); setU(u);
-      setShowAuthModal(false);
+      startSession(t, u);
       return u;
     } finally { setLoading(false); }
   };
@@ -87,18 +103,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const { token: t, user: u } = await api.auth.register({ name, email, password, role });
-      setToken(t); setUser(u); setT(t); setU(u);
-      setShowAuthModal(false);
+      startSession(t, u);
       return u;
     } finally { setLoading(false); }
   };
 
   // §314: "Continuar con Google". Si la cuenta existe, deja la sesión igual que login; si no, devuelve el perfil de
   // Google para la pantalla de rol (el modal sigue abierto).
-  const startSession = (t: string, u: User) => {
-    setToken(t); setUser(u); setT(t); setU(u);
-    setShowAuthModal(false);
-  };
   const googleLogin = async (credential: string): Promise<{ user: User } | { profile: GoogleProfile }> => {
     setLoading(true);
     try {
@@ -117,11 +128,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally { setLoading(false); }
   };
 
-  const logout = () => { removeToken(); removeUser(); setT(null); setU(null); };
+  const logout = () => { removeToken(); removeUser(); setT(null); setU(null); setIsAdmin(false); session.current++; };
   const updateUser = (u: User) => { setUser(u); setU(u); };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, initializing, showAuthModal, authModalIntent, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, register, googleLogin, googleRegister, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, token, loading, initializing, showAuthModal, authModalIntent, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, register, googleLogin, googleRegister, logout, updateUser, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

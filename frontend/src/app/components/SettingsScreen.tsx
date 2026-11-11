@@ -27,7 +27,7 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
 }
 
 export function SettingsScreen() {
-  const { user, logout, openAuthModal } = useAuth();
+  const { user, logout, openAuthModal, isAdmin } = useAuth();
   const navigate = useNavigate();
   const confirm = useConfirm();
   const { choice, setChoice } = useTheme();
@@ -69,6 +69,17 @@ export function SettingsScreen() {
         {user.role === 'ngo' && (
           <Link to="/ngo/equipo" className="rounded-xl bg-surface border border-hairline min-h-[52px] px-4 flex items-center justify-between text-[15px] hover:bg-surface-soft">
             Acceso del equipo<ChevronRight size={18} strokeWidth={1.75} className="text-ink-muted" aria-hidden="true" />
+          </Link>
+        )}
+        {user.role === 'ngo' && (
+          <Link to="/ngo/validacion" className="rounded-xl bg-surface border border-hairline min-h-[52px] px-4 flex items-center justify-between text-[15px] hover:bg-surface-soft">
+            Validación de la ONG<ChevronRight size={18} strokeWidth={1.75} className="text-ink-muted" aria-hidden="true" />
+          </Link>
+        )}
+        {/* §317: solo los mails de ADMIN_EMAILS (de cualquier rol). Cosmético: la API vuelve a controlarlo. */}
+        {isAdmin && (
+          <Link to="/admin/validaciones" className="rounded-xl bg-surface border border-hairline min-h-[52px] px-4 flex items-center justify-between text-[15px] hover:bg-surface-soft">
+            Validaciones de ONG (administración)<ChevronRight size={18} strokeWidth={1.75} className="text-ink-muted" aria-hidden="true" />
           </Link>
         )}
 

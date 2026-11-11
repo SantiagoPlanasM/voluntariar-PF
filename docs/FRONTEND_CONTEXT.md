@@ -49,7 +49,8 @@ frontend/src/
 | `/messages`, `/messages/:userId`, `/messages/asistente` (y los mismos en `/ngo/…`, `/company/…`) | `MessagesScreen`, `ChatThread`, `AssistantScreen` | con sesión |
 | `/profile` | `VolunteerProfile` (con `TeamSection`, ancla `#equipos`) | volunteer |
 | `/volunteer/:id`, `/ngo/:id`, `/company/:id` | perfiles públicos | público |
-| `/settings` | `SettingsScreen`: CV, Mercado Pago (link), tema, contraseña, Equipos/Acceso del equipo, privacidad, cerrar sesión y borrar la cuenta | con sesión |
+| `/settings` | `SettingsScreen`: CV, Mercado Pago (link), tema, contraseña, Equipos/Acceso del equipo, Validación de la ONG, el panel de admin (con `isAdmin`), privacidad, cerrar sesión y borrar la cuenta | con sesión |
+| `/admin/validaciones` | `AdminValidations` (panel de administración) | con sesión; la API exige `ADMIN_EMAILS` (403 → "solo para el equipo de VoluntariAR") |
 | `/equipo/:ngoId` | `TeamPanel` | miembro activo |
 | `/equipo/:ngoId/project/:projectId` | `NGOProjectDetail team` (sin editar, KPIs ni estado) | coordinación |
 | `/privacidad`, `/cuenta/borrar`, `/restablecer`, `/donaciones/vuelta` | `PrivacyPage`, `DeleteAccountPage`, `ResetPasswordPage`, `DonationReturn` | público; el código del link autoriza |
@@ -60,6 +61,7 @@ frontend/src/
 | `/ngo/profile`, `/ngo/mercadopago/vuelta` | `NGOOwnProfile`, `MercadoPagoReturn` (= `MP_OAUTH_REDIRECT_URI`) | ngo |
 | `/ngo/patrocinios`, `/ngo/patrocinios/:empresaId/:projectId` | `NGOPatrocinios`, `SponsorshipAgreementScreen` | ngo |
 | `/ngo/momentos`, `/ngo/equipo`, `/ngo/kpis/:projectId` | `NGOMoments`, `NGOTeam`, `NGOKPIs` | ngo |
+| `/ngo/validacion` | `NGOValidationScreen` ("Validar la ONG") | ngo |
 | `/ngo/empleados/:id` | `NGOEmpleados` (sin links; se saca después de la defensa) | ngo |
 | `/company`, `/company/profile`, `/company/dashboard`, `/company/patrocinios/:empresaId/:projectId` | `CompanyOwnProfile`, `CompanyDashboard`, `SponsorshipAgreementScreen` | company |
 
@@ -97,7 +99,7 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
   - `VolunteerPublicProfile` muestra las horas verificadas y `MomentsGrid` (por id de usuario).
 - **`VolunteerProfile`:** habilidades con nivel. Si falla una carga, muestra "—" y no pisa las habilidades al guardar. La foto de una persona es siempre `avatar`, nunca `foto_perfil`.
 - **`ProfilePhotoPicker`:** comprime (`compressImage`), sube con `api.auth.uploadPhoto` y actualiza la sesión (`updateUser`).
-- **`NotificationsScreen`:** usa `unread` del backend. `notificationHref(n, role)` lleva a la pantalla de cada aviso: entrevistas a `/participation`, donaciones recibidas o revertidas (`donation_reversed`) al voluntariado en el panel de la ONG y acuerdos a su pantalla según el rol.
+- **`NotificationsScreen`:** usa `unread` del backend. `notificationHref(n, role)` lleva a la pantalla de cada aviso: entrevistas a `/participation`, donaciones recibidas o revertidas (`donation_reversed`) al voluntariado en el panel de la ONG acuerdos a su pantalla según el rol y la validación de la ONG (`ngo_validation_approved`/`_rejected`) a `/ngo/validacion`.
 - **`ReviewsModal`:** reseñas y formulario. Cada vez que se abre pide `GET /api/projects/:id`.
 - **`DonateModal`:** monto inicial $ 2.500, con atajos de $ 1.000 a $ 10.000 y "Otro monto". Valida con `checkDonationAmount` y redirige a `checkout_url`.
 - **`DonationReturn`:** lo que muestra lo decide el backend, que concilia el pago. Si está pendiente, vuelve a preguntar hasta 5 veces cada 3 s.
@@ -105,7 +107,7 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
   - `AuthModal` (pestañas `role="tab"`, con "¿Olvidaste tu contraseña?" → `ForgotPasswordForm`) y `ResetPasswordPage` (no inicia sesión sola).
   - "Continuar con Google" (§314) en las dos pestañas, solo con `VITE_GOOGLE_CLIENT_ID`: el botón lo dibuja Google (`lib/googleSignIn.ts`). Sin cuenta → `GoogleSignupForm` (rol con `RolePicker`, compartido con el registro, y nombre con el de Google).
   - `PasswordSection`: tres campos con su `<label>` visible.
-  - `CvSection`: valida con `checkCvFile` y abre el CV con `openCv`, porque el link vence.
+  - `CvSection`: valida con `checkCvFile` y abre el CV con `openCv`, porque el link vence. `openCv` usa `openSignedLink(getLink)` (`lib/cv.ts`), que también abre los PDF de la validación de la ONG.
   - `DeleteAccountSection` y `DeleteAccountPage`.
 
 ### ONG
@@ -132,7 +134,13 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
 - **`NGOTransparency`:** muestra los datos con "Los carga la organización; VoluntariAR no los verifica".
 - **`MercadoPagoReturn`:** manda `code` y `state` **una sola vez** (un ref la protege de StrictMode).
 - **`NGOTeam`:** invita, cambia el rol o saca. Se llega por "Equipo" en la barra lateral (escritorio), por el acceso del Panel y por Configuración.
-- **`NGOShortcuts`:** los accesos del Panel de la ONG (`ShortcutCard`, uno por pantalla) a Patrocinios, Publicaciones y Equipo (`NGOTeamCard`, con miembros e invitaciones pendientes; sin números si falla la carga). En el celular son el único camino a esas tres pantallas: la barra inferior tiene cinco ítems como máximo. En escritorio van en una fila de tres.
+- **`NGOShortcuts`:** los accesos del Panel de la ONG (`ShortcutCard`, uno por pantalla) a Patrocinios, Publicaciones, Equipo (`NGOTeamCard`, con miembros e invitaciones pendientes; sin números si falla la carga) y Validación (`NGOValidationCard`, con el estado; sin él si falla la carga). En el celular son el único camino a esas pantallas: la barra inferior tiene cinco ítems como máximo. En escritorio van en una grilla de dos.
+- **Validación de la ONG (`NGOValidation.tsx`, `lib/ngoValidation.ts`):** `NGOValidationScreen` muestra el estado como chip (`ValidationChip`: "Sin validar", "En revisión", "Validada" en azul con la insignia, "Rechazada").
+  - Sin pedido o rechazada: los tres pasos (datos, documentación, revisión) y el formulario multipart (`cuit`, `legal_type`, `statute`, `registration`). Antes de mandar chequea lo mismo que el backend con sus mensajes (`checkValidationDoc`; el dígito verificador del CUIT lo controla solo el backend). Rechazada: el motivo, y el CUIT y la personería de antes.
+  - En revisión o validada: los datos enviados y "Ver estatuto"/"Ver constancia" (`openSignedLink`).
+  - Aclara que sin validar se puede publicar y recibir postulaciones, y que las donaciones dependen de Mercado Pago.
+- **`AdminValidations`** (`/admin/validaciones`): "En revisión" o "Todas" (`?status=all`); por fila, la ONG (link al perfil), CUIT, personería, los dos PDF, "Aprobar" (con `useConfirm`) y "Rechazar" (motivo de 10 a 500, `checkRejectReason`). Un error (p. ej. el 409 si otro admin ya decidió) queda en la fila.
+- **Insignia (`ui/VerifiedBadge.tsx`):** ícono azul (`text-brand-text`) con nombre "ONG validada". Va junto al nombre de la ONG en `ProfileHeader` (`verified`, perfil público), en `ProjectDetails` y en `FeedPostCard`, solo con `verified`/`ngo_verified` de la API.
 - **Equipo, lado del voluntario:** `useTeamMemberships` (`app/team/`) carga `GET /equipo/mias` y acepta, rechaza o sale (salir pide confirmación). Lo usan `TeamSection` ("Equipos", en el perfil y en Configuración; ancla `#equipos`, a la que llevan el aviso `team_invite` y "Volver" de `TeamPanel`) y `TeamInvites` (arriba del Inicio, solo las invitaciones; al aceptar, link al panel). Los dos se ocultan sin datos o si falla la carga. `TeamPanel` es el panel del miembro.
 - **`NGOPatrocinios` y `SponsorshipAgreementScreen`:**
   - **Puntos:** dos columnas; la propia tiene agregar, editar y borrar mientras el acuerdo está abierto.
@@ -166,7 +174,8 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
 
 ## 4. Contextos y cliente HTTP
 
-- **`AuthContext`** (`useAuth`): `user`, `token`, `initializing`, `login`, `register`, `googleLogin`, `googleRegister`, `logout`, `updateUser`, `openAuthModal(mode)`, `closeAuthModal`.
+- **`AuthContext`** (`useAuth`): `user`, `token`, `initializing`, `isAdmin`, `login`, `register`, `googleLogin`, `googleRegister`, `logout`, `updateUser`, `openAuthModal(mode)`, `closeAuthModal`.
+  - `isAdmin` sale de `is_admin` de `GET /auth/me`: al montar y, después de entrar (el login no lo trae), con un pedido aparte que no se espera. Una respuesta que llega después de `logout` no cuenta. Es cosmético: solo muestra el link al panel.
   - Al montar, revalida con `GET /auth/me`. Cierra la sesión **solo** ante un 401 o 404; con otros errores (por ejemplo, un 502 de Render dormido) conserva `v_user`.
   - `logout` solo borra `v_token` y `v_user`: el token no se invalida en el servidor.
 - **`ChatContext`** (`useChat`): `conversations`, `unreadTotal`, `connected`, `refreshConversations`, `onMessage(cb)`.
@@ -178,7 +187,7 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
   - `req()` fuerza JSON.
   - `upload(form, método)` **no fija `Content-Type`** (multipart).
   - `readJson`: si `!res.ok`, lanza `ApiError(data.error || fallback, status)`: "El servidor no está disponible…" para 502/503/504 y "Error del servidor" para el resto. Si la respuesta es OK pero no JSON, "Respuesta inesperada del servidor". Un fallo de red queda como `TypeError` (lo traduce `userMessage`).
-  - Namespaces: `auth`, `projects`, `enrollments`, `ngos` (con `mercadopago`, `empleados`, `patrocinios`), `empresas`, `sponsorships`, `team`, `follows`, `messages`, `posts`, `donaciones`, `voluntarios` (`cv`, `habilidades`), `faqs`, `notifications`, `catalog`, `stats`; además `geocodeAddress`.
+  - Namespaces: `auth`, `projects`, `enrollments`, `ngos` (con `mercadopago`, `empleados`, `patrocinios`, `validation`), `admin` (`validations`), `empresas`, `sponsorships`, `team`, `follows`, `messages`, `posts`, `donaciones`, `voluntarios` (`cv`, `habilidades`), `faqs`, `notifications`, `catalog`, `stats`; además `geocodeAddress`.
   - `lib/api.contract.test.ts` controla las URLs y los cuerpos.
 - **`lib/format.ts`:**
   - `parseBackendDate`: toda fecha del backend pasa por acá; la usan `timeAgo` y `formatTime`.

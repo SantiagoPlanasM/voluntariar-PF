@@ -12,6 +12,15 @@ import { NGOShortcuts } from './NGOShortcuts';
 beforeEach(() => {
   vi.restoreAllMocks();
   vi.spyOn(api.team, 'members').mockResolvedValue({ members: [] });
+  vi.spyOn(api.ngos.validation, 'get').mockResolvedValue({ validation: { status: 'none' } });
+});
+
+// §317: DESIGN.md pide "Validar la ONG" desde el Panel.
+test('el Panel tiene el acceso a la validación', async () => {
+  render(<MemoryRouter><NGOShortcuts /></MemoryRouter>);
+  const nav = screen.getByRole('navigation', { name: 'Accesos del panel' });
+  expect(within(nav).getByRole('link', { name: /Validación/ })).toHaveAttribute('href', '/ngo/validacion');
+  expect(await within(nav).findByText('Pedí la insignia azul de ONG validada')).toBeInTheDocument();
 });
 
 describe('Panel de la ONG: accesos', () => {

@@ -14,6 +14,7 @@ import { useAuth } from '../../lib/AuthContext';
 import { MomentsGrid } from './MomentsGrid';
 import { DonateModal } from './DonateModal';
 import { Avatar } from '../ui/Avatar';
+import { VerifiedBadge } from '../ui/VerifiedBadge';
 import { Button, ButtonLink } from '../ui/Button';
 import { DualGoal, formatMoney } from '../ui/Meter';
 import { LogoMark } from '../ui/Logo';
@@ -313,6 +314,7 @@ export function ProjectDetails() {
                 <Link to={project.ngo_id ? `/ngo/${project.ngo_id}` : '#'} className="inline-flex items-center gap-2 min-w-0">
                   <Avatar src={project.ngo_logo} name={project.ngo_name || 'ONG'} kind="org" size={28} />
                   <span className="font-semibold truncate">{project.ngo_name}</span>
+                  {project.ngo_verified && <VerifiedBadge />}
                 </Link>
                 <span className="text-[13px] text-ink-muted inline-flex items-center gap-1">
                   ·{' '}

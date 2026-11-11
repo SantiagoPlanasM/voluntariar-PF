@@ -50,6 +50,14 @@ describe('notificationHref', () => {
   });
 });
 
+// §317: la respuesta a la validación de la ONG lleva a su pantalla (aprobada o rechazada, con el motivo).
+describe('notificationHref: validación de la ONG', () => {
+  it('aprobada o rechazada → /ngo/validacion', () => {
+    expect(notificationHref(n('ngo_validation_approved', { ngo_id: 'n1' }))).toBe('/ngo/validacion');
+    expect(notificationHref(n('ngo_validation_rejected', { ngo_id: 'n1' }))).toBe('/ngo/validacion');
+  });
+});
+
 // §270: los avisos de entrevistas (§261) y del acuerdo de patrocinio (§264) no llevaban a ningún lado.
 describe('notificationHref: entrevistas y acuerdo de patrocinio', () => {
   it('las entrevistas llevan a Mis voluntariados', () => {

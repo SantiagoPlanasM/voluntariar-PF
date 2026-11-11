@@ -13,6 +13,8 @@ import { NGOPublicProfile } from './components/NGOPublicProfile';
 import { NGOLayout } from './components/NGOLayout';
 import { Root } from './components/Root';
 import { NotFoundPage } from './components/NotFoundPage';
+import { NGOValidationScreen } from './components/NGOValidation';
+import { AdminValidations } from './components/AdminValidations';
 
 // createBrowserRouter normaliza `Component: X` a `element: <X />`: se compara el tipo del elemento.
 const componentOf = (route?: { element?: unknown }) => (route?.element as ReactElement | undefined)?.type;
@@ -35,6 +37,18 @@ describe('rutas de Momentos', () => {
 
   test('/ngo/:id sigue siendo el perfil público de una ONG', () => {
     expect(leaf('/ngo/ngo-1')).toBe(NGOPublicProfile);
+  });
+});
+
+// §317: /ngo/validacion no tiene que caer en /ngo/:id (como /ngo/momentos); el panel de admin va en Root (cualquier rol).
+describe('rutas de la validación de ONG', () => {
+  test('/ngo/validacion es la pantalla de la ONG, dentro del layout de la ONG', () => {
+    expect(leaf('/ngo/validacion')).toBe(NGOValidationScreen);
+    expect(layout('/ngo/validacion')).toBe(NGOLayout);
+  });
+  test('/admin/validaciones es el panel de admin, dentro del layout de Root', () => {
+    expect(leaf('/admin/validaciones')).toBe(AdminValidations);
+    expect(layout('/admin/validaciones')).toBe(Root);
   });
 });
 

@@ -29,6 +29,9 @@ const KIND: Record<string, { icon: typeof Bell; badge: string }> = {
   // §296: el equipo de la ONG.
   team_invite: { icon: Users, badge: 'bg-ink text-on-ink' },
   team_joined: { icon: Users, badge: 'bg-people text-white' },
+  // §317: la validación de la ONG.
+  ngo_validation_approved: { icon: Check, badge: 'bg-people text-white' },
+  ngo_validation_rejected: { icon: X,     badge: 'bg-ink-muted text-white' },
 };
 
 // "Hace cuánto": el timeAgo compartido (lib/format.ts). Antes había una copia acá con `new Date(fecha)`, que
@@ -80,6 +83,9 @@ export function notificationHref(n: Pick<AppNotification, 'type' | 'data'>, role
       return '/profile#equipos';
     case 'team_joined':   // al dueño: su equipo
       return '/ngo/equipo';
+    case 'ngo_validation_approved':   // a la ONG: su validación (§317); rechazada, con el motivo y "Volver a enviar"
+    case 'ngo_validation_rejected':
+      return '/ngo/validacion';
     default:
       return null;
   }

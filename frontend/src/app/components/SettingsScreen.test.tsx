@@ -12,7 +12,7 @@ import { MemoryRouter } from 'react-router';
 import { UiProvider } from '../ui/UiProvider';
 
 const { auth, navigate } = vi.hoisted(() => ({
-  auth: { user: null as null | Record<string, unknown>, logout: vi.fn(), openAuthModal: vi.fn() },
+  auth: { user: null as null | Record<string, unknown>, isAdmin: false, logout: vi.fn(), openAuthModal: vi.fn() },
   navigate: vi.fn(),
 }));
 vi.mock('../../lib/AuthContext', () => ({ useAuth: () => auth }));
@@ -26,6 +26,7 @@ const mount = () => render(<MemoryRouter><UiProvider><SettingsScreen /></UiProvi
 
 beforeEach(() => {
   auth.user = null;
+  auth.isAdmin = false;
   auth.logout.mockReset();
   auth.openAuthModal.mockReset();
   navigate.mockReset();
@@ -89,6 +90,30 @@ describe('SettingsScreen', () => {
       expect(screen.queryByRole('link', { name: /Acceso del equipo/ })).not.toBeInTheDocument();
       r.unmount();
     }
+  });
+
+  // §317: "Validación de la ONG" (DESIGN.md: desde el Panel y Configuración) y el panel de admin solo para ADMIN_EMAILS.
+  test('ONG: "Validación de la ONG" lleva a /ngo/validacion; los otros roles no lo ven', () => {
+    as('ngo');
+    const { unmount } = mount();
+    expect(screen.getByRole('link', { name: /Validación de la ONG/ })).toHaveAttribute('href', '/ngo/validacion');
+    unmount();
+    for (const role of ['volunteer', 'company']) {
+      as(role);
+      const r = mount();
+      expect(screen.queryByRole('link', { name: /Validación de la ONG/ })).not.toBeInTheDocument();
+      r.unmount();
+    }
+  });
+
+  test('admin (cualquier rol): "Validaciones de ONG" lleva al panel; sin isAdmin, no aparece', () => {
+    as('volunteer');
+    const { unmount } = mount();
+    expect(screen.queryByRole('link', { name: /Validaciones de ONG/ })).not.toBeInTheDocument();
+    unmount();
+    auth.isAdmin = true;
+    mount();
+    expect(screen.getByRole('link', { name: /Validaciones de ONG/ })).toHaveAttribute('href', '/admin/validaciones');
   });
 
   test('empresa: ni CV ni Mercado Pago', () => {

@@ -78,6 +78,15 @@ const CASES: Case[] = [
     'POST', '/ngos/n1/empleados', { nombre: 'Ana', apellido: 'Paz', email: 'a@b.com', rol: 'Coordinador' }],
   ['ngos.patrocinios.list', () => api.ngos.patrocinios.list(), 'GET', '/ngos/me/patrocinios'],
   ['ngos.patrocinios.decide (campo "estado")', () => api.ngos.patrocinios.decide('emp1', 'p1', 'aceptado'), 'PATCH', '/ngos/me/patrocinios/emp1/p1', { estado: 'aceptado' }],
+  // validación de la ONG y panel de admin (§317): el motivo va en "reason", como lo lee routes/admin.js
+  ['ngos.validation.get', () => api.ngos.validation.get(), 'GET', '/ngos/me/validacion'],
+  ['ngos.validation.document', () => api.ngos.validation.document('statute'), 'GET', '/ngos/me/validacion/documento/statute'],
+  ['admin.validations.list (en revisión)', () => api.admin.validations.list(), 'GET', '/admin/validaciones'],
+  ['admin.validations.list (todas)', () => api.admin.validations.list(true), 'GET', '/admin/validaciones?status=all'],
+  ['admin.validations.document', () => api.admin.validations.document('v/1', 'registration'), 'GET', '/admin/validaciones/v%2F1/documento/registration'],
+  ['admin.validations.approve', () => api.admin.validations.approve('v1'), 'POST', '/admin/validaciones/v1/aprobar'],
+  ['admin.validations.reject (campo "reason")', () => api.admin.validations.reject('v1', 'Falta la firma del estatuto'), 'POST', '/admin/validaciones/v1/rechazar',
+    { reason: 'Falta la firma del estatuto' }],
   // empresas
   ['empresas.me', () => api.empresas.me(), 'GET', '/empresas/me'],
   ['empresas.get', () => api.empresas.get('emp1'), 'GET', '/empresas/emp1'],
@@ -148,6 +157,7 @@ const UPLOADS: [nombre: string, llamar: (f: FormData) => Promise<unknown>, metod
   ['auth.uploadPhoto', (f) => api.auth.uploadPhoto(f), 'PUT', '/auth/me/photo'],
   ['projects.uploadPhoto (§282)', (f) => api.projects.uploadPhoto('p1', f), 'PUT', '/projects/p1/photo'],
   ['voluntarios.cv.upload', (f) => api.voluntarios.cv.upload(f), 'PUT', '/voluntarios/me/cv'],
+  ['ngos.validation.submit (§317)', (f) => api.ngos.validation.submit(f), 'POST', '/ngos/me/validacion'],
   ['posts.create', (f) => api.posts.create(f), 'POST', '/posts'],
 ];
 

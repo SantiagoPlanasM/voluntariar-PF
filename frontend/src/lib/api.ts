@@ -75,7 +75,8 @@ export const api = {
     googleRegister: (b: { credential: string; role: string; name: string }) =>
       req<{ token: string; user: User }>('/auth/google/register', { method: 'POST', body: JSON.stringify(b) }),
     // `profile` es la fila del rol; del voluntario solo se lee `has_cv` (§165). Puede ser null.
-    me: () => req<{ user: User; profile?: { has_cv?: boolean } | null }>('/auth/me'),
+    // `is_admin` (§317): el mail está en ADMIN_EMAILS. Solo decide si se muestra el panel; la API lo vuelve a controlar.
+    me: () => req<{ user: User; profile?: { has_cv?: boolean } | null; is_admin?: boolean }>('/auth/me'),
     updateMe: (b: { name?: string; bio?: string; location?: string; avatar?: string }) =>
       req<{ user: User }>('/auth/me', { method: 'PUT', body: JSON.stringify(b) }),
     /** §272: cambiar la contraseña (la actual tiene que ser la correcta). */
@@ -164,6 +165,25 @@ export const api = {
       list: () => req<{ patrocinios: Patrocinio[] }>('/ngos/me/patrocinios'),
       decide: (empresaId: string, projectId: string, estado: 'aceptado' | 'rechazado') =>
         req<{ message: string }>(`/ngos/me/patrocinios/${empresaId}/${projectId}`, { method: 'PATCH', body: JSON.stringify({ estado }) }),
+    },
+    // Validación de la ONG (§317): `submit` es multipart (cuit, legal_type, statute y registration en PDF). `document`
+    // devuelve un link firmado que vence: pedirlo cada vez.
+    validation: {
+      get: () => req<{ validation: NgoValidation }>('/ngos/me/validacion'),
+      submit: (form: FormData) => upload<{ validation: NgoValidation }>('/ngos/me/validacion', form),
+      document: (doc: ValidationDoc) => req<SignedLink>(`/ngos/me/validacion/documento/${doc}`),
+    },
+  },
+  // Panel de administración (§317): solo los mails de ADMIN_EMAILS (el resto, 403).
+  admin: {
+    validations: {
+      list: (all = false) => req<{ validations: AdminValidation[] }>(`/admin/validaciones${all ? '?status=all' : ''}`),
+      document: (id: string, doc: ValidationDoc) =>
+        req<SignedLink>(`/admin/validaciones/${encodeURIComponent(id)}/documento/${doc}`),
+      approve: (id: string) =>
+        req<{ validation: AdminValidation }>(`/admin/validaciones/${encodeURIComponent(id)}/aprobar`, { method: 'POST' }),
+      reject: (id: string, reason: string) =>
+        req<{ validation: AdminValidation }>(`/admin/validaciones/${encodeURIComponent(id)}/rechazar`, { method: 'POST', body: JSON.stringify({ reason }) }),
     },
   },
   empresas: {
@@ -326,6 +346,8 @@ export interface Project extends ProjectSchedule {
   modality?: 'presencial' | 'remoto' | 'hibrido';
   recommendation_score?: number; recommendation_reasons?: string[];
   avg_rating?: number | null; ratings_count?: number;
+  /** §317: la ONG tiene la validación aprobada (insignia azul). Lo traen GET /projects, /projects/:id y /ngos/:id. */
+  ngo_verified?: boolean;
 }
 /** Cuándo es el voluntariado (§315): "AAAA-MM-DD" y "HH:MM" (hora de Argentina), o null. Todo opcional. */
 export interface ProjectSchedule {
@@ -456,7 +478,21 @@ export interface NGO {
   mission?: string; founded?: string; location?: string; followers: number;
   /** §285: datos de transparencia que carga la ONG (públicos; no se verifican). */
   cuit?: string | null; transparency_url?: string | null;
+  /** §317: validación aprobada (insignia azul). Solo lo trae GET /ngos/:id. */
+  verified?: boolean;
 }
+/** Validación de la ONG (§317). `none`: nunca la pidió. `reason`: el motivo del rechazo. */
+export type NgoValidationStatus = 'none' | 'pending' | 'approved' | 'rejected';
+export type LegalType = 'civil_association' | 'foundation' | 'cooperative' | 'mutual' | 'other';
+export type ValidationDoc = 'statute' | 'registration';
+export type NgoValidation =
+  | { status: 'none' }
+  | { status: Exclude<NgoValidationStatus, 'none'>; cuit: string; legal_type: LegalType; reason: string | null;
+      submitted_at: string; reviewed_at: string | null };
+/** GET /admin/validaciones: la validación con la ONG. */
+export type AdminValidation = Extract<NgoValidation, { cuit: string }> & { id: string; ngo_id: string; ngo_name: string };
+/** Un link firmado a un PDF privado (CV, documentos de la validación): vence en minutos. */
+export interface SignedLink { url: string; expires_at: string }
 export interface Empresa {
   id: string; user_id: string; name: string; logo?: string;
   cover_image?: string; category?: string; description?: string;

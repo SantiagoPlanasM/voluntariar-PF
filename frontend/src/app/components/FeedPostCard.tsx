@@ -9,6 +9,7 @@ import { useAuth } from '../../lib/AuthContext';
 import { ReviewsModal } from './ReviewsModal';
 import { userMessage, FOLLOW_ERROR } from '../../lib/format';
 import { Avatar } from '../ui/Avatar';
+import { VerifiedBadge } from '../ui/VerifiedBadge';
 import { LogoMark } from '../ui/Logo';
 import { TypeBadge } from '../ui/TypeBadge';
 import { Button, ButtonLink } from '../ui/Button';
@@ -188,6 +189,7 @@ export function FeedPostCard({ project, onRefresh }: FeedPostCardProps) {
           <Link to={`/ngo/${project.ngo_id}`} className="flex items-center gap-2 min-w-0">
             <Avatar src={project.ngo_logo} name={project.ngo_name || 'ONG'} kind="org" size={32} />
             <span className="text-[15px] font-semibold truncate">{project.ngo_name}</span>
+            {project.ngo_verified && <VerifiedBadge />}
           </Link>
         </div>
 

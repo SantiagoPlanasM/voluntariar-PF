@@ -443,3 +443,34 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 ### ⚠️ NO verificado
 - **Falta el frontend** (pantalla "Validar la ONG", panel de admin, insignia) y cargar `ADMIN_EMAILS` en Render. La API sola no se ve.
 - El test de la carrera del reenvío. La subida real a Cloudinary (los tests usan dobles).
+
+## 318. Validación de ONG: frontend
+
+### Qué se hizo
+- `api.ts`: `ngos.validation` (`get`, `submit` multipart, `document`) y `admin.validations` (`list`, `document`, `approve`, `reject` con `reason`); tipos `NgoValidation`, `AdminValidation`, `SignedLink`; `is_admin` en `/auth/me`, `NGO.verified` y `Project.ngo_verified`.
+- `AuthContext`: `isAdmin`, de `/auth/me` al recargar y, después de entrar, con un pedido aparte (el login no lo trae). Una respuesta que llega después de cerrar la sesión no cuenta. Es cosmético: la API vuelve a controlar `ADMIN_EMAILS` en cada pedido.
+- `/ngo/validacion` (`NGOValidationScreen`): chip de estado, los tres pasos de DESIGN.md, formulario con los chequeos y mensajes del backend (`lib/ngoValidation.ts`), motivo del rechazo y reenvío, y los PDF con link firmado. Acceso desde el Panel (`NGOValidationCard`; la grilla de accesos pasa a dos columnas) y desde Configuración.
+- `/admin/validaciones` (`AdminValidations`, en Root: cualquier rol): "En revisión"/"Todas", PDF, "Aprobar" con confirmación y "Rechazar" con motivo; 403 → "solo para el equipo de VoluntariAR". El link en Configuración, solo con `isAdmin`.
+- Insignia `VerifiedBadge` (`text-brand-text`) en el perfil público de la ONG, el detalle del voluntariado y la tarjeta del inicio. Las notificaciones `ngo_validation_*` llevan a `/ngo/validacion`.
+- `openCv` pasa a usar `openSignedLink(getLink)` (`lib/cv.ts`), que también abre los PDF de la validación.
+- Se documentan en `API_CONTEXT.md` y `DATABASE_CONTEXT.md` los endpoints y la tabla de §317, que habían quedado afuera.
+
+### Verificación
+- Frontend: 1319/1319 (antes 1253; +66), `npm run typecheck` sin errores, `npm audit` en 0. Cobertura: sentencias 91,27 %, ramas 87,93 %, funciones 87,87 %, líneas 93,87 %. Los archivos nuevos: `AdminValidations` 100 % de líneas (ramas 94,87 %), `NGOValidation` 100 % (ramas 94 %), `ngoValidation.ts` y `VerifiedBadge` 100 %.
+- Tests primero: 8 fallas de comportamiento y 5 archivos que no cargaban porque el módulo no existía (rojo débil).
+- Mutation testing (script con corrida de control y respaldo de `src`): 44 mutantes, sobreviven 3, los tres equivalentes en los flujos actuales:
+  - `setIsAdmin(false)` al iniciar una sesión: siempre se entra sin sesión, y `logout` ya lo pone en false.
+  - `if (sending) return;` en el envío: el botón está deshabilitado mientras manda, y con el botón deshabilitado el formulario no se envía con Enter.
+  - `setRejecting(false)` después de rechazar: con la fila ya rechazada, el campo del motivo no se dibuja igual.
+- Backend sin cambios en esta sección (sigue el de §317: 1205 en SQLite y 1207 en Postgres).
+
+### Errores propios
+- Escribí `api.ts` antes que sus casos del test de contrato: esos casos nunca estuvieron en rojo.
+- Un test de `isAdmin` esperaba el usuario guardado, pero el montaje anterior ya lo había reemplazado en `localStorage`. Lo corregí en el test.
+- El commit de §317 no documentó los endpoints ni la tabla en los `*_CONTEXT.md` (regla 9); quedó en este.
+
+### ⚠️ NO verificado
+- Todo lo visual: no veo la interfaz (chips, la grilla de dos columnas del Panel, la insignia en claro y oscuro más allá del token).
+- La subida real a Cloudinary y la apertura real de los PDF firmados (los tests usan dobles).
+- `ADMIN_EMAILS` en Render: la carga el usuario. **Riesgo:** el registro con contraseña no verifica el mail, así que un mail de la lista que todavía no tenga cuenta lo puede registrar cualquiera y quedaría como admin. Hay que usar el mail de una cuenta que ya exista y sea suya. Exigirle Google al admin queda ofrecido, sin hacer.
+- El índice de `DATABASE_CONTEXT.md` (38 índices) no se revisó: el `UNIQUE` de `ngo_validaciones.ngo_id` crea uno implícito.
