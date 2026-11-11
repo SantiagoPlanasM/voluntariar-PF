@@ -6,8 +6,8 @@
 // charla. Cada parte edita solo sus puntos y solo mientras el acuerdo está abierto; las reglas las valida el backend
 // (routes/patrocinios.js) y su mensaje se muestra tal cual. Los montos solo los ven las dos partes.
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router';
-import { ArrowLeft, Check, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useLocation, useParams, Link } from 'react-router';
+import { ArrowLeft, Check, History, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { api, ApiError, SponsorshipAgreement, SponsorshipPoint, SponsorshipPointInput, SponsorshipVersion } from '../../lib/api';
 import { formatTime, timeAgo, userMessage } from '../../lib/format';
 import { SPONSORSHIP_LABEL, changesSince } from '../../lib/sponsorship';
@@ -28,6 +28,7 @@ const card = 'bg-surface rounded-2xl border border-hairline';
 
 export function SponsorshipAgreementScreen() {
   const { empresaId, projectId } = useParams();
+  const { pathname } = useLocation();
   const confirm = useConfirm();
   const latest = useLatestRequest();
   const [a, setA] = useState<SponsorshipAgreement | null>(null);
@@ -81,6 +82,7 @@ export function SponsorshipAgreementScreen() {
   };
 
   const back = a?.my_side === 'ngo' ? '/ngo/patrocinios' : '/company/profile';
+  const historyUrl = `${pathname.replace(/\/$/, '')}/historial`;   // §326: misma URL + /historial, bajo /ngo o /company
   if (loadError) return <LoadError message={loadError.message} onRetry={loadError.retry ? load : undefined} home={back} />;
   if (!a) return <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-ink-muted" aria-label="Cargando" /></div>;
 
@@ -213,10 +215,16 @@ export function SponsorshipAgreementScreen() {
         <Link to={back} className="text-sm text-ink-soft inline-flex items-center gap-1 self-start">
           <ArrowLeft size={16} aria-hidden="true" />Volver
         </Link>
-        <header>
-          <h1 className="text-[22px] font-bold tracking-[-0.3px]">Acuerdo de patrocinio</h1>
-          <p className="text-[15px] font-semibold">{a.project_title}</p>
-          <p className="text-sm text-ink-soft">{a.company_name} · {a.ngo_name} · versión {a.version}</p>
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-[22px] font-bold tracking-[-0.3px]">Acuerdo de patrocinio</h1>
+            <p className="text-[15px] font-semibold">{a.project_title}</p>
+            <p className="text-sm text-ink-soft">{a.company_name} · {a.ngo_name} · versión {a.version}</p>
+          </div>
+          {/* §326: el historial de versiones */}
+          <Link to={historyUrl} className={`${btn} bg-surface border border-hairline text-ink`}>
+            <History size={16} aria-hidden="true" />Historial de versiones
+          </Link>
         </header>
 
         {n > 0 && (
@@ -230,6 +238,7 @@ export function SponsorshipAgreementScreen() {
                 {removed.length === 1 ? 'Se quitó' : 'Se quitaron'}: {removed.map(r => r.detail).join(', ')}
               </p>
             )}
+            <Link to={historyUrl} className="self-start mt-1 text-[13px] font-bold underline underline-offset-2">Ver qué cambió</Link>
           </section>
         )}
 

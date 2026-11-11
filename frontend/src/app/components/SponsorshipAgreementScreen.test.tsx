@@ -167,6 +167,13 @@ describe('Acuerdo de patrocinio: lo que cambió desde que aceptaste', () => {
     expect(within(punto('Aporte para materiales')).queryByText(/desde que aceptaste/)).not.toBeInTheDocument();  // v2: ya lo había aceptado
   });
 
+  test('"Historial de versiones" y "Ver qué cambió" llevan al historial (§326)', async () => {
+    mount(base(), [v3, v2]);
+    const aviso = await screen.findByRole('region', { name: 'Cambios desde tu aceptación' });
+    expect(within(aviso).getByRole('link', { name: 'Ver qué cambió' })).toHaveAttribute('href', '/company/patrocinios/e1/p1/historial');
+    expect(screen.getByRole('link', { name: 'Historial de versiones' })).toHaveAttribute('href', '/company/patrocinios/e1/p1/historial');
+  });
+
   test('un punto agregado después de mi aceptación se marca como nuevo', async () => {
     const v4: SponsorshipVersion = { ...v3, version: 4, changes: [
       { action: 'add', point_id: 'pt2', side: 'ngo', before: null, after: { type: 'outreach', detail: 'Logo en las remeras', amount: null } }] };

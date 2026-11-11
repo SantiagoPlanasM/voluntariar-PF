@@ -109,3 +109,13 @@ describe('rutas del equipo de la ONG (§296)', () => {
     expect(el.props.team).toBe(true);
   });
 });
+
+describe('rutas del historial del acuerdo de patrocinio (§326)', () => {
+  test('/ngo/… y /company/…/historial son el historial; sin /historial, el acuerdo', async () => {
+    const { SponsorshipHistoryScreen } = await import('./components/SponsorshipHistoryScreen');
+    const { SponsorshipAgreementScreen } = await import('./components/SponsorshipAgreementScreen');
+    expect(leaf('/ngo/patrocinios/e1/p1/historial')).toBe(SponsorshipHistoryScreen);
+    expect(leaf('/company/patrocinios/e1/p1/historial')).toBe(SponsorshipHistoryScreen);
+    expect(leaf('/ngo/patrocinios/e1/p1')).toBe(SponsorshipAgreementScreen);
+  });
+});

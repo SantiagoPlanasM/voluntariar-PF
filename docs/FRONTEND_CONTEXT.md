@@ -65,12 +65,12 @@ frontend/src/
 | `/ngo/create`, `/ngo/dashboard/project/:projectId/editar` | `CreateVoluntariado` (alta y edición) | ngo (dueña) |
 | `/ngo/dashboard/project/:projectId` | `NGOProjectDetail` | ngo |
 | `/ngo/profile`, `/ngo/mercadopago/vuelta` | `NGOOwnProfile`, `MercadoPagoReturn` (= `MP_OAUTH_REDIRECT_URI`) | ngo |
-| `/ngo/patrocinios`, `/ngo/patrocinios/:empresaId/:projectId` | `NGOPatrocinios`, `SponsorshipAgreementScreen` | ngo |
+| `/ngo/patrocinios`, `/ngo/patrocinios/:empresaId/:projectId`, `…/historial` | `NGOPatrocinios`, `SponsorshipAgreementScreen`, `SponsorshipHistoryScreen` | ngo |
 | `/ngo/momentos`, `/ngo/equipo`, `/ngo/kpis/:projectId` | `NGOMoments`, `NGOTeam`, `NGOKPIs` | ngo |
 | `/ngo/validacion` | `NGOValidationScreen` ("Validar la ONG") | ngo |
 | `/ngo/postulaciones` | `NGOApplications` (todas las postulaciones) | ngo |
 | `/ngo/empleados/:id` | `NGOEmpleados` (sin links; se saca después de la defensa) | ngo |
-| `/company`, `/company/profile`, `/company/dashboard`, `/company/patrocinios/:empresaId/:projectId` | `CompanyOwnProfile`, `CompanyDashboard`, `SponsorshipAgreementScreen` | company |
+| `/company`, `/company/profile`, `/company/dashboard`, `/company/patrocinios/:empresaId/:projectId`, `…/historial` | `CompanyOwnProfile`, `CompanyDashboard`, `SponsorshipAgreementScreen`, `SponsorshipHistoryScreen` | company |
 
 Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile` y el voluntario se queda donde estaba. No se recuerda "a dónde volver".
 
@@ -163,6 +163,8 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
   - **Puntos (§325):** una sola lista con filtros por parte (con la cantidad) y el total de dinero; cada punto dice de qué parte es ("Aporta …" / "Ofrece …"), quién lo agregó y quién lo editó. Los propios tienen editar y borrar, y hay "Agregar punto", mientras el acuerdo está abierto.
   - **Cambios desde tu aceptación (§325):** si acepté una versión anterior a la vigente y el acuerdo está abierto, pide el historial y `changesSince` (`lib/sponsorship.ts`) marca los puntos nuevos o editados (con "Antes:") y avisa los quitados. Uno agregado y quitado después no cuenta. Si el historial falla, sin marcas.
   - **Disposición:** desde `lg`, la lista a la izquierda y la aceptación y la charla en una columna de 360 px.
+  - **Historial (§326):** "Historial de versiones" (encabezado) y "Ver qué cambió" (aviso) llevan a la misma URL + `/historial`.
+- **`SponsorshipHistoryScreen` (§326):** pide el acuerdo y `GET …/historial` juntos. A la izquierda las versiones (de la más nueva a la más vieja: quién, qué hizo y quién la aceptó); a la derecha el detalle de la elegida, que arranca en la más nueva ("Vigente"): quién la aceptó y cada cambio con Agregó/Editó/Quitó en texto, antes y ahora, con el monto. La versión 1 sin cambios muestra el mensaje al proponer. Si el historial empieza después de la versión 1, lo avisa. Angosto (< 1024 px), elegir una versión baja hasta el detalle. "Volver al acuerdo" es la URL sin `/historial`.
   - **Aceptación:** quién aceptó la vigente (y cuándo) y qué versión había aceptado quien no; "Estoy de acuerdo" manda `version`, y "Rechazar acuerdo".
   - **Charla:** el mensaje de la propuesta y los mensajes.
   - Un 409 recarga el acuerdo.

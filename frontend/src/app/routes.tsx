@@ -18,6 +18,7 @@ import { NGOOwnProfile } from './components/NGOOwnProfile';
 import { MercadoPagoReturn } from './components/MercadoPagoReturn';
 import { NGOPatrocinios } from './components/NGOPatrocinios';
 import { SponsorshipAgreementScreen } from './components/SponsorshipAgreementScreen';
+import { SponsorshipHistoryScreen } from './components/SponsorshipHistoryScreen';
 import { CompanyOwnProfile } from './components/CompanyOwnProfile';
 import { CompanyDashboard } from './components/CompanyDashboard';
 import { CompanyPublicProfile } from './components/CompanyPublicProfile';
@@ -88,6 +89,7 @@ export const router = createBrowserRouter([
       { path: 'mercadopago/vuelta',               Component: MercadoPagoReturn },
       { path: 'patrocinios',                      Component: NGOPatrocinios },
       { path: 'patrocinios/:empresaId/:projectId', Component: SponsorshipAgreementScreen }, // el acuerdo (§265)
+      { path: 'patrocinios/:empresaId/:projectId/historial', Component: SponsorshipHistoryScreen }, // §326
       { path: 'momentos',                         Component: NGOMoments },
       { path: 'equipo',                           Component: NGOTeam },   // acceso del equipo (§296)
       { path: 'validacion',                       Component: NGOValidationScreen }, // "Validar la ONG" (§317)
@@ -108,6 +110,7 @@ export const router = createBrowserRouter([
       { index: true,               Component: CompanyOwnProfile },
       { path: 'dashboard',         Component: CompanyDashboard },
       { path: 'patrocinios/:empresaId/:projectId', Component: SponsorshipAgreementScreen }, // el acuerdo (§265)
+      { path: 'patrocinios/:empresaId/:projectId/historial', Component: SponsorshipHistoryScreen }, // §326
       { path: 'profile',           Component: CompanyOwnProfile },
       { path: 'messages',          Component: MessagesScreen },
       { path: 'messages/asistente', Component: AssistantScreen },

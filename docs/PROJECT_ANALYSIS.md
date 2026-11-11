@@ -626,3 +626,24 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 ### ⚠️ NO verificado
 - La pantalla de la empresa con datos reales (la misma pantalla; la miré como ONG).
 - Producción: el paso 1 (§324) todavía no está pusheado, así que el historial no existe allá.
+
+## 326. Acuerdo de patrocinio, paso 3: pantalla del historial de versiones
+
+### Qué se hizo
+- `SponsorshipHistoryScreen` en `/ngo/patrocinios/:empresaId/:projectId/historial` y lo mismo bajo `/company`, según el lienzo del 11/11. A la izquierda las versiones de la más nueva a la más vieja (quién la hizo, qué hizo, quién la aceptó); a la derecha el detalle de la elegida: si cada parte la aceptó y cuándo, y cada cambio con Agregó/Editó/Quitó en texto y en el borde (no solo el color), de qué parte es el punto, lo de antes (tachado) y lo de ahora, con el monto.
+- La versión 1 sin cambios muestra el mensaje al proponer; si el historial empieza después de la 1 (acuerdos de antes de §324), lo avisa.
+- Desde el acuerdo: "Historial de versiones" en el encabezado y "Ver qué cambió" en el aviso de cambios.
+- En Chrome, a 390 px, el detalle quedaba debajo de una lista larga y tocar una versión no mostraba nada a la vista: angosto, elegir una versión baja hasta el detalle.
+
+### Verificación
+- Frontend: 1428/1428 (antes 1414; +14: 12 de la pantalla, 1 de las rutas y 1 de los links desde el acuerdo), `typecheck` sin errores, `npm audit` en 0. Cobertura: sentencias 91,77 %, ramas 88,48 %, funciones 88,81 %, líneas 94,25 %.
+- Rojo antes del código: los links y la bajada al detalle, por comportamiento; la pantalla y las rutas, rojo débil (el módulo no existía).
+- Mutation testing (script con corrida de control): 17 mutantes. Sobrevivían 4; con dos tests y una comprobación más mueren 3. Queda uno equivalente: el link al historial como "historial" relativo (el router lo resuelve igual).
+- Chrome, en local con la base de prueba: la lista de versiones con el aviso "empieza en la versión 5", el detalle de una edición (antes y ahora) y de un punto quitado con su monto, y el celular a 390 px sin scroll horizontal y bajando al detalle (492 px).
+
+### Errores propios
+- En un test, el texto del botón juntaba "Versión 3" con la fecha ("11 nov") y la regex leía "Versión 311"; lo cambié para leer el título.
+
+### ⚠️ NO verificado
+- La pantalla desde el lado de la empresa (mismo componente).
+- Producción: los pasos 1 a 3 no están pusheados.
