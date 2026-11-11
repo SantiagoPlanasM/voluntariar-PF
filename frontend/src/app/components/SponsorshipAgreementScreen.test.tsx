@@ -1,18 +1,24 @@
-// src/app/components/SponsorshipAgreementScreen.test.tsx — la pantalla del acuerdo de patrocinio (§265, PLAN_PATROCINIO.md etapa 3).
+// src/app/components/SponsorshipAgreementScreen.test.tsx — la pantalla del acuerdo de patrocinio (§265, rediseño §325).
 //
 // Criterio (la misma pantalla para la empresa y la ONG; el backend decide qué se puede):
-// - dos columnas: lo que aporta la empresa y lo que pide u ofrece la ONG, con el tipo, el detalle y el monto (solo en
-//   dinero, en pesos); solo en la columna propia hay "Agregar punto", editar y borrar (con confirmación);
+// - una sola lista de puntos (§325, antes dos columnas): cada uno dice de qué parte es, el tipo, el detalle, el monto
+//   (solo en dinero, en pesos), quién lo agregó y, si lo editaron, quién y cuándo; filtros por parte con la cantidad
+//   y el total de dinero comprometido; solo los puntos propios tienen editar y borrar (con confirmación), y hay
+//   "Agregar punto" para la parte propia;
 // - el formulario de un punto pide el monto solo si el tipo es dinero y manda solo eso;
-// - la barra de aceptación dice quién aceptó la versión vigente; "Estoy de acuerdo" manda esa versión; si el backend
-//   dice que el acuerdo cambió (409), se ve el mensaje y se recarga; "Rechazar acuerdo" pide confirmación;
+// - "cambió desde que aceptaste" (§325): si acepté una versión anterior a la vigente, el historial marca los puntos
+//   agregados o editados desde entonces (con lo de antes) y avisa los que se quitaron; si nunca acepté, si acepté la
+//   vigente o si está cerrado, no se pide el historial; si el historial falla, la pantalla sigue sin marcas;
+// - la barra de aceptación dice quién aceptó la versión vigente (y qué versión había aceptado quien no);
+//   "Estoy de acuerdo" manda esa versión; si el backend dice que el acuerdo cambió (409), se ve el mensaje y se
+//   recarga; "Rechazar acuerdo" pide confirmación;
 // - la charla muestra el mensaje inicial y los mensajes con su autor; "Enviar" manda el texto y limpia el campo;
 // - cerrado (aceptado o rechazado): sin formularios ni botones, la charla de solo lectura;
 // - si no se puede cargar (404), el error con la salida.
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router';
-import { api, ApiError, SponsorshipAgreement } from '../../lib/api';
+import { api, ApiError, SponsorshipAgreement, SponsorshipVersion } from '../../lib/api';
 import { UiProvider } from '../ui/UiProvider';
 import { SponsorshipAgreementScreen } from './SponsorshipAgreementScreen';
 
@@ -25,39 +31,85 @@ const base = (over: Partial<SponsorshipAgreement> = {}): SponsorshipAgreement =>
     { id: 'pt1', side: 'company', type: 'money', detail: 'Aporte para materiales', amount: 200000, created_at: '', updated_at: '',
       created_by_name: 'Laura', edited_by_name: null, edited_at: null },
     { id: 'pt2', side: 'ngo', type: 'outreach', detail: 'Logo en las remeras', amount: null, created_at: '', updated_at: '',
-      created_by_name: 'Ana', edited_by_name: null, edited_at: null },
+      created_by_name: 'Ana', edited_by_name: 'Ana', edited_at: '2026-10-29T10:30:00.000Z' },
   ],
   messages: [{ id: 'm1', side: 'ngo', author_name: 'ONG Verde', body: '¿Pueden ser 15 empleados?', created_at: '2026-10-29T10:00:00.000Z' }],
   ...over,
 });
 
-const mount = (a: SponsorshipAgreement | Error = base()) => {
+const v3: SponsorshipVersion = {
+  version: 3, side: 'ngo', author_name: 'Ana', created_at: '2026-10-29T10:30:00.000Z', accepted_by: [],
+  changes: [
+    { action: 'edit', point_id: 'pt2', side: 'ngo', before: { type: 'outreach', detail: 'Logo', amount: null },
+      after: { type: 'outreach', detail: 'Logo en las remeras', amount: null } },
+    { action: 'remove', point_id: 'pt9', side: 'ngo', before: { type: 'supplies', detail: 'Bolsas de residuos', amount: null }, after: null },
+  ],
+};
+const v2: SponsorshipVersion = {
+  version: 2, side: 'company', author_name: 'Laura', created_at: '2026-10-28T10:00:00.000Z',
+  accepted_by: [{ side: 'company', author_name: 'Laura', accepted_at: '2026-10-28T10:01:00.000Z' }],
+  changes: [{ action: 'add', point_id: 'pt1', side: 'company', before: null, after: { type: 'money', detail: 'Aporte para materiales', amount: 200000 } }],
+};
+
+const mount = (a: SponsorshipAgreement | Error = base(), versions: SponsorshipVersion[] | Error = []) => {
   const get = vi.spyOn(api.sponsorships, 'get');
   if (a instanceof Error) get.mockRejectedValue(a); else get.mockResolvedValue({ agreement: a });
+  const history = vi.spyOn(api.sponsorships, 'history');
+  if (versions instanceof Error) history.mockRejectedValue(versions); else history.mockResolvedValue({ versions });
   render(
     <UiProvider><MemoryRouter initialEntries={['/company/patrocinios/e1/p1']}><Routes>
       <Route path="/company/patrocinios/:empresaId/:projectId" element={<SponsorshipAgreementScreen />} />
     </Routes></MemoryRouter></UiProvider>);
-  return get;
+  return { get, history };
 };
-const empresa = () => screen.getByRole('region', { name: 'Lo que aporta Acme SA' });
-const ong = () => screen.getByRole('region', { name: 'Lo que pide u ofrece ONG Verde' });
+const lista = () => screen.getByRole('region', { name: 'Puntos del acuerdo' });
+const punto = (detail: string) => within(lista()).getByText(detail).closest('li')!;
 const fill = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
 beforeEach(() => { vi.restoreAllMocks(); });
 
-describe('Acuerdo de patrocinio: los puntos', () => {
-  test('dos columnas con tipo, detalle y monto; editar y borrar solo en la propia', async () => {
+describe('Acuerdo de patrocinio: la lista de puntos', () => {
+  test('una sola lista: de qué parte es cada punto, tipo, detalle, monto y quién lo agregó o editó', async () => {
     mount();
     expect(await screen.findByRole('heading', { name: 'Acuerdo de patrocinio' })).toBeInTheDocument();
     expect(screen.getByText('Limpieza del lago')).toBeInTheDocument();
-    expect(within(empresa()).getByText('Dinero')).toBeInTheDocument();
-    expect(within(empresa()).getByText('Aporte para materiales')).toBeInTheDocument();
-    expect(within(empresa()).getByText(/200\.000/)).toBeInTheDocument();
-    expect(within(ong()).getByText('Difusión')).toBeInTheDocument();
-    expect(within(empresa()).getByRole('button', { name: 'Editar punto: Aporte para materiales' })).toBeInTheDocument();
-    expect(within(empresa()).getByRole('button', { name: 'Agregar punto' })).toBeInTheDocument();
-    expect(within(ong()).queryByRole('button', { name: /Editar punto|Borrar punto|Agregar punto/ })).not.toBeInTheDocument();
+    const dinero = punto('Aporte para materiales');
+    expect(within(dinero).getByText('Aporta Acme SA')).toBeInTheDocument();
+    expect(within(dinero).getByText('Dinero')).toBeInTheDocument();
+    expect(within(dinero).getByText(/200\.000/)).toBeInTheDocument();
+    expect(within(dinero).getByText('Agregado por Laura')).toBeInTheDocument();
+    const logo = punto('Logo en las remeras');
+    expect(within(logo).getByText('Ofrece ONG Verde')).toBeInTheDocument();
+    expect(within(logo).getByText('Difusión')).toBeInTheDocument();
+    expect(within(logo).getByText(/^Agregado por Ana · editado por Ana · /)).toBeInTheDocument();
+  });
+
+  test('editar y borrar solo en los puntos propios; "Agregar punto" para la parte propia', async () => {
+    mount();
+    const dinero = await screen.findByText('Aporte para materiales');
+    expect(within(dinero.closest('li')!).getByRole('button', { name: 'Editar punto: Aporte para materiales' })).toBeInTheDocument();
+    expect(within(punto('Logo en las remeras')).queryByRole('button', { name: /Editar punto|Borrar punto/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Agregar punto' })).toBeInTheDocument();
+  });
+
+  test('filtros por parte con la cantidad; el total de dinero comprometido', async () => {
+    mount();
+    const todos = await screen.findByRole('button', { name: 'Todos · 2' });
+    expect(todos).toHaveAttribute('aria-pressed', 'true');
+    expect(within(lista()).getByText(/Dinero comprometido/)).toHaveTextContent('200.000');
+    fireEvent.click(screen.getByRole('button', { name: 'Ofrece ONG Verde · 1' }));
+    expect(screen.getByRole('button', { name: 'Ofrece ONG Verde · 1' })).toHaveAttribute('aria-pressed', 'true');
+    expect(todos).toHaveAttribute('aria-pressed', 'false');
+    expect(within(lista()).queryByText('Aporte para materiales')).not.toBeInTheDocument();
+    expect(within(lista()).getByText('Logo en las remeras')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Aporta Acme SA · 1' }));
+    expect(within(lista()).queryByText('Logo en las remeras')).not.toBeInTheDocument();
+  });
+
+  test('sin dinero no muestra el total; sin puntos lo dice', async () => {
+    mount(base({ points: [] }));
+    expect(await within(await screen.findByRole('region', { name: 'Puntos del acuerdo' })).findByText('Todavía no hay puntos.')).toBeInTheDocument();
+    expect(screen.queryByText(/Dinero comprometido/)).not.toBeInTheDocument();
   });
 
   test('agregar: el monto aparece solo con dinero y se manda como número', async () => {
@@ -102,12 +154,70 @@ describe('Acuerdo de patrocinio: los puntos', () => {
   });
 });
 
+describe('Acuerdo de patrocinio: lo que cambió desde que aceptaste', () => {
+  test('acepté la versión 2 y está la 3: marca lo editado (con lo de antes) y avisa lo que se quitó', async () => {
+    const { history } = mount(base(), [v3, v2]);
+    const aviso = await screen.findByRole('region', { name: 'Cambios desde tu aceptación' });
+    expect(history).toHaveBeenCalledWith('e1', 'p1');
+    expect(aviso).toHaveTextContent('Cambiaron 2 puntos desde que aceptaste la versión 2.');
+    expect(within(aviso).getByText(/Se quitó/)).toHaveTextContent('Bolsas de residuos');
+    const logo = punto('Logo en las remeras');
+    expect(within(logo).getByText('Cambió desde que aceptaste')).toBeInTheDocument();
+    expect(within(logo).getByText('Logo')).toBeInTheDocument();          // lo de antes, tachado
+    expect(within(punto('Aporte para materiales')).queryByText(/desde que aceptaste/)).not.toBeInTheDocument();  // v2: ya lo había aceptado
+  });
+
+  test('un punto agregado después de mi aceptación se marca como nuevo', async () => {
+    const v4: SponsorshipVersion = { ...v3, version: 4, changes: [
+      { action: 'add', point_id: 'pt2', side: 'ngo', before: null, after: { type: 'outreach', detail: 'Logo en las remeras', amount: null } }] };
+    mount(base({ version: 4, accepted_versions: { company: 3, ngo: null } }), [v4, v3]);
+    expect(await screen.findByText('Nuevo desde que aceptaste')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Cambios desde tu aceptación' })).toHaveTextContent('Cambió 1 punto desde que aceptaste la versión 3.');
+  });
+
+  test('no pide el historial si nunca acepté, si acepté la vigente o si está cerrado', async () => {
+    for (const a of [
+      base({ accepted_versions: { company: null, ngo: 3 } }),
+      base({ accepted: { company: true, ngo: true }, accepted_versions: { company: 3, ngo: 3 } }),
+      base({ status: 'rechazado' }),
+    ]) {
+      const { history, get } = mount(a, [v3, v2]);
+      await waitFor(() => expect(get).toHaveBeenCalled());
+      await screen.findByRole('region', { name: 'Puntos del acuerdo' });
+      expect(history).not.toHaveBeenCalled();
+      expect(screen.queryByRole('region', { name: 'Cambios desde tu aceptación' })).not.toBeInTheDocument();
+      vi.restoreAllMocks();
+      document.body.innerHTML = '';
+    }
+  });
+
+  test('si después de un cambio el historial falla, se van las marcas viejas (no quedan de otra versión)', async () => {
+    const { history } = mount(base(), [v3, v2]);
+    expect(await screen.findByText('Cambió desde que aceptaste')).toBeInTheDocument();
+    history.mockRejectedValue(new ApiError('Error', 500));
+    vi.spyOn(api.sponsorships, 'addPoint').mockResolvedValue({ agreement: base({ version: 4 }) });
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar punto' }));
+    fill('Detalle del punto', 'Guantes');
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar punto' }));
+    await waitFor(() => expect(history).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByText(/desde que aceptaste/)).not.toBeInTheDocument());
+  });
+
+  test('si el historial falla, la pantalla sigue sin marcas', async () => {
+    const { history } = mount(base(), new ApiError('Error', 500));
+    await waitFor(() => expect(history).toHaveBeenCalled());
+    expect(await screen.findByText('Logo en las remeras')).toBeInTheDocument();
+    expect(screen.queryByText(/desde que aceptaste/)).not.toBeInTheDocument();
+  });
+});
+
 describe('Acuerdo de patrocinio: aceptar y rechazar', () => {
   test('la barra dice quién aceptó; "Estoy de acuerdo" manda la versión vigente', async () => {
     const acc = vi.spyOn(api.sponsorships, 'accept').mockResolvedValue({ agreement: base({ status: 'aceptado', accepted: { company: true, ngo: true } }) });
     mount();
     const barra = await screen.findByRole('region', { name: 'Aceptación' });
     expect(within(barra).getByText('Acme SA: pendiente')).toBeInTheDocument();
+    expect(within(barra).getByText('Habías aceptado la versión 2')).toBeInTheDocument();   // §325
     expect(within(barra).getByText('ONG Verde: de acuerdo con esta versión')).toBeInTheDocument();
     fireEvent.click(within(barra).getByRole('button', { name: 'Estoy de acuerdo' }));
     await waitFor(() => expect(acc).toHaveBeenCalledWith('e1', 'p1', 3));
@@ -116,7 +226,7 @@ describe('Acuerdo de patrocinio: aceptar y rechazar', () => {
 
   test('si el acuerdo cambió (409), se ve el mensaje y se recarga', async () => {
     vi.spyOn(api.sponsorships, 'accept').mockRejectedValue(new ApiError('El acuerdo cambió: revisalo de nuevo', 409));
-    const get = mount();
+    const { get } = mount();
     fireEvent.click(await screen.findByRole('button', { name: 'Estoy de acuerdo' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('El acuerdo cambió: revisalo de nuevo');
     await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
@@ -124,9 +234,10 @@ describe('Acuerdo de patrocinio: aceptar y rechazar', () => {
 
   test('ya acepté: no ofrece aceptar de nuevo; rechazar pide confirmación', async () => {
     const rej = vi.spyOn(api.sponsorships, 'reject').mockResolvedValue({ agreement: base({ status: 'rechazado' }) });
-    mount(base({ accepted: { company: true, ngo: false } }));
+    mount(base({ accepted: { company: true, ngo: false }, accepted_versions: { company: 3, ngo: null } }));
     expect(await screen.findByText('Ya aceptaste esta versión')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Estoy de acuerdo' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Había aceptado/)).not.toBeInTheDocument();   // la ONG nunca aceptó: sin "versión" vacía
     fireEvent.click(screen.getByRole('button', { name: 'Rechazar acuerdo' }));
     fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Rechazar acuerdo' }));
     await waitFor(() => expect(rej).toHaveBeenCalledWith('e1', 'p1'));
@@ -146,7 +257,7 @@ describe('Acuerdo de patrocinio: "Volver" en la confirmación no hace nada', () 
     }
     expect(del).not.toHaveBeenCalled();
     expect(rej).not.toHaveBeenCalled();
-    expect(within(empresa()).getByText('Aporte para materiales')).toBeInTheDocument();
+    expect(within(lista()).getByText('Aporte para materiales')).toBeInTheDocument();
   });
 });
 

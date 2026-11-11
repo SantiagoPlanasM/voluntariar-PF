@@ -605,3 +605,24 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 ### ⚠️ NO verificado
 - El efecto en producción de las tablas nuevas: la migración corre sola al desplegar (aditiva, como todo el esquema). No lo pusheé todavía.
 - La interfaz: no hay pantallas nuevas en este paso.
+
+## 325. Acuerdo de patrocinio, paso 2: lista única, quién agregó o editó y "cambió desde que aceptaste"
+
+### Qué se hizo
+- `SponsorshipAgreementScreen`, según el lienzo del 11/11: las dos columnas pasaron a una sola lista de puntos con filtros por parte (con la cantidad), el total de dinero comprometido y, en cada punto, de qué parte es, quién lo agregó y quién lo editó ("hace 2 h").
+- "Cambió desde que aceptaste": si acepté una versión anterior a la vigente y el acuerdo está abierto, la pantalla pide `GET …/historial` (§324) y marca los puntos nuevos o editados desde mi aceptación (con "Antes:" tachado) y avisa los quitados. La lógica está en `changesSince` (`lib/sponsorship.ts`): un punto editado dos veces muestra cómo estaba cuando acepté; uno agregado y quitado después no cuenta. Si el historial falla, la pantalla sigue sin marcas (también borra las de una versión anterior).
+- La aceptación dice cuándo aceptó cada parte la vigente y qué versión había aceptado quien no. Desde `lg`, la lista a la izquierda y la aceptación y la charla en una columna de 360 px.
+- Todavía cada cambio de un punto es una versión (el borrador con "Guardar cambios" es el paso 4).
+
+### Verificación
+- Frontend: 1414/1414 (antes 1400; +14: 6 de `changesSince` y 8 de la pantalla, con los de dos columnas reescritos), `typecheck` sin errores, `npm audit` en 0. Cobertura: sentencias 91,75 %, ramas 88,44 %, funciones 88,66 %, líneas 94,22 %.
+- Rojo antes del código: 10 de 19 de la pantalla por comportamiento (los otros 9 son los que no cambian). Los de `changesSince`, rojo débil (la función no existía).
+- Mutation testing (script con corrida de control): 22 mutantes. Sobrevivían 3; con un test y una comprobación más mueren 2. Queda uno equivalente: sumar solo los puntos de dinero (el backend no deja monto en otro tipo).
+- Chrome, en local con la base de prueba (ONG Sustentando, acuerdo armado por la API sin mails): el aviso con 3 cambios (editado con "Antes:", nuevo y quitado; uno agregado y quitado no aparece), los filtros, la aceptación con las versiones, tema oscuro y claro, y el celular a 390 px sin scroll horizontal.
+
+### Errores propios
+- Ninguno nuevo en este paso.
+
+### ⚠️ NO verificado
+- La pantalla de la empresa con datos reales (la misma pantalla; la miré como ONG).
+- Producción: el paso 1 (§324) todavía no está pusheado, así que el historial no existe allá.

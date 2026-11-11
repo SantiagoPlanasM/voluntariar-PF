@@ -160,8 +160,10 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
 - **Insignia (`ui/VerifiedBadge.tsx`):** ícono azul (`text-brand-text`) con nombre "ONG validada". Va junto al nombre de la ONG en `ProfileHeader` (`verified`, perfil público), en `ProjectDetails` y en `FeedPostCard`, solo con `verified`/`ngo_verified` de la API.
 - **Equipo, lado del voluntario:** `useTeamMemberships` (`app/team/`) carga `GET /equipo/mias` y acepta, rechaza o sale (salir pide confirmación). Lo usan `TeamSection` ("Equipos", en el perfil y en Configuración; ancla `#equipos`, a la que llevan el aviso `team_invite` y "Volver" de `TeamPanel`) y `TeamInvites` (arriba del Inicio, solo las invitaciones; al aceptar, link al panel). Los dos se ocultan sin datos o si falla la carga. `TeamPanel` es el panel del miembro.
 - **`NGOPatrocinios` y `SponsorshipAgreementScreen`:**
-  - **Puntos:** dos columnas; la propia tiene agregar, editar y borrar mientras el acuerdo está abierto.
-  - **Aceptación:** "Estoy de acuerdo" manda `version`, y "Rechazar acuerdo".
+  - **Puntos (§325):** una sola lista con filtros por parte (con la cantidad) y el total de dinero; cada punto dice de qué parte es ("Aporta …" / "Ofrece …"), quién lo agregó y quién lo editó. Los propios tienen editar y borrar, y hay "Agregar punto", mientras el acuerdo está abierto.
+  - **Cambios desde tu aceptación (§325):** si acepté una versión anterior a la vigente y el acuerdo está abierto, pide el historial y `changesSince` (`lib/sponsorship.ts`) marca los puntos nuevos o editados (con "Antes:") y avisa los quitados. Uno agregado y quitado después no cuenta. Si el historial falla, sin marcas.
+  - **Disposición:** desde `lg`, la lista a la izquierda y la aceptación y la charla en una columna de 360 px.
+  - **Aceptación:** quién aceptó la vigente (y cuándo) y qué versión había aceptado quien no; "Estoy de acuerdo" manda `version`, y "Rechazar acuerdo".
   - **Charla:** el mensaje de la propuesta y los mensajes.
   - Un 409 recarga el acuerdo.
 - **`NGOKPIs`:** el CRUD de indicadores. **`NGOMoments`:** `MomentsFeed` con `ngo_id`; hasta tener el id no muestra nada.
