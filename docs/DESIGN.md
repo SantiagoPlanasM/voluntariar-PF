@@ -993,6 +993,9 @@ los mismos colores, fuente y componentes, pero con estas reglas:
   la primera pantalla.
 - Avisos del panel (cuenta de Mercado Pago sin vincular, ONG sin validar): un bloque `surface` con
   el texto y un botón secundario. No amarillo: el amarillo no es un color del sistema.
+- Ancho del Panel de la ONG (§321): hasta 1400px. Desde 1280px, dos columnas: el trabajo a la
+  izquierda (voluntariados y embudo) y una columna de 380px a la derecha con lo pendiente
+  (postulaciones sin responder) y los accesos, de a uno por fila. Más angosto, una columna.
 
 ## Guía para iterar
 

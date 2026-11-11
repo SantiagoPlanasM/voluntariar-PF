@@ -8,10 +8,11 @@ import { NGOTeamCard } from './NGOTeamCard';
 import { NGOValidationCard } from './NGOValidation';
 import { ShortcutCard } from './ShortcutCard';
 
-export function NGOShortcuts() {
+// `stacked`: de a uno por fila, para la columna derecha del Panel desde 1280 px (§321), que es angosta para dos.
+export function NGOShortcuts({ stacked = false }: { stacked?: boolean }) {
   return (
-    <nav aria-label="Accesos del panel" className="grid gap-3 md:grid-cols-2">
-      <div className="md:col-span-2">
+    <nav aria-label="Accesos del panel" className={`grid gap-3 ${stacked ? '' : 'md:grid-cols-2'}`}>
+      <div className={stacked ? '' : 'md:col-span-2'}>
         <ShortcutCard to="/ngo/postulaciones" icon={UserCheck} title="Postulaciones" detail="Filtrá, buscá y decidí varias juntas" />
       </div>
       <ShortcutCard to="/ngo/patrocinios" icon={Handshake} title="Patrocinios" detail="Propuestas y acuerdos con empresas" />

@@ -8,6 +8,7 @@ import { api } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { useChatOptional } from '../../lib/ChatContext';
 import { useTheme } from '../../lib/useTheme';
+import { useMediaQuery } from '../../lib/useMediaQuery';
 import { AuthModal } from '../components/AuthModal';
 import { Avatar } from '../ui/Avatar';
 import { Logo, LogoMark } from '../ui/Logo';
@@ -88,18 +89,7 @@ const ITEM = 'group relative flex flex-shrink-0 items-center gap-3.5 h-11 px-3 r
 
 // Con nombres desde 1024 px (lg). Los grupos se comportan distinto según el ancho, así que hace falta saberlo en JS
 // además de en CSS. Sin matchMedia (tests viejos, navegadores raros) se asume la barra con nombres.
-const WIDE = '(min-width: 1024px)';
-function useWide() {
-  const [wide, setWide] = useState(() => typeof matchMedia !== 'function' || matchMedia(WIDE).matches);
-  useEffect(() => {
-    if (typeof matchMedia !== 'function') return;
-    const mq = matchMedia(WIDE);
-    const onChange = () => setWide(mq.matches);
-    mq.addEventListener?.('change', onChange);
-    return () => mq.removeEventListener?.('change', onChange);
-  }, []);
-  return wide;
-}
+const useWide = () => useMediaQuery('(min-width: 1024px)', true);
 
 function SideLink({ item, badges }: { item: NavItem; badges: Record<string, number> }) {
   const { pathname, hash } = useLocation();

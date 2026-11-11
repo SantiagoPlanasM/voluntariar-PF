@@ -528,3 +528,26 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - Una notebook real (los anchos se probaron con un iframe dentro de Chrome) y otros navegadores: `scrollbar-width` en Firefox y Safari, y el cierre por foco en Safari (los tests cubren el caso sin `relatedTarget`).
 - Tablets táctiles entre 768 y 1023 px (el panel flotante se abre con un toque; no se probó con el dedo).
 - El celular no cambia en el código; no lo miré en Chrome.
+
+## 321. Panel de la ONG más ancho, en dos columnas desde 1280 px
+
+### Qué se hizo
+- Segunda parte del pedido de §320. El Panel llegaba a 1100 px: en una pantalla grande sobraba espacio y, en la grilla de abajo (postulaciones al lado de voluntariados), la tabla cortaba "Recaudado" y las postulaciones apretaban los nombres.
+- `NGODashboard`: hasta 1400 px. Desde 1280 px, dos columnas: a la izquierda los voluntariados y el embudo; a la derecha (`aside` "Pendientes y accesos", 380 px) las postulaciones sin responder y los accesos de a uno (`NGOShortcuts stacked`). Más angosto, una columna con el orden de siempre (accesos, embudo, postulaciones, voluntariados), sin la grilla de dos que cortaba la tabla. La disposición se elige en JS para dibujar cada pieza una sola vez.
+- `lib/useMediaQuery.ts`: el `useWide` de §320 pasó a ser un hook común (`useMediaQuery(query, fallback)`), que también usa la barra lateral.
+- Postulaciones del Panel: los botones bajan de línea si no entran al lado del nombre (`flex-wrap`); antes el nombre se cortaba ("Juan…").
+- Tabla de voluntariados con `table-fixed` y anchos para Voluntarios y Recaudado. **Defecto previo** encontrado en Chrome: en el celular la tabla medía 433 px en una caja de 339 y "Recaudado" quedaba cortado (un título largo la estiraba).
+
+### Verificación
+- Frontend: 1395/1395 (antes 1385; +10: 3 de `useMediaQuery.test.ts` y 7 de `NGODashboardLayout.test.tsx`), `typecheck` sin errores, `npm audit` en 0. Cobertura: sentencias 91,64 %, ramas 88,38 %, funciones 88,54 %, líneas 94,15 %.
+- Rojo antes del código: 3 de 5 por comportamiento (los otros 2 protegen el orden en una columna y que nada se dibuje dos veces); el test de la tabla, por comportamiento. El del hook, rojo débil (el módulo no existía).
+- Mutation testing (script con corrida de control): 18 mutantes. Sobrevivían 2, ninguno equivalente: el valor por defecto sin `matchMedia` y `md:col-span-2` en los accesos apilados (en una grilla de una columna crea otra implícita). Con un test y una comprobación más, mueren todos.
+- Chrome, en local con la base del seed: dos columnas a 1517 px, una columna a 1100 px y el celular a 390 px (iframes), sin scroll horizontal; la tabla entra (339 de 339 px).
+
+### Errores propios
+- Lancé la suite completa en paralelo con el arreglo de la tabla y la corrida agarró el test nuevo antes del arreglo (1 falla). La volví a correr entera después: 1395/1395.
+- Vite recargó la página al guardar y se perdieron los iframes de prueba; los armé de nuevo.
+
+### ⚠️ NO verificado
+- Una pantalla real de 1280 a 1400 px y monitores más anchos (solo la ventana de Chrome de 1517 px y los iframes).
+- `NGODashboard.tsx` queda con 80 % de líneas: lo sin cubrir (aceptar o rechazar desde el Panel, la búsqueda) es código de antes que no cambió.

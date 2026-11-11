@@ -122,8 +122,13 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
   - el aviso `MercadoPagoBanner`;
   - el embudo (`NGOFunnel`, con `Meter`);
   - "Postulaciones sin responder": Aceptar, Rechazar, "Entrevista" (lleva a `…/project/<id>?postulacion=<enrollmentId>`) y el teléfono (`EnrollmentPhone`, link `tel:`);
-  - la campanita en el celular.
+  - la campanita en el celular;
+  - la tabla de voluntariados, con `table-fixed` (un título largo se trunca y "Recaudado" no se corta en el celular).
 
+  Hasta 1400 px de ancho. Desde 1280 px (`useMediaQuery`, `lib/useMediaQuery.ts`) va en dos columnas: a la izquierda los
+  voluntariados y el embudo; a la derecha (`<aside aria-label="Pendientes y accesos">`, 380 px) las postulaciones sin
+  responder y `NGOShortcuts stacked`. Más angosto o sin `matchMedia`, una columna: accesos, embudo, postulaciones y
+  voluntariados. Cada pieza se dibuja una sola vez. En las postulaciones, los botones bajan de línea si no entran.
   Con un 401 vuelve al inicio.
 - **`CreateVoluntariado`:** la lógica del formulario está en `volunteering/projectForm.ts`. El paso 2 tiene "¿Cuándo es? (opcional)": fecha y hora de inicio y de fin (§315), con las reglas del backend. En edición:
   - el tipo queda fijo;
@@ -141,7 +146,7 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
 - **`NGOTransparency`:** muestra los datos con "Los carga la organización; VoluntariAR no los verifica".
 - **`MercadoPagoReturn`:** manda `code` y `state` **una sola vez** (un ref la protege de StrictMode).
 - **`NGOTeam`:** invita, cambia el rol o saca. Se llega por "Equipo" en la barra lateral (escritorio), por el acceso del Panel y por Configuración.
-- **`NGOShortcuts`:** los accesos del Panel de la ONG (`ShortcutCard`, uno por pantalla) a Postulaciones (primero y a lo ancho), Patrocinios, Publicaciones, Equipo (`NGOTeamCard`, con miembros e invitaciones pendientes; sin números si falla la carga) y Validación (`NGOValidationCard`, con el estado; sin él si falla la carga). En el celular son el único camino a esas pantallas: la barra inferior tiene cinco ítems como máximo. En escritorio van en una grilla de dos.
+- **`NGOShortcuts`:** los accesos del Panel de la ONG (`ShortcutCard`, uno por pantalla) a Postulaciones (primero y a lo ancho), Patrocinios, Publicaciones, Equipo (`NGOTeamCard`, con miembros e invitaciones pendientes; sin números si falla la carga) y Validación (`NGOValidationCard`, con el estado; sin él si falla la carga). En el celular son el único camino a esas pantallas: la barra inferior tiene cinco ítems como máximo. Desde `md` van en una grilla de dos; con `stacked` (columna derecha del Panel), de a uno.
 - **`NGOApplications`** (§319; lógica en `lib/applications.ts`): todas las postulaciones de la ONG (`enrollments.manage`), para cientos.
   - Pestañas por estado con su cantidad ("Pendientes" por defecto; "Todas" incluye canceladas) y filtros: voluntariado (con sus cupos), entrevista, "Solo con CV", búsqueda (nombre, mail o voluntariado, sin tildes) y orden. Se ven de a 50 ("Mostrar más").
   - Cambiar un filtro vacía la selección. La barra "Elegidas" aprueba o rechaza con `useConfirm`: manda de la más vieja a la más nueva (`bulkOrder`), en tandas de 500, recarga y muestra el resumen (`summaryText`).
