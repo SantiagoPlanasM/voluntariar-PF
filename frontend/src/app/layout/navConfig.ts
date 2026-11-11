@@ -3,7 +3,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Home, Search, SquarePlus, CalendarCheck, MessageCircle, Bell, User, LayoutDashboard,
-  Handshake, Camera, Users, Building2,
+  Handshake, Camera, Users, Building2, Heart, UserCheck, BadgeCheck, Settings,
 } from 'lucide-react';
 
 export type NavRole = 'volunteer' | 'ngo' | 'company' | 'visitor';
@@ -24,11 +24,31 @@ export interface NavItem {
   auth?: boolean;
 }
 
+/** Grupo de la barra lateral que se despliega (§320): acordeón con nombres, panel flotante con solo íconos. */
+export interface NavGroup {
+  label: string;
+  icon: LucideIcon;
+  fill?: boolean;
+  avatar?: boolean;
+  children: NavItem[];
+}
+
+export type SideEntry = NavItem | NavGroup;
+
 export interface NavSet {
   /** Barra inferior del celular: cinco ítems como máximo. */
   tabs: NavItem[];
-  /** Barra lateral del escritorio. */
-  side: NavItem[];
+  /** Barra lateral del escritorio: ítems sueltos o grupos (por ahora solo la ONG tiene grupos). */
+  side: SideEntry[];
+}
+
+export function isGroup(e: SideEntry): e is NavGroup {
+  return 'children' in e;
+}
+
+/** Todos los destinos de la barra lateral, con los de los grupos. */
+export function flatSide(entries: SideEntry[]): NavItem[] {
+  return entries.flatMap(e => (isGroup(e) ? e.children : [e]));
 }
 
 const explore: NavItem = { to: '/explore', label: 'Explorar', icon: Search };
@@ -49,21 +69,36 @@ const volunteer: NavSet = (() => {
   };
 })();
 
+// Lateral por grupos (§320, DESIGN.md → Navegación por rol): antes eran nueve ítems sueltos y Postulaciones y
+// Validación solo se abrían desde el Panel. La barra inferior del celular no cambia.
 const ngo: NavSet = (() => {
-  const panel: NavItem = { to: '/ngo/dashboard', label: 'Panel', icon: LayoutDashboard, fill: true, also: ['/ngo/kpis', '/ngo/empleados'] };
+  const panelAlso = ['/ngo/kpis', '/ngo/empleados'];
+  const panel: NavItem = { to: '/ngo/dashboard', label: 'Panel', icon: LayoutDashboard, fill: true, also: panelAlso };
   const create: NavItem = { to: '/ngo/create', label: 'Crear', icon: SquarePlus };
   const messages: NavItem = { to: '/ngo/messages', label: 'Mensajes', icon: MessageCircle, fill: true, badge: 'messages' };
   const profile: NavItem = { to: '/ngo/profile', label: 'Perfil', icon: User, avatar: true };
   return {
     tabs: [panel, explore, create, messages, profile],
     side: [
-      panel, create,
+      { label: 'Panel', icon: LayoutDashboard, fill: true, children: [
+        { to: '/ngo/dashboard', label: 'Resumen', icon: LayoutDashboard, also: panelAlso },
+        { to: '/ngo/postulaciones', label: 'Postulaciones', icon: UserCheck },   // §319
+      ] },
+      { ...create, label: 'Crear voluntariado' },
+      { label: 'Comunidad', icon: Users, children: [
+        { to: '/ngo/momentos', label: 'Publicaciones', icon: Camera },
+        { to: '/ngo/equipo', label: 'Equipo', icon: Users },   // §296
+      ] },
       { to: '/ngo/patrocinios', label: 'Patrocinios', icon: Handshake },
-      { to: '/ngo/momentos', label: 'Publicaciones', icon: Camera },
-      { to: '/ngo/equipo', label: 'Equipo', icon: Users },   // §296
-      explore, messages,
+      messages,
       { to: '/ngo/notifications', label: 'Notificaciones', icon: Bell, fill: true, badge: 'notifications' },
-      profile,
+      { label: 'Mi ONG', icon: User, avatar: true, children: [
+        profile,
+        { to: '/ngo/profile#mercadopago', label: 'Mercado Pago', icon: Heart },
+        { to: '/ngo/validacion', label: 'Validación', icon: BadgeCheck },   // §317
+        { to: '/settings', label: 'Configuración', icon: Settings },
+      ] },
+      explore,
     ],
   };
 })();
@@ -91,9 +126,16 @@ export function navRole(role: string | undefined | null): NavRole {
   return role === 'volunteer' || role === 'ngo' || role === 'company' ? role : 'visitor';
 }
 
-export function isActive(item: NavItem, pathname: string): boolean {
-  const base = item.to.split('?')[0];
+// Un destino con #ancla (Mercado Pago, en el perfil) solo queda marcado con su ancla; el mismo destino sin ancla
+// (Perfil) deja de estarlo cuando hay una.
+export function isActive(item: NavItem, pathname: string, hash = ''): boolean {
   if (item.to.includes('crear=1')) return false;        // "Crear" nunca queda marcado: abre el compositor
-  if (pathname === base || pathname.startsWith(base + '/')) return true;
+  const [path, anchor = ''] = item.to.split('?')[0].split('#');
+  if (anchor ? hash !== '#' + anchor : hash !== '' && pathname === path) return false;
+  if (pathname === path || pathname.startsWith(path + '/')) return true;
   return (item.also ?? []).some(p => pathname === p || pathname.startsWith(p + '/'));
+}
+
+export function isGroupActive(group: NavGroup, pathname: string, hash = ''): boolean {
+  return group.children.some(c => isActive(c, pathname, hash));
 }

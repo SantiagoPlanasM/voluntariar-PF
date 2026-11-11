@@ -26,7 +26,7 @@ vi.mock('../../lib/api', async () => {
 
 import { api } from '../../lib/api';
 import { AppShell } from './AppShell';
-import { NAV, isActive, navRole } from './navConfig';
+import { NAV, flatSide, isActive, navRole } from './navConfig';
 
 const as = (role: string | null) => {
   auth.user = role ? { id: `u-${role}`, name: 'Ana Pérez', email: 'ana@x.com', role, avatar: null } : null;
@@ -66,8 +66,9 @@ describe('navegación por rol (navConfig)', () => {
   });
   test('ONG: Panel, Explorar, Crear, Mensajes y Perfil abajo; en la lateral también Patrocinios, Publicaciones y Notificaciones', () => {
     expect(NAV.ngo.tabs.map(i => i.label)).toEqual(['Panel', 'Explorar', 'Crear', 'Mensajes', 'Perfil']);
-    expect(NAV.ngo.side.map(i => i.to)).toEqual(expect.arrayContaining(['/ngo/patrocinios', '/ngo/momentos', '/ngo/notifications']));
-    expect(NAV.ngo.side.map(i => i.to)).toContain('/ngo/equipo');   // §296
+    // La lateral tiene grupos (§320): flatSide da todos sus destinos.
+    expect(flatSide(NAV.ngo.side).map(i => i.to)).toEqual(expect.arrayContaining(['/ngo/patrocinios', '/ngo/momentos', '/ngo/notifications']));
+    expect(flatSide(NAV.ngo.side).map(i => i.to)).toContain('/ngo/equipo');   // §296
   });
   test('empresa: Notificaciones también en la barra inferior (en el celular no había otra forma de verlas)', () => {
     expect(NAV.company.tabs.map(i => i.label)).toEqual(['Panel', 'Explorar', 'Mensajes', 'Notificaciones', 'Perfil']);

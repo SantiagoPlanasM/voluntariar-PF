@@ -167,7 +167,7 @@ sizes:
 breakpoints:
   tablet: 768px              # la barra inferior pasa a barra lateral de íconos
   right-column: 1160px       # aparece la columna derecha del feed
-  wide: 1264px               # la barra lateral muestra los nombres
+  wide: 1024px               # la barra lateral muestra los nombres (§320; antes 1264px)
 
 elevation:
   flat: "none"
@@ -457,8 +457,8 @@ mensajes).
 
 ### Tablet y desktop (≥ 768px)
 
-- La barra inferior pasa a una **barra lateral**: 72px solo íconos (768–1263px) o 244px con
-  nombres (≥ 1264px).
+- La barra inferior pasa a una **barra lateral**: 72px solo íconos (768–1023px) o 244px con
+  nombres (≥ 1024px).
 - **Columna del feed** de 520px máximo, centrada, sobre `canvas-soft`. Las publicaciones pasan a
   tener bordes redondeados (`rounded.md`) y fondo `surface`.
 - A partir de 1160px, una **columna derecha** de 320px con "Cerca tuyo" (3 voluntariados chicos) y
@@ -971,8 +971,8 @@ Cercana, clara y en **voseo**, como habla la gente en Argentina.
 | Ancho | Navegación | Feed | Extra |
 |---|---|---|---|
 | < 768px | Barra inferior | Publicaciones de borde a borde, tarjetas con 12px de margen | — |
-| 768–1263px | Barra lateral de íconos (72px) | Columna de 520px centrada sobre `canvas-soft` | — |
-| ≥ 1264px | Barra lateral con nombres (244px) | Columna de 520px | Columna derecha desde 1160px |
+| 768–1023px | Barra lateral de íconos (72px) | Columna de 520px centrada sobre `canvas-soft` | — |
+| ≥ 1024px | Barra lateral con nombres (244px) | Columna de 520px | Columna derecha desde 1160px |
 
 En desktop, la página del voluntariado usa dos columnas: contenido a la izquierda (máx. 640px) y
 una caja fija a la derecha (360px) con la doble meta, el costo y los botones, como la caja de
@@ -1022,7 +1022,7 @@ Al construir una pantalla con este archivo:
 | Rol | Barra inferior (celular) | Barra lateral (escritorio) |
 |---|---|---|
 | Voluntario | Inicio · Explorar · Crear · Mis voluntariados · Perfil | Lo mismo + Mensajes, Notificaciones y Configuración |
-| ONG | Panel · Explorar · Crear · Mensajes · Perfil de la ONG | Resumen · Voluntariados · Postulaciones · Patrocinios · Publicaciones · Mensajes · Notificaciones · Equipo · Perfil de la ONG · Configuración |
+| ONG | Panel · Explorar · Crear · Mensajes · Perfil de la ONG | **Panel** ▸ Resumen, Postulaciones · Crear voluntariado · **Comunidad** ▸ Publicaciones, Equipo · Patrocinios · Mensajes · Notificaciones · **Mi ONG** ▸ Perfil, Mercado Pago, Validación, Configuración · Explorar |
 | Empresa | Inicio · Explorar · Patrocinios · Mensajes · Perfil | Inicio · Explorar · Patrocinios · Mensajes · Notificaciones · Perfil · Configuración |
 | Visitante | Inicio · Explorar · Ingresar | Inicio · Explorar · Ingresar · Crear cuenta |
 
@@ -1032,6 +1032,11 @@ Al construir una pantalla con este archivo:
 - En el celular, Notificaciones y Mensajes van en la barra superior para el voluntario. La ONG tiene
   Mensajes en la barra y Notificaciones en la barra superior del Panel.
 - Los KPIs, el equipo y los momentos de la ONG se abren desde el Panel, no desde la barra.
+- **Grupos de la barra lateral** (en negrita en la tabla, §320): con nombres son un acordeón de a un grupo abierto,
+  el de la pantalla actual (se puede cerrar a mano); los subítems van con sangría, sin ícono. Con solo íconos, tocar
+  el grupo abre un panel flotante al costado con ícono y nombre; se cierra con Escape (el foco vuelve al botón), con
+  un clic afuera, al sacar el foco con Tab o al cambiar de pantalla. Si la barra no entra en el alto de la pantalla,
+  hace scroll: con nombres se ve una barra fina; con solo íconos, sin barra.
 
 ### Visitante sin sesión (portada)
 

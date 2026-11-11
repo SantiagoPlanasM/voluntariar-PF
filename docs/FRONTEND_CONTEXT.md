@@ -11,10 +11,15 @@ SPA de React 18 con React Router 7 (`createBrowserRouter`, **sin** `loader`/`act
 main.tsx: StrictMode > AuthProvider > ChatProvider > UiProvider > RouterProvider (app/routes.tsx)
   Root (/)  ·  NGOLayout (/ngo/*, RequireRole ngo)  ·  CompanyLayout (/company/*, RequireRole company)
      └─ los tres renderizan app/layout/AppShell.tsx: barra inferior (celular), lateral (escritorio:
-        solo íconos de 768 a 1263 px, con nombres desde 1264), barra superior corta, AuthModal y ScrollToTop
+        solo íconos de 768 a 1023 px, con nombres desde 1024), barra superior corta, AuthModal y ScrollToTop
 ```
 
 - **Navegación:** los ítems de cada rol salen de una sola lista, `app/layout/navConfig.ts` (`NAV[rol].tabs` y `.side`).
+  `.side` admite grupos (`NavGroup`, con `children`; `isGroup`, `flatSide` da todos los destinos): hoy solo la ONG los
+  tiene (Panel, Comunidad, Mi ONG). En `AppShell`, `SideGroup` los dibuja como acordeón con nombres (de a uno abierto)
+  y como panel flotante (`role="group"`) con solo íconos; `useWide` lee `(min-width: 1024px)` con `matchMedia` y, sin
+  él, asume nombres. `isActive(item, pathname, hash)`: un destino con `#ancla` (Mercado Pago) solo se marca con su
+  ancla, y el mismo destino sin ancla (Perfil) deja de marcarse cuando hay una.
 - **Contadores (`useBadges` en `AppShell`):** Mensajes (no leídos del chat), Notificaciones (`GET /notifications`) y, solo para el voluntario, **Perfil** con las invitaciones a equipos sin responder (`GET /equipo/mias`). Los dos pedidos se repiten al cambiar de pantalla; si fallan, no hay contador.
 - **`ScrollToTop`:** una navegación nueva vuelve arriba; "atrás" y los `#ancla`, no.
 - **`RequireRole`:** muestra "cargando" mientras verifica. Sin sesión, va al inicio con el login abierto; con otro rol, al inicio de ese rol (`homeFor`). Es solo experiencia de uso: la autorización está en el backend.

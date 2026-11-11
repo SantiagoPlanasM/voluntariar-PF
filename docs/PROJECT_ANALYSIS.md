@@ -502,3 +502,29 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - El tope real de Resend con muchos mails seguidos: la separación de 500 ms es una precaución, sin dato del proveedor. Los tests no mandan mails.
 - El rendimiento con miles de postulaciones reales (los tests llegan a 501 en el frontend y a 500 ids en el backend).
 - La carrera del `stale` dentro de un lote (sin test, como el reenvío de §317).
+
+## 320. Barra lateral de la ONG por grupos (escritorio)
+
+### Qué se hizo
+- Pedido del usuario (11/11): que en la compu entren mejor las cosas de la ONG y que los botones del costado abran más opciones. Aceptó la propuesta: grupos, nombres desde 1024 px y el Panel más ancho en un commit aparte.
+- `navConfig.ts`: `.side` admite grupos (`NavGroup`, `isGroup`, `flatSide`). ONG: **Panel** ▸ Resumen, Postulaciones · Crear voluntariado · **Comunidad** ▸ Publicaciones, Equipo · Patrocinios · Mensajes · Notificaciones · **Mi ONG** ▸ Perfil, Mercado Pago (`/ngo/profile#mercadopago`), Validación, Configuración · Explorar. Postulaciones y Validación no estaban en la barra (solo en las tarjetas del Panel). La barra inferior del celular no cambia; voluntario y empresa siguen sin grupos.
+- `isActive(item, pathname, hash)`: un destino con ancla se marca solo con su ancla; el mismo destino sin ancla deja de marcarse cuando hay una.
+- `AppShell.tsx`: `SideGroup` es un acordeón con nombres (de a un grupo abierto: el de la pantalla actual, que se puede cerrar a mano) y un panel flotante (`role="group"`, `position: fixed`) con solo íconos, que se cierra con Escape (el foco vuelve al botón), con un clic afuera, al sacar el foco con Tab o al cambiar de pantalla. `useWide` lee `(min-width: 1024px)`.
+- Los nombres de la barra aparecen desde **1024 px** (antes 1264) para todos los roles: en una notebook quedaba solo con íconos. Ítems de 44 px (antes 48), subítems de 36 px; la lista hace scroll si no entra (barra fina con nombres, oculta con solo íconos).
+- Sin contador en Postulaciones: la única API que las cuenta devuelve hasta 2000 filas y pedirla en cada cambio de pantalla es caro. Encaja con las notificaciones instantáneas.
+
+### Verificación
+- Frontend: 1385/1385 (antes 1360; +25 en `SideNavGroups.test.tsx`, uno de `AppShell.test.tsx` adaptado a `flatSide`), `typecheck` sin errores, `npm audit` en 0. Cobertura: sentencias 91,63 %, ramas 88,34 %, funciones 88,54 %, líneas 94,15 %; `AppShell.tsx` 98,14 % de líneas (ramas 94,4 %).
+- Rojo antes del código: 18 de 19 fallaban por comportamiento (pasaba el de la barra del celular, que no cambia).
+- Mutation testing (script con corrida de control y el original en memoria): 23 mutantes. Sobrevivían 7; con 4 tests y 2 comprobaciones más mueren 6. Queda uno equivalente: el estado inicial del acordeón en `null` (el efecto lo corrige al montar).
+- Chrome, en local con la base del seed (ONG Sustentando): acordeón a 1517 px, panel flotante a 900 px y a 1024 px sin scroll horizontal (iframe, porque `resize_window` no cambió el ancho), tema claro y oscuro, navegar desde el panel flotante.
+
+### Errores propios
+- La primera versión dejaba abrir varios grupos: en Chrome, con 633 px de alto, la barra desbordaba y los ítems se aplastaban. Pasó a un grupo abierto, ítems sin encogerse y scroll (con dos tests nuevos).
+- Oculté la barra de scroll también con nombres y "Mi ONG" y "Explorar" quedaban fuera de vista sin ninguna pista; ahora se ve fina con nombres.
+- `sed -i` pasó `AppShell.tsx` de CRLF a LF (trampa ya anotada); lo volví a CRLF con Node. Un `cat >` sin entrada colgó un comando y dejó un archivo vacío fuera del repo, que borré.
+
+### ⚠️ NO verificado
+- Una notebook real (los anchos se probaron con un iframe dentro de Chrome) y otros navegadores: `scrollbar-width` en Firefox y Safari, y el cierre por foco en Safari (los tests cubren el caso sin `relatedTarget`).
+- Tablets táctiles entre 768 y 1023 px (el panel flotante se abre con un toque; no se probó con el dedo).
+- El celular no cambia en el código; no lo miré en Chrome.
