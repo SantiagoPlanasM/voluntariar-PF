@@ -274,7 +274,7 @@ router.post('/bulk', requireAuth, requireRole('ngo', 'volunteer'), async (req, r
     for (const r of results) summary[r.outcome] += 1;
     res.json({ results, summary });
 
-    sendSpaced(changed.map((e) => decisionEmail(e, status)));
+    void sendSpaced(changed.map((e) => decisionEmail(e, status)));   // después de responder; nunca rechaza (§323)
   } catch (err) {
     console.error('POST /enrollments/bulk error:', err);
     res.status(500).json({ error: 'Error al actualizar las postulaciones' });
@@ -282,11 +282,13 @@ router.post('/bulk', requireAuth, requireRole('ngo', 'volunteer'), async (req, r
 });
 router.bulkEmailGapMs = 500;   // entre mail y mail de un lote, para no pegarle de golpe al proveedor (no verificado su tope)
 
-/** Manda los mails de a uno, separados por bulkEmailGapMs. `send` se puede reemplazar en los tests. */
+/** Manda los mails de a uno, separados por bulkEmailGapMs. `send` se puede reemplazar en los tests. Nunca rechaza
+ *  (§323): la ruta no la espera, y un rechazo sin manejar tira abajo el proceso en Node 22. Un mail que falla, aunque
+ *  sea con un error sincrónico, no corta a los demás. */
 async function sendSpaced(messages, send = sendEmail) {
   for (const [i, m] of messages.entries()) {
     if (i > 0) await new Promise((r) => { const t = setTimeout(r, router.bulkEmailGapMs); t.unref?.(); });
-    await send(m).catch(() => {});
+    try { await send(m); } catch { /* el mail es un aviso: si falla, siguen los demás */ }
   }
 }
 

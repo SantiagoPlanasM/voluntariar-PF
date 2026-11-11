@@ -126,11 +126,22 @@ function SideGroup({ group, id, wide, expanded, onToggle, onClose }: {
   const active = isGroupActive(group, pathname, hash);
   const floating = !wide && expanded;
 
+  // Listeners y no manejadores en el <div> (Sonar S6848, §323: un div con onKeyDown parece un control sin serlo).
   useEffect(() => {
     if (!floating) return;
-    const onDown = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) onClose(); };
+    const el = box.current;
+    const onDown = (e: MouseEvent) => { if (!el?.contains(e.target as Node)) onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { onClose(); button.current?.focus(); } };
+    // Solo si el foco va a otro lado conocido: sin relatedTarget (Safari al tocar un link) cerrar perdería el clic.
+    const onOut = (e: FocusEvent) => { if (e.relatedTarget && !el?.contains(e.relatedTarget as Node)) onClose(); };
     document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    el?.addEventListener('focusout', onOut);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+      el?.removeEventListener('focusout', onOut);
+    };
   }, [floating, onClose]);
 
   const toggle = () => {
@@ -142,13 +153,7 @@ function SideGroup({ group, id, wide, expanded, onToggle, onClose }: {
   };
 
   return (
-    <div
-      ref={box}
-      className="flex-shrink-0"
-      onKeyDown={e => { if (floating && e.key === 'Escape') { onClose(); button.current?.focus(); } }}
-      // Solo si el foco va a otro lado conocido: sin relatedTarget (Safari al tocar un link) cerrar perdería el clic.
-      onBlur={e => { if (floating && e.relatedTarget && !box.current?.contains(e.relatedTarget as Node)) onClose(); }}
-    >
+    <div ref={box} className="flex-shrink-0">
       <button
         ref={button}
         type="button"

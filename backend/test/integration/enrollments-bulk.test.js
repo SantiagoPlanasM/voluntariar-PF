@@ -290,6 +290,24 @@ describe('Postulaciones de toda la ONG y decisión en lote (§319)', () => {
       assert.ok(times[1] - times[0] >= 35 && times[2] - times[1] >= 35, `separados: ${times.join(', ')}`);
     });
 
+    // §323 (Sonar S9383): la ruta llama a sendSpaced sin esperarla, después de responder. Si un envío tiraba un error
+    // sincrónico, la promesa se rechazaba sin que nadie la manejara (en Node 22 eso tira abajo el proceso).
+    test('un mail que falla (rechazo o error sincrónico) no corta a los demás y sendSpaced nunca rechaza', async () => {
+      const enrollments = require('../../src/routes/enrollments');
+      const before = enrollments.bulkEmailGapMs;
+      enrollments.bulkEmailGapMs = 1;
+      const sent = [];
+      try {
+        await enrollments.sendSpaced([{ to: 'a' }, { to: 'b' }, { to: 'c' }], (m) => {
+          if (m.to === 'a') throw new Error('sincrónico');
+          if (m.to === 'b') return Promise.reject(new Error('rechazo'));
+          sent.push(m.to);
+          return Promise.resolve();
+        });
+      } finally { enrollments.bulkEmailGapMs = before; }
+      assert.deepEqual(sent, ['c']);
+    });
+
     test('dos lotes a la vez sobre 1 cupo: aprueban una sola (regla 20; importa en test:pg)', async () => {
       const p = await project('ngo-1', 1);
       const ids = await applicants(p, 2);

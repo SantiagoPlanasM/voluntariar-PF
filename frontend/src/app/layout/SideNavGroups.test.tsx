@@ -249,6 +249,33 @@ describe('barra de solo íconos (768–1023 px): panel flotante', () => {
     expect(group('Comunidad')).toHaveFocus();
   });
 
+  test('cerrado el panel, Escape ya no hace nada (los listeners se sacan)', () => {
+    app('/ngo/dashboard');
+    fireEvent.click(group('Comunidad'));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    const link = within(sideBar()).getByRole('link', { name: 'Patrocinios' });
+    link.focus();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(link).toHaveFocus();
+  });
+
+  test('solo Escape lo cierra: otras teclas no', () => {
+    app('/ngo/dashboard');
+    fireEvent.click(group('Comunidad'));
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+    fireEvent.keyDown(document, { key: 'Enter' });
+    expect(screen.getByRole('group', { name: 'Comunidad' })).toBeInTheDocument();
+  });
+
+  test('el foco que sale de un grupo ya cerrado no cierra el panel de otro', () => {
+    app('/ngo/dashboard');
+    fireEvent.click(group('Comunidad'));
+    fireEvent.mouseDown(group('Mi ONG'));
+    fireEvent.click(group('Mi ONG'));
+    fireEvent.focusOut(group('Comunidad'), { relatedTarget: within(sideBar()).getByRole('link', { name: 'Patrocinios' }) });
+    expect(screen.getByRole('group', { name: 'Mi ONG' })).toBeInTheDocument();
+  });
+
   test('un clic afuera lo cierra; uno adentro no', () => {
     app('/ngo/dashboard');
     fireEvent.click(group('Comunidad'));

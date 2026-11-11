@@ -566,3 +566,21 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 
 ### ⚠️ NO verificado
 - Otros navegadores.
+
+## 323. Sonar en rojo: promesa sin manejar en el lote de postulaciones y manejadores en un div
+
+### Qué se hizo
+- El gate "Sonar way" de SonarCloud pasó a rojo en el análisis de §319 (*Reliability Rating on New Code* C) y el CI siguió verde: el CI no mira ese gate sino el del TP (`.github/scripts/sonar-gate.js`), que solo corta por bugs o vulnerabilidades BLOCKER/CRITICAL, duplicación y cobertura. Las dos issues eran MAJOR.
+- `S9383` en `routes/enrollments.js` (§319): `POST /bulk` llamaba a `sendSpaced` sin esperarla ni manejar el rechazo. Un envío que tiraba un error sincrónico rechazaba la promesa, y en Node 22 un rechazo sin manejar tira abajo el proceso. Ahora `sendSpaced` nunca rechaza (`try/catch` por mail: uno que falla no corta a los demás) y la llamada va con `void`.
+- `S6848` en `AppShell.tsx` (§320): Escape y la salida del foco del panel flotante estaban como `onKeyDown`/`onBlur` en un `<div>`. Pasaron a listeners en el efecto del panel (junto al del clic afuera), que se sacan al cerrarlo.
+
+### Verificación
+- Backend: 1229/1229 en SQLite, 1231/1231 en Postgres 18 y 1229/1229 con `TZ=America/Argentina/Cordoba` (+1: un mail con error sincrónico, otro con rechazo y el tercero sale; rojo antes con "Error: sincrónico"). `npm audit` en 0.
+- Frontend: 1399/1399 (+3), `typecheck` sin errores, `npm audit` en 0.
+- Mutation testing de los listeners: 6 mutantes; sobrevivían 2 (sacar el `focusout` al cerrar, que dejaba que un grupo ya cerrado cerrara el panel de otro, y no mirar la tecla); con 2 tests más mueren todos. En el backend, volver a `send(m).catch(...)` o sacar el `try` hace fallar el test nuevo; el `void` de la llamada no cambia nada en ejecución (equivalente: es para Sonar y para quien lee).
+
+### Errores propios
+- Las dos las metí yo (§319 y §320) y no miré SonarCloud después de pushear: el CI verde no lo dice.
+
+### ⚠️ NO verificado
+- Que SonarCloud vuelva a verde: se ve en el análisis del próximo push.
