@@ -1,8 +1,8 @@
 # PLAN_FEBRERO.md — Lo que sigue hasta la presentación final
 
-> Estado al 5/11/2026. El 5/11 fue la presentación de avances; la final es **después de febrero** (falta la fecha exacta).
+> Estado al 11/11/2026. El 5/11 fue la presentación de avances; la final es **después de febrero** (falta la fecha exacta).
 > El proyecto es académico y no se lanza al mercado, pero se sigue mejorando. Las reglas de trabajo no cambian (`CLAUDE.md`).
-> Producción está en `f4e2995`; hay commits locales de documentación sin pushear. Investigación de pagos:
+> Producción está en `f0e6607` (CI y Deploy en verde el 11/11). Investigación de pagos:
 > [informe de Mercado Pago](https://claude.ai/artifact/WF4evt666tG7cXNkGWJGc2).
 
 ## Devolución de los directores (5/11)
@@ -40,11 +40,13 @@
 
 En este orden, salvo que el usuario diga otra cosa (orden propuesto, sin confirmar):
 
-1. [x] **Validación de ONG con panel de administración** (§317 backend, §318 frontend): pantalla "Validar la ONG", panel de admin e insignia azul. Falta que el usuario cargue `ADMIN_EMAILS` en Render (con un mail que ya tenga cuenta).
+1. [x] **Validación de ONG con panel de administración** (§317 backend, §318 frontend): pantalla "Validar la ONG", panel de admin e insignia azul. Falta que el usuario cargue `ADMIN_EMAILS` en Render (con un mail que ya tenga cuenta) y la pruebe en la interfaz.
+   - [ ] Opcional, ofrecido el 11/11 y sin decidir: exigirle al admin haber entrado con Google (mail verificado). Hoy el registro con contraseña no verifica el mail: un mail de `ADMIN_EMAILS` sin cuenta lo podría registrar cualquiera.
+   - [x] **Pantalla de postulaciones** (§319; pedido del 11/11, fuera del orden): todas las de la ONG juntas, filtros, de a 50 y decisión en lote con tope de cupos, también para la coordinación. Falta la prueba del usuario en la interfaz.
 2. [x] **Iniciar sesión con Google** (§314): pantalla de rol la primera vez; un mail con cuenta se vincula solo si Google lo da por verificado. Falta el Client ID de Google Cloud.
    - [x] **Fechas de los voluntariados y Calendar** (§315): inicio y fin opcionales, con hora opcional; Google Calendar y .ics en el detalle y en "Próximos". Las entrevistas ya lo tenían (§268).
-3. [ ] **Notificaciones instantáneas**, por el WebSocket que ya existe.
-4. [ ] **Reputación de ONG y usuarios.**
+3. [ ] **Notificaciones instantáneas**, por el WebSocket que ya existe. **Lo próximo.**
+4. [ ] **Reputación de ONG y usuarios.** Antes, que el usuario defina qué se mide (reseñas, horas, postulaciones respondidas…).
 5. [ ] **Empleados de empresa con cupos reservados** (`PLAN_EQUIPOS.md`, pasos 3 y 4). Toca la invariante de cupos: con cuidado.
 
 **Si sobra tiempo:** versión instalable en el celular (PWA) y paginación de los listados. **No hacer:** escalar a varias instancias.
@@ -58,6 +60,9 @@ En este orden, salvo que el usuario diga otra cosa (orden propuesto, sin confirm
 - [ ] Reescribir `GUION_DEFENSA.md` para la presentación final y sumar la línea de la muestra.
 
 ## Te toca a vos
+
+- [ ] Cargar `ADMIN_EMAILS` en el panel de Render (servicio del backend; varios, separados por coma) con el mail de una cuenta tuya que ya exista en prod.
+- [ ] Probar en la interfaz la validación de ONG (pedirla con una ONG, aprobar o rechazar como admin) y la pantalla de postulaciones (filtros, lote, cupos).
 
 - [ ] Figma del patrocinio.
 - [ ] Consultar a un contador si la donación por Mercado Pago es deducible de Ganancias.
