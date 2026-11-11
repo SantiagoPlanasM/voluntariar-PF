@@ -5,6 +5,8 @@
 // solo su lado, y solo mientras el acuerdo está `propuesto`. Cada cambio de los puntos sube `version` en la misma
 // transacción, y el acuerdo se cierra cuando las dos partes aceptaron la versión vigente (etapa 2, §264). Proponer
 // cuenta como que la empresa acepta (routes/empresas.js). Los montos no salen de acá (no son públicos).
+// §324: cada cambio de un punto queda en `patrocinio_cambios` (con el punto antes y después) y cada aceptación en
+// `patrocinio_aceptaciones`, en la misma transacción; GET …/historial los devuelve por versión.
 const express = require('express');
 const crypto = require('node:crypto');
 const db = require('../db');
@@ -15,6 +17,7 @@ const router = express.Router();
 
 // DB en español, API en inglés (regla 11).
 const SIDE = { empresa: 'company', ong: 'ngo' };
+const ACTION = { agrega: 'add', edita: 'edit', quita: 'remove' };
 const TYPE = { dinero: 'money', insumos: 'supplies', voluntarios: 'volunteers', difusion: 'outreach', otro: 'other' };
 const TYPE_DB = Object.fromEntries(Object.entries(TYPE).map(([es, en]) => [en, es]));
 const MAX_POINTS = 20;
@@ -49,9 +52,13 @@ async function loadAgreement(q, empresaId, projectId, userId) {
 
 async function formatAgreement(a) {
   const points = await db.all(
-    `SELECT id, lado, tipo, detalle, monto, created_at, updated_at FROM patrocinio_puntos
-     WHERE empresa_id = $1 AND project_id = $2
-     ORDER BY CASE WHEN lado = 'empresa' THEN 0 ELSE 1 END, created_at, id`,
+    `SELECT pp.id, pp.lado, pp.tipo, pp.detalle, pp.monto, pp.created_at, pp.updated_at, pp.editor_id,
+            ua.name AS autor_name, ue.name AS editor_name
+     FROM patrocinio_puntos pp
+     LEFT JOIN users ua ON ua.id = pp.autor_id
+     LEFT JOIN users ue ON ue.id = pp.editor_id
+     WHERE pp.empresa_id = $1 AND pp.project_id = $2
+     ORDER BY CASE WHEN pp.lado = 'empresa' THEN 0 ELSE 1 END, pp.created_at, pp.id`,
     [a.empresa_id, a.project_id]
   );
   const messages = await db.all(
@@ -60,6 +67,16 @@ async function formatAgreement(a) {
     [a.empresa_id, a.project_id]
   );
   const version = Number(a.version) || 1;
+  const orNull = (v) => (v == null ? null : Number(v));
+  const acceptedVersions = { company: orNull(a.acepta_empresa_version), ngo: orNull(a.acepta_ong_version) };
+  // Cuándo aceptó cada parte la versión VIGENTE (§324); null si no la aceptó. Las versiones no se repiten: una
+  // aceptación de la vigente existe solo si esa parte la aceptó.
+  const acceptances = await db.all(
+    `SELECT lado, MAX(created_at) AS at FROM patrocinio_aceptaciones
+     WHERE empresa_id = $1 AND project_id = $2 AND version = $3 GROUP BY lado`,
+    [a.empresa_id, a.project_id, version]
+  );
+  const acceptedAt = (lado) => acceptances.find((r) => r.lado === lado)?.at ?? null;
   return {
     company_id: a.empresa_id, project_id: a.project_id, company_name: a.empresa_name, ngo_name: a.ngo_name,
     project_title: a.titulo, status: a.estado, version, message: a.mensaje,
@@ -68,9 +85,15 @@ async function formatAgreement(a) {
     accepted: {
       company: Number(a.acepta_empresa_version) === version, ngo: Number(a.acepta_ong_version) === version,
     },
+    accepted_versions: acceptedVersions,
+    accepted_at: { company: acceptedAt('empresa'), ngo: acceptedAt('ong') },
     points: points.map((p) => ({
       id: p.id, side: SIDE[p.lado], type: TYPE[p.tipo], detail: p.detalle,
       amount: p.monto == null ? null : Number(p.monto), created_at: p.created_at, updated_at: p.updated_at,
+      created_by_name: p.autor_name ?? null,
+      // Solo si alguien lo editó después de §324 (antes no se guardaba quién).
+      edited_by_name: p.editor_id ? (p.editor_name ?? null) : null,
+      edited_at: p.editor_id ? p.updated_at : null,
     })),
     messages: messages.map((m) => ({
       id: m.id, side: SIDE[m.lado], author_name: m.lado === 'empresa' ? a.empresa_name : a.ngo_name,
@@ -120,7 +143,8 @@ async function changePoints(req, res, status, change) {
         [empresa_id, project_id]
       );
       if (bump.changes === 0) throw new AgreementError(409, CLOSED);
-      await change(tx);
+      const row = await tx.get('SELECT version FROM empresa_voluntariados WHERE empresa_id = $1 AND project_id = $2', [empresa_id, project_id]);
+      await change(tx, Number(row.version));
     });
     const fresh = await loadAgreement(db, empresa_id, project_id, req.user.id);
     res.status(status).json({ agreement: await formatAgreement(fresh) });
@@ -129,6 +153,35 @@ async function changePoints(req, res, status, change) {
     console.error('patrocinios: cambiar puntos', err);
     res.status(500).json({ error: 'Error al guardar el acuerdo' });
   }
+}
+
+/** Un punto en la forma de la base, para guardarlo y para el registro de cambios. */
+const dbPoint = (type, detail, amount) => ({ tipo: TYPE_DB[type], detalle: detail.trim(), monto: type === 'money' ? amount : null });
+
+/** Registra un cambio de un punto (§324), dentro de la transacción del cambio. `antes`/`despues`: { tipo, detalle, monto } o null. */
+function recordChange(tx, a, version, accion, puntoId, userId, antes, despues) {
+  return tx.run(
+    `INSERT INTO patrocinio_cambios (id, empresa_id, project_id, version, accion, punto_id, lado,
+       tipo_antes, detalle_antes, monto_antes, tipo_despues, detalle_despues, monto_despues, autor_id, created_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+    [crypto.randomUUID(), a.empresa_id, a.project_id, version, accion, puntoId, a.side,
+     antes?.tipo ?? null, antes?.detalle ?? null, antes?.monto ?? null,
+     despues?.tipo ?? null, despues?.detalle ?? null, despues?.monto ?? null, userId, new Date().toISOString()]
+  );
+}
+
+/**
+ * Registra que `side` aceptó `version` (§324). Una sola vez por lado y versión: volver a aceptar la misma (el PATCH de
+ * siempre de la ONG lo permite) no duplica. Va dentro de la transacción de la aceptación.
+ */
+function recordAcceptance(tx, empresaId, projectId, side, version, userId) {
+  return tx.run(
+    `INSERT INTO patrocinio_aceptaciones (id, empresa_id, project_id, lado, version, autor_id, created_at)
+     SELECT $1, $2, $3, $4, $5, $6, $7
+     WHERE NOT EXISTS (SELECT 1 FROM patrocinio_aceptaciones
+                       WHERE empresa_id = $2 AND project_id = $3 AND lado = $4 AND version = $5)`,
+    [crypto.randomUUID(), empresaId, projectId, side, version, userId, new Date().toISOString()]
+  );
 }
 
 /** El punto, si es del lado del usuario (si no, 404). */
@@ -156,18 +209,20 @@ router.post('/:empresaId/:projectId/puntos', requireAuth, agreementParty, async 
   const error = pointError({ type, detail, amount });
   if (error) return res.status(400).json({ error });
   const a = req.agreement;
-  await changePoints(req, res, 201, async (tx) => {
+  await changePoints(req, res, 201, async (tx, version) => {
     const n = await tx.get(
       'SELECT COUNT(*) AS n FROM patrocinio_puntos WHERE empresa_id = $1 AND project_id = $2 AND lado = $3',
       [a.empresa_id, a.project_id, a.side]
     );
     if ((Number(n.n) || 0) >= MAX_POINTS) throw new AgreementError(409, `Hasta ${MAX_POINTS} puntos por lado`);
+    const id = crypto.randomUUID();
+    const after = dbPoint(type, detail, amount);
     await tx.run(
       `INSERT INTO patrocinio_puntos (id, empresa_id, project_id, lado, tipo, detalle, monto, autor_id, created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [crypto.randomUUID(), a.empresa_id, a.project_id, a.side, TYPE_DB[type], detail.trim(),
-       type === 'money' ? amount : null, req.user.id, new Date().toISOString()]
+      [id, a.empresa_id, a.project_id, a.side, after.tipo, after.detalle, after.monto, req.user.id, new Date().toISOString()]
     );
+    await recordChange(tx, a, version, 'agrega', id, req.user.id, null, after);
   });
 });
 
@@ -186,12 +241,17 @@ router.patch('/:empresaId/:projectId/puntos/:puntoId', requireAuth, agreementPar
     if (merged.type !== 'money' && body.amount === undefined) merged.amount = null; // pasar a otro tipo borra el monto
     const error = pointError(merged);
     if (error) return res.status(400).json({ error });
-    await changePoints(req, res, 200, async (tx) => {
+    await changePoints(req, res, 200, async (tx, version) => {
+      // Lo de antes se relee dentro de la transacción: otro cambio pudo pasar entre ownPoint y acá.
+      const before = await ownPoint(tx, a, current.id);
+      if (!before) throw new AgreementError(404, 'Punto no encontrado');
+      const after = dbPoint(merged.type, merged.detail, merged.amount);
       await tx.run(
-        `UPDATE patrocinio_puntos SET tipo = $1, detalle = $2, monto = $3, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $4 AND lado = $5`,
-        [TYPE_DB[merged.type], merged.detail.trim(), merged.type === 'money' ? merged.amount : null, current.id, a.side]
+        `UPDATE patrocinio_puntos SET tipo = $1, detalle = $2, monto = $3, editor_id = $4, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $5 AND lado = $6`,
+        [after.tipo, after.detalle, after.monto, req.user.id, current.id, a.side]
       );
+      await recordChange(tx, a, version, 'edita', current.id, req.user.id, before, after);
     });
   } catch (err) {
     console.error('PATCH /patrocinios/puntos error:', err);
@@ -205,9 +265,11 @@ router.delete('/:empresaId/:projectId/puntos/:puntoId', requireAuth, agreementPa
     const a = req.agreement;
     const current = await ownPoint(db, a, req.params.puntoId);
     if (!current) return res.status(404).json({ error: 'Punto no encontrado' });
-    await changePoints(req, res, 200, async (tx) => {
+    await changePoints(req, res, 200, async (tx, version) => {
+      const before = await ownPoint(tx, a, current.id);
       const del = await tx.run('DELETE FROM patrocinio_puntos WHERE id = $1 AND lado = $2', [current.id, a.side]);
-      if (del.changes === 0) throw new AgreementError(404, 'Punto no encontrado'); // lo borró otro pedido
+      if (!before || del.changes === 0) throw new AgreementError(404, 'Punto no encontrado'); // lo borró otro pedido
+      await recordChange(tx, a, version, 'quita', current.id, req.user.id, before, null);
     });
   } catch (err) {
     console.error('DELETE /patrocinios/puntos error:', err);
@@ -233,7 +295,7 @@ const who = (a) => (a.side === 'empresa' ? a.empresa_name : a.ngo_name);
  * aceptaciones a la vez se cierra una sola vez). Devuelve 'closed' (lo cerró este pedido), 'accepted' (falta la otra
  * parte), 'stale' (versión vieja) o 'already_closed'. Lo usa también el PATCH de siempre de la ONG (routes/ngos.js).
  */
-async function acceptVersion(empresaId, projectId, side, version) {
+async function acceptVersion(empresaId, projectId, side, version, userId = null) {
   return db.transaction(async (tx) => {
     const set = await tx.run(
       `UPDATE empresa_voluntariados SET ${ACCEPT_COL[side]} = $1, updated_at = CURRENT_TIMESTAMP
@@ -244,6 +306,7 @@ async function acceptVersion(empresaId, projectId, side, version) {
       const row = await tx.get('SELECT estado FROM empresa_voluntariados WHERE empresa_id = $1 AND project_id = $2', [empresaId, projectId]);
       return row && row.estado === 'propuesto' ? 'stale' : 'already_closed';
     }
+    await recordAcceptance(tx, empresaId, projectId, side, version, userId);
     const close = await tx.run(
       `UPDATE empresa_voluntariados SET estado = 'aceptado', updated_at = CURRENT_TIMESTAMP
        WHERE empresa_id = $1 AND project_id = $2 AND estado = 'propuesto'
@@ -265,7 +328,7 @@ router.post('/:empresaId/:projectId/aceptar', requireAuth, agreementParty, async
     const { version } = req.body || {};
     if (!Number.isInteger(version) || version < 1) return res.status(400).json({ error: 'version inválida' });
     const a = req.agreement;
-    const result = await acceptVersion(a.empresa_id, a.project_id, a.side, version);
+    const result = await acceptVersion(a.empresa_id, a.project_id, a.side, version, req.user.id);
     if (result === 'already_closed') return res.status(409).json({ error: CLOSED });
     if (result === 'stale') return res.status(409).json({ error: STALE });
     if (result === 'closed') {
@@ -321,5 +384,56 @@ router.post('/:empresaId/:projectId/mensajes', requireAuth, agreementParty, asyn
   }
 });
 
+// ── GET /api/patrocinios/:empresaId/:projectId/historial (§324) ──────────
+// Las versiones de la más nueva a la más vieja: los cambios de puntos de cada una (con quién y cuándo) y quién la
+// aceptó. Solo las partes (agreementParty), también con el acuerdo cerrado. Los acuerdos de antes de §324 no tienen
+// el historial previo.
+const pointOf = (tipo, detalle, monto) =>
+  (tipo == null ? null : { type: TYPE[tipo], detail: detalle, amount: monto == null ? null : Number(monto) });
+
+router.get('/:empresaId/:projectId/historial', requireAuth, agreementParty, async (req, res) => {
+  try {
+    const a = req.agreement;
+    const changes = await db.all(
+      `SELECT c.version, c.accion, c.punto_id, c.lado, c.tipo_antes, c.detalle_antes, c.monto_antes,
+              c.tipo_despues, c.detalle_despues, c.monto_despues, c.created_at, u.name AS autor_name
+       FROM patrocinio_cambios c LEFT JOIN users u ON u.id = c.autor_id
+       WHERE c.empresa_id = $1 AND c.project_id = $2 ORDER BY c.version, c.created_at, c.id`,
+      [a.empresa_id, a.project_id]
+    );
+    const accepts = await db.all(
+      `SELECT x.version, x.lado, x.created_at, u.name AS autor_name
+       FROM patrocinio_aceptaciones x LEFT JOIN users u ON u.id = x.autor_id
+       WHERE x.empresa_id = $1 AND x.project_id = $2 ORDER BY x.version, x.created_at, x.id`,
+      [a.empresa_id, a.project_id]
+    );
+    const byVersion = new Map();
+    const entry = (v) => {
+      const n = Number(v);
+      if (!byVersion.has(n)) byVersion.set(n, { version: n, side: null, author_name: null, created_at: null, changes: [], accepted_by: [] });
+      return byVersion.get(n);
+    };
+    for (const c of changes) {
+      const e = entry(c.version);
+      if (e.changes.length === 0) Object.assign(e, { side: SIDE[c.lado], author_name: c.autor_name ?? null, created_at: c.created_at });
+      e.changes.push({
+        action: ACTION[c.accion], point_id: c.punto_id, side: SIDE[c.lado],
+        before: pointOf(c.tipo_antes, c.detalle_antes, c.monto_antes),
+        after: pointOf(c.tipo_despues, c.detalle_despues, c.monto_despues),
+      });
+    }
+    for (const x of accepts) {
+      const e = entry(x.version);
+      if (e.created_at == null) e.created_at = x.created_at;   // una versión sin cambios (la propuesta): su primera aceptación
+      e.accepted_by.push({ side: SIDE[x.lado], author_name: x.autor_name ?? null, accepted_at: x.created_at });
+    }
+    res.json({ versions: [...byVersion.values()].sort((p, q) => q.version - p.version) });
+  } catch (err) {
+    console.error('GET /patrocinios/historial error:', err);
+    res.status(500).json({ error: 'Error al cargar el historial' });
+  }
+});
+
 module.exports = router;
 module.exports.acceptVersion = acceptVersion;
+module.exports.recordAcceptance = recordAcceptance;

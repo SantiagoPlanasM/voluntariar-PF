@@ -30,11 +30,21 @@
 - [ ] Si hay suscripciones, probar qué pasa con las activas al vencer o revocar el token.
 - [ ] Confirmar en la documentación oficial lo que dijo el asistente de Mercado Pago antes de citarlo.
 
-## Etapa 2. Patrocinio (espera el Figma del usuario)
+## Etapa 2. Patrocinio
+
+Sin Figma: diseño propio del 11/11 ([lienzo](https://claude.ai/artifact/EvgwaAnYzYoiTzpAPSX6BZ)). Decidido: versión nueva **al guardar** (no por punto), la empresa **propone con puntos** y se avanza **paso a paso**.
+
+1. [x] Backend: quién cambió qué, aceptaciones con fecha e historial (§324).
+2. [ ] Frontend: lista única con filtros, "agregado/editado por" y "cambió desde que aceptaste".
+3. [ ] Frontend: pantalla del historial de versiones.
+4. [ ] Una versión por guardado: borrador en pantalla y "Guardar cambios" en una transacción.
+5. [ ] Proponer con puntos (versión 1).
+
+Lo que pedía la etapa:
 
 - [ ] Una sola lista de puntos, marcando la parte de cada uno, en vez de las dos columnas.
-- [ ] Mostrar quién editó y cuándo. Hoy `patrocinio_puntos.autor_id` guarda solo quién lo creó.
-- [ ] Historial de cambios por versión. Requiere una tabla nueva: aditiva, como todo el esquema.
+- [ ] Mostrar quién editó y cuándo: el backend ya lo guarda (§324); falta la pantalla.
+- [ ] Historial de cambios por versión: tablas y endpoint hechos (§324); falta la pantalla.
 
 ## Etapa 3. Lo que quedó sin cumplir
 

@@ -167,6 +167,13 @@ describe('Autorización por dueño entre ONGs', () => {
       assert.equal((await patrocinio()).estado, 'propuesto');
     });
 
+    // §324: el historial del acuerdo (con montos) es solo de las partes. GET: se mira que no filtre nada.
+    test('ver el historial de un acuerdo de patrocinio de un proyecto ajeno', async () => {
+      const h = await api(`/api/patrocinios/${empresaId}/proj-1/historial`, { token: other });
+      assert.equal(h.status, 404);
+      assert.deepEqual(h.body, { error: 'Acuerdo no encontrado' });
+    });
+
     test('ver en su propio panel las inscripciones pendientes (con emails) de proyectos ajenos', async () => {
       // GET /ngos/me y GET /ngos/:id/dashboard listan las pendientes de la ONG con nombre y email del voluntario.
       const ids = (body) => (body.pending_enrollments || []).map((e) => e.id);
@@ -339,6 +346,9 @@ describe('Autorización por dueño entre ONGs', () => {
 
       const list = await api('/api/ngos/me/patrocinios', { token: owner });
       assert.ok(JSON.stringify(list.body).includes('proj-1'));
+      const h = await api(`/api/patrocinios/${empresaId}/proj-1/historial`, { token: owner });   // §324, mismos ids
+      assert.equal(h.status, 200);
+      assert.deepEqual(h.body.versions.map((v) => v.version), [1]);
       const r = await api(`/api/ngos/me/patrocinios/${empresaId}/proj-1`, {
         token: owner, method: 'PATCH', body: { estado: 'aceptado' },
       });

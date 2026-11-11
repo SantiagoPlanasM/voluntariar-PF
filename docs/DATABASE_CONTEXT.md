@@ -103,8 +103,10 @@ Notación: `FK→tabla` con su `ON DELETE` (CASCADE si no se dice otra cosa). To
 ### Patrocinio
 - **`empresa_voluntariados`** (upd): PK (empresa_id, project_id) · aporte (≥ 0) · estado (`propuesto`/`aceptado`/`rechazado`) · mensaje · version · acepta_empresa_version · acepta_ong_version.
   - `version` sube con cada cambio de los puntos. El acuerdo se cierra cuando las dos aceptaciones coinciden con `version`.
-- **`patrocinio_puntos`** (upd): id · (empresa_id, project_id) FK compuesta a `empresa_voluntariados` · lado (`empresa`/`ong`) · tipo (`dinero`/`insumos`/`voluntarios`/`difusion`/`otro`) · detalle (≤ 300) · monto (> 0; solo `dinero`, privado de las partes) · autor_id FK SET NULL.
+- **`patrocinio_puntos`** (upd): id · (empresa_id, project_id) FK compuesta a `empresa_voluntariados` · lado (`empresa`/`ong`) · tipo (`dinero`/`insumos`/`voluntarios`/`difusion`/`otro`) · detalle (≤ 300) · monto (> 0; solo `dinero`, privado de las partes) · autor_id FK SET NULL · editor_id FK SET NULL (quién lo editó por última vez, §324).
 - **`patrocinio_mensajes`**: id · (empresa_id, project_id) FK compuesta · lado · autor_id FK SET NULL · cuerpo (≤ 1000) · created_at, que pone el código con milisegundos para ordenar la charla.
+- **`patrocinio_cambios`** (§324): id · (empresa_id, project_id) FK compuesta CASCADE · version · accion (`agrega`/`edita`/`quita`) · punto_id (sin FK: el registro de un punto borrado se queda) · lado · tipo/detalle/monto `_antes` y `_despues` (null del lado que no aplica) · autor_id FK SET NULL · created_at (con milisegundos, del código). Se escribe en la misma transacción que el cambio del punto.
+- **`patrocinio_aceptaciones`** (§324): id · (empresa_id, project_id) FK compuesta CASCADE · lado · version · autor_id FK SET NULL · created_at. Una por lado y versión (`INSERT … WHERE NOT EXISTS`, dentro de la transacción que acepta). Los acuerdos de antes de §324 no tienen historial previo.
 
 ### Perfil N:M y seguridad
 - **`ngo_categorias`**, **`empresa_categorias`**: (dueño, categoria_id). **`voluntario_habilidades`**: (user_id, habilidad_id) · nivel (`basico`/`intermedio`/`avanzado`).
@@ -125,7 +127,7 @@ Notación: `FK→tabla` con su `ON DELETE` (CASCADE si no se dice otra cosa). To
 - **Avisos y chat:** `notifications` (`user_id`, `read`); `messages` (`sender_id`, `receiver_id`, `created_at`).
 - **Dinero:** `donaciones` (`user_id`, `project_id`, `external_id`); `mp_oauth_states(ngo_id)`.
 - **Momentos:** `posts` (`created_at`, `project_id`, `user_id`); `post_media(post_id)`; `post_likes(user_id)`.
-- **Patrocinio:** `empresa_voluntariados(estado)`; `patrocinio_puntos` y `patrocinio_mensajes` sobre `(empresa_id, project_id)`.
+- **Patrocinio:** `empresa_voluntariados(estado)`; `patrocinio_puntos` y `patrocinio_mensajes` sobre `(empresa_id, project_id)`; `patrocinio_cambios` y `patrocinio_aceptaciones` sobre `(empresa_id, project_id, version)`.
 - **Resto:** `volunteer_follows` (`follower_id`, `following_id`); `faqs` (`activo`, `categoria`); `empleados(ngo_id)`; los dos de tokens (`user_id`).
 
 No hay índices de texto: las búsquedas `ILIKE` sobre título y descripción recorren la tabla.

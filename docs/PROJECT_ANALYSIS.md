@@ -584,3 +584,24 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 
 ### ⚠️ NO verificado
 - Que SonarCloud vuelva a verde: se ve en el análisis del próximo push.
+
+## 324. Acuerdo de patrocinio, paso 1: quién cambió qué, aceptaciones con fecha e historial (backend)
+
+### Qué se hizo
+- Rediseño del acuerdo sin el Figma: diseño propio del 11/11 ([lienzo](https://claude.ai/artifact/EvgwaAnYzYoiTzpAPSX6BZ)). El usuario decidió versión nueva al guardar, propuesta con puntos y avanzar paso a paso (plan en `PLAN_FEBRERO.md`, Etapa 2). Este es el paso 1: no cambia cómo se negocia.
+- Esquema (aditivo, regla 12): `patrocinio_puntos.editor_id`, y las tablas `patrocinio_cambios` (cada cambio de un punto con su versión, el punto antes y después, quién y cuándo) y `patrocinio_aceptaciones` (cada aceptación de una versión, una por lado y versión).
+- `routes/patrocinios.js`: agregar, editar y quitar registran el cambio en la misma transacción que suben la versión (la versión se relee adentro; el `PATCH` y el `DELETE` releen el punto adentro también). `acceptVersion` registra la aceptación (lo usan `…/aceptar` y el `PATCH` de la ONG); proponer la registra en una transacción nueva con la propuesta (`routes/empresas.js`).
+- El acuerdo suma `created_by_name`, `edited_by_name` y `edited_at` en cada punto, y `accepted_versions` y `accepted_at`. Endpoint nuevo `GET …/historial`: versiones de la más nueva a la más vieja, con sus cambios y quién las aceptó; solo las partes.
+- Frontend: solo el contrato (`api.ts`: campos nuevos, `SponsorshipVersion` y `sponsorships.history`); las pantallas son los pasos 2 y 3.
+
+### Verificación
+- Backend: 1239/1239 en SQLite, 1241/1241 en Postgres 18 y 1239/1239 con `TZ=America/Argentina/Cordoba` (+10: 9 en `patrocinio-historial.test.js` y 1 en `ownership.test.js`, regla 15). Rojo antes del código: 8 de 8 por comportamiento. `npm audit` en 0.
+- Frontend: 1400/1400 (+1, el contrato de `history`), `typecheck` sin errores, `npm audit` en 0.
+- Mutation testing (script con corrida de control y los originales en memoria): 18 mutantes. Sobrevivían 5: dos equivalentes y tres sin test. Saqué el chequeo de versión de `accepted_at` (equivalente: las versiones no se repiten) y pasé las versiones aceptadas a un helper común; con un test y una comprobación más, mueren los otros. Queda uno equivalente: `Number(monto)` (REAL llega como número; corrido solo en SQLite).
+
+### Errores propios
+- Un script de edición escrito en una heredoc de bash con backticks escapados no corrió (error de sintaxis del shell, sin tocar nada); hice los cambios con Edit.
+
+### ⚠️ NO verificado
+- El efecto en producción de las tablas nuevas: la migración corre sola al desplegar (aditiva, como todo el esquema). No lo pusheé todavía.
+- La interfaz: no hay pantallas nuevas en este paso.

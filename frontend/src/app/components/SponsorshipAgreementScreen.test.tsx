@@ -20,9 +20,12 @@ const base = (over: Partial<SponsorshipAgreement> = {}): SponsorshipAgreement =>
   company_id: 'e1', project_id: 'p1', company_name: 'Acme SA', ngo_name: 'ONG Verde', project_title: 'Limpieza del lago',
   status: 'propuesto', version: 3, message: 'Queremos ayudar', my_side: 'company',
   accepted: { company: false, ngo: true },
+  accepted_versions: { company: 2, ngo: 3 }, accepted_at: { company: null, ngo: '2026-10-29T11:00:00.000Z' },   // §324
   points: [
-    { id: 'pt1', side: 'company', type: 'money', detail: 'Aporte para materiales', amount: 200000, created_at: '', updated_at: '' },
-    { id: 'pt2', side: 'ngo', type: 'outreach', detail: 'Logo en las remeras', amount: null, created_at: '', updated_at: '' },
+    { id: 'pt1', side: 'company', type: 'money', detail: 'Aporte para materiales', amount: 200000, created_at: '', updated_at: '',
+      created_by_name: 'Laura', edited_by_name: null, edited_at: null },
+    { id: 'pt2', side: 'ngo', type: 'outreach', detail: 'Logo en las remeras', amount: null, created_at: '', updated_at: '',
+      created_by_name: 'Ana', edited_by_name: null, edited_at: null },
   ],
   messages: [{ id: 'm1', side: 'ngo', author_name: 'ONG Verde', body: '¿Pueden ser 15 empleados?', created_at: '2026-10-29T10:00:00.000Z' }],
   ...over,

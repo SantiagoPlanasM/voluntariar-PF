@@ -14,6 +14,7 @@ const { checkText, firstError } = require('../lib/inputs');
 const { isUniqueViolation } = require('../lib/dbErrors');
 const { sendEmail } = require('../lib/email');
 const { sponsorProposalEmail } = require('../lib/emailTemplates');
+const { recordAcceptance } = require('./patrocinios');   // §324: proponer queda registrado como aceptación
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
@@ -283,26 +284,33 @@ router.post('/me/patrocinios', requireAuth, requireRole('company'), async (req, 
     // ONG recibía dos avisos). Al proponer por primera vez, la PK (empresa_id, project_id) deja entrar a una
     // y la otra es un 409, no un 500.
     const duplicate = () => res.status(409).json({ error: 'Ya existe una propuesta de patrocinio con este proyecto' });
-    if (existing) {
-      const { changes } = await db.run(
-        // Versión nueva, aceptada por la empresa (proponer es aceptar) y no por la ONG (§264).
-        `UPDATE empresa_voluntariados SET estado='propuesto', mensaje=$1, updated_at=CURRENT_TIMESTAMP,
-                version = version + 1, acepta_empresa_version = version + 1, acepta_ong_version = NULL
-         WHERE empresa_id=$2 AND project_id=$3 AND estado='rechazado'`,
-        [mensaje || null, empresa.id, project_id]
-      );
-      if (changes !== 1) return duplicate();
-    } else {
-      try {
-        await db.run(
-          `INSERT INTO empresa_voluntariados (empresa_id, project_id, estado, mensaje, acepta_empresa_version)
-           VALUES ($1,$2,'propuesto',$3,1)`, // proponer es aceptar la versión 1 (§264)
-          [empresa.id, project_id, mensaje || null]
-        );
-      } catch (err) {
-        if (isUniqueViolation(err)) return duplicate();
-        throw err;
-      }
+    // §324: la propuesta y la aceptación de la empresa (proponer es aceptar) se registran juntas, en una transacción.
+    const DUPLICATE = new Error('duplicada');
+    try {
+      await db.transaction(async (tx) => {
+        if (existing) {
+          const { changes } = await tx.run(
+            // Versión nueva, aceptada por la empresa (proponer es aceptar) y no por la ONG (§264).
+            `UPDATE empresa_voluntariados SET estado='propuesto', mensaje=$1, updated_at=CURRENT_TIMESTAMP,
+                    version = version + 1, acepta_empresa_version = version + 1, acepta_ong_version = NULL
+             WHERE empresa_id=$2 AND project_id=$3 AND estado='rechazado'`,
+            [mensaje || null, empresa.id, project_id]
+          );
+          if (changes !== 1) throw DUPLICATE;
+          const row = await tx.get('SELECT version FROM empresa_voluntariados WHERE empresa_id=$1 AND project_id=$2', [empresa.id, project_id]);
+          await recordAcceptance(tx, empresa.id, project_id, 'empresa', Number(row.version), req.user.id);
+        } else {
+          await tx.run(
+            `INSERT INTO empresa_voluntariados (empresa_id, project_id, estado, mensaje, acepta_empresa_version)
+             VALUES ($1,$2,'propuesto',$3,1)`, // proponer es aceptar la versión 1 (§264)
+            [empresa.id, project_id, mensaje || null]
+          );
+          await recordAcceptance(tx, empresa.id, project_id, 'empresa', 1, req.user.id);
+        }
+      });
+    } catch (err) {
+      if (err === DUPLICATE || isUniqueViolation(err)) return duplicate();
+      throw err;
     }
 
     // Notificar a la ONG (in-app + email, fire-and-forget)

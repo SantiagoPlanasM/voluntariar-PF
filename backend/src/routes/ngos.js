@@ -517,7 +517,7 @@ router.patch('/me/patrocinios/:empresaId/:projectId', requireAuth, requireRole('
       // Desde §264, "aceptar" es aceptar la versión vigente del acuerdo: se cierra si la empresa también la aceptó
       // (proponer cuenta como aceptar; si nadie cambió puntos, se cierra como siempre). Si no, queda esperando.
       // acceptVersion es compare-and-swap: de dos aceptaciones simultáneas, una cierra y la otra ve el cierre (409).
-      const result = await acceptVersion(req.params.empresaId, req.params.projectId, 'ong', Number(patrocinio.version) || 1);
+      const result = await acceptVersion(req.params.empresaId, req.params.projectId, 'ong', Number(patrocinio.version) || 1, req.user.id);
       if (result === 'already_closed') return res.status(409).json({ error: 'Esta propuesta ya fue decidida' });
       if (result === 'stale') return res.status(409).json({ error: 'El acuerdo cambió: revisalo de nuevo' });
       if (result === 'accepted') {

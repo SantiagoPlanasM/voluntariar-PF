@@ -69,6 +69,7 @@ const CASES: Case[] = [
   ['sponsorships.updatePoint', () => api.sponsorships.updatePoint('e1', 'p1', 'pt', { detail: 'y' }), 'PATCH', '/patrocinios/e1/p1/puntos/pt', { detail: 'y' }],
   ['sponsorships.deletePoint', () => api.sponsorships.deletePoint('e1', 'p1', 'pt'), 'DELETE', '/patrocinios/e1/p1/puntos/pt', undefined],
   ['sponsorships.accept (§264)', () => api.sponsorships.accept('e1', 'p1', 3), 'POST', '/patrocinios/e1/p1/aceptar', { version: 3 }],
+  ['sponsorships.history (§324)', () => api.sponsorships.history('e1', 'p1'), 'GET', '/patrocinios/e1/p1/historial', undefined],
   ['sponsorships.reject', () => api.sponsorships.reject('e1', 'p1'), 'POST', '/patrocinios/e1/p1/rechazar', undefined],
   ['sponsorships.sendMessage', () => api.sponsorships.sendMessage('e1', 'p1', 'hola'), 'POST', '/patrocinios/e1/p1/mensajes', { body: 'hola' }],
   ['enrollments.scheduleInterview (§261)', () => api.enrollments.scheduleInterview('e1', { date: '2030-03-10', time: '18:00', place: 'Sede' }), 'POST', '/enrollments/e1/entrevista', { date: '2030-03-10', time: '18:00', place: 'Sede' }],

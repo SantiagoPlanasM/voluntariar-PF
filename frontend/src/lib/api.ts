@@ -234,6 +234,9 @@ export const api = {
       req<{ agreement: SponsorshipAgreement }>(`/patrocinios/${empresaId}/${projectId}/rechazar`, { method: 'POST' }),
     sendMessage: (empresaId: string, projectId: string, body: string) =>
       req<{ agreement: SponsorshipAgreement }>(`/patrocinios/${empresaId}/${projectId}/mensajes`, { method: 'POST', body: JSON.stringify({ body }) }),
+    /** §324: las versiones de la más nueva a la más vieja, con sus cambios y quién las aceptó. */
+    history: (empresaId: string, projectId: string) =>
+      req<{ versions: SponsorshipVersion[] }>(`/patrocinios/${empresaId}/${projectId}/historial`),
   },
   // Donaciones con Mercado Pago (§170–§172). `get` con `paymentId` concilia con Mercado Pago (lo que trae la URL de vuelta).
   donaciones: {
@@ -535,6 +538,20 @@ export interface AskFaqResponse {
 export interface SponsorshipPoint {
   id: string; side: 'company' | 'ngo'; type: 'money' | 'supplies' | 'volunteers' | 'outreach' | 'other';
   detail: string; amount: number | null; created_at: string; updated_at: string;
+  /** §324: quién lo agregó; y, si alguien lo editó (desde §324), quién y cuándo. null si la cuenta ya no existe. */
+  created_by_name: string | null; edited_by_name: string | null; edited_at: string | null;
+}
+/** §324: un punto como quedó en el historial (antes o después de un cambio). */
+export interface SponsorshipPointSnapshot { type: SponsorshipPoint['type']; detail: string; amount: number | null }
+export interface SponsorshipChange {
+  action: 'add' | 'edit' | 'remove'; point_id: string; side: 'company' | 'ngo';
+  before: SponsorshipPointSnapshot | null; after: SponsorshipPointSnapshot | null;
+}
+/** §324: una versión del acuerdo. `side`/`author_name` null en una versión sin cambios de puntos (la propuesta). */
+export interface SponsorshipVersion {
+  version: number; side: 'company' | 'ngo' | null; author_name: string | null; created_at: string | null;
+  changes: SponsorshipChange[];
+  accepted_by: { side: 'company' | 'ngo'; author_name: string | null; accepted_at: string }[];
 }
 /** Lo que manda el formulario de un punto (`amount` solo en `money`). */
 export interface SponsorshipPointInput { type: SponsorshipPoint['type']; detail: string; amount?: number }
@@ -544,6 +561,9 @@ export interface SponsorshipAgreement {
   my_side: 'company' | 'ngo'; points: SponsorshipPoint[];
   /** §264: si cada parte aceptó la versión VIGENTE. */
   accepted: { company: boolean; ngo: boolean };
+  /** §324: la última versión que aceptó cada parte, y cuándo aceptó la VIGENTE (null si no la aceptó). */
+  accepted_versions: { company: number | null; ngo: number | null };
+  accepted_at: { company: string | null; ngo: string | null };
   messages: SponsorshipMessage[];
 }
 export interface SponsorshipMessage { id: string; side: 'company' | 'ngo'; author_name: string; body: string; created_at: string }

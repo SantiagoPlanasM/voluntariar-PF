@@ -426,8 +426,10 @@ Una por ONG (tabla `ngo_validaciones`). Estados en la API: `none` (sin pedido) �
 
 ### Acuerdo negociado (`routes/patrocinios.js`)
 - **Quién:** solo las dos partes. Para cualquier otro, 404 "Acuerdo no encontrado".
-- **Forma:** `agreement = { company_id, project_id, company_name, ngo_name, project_title, status, version, message, my_side, accepted: { company, ngo }, points[], messages[] }`.
-  - `points[] = { id, side, type, detail, amount, created_at, updated_at }`, con `type` igual a `money`, `supplies`, `volunteers`, `outreach` u `other`.
+- **Forma:** `agreement = { company_id, project_id, company_name, ngo_name, project_title, status, version, message, my_side, accepted: { company, ngo }, accepted_versions: { company, ngo }, accepted_at: { company, ngo }, points[], messages[] }`.
+  - `points[] = { id, side, type, detail, amount, created_at, updated_at, created_by_name, edited_by_name, edited_at }`, con `type` igual a `money`, `supplies`, `volunteers`, `outreach` u `other`.
+  - §324: `created_by_name` es quién lo agregó; `edited_by_name`/`edited_at`, quién y cuándo lo editó por última vez (null si nadie lo editó desde §324). Los nombres son null si la cuenta ya no existe.
+  - `accepted_versions.*`: la última versión que aceptó cada parte (null si ninguna); `accepted_at.*`: cuándo aceptó la vigente (null si no la aceptó).
   - `amount` va solo en `money` (> 0 y ≤ 1.000.000.000) y es privado.
   - `accepted.*` cuenta solo la versión vigente.
 - **`GET`** → `{ agreement }`.
@@ -439,10 +441,16 @@ Una por ONG (tabla `ngo_validaciones`). Estados en la API: `none` (sin pedido) �
   - Solo con el acuerdo `propuesto`; si no, 409 "El acuerdo ya está cerrado: no se puede cambiar".
   - En una transacción, primero `version = version + 1 … AND estado = 'propuesto'` y después el punto.
   - No avisan.
+  - §324: cada uno queda en `patrocinio_cambios` con su versión, quién, cuándo y el punto antes y después, en la misma transacción. El `PATCH` guarda quién editó.
 - **`POST …/aceptar`** `{ version }`:
   - **Errores:** 400 "version inválida" · 409 "El acuerdo cambió: revisalo de nuevo" · 409 si está cerrado.
   - Si cierra el acuerdo, avisa `sponsorship_closed`; si no, `sponsorship_accepted_by_other`.
 - **`POST …/rechazar`:** pasa de `propuesto` a `rechazado` → aviso `sponsorship_rejected`.
+- **`GET …/historial`** (§324) → `{ versions[] }`, de la más nueva a la más vieja. Solo las partes (404 para el resto), también con el acuerdo cerrado.
+  - `versions[] = { version, side, author_name, created_at, changes[], accepted_by[] }`. Una versión sin cambios de puntos (la propuesta) tiene `side`/`author_name` null y la fecha de su primera aceptación.
+  - `changes[] = { action: add|edit|remove, point_id, side, before, after }`, con `before`/`after` = `{ type, detail, amount }` o null. Lleva montos: es privado.
+  - `accepted_by[] = { side, author_name, accepted_at }`. Quedan registradas las aceptaciones de `…/aceptar`, del `PATCH` de la ONG y de proponer (la empresa, en la misma transacción que la propuesta).
+  - Los acuerdos de antes de §324 no tienen el historial previo.
 - **`POST …/mensajes`** `{ body (≤ 1000) }`: solo con el acuerdo `propuesto`, y no cambia la versión → aviso `sponsorship_message`, 201.
 
 ---

@@ -562,6 +562,39 @@ async function migrate() {
     )`);
   await db.query(`UPDATE empresa_voluntariados SET acepta_empresa_version = version
                   WHERE estado = 'propuesto' AND acepta_empresa_version IS NULL`);
+  // §324 (2026-11-11, rediseño del acuerdo): quién cambió qué. `editor_id` es quién editó el punto por última vez;
+  // `patrocinio_cambios` guarda cada cambio de un punto con su versión y el punto antes y después (sin FK a
+  // patrocinio_puntos: el registro de un punto borrado se queda); `patrocinio_aceptaciones`, cada aceptación de una
+  // versión. Los acuerdos de antes no tienen historial previo: arranca con el primer cambio después de esto.
+  await addColumnIfNotExists('patrocinio_puntos', 'editor_id', 'TEXT REFERENCES users(id) ON DELETE SET NULL');
+  await db.query(`CREATE TABLE IF NOT EXISTS patrocinio_cambios (
+      id             ${UUID_PK},
+      empresa_id     TEXT NOT NULL,
+      project_id     TEXT NOT NULL,
+      version        INTEGER NOT NULL,
+      accion         TEXT NOT NULL CHECK(accion IN ('agrega','edita','quita')),
+      punto_id       TEXT NOT NULL,
+      lado           TEXT NOT NULL CHECK(lado IN ('empresa','ong')),
+      tipo_antes     TEXT,
+      detalle_antes  TEXT,
+      monto_antes    REAL,
+      tipo_despues   TEXT,
+      detalle_despues TEXT,
+      monto_despues  REAL,
+      autor_id       TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at     ${NOW},
+      FOREIGN KEY (empresa_id, project_id) REFERENCES empresa_voluntariados(empresa_id, project_id) ON DELETE CASCADE
+    )`);
+  await db.query(`CREATE TABLE IF NOT EXISTS patrocinio_aceptaciones (
+      id          ${UUID_PK},
+      empresa_id  TEXT NOT NULL,
+      project_id  TEXT NOT NULL,
+      lado        TEXT NOT NULL CHECK(lado IN ('empresa','ong')),
+      version     INTEGER NOT NULL,
+      autor_id    TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at  ${NOW},
+      FOREIGN KEY (empresa_id, project_id) REFERENCES empresa_voluntariados(empresa_id, project_id) ON DELETE CASCADE
+    )`);
   // §293 (2026-10-30, docs/PLAN_EQUIPOS.md): el equipo de la ONG. Un usuario voluntario es miembro de una o varias ONG,
   // con un rol en cada una; cuenta solo si aceptó la invitación (estado 'activo'). La cuenta dueña sigue siendo
   // ngos.user_id: acá no está. Quién puede qué lo responde src/lib/ngoAccess.js.
@@ -620,6 +653,8 @@ async function migrate() {
     `CREATE INDEX IF NOT EXISTS idx_empresa_vol_estado ON empresa_voluntariados(estado)`,
     `CREATE INDEX IF NOT EXISTS idx_patrocinio_puntos_acuerdo ON patrocinio_puntos(empresa_id, project_id)`,
     `CREATE INDEX IF NOT EXISTS idx_patrocinio_mensajes_acuerdo ON patrocinio_mensajes(empresa_id, project_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_patrocinio_cambios_acuerdo ON patrocinio_cambios(empresa_id, project_id, version)`,
+    `CREATE INDEX IF NOT EXISTS idx_patrocinio_aceptaciones_acuerdo ON patrocinio_aceptaciones(empresa_id, project_id, version)`,
     // Seguidores entre Voluntarios
     `CREATE INDEX IF NOT EXISTS idx_vol_follows_follower  ON volunteer_follows(follower_id)`,
     `CREATE INDEX IF NOT EXISTS idx_vol_follows_following ON volunteer_follows(following_id)`,
