@@ -551,3 +551,18 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 ### ⚠️ NO verificado
 - Una pantalla real de 1280 a 1400 px y monitores más anchos (solo la ventana de Chrome de 1517 px y los iframes).
 - `NGODashboard.tsx` queda con 80 % de líneas: lo sin cubrir (aceptar o rechazar desde el Panel, la búsqueda) es código de antes que no cambió.
+
+## 322. Postulaciones: sin barra de scroll vertical en las pestañas
+
+### Qué se hizo
+- Defecto de §319 visto en Chrome durante §320: las pestañas tienen `-mb-px` (para pisar la línea de abajo) dentro de un contenedor con `overflow-x-auto`, que también corta en vertical; ese píxel de más dibujaba una barra de scroll con flechas al lado de "Todas". Se agregó `overflow-y-hidden`.
+
+### Verificación
+- Frontend: 1396/1396 (+1, en rojo antes del arreglo). Mutante único (sacar la clase): muere. Cobertura sin volver a medir (una clase; la última medición es la de §321).
+- Chrome: el tablist queda con `overflow-y: hidden` y sin ancho de barra de scroll.
+
+### Errores propios
+- Se me escapó en §319: no veía la interfaz y el test no podía notarlo.
+
+### ⚠️ NO verificado
+- Otros navegadores.

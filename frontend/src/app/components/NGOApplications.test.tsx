@@ -71,6 +71,17 @@ describe('<NGOApplications />: carga y filtros', () => {
     expect(screen.getByRole('link', { name: 'Volver' })).toHaveAttribute('href', '/ngo/dashboard');
   });
 
+  // §322 (visto en Chrome): las pestañas bajan 1 px (-mb-px, para pisar la línea de abajo) dentro de un contenedor con
+  // overflow-x-auto, que también corta en vertical: ese píxel de más dibujaba una barra de scroll con flechas.
+  test('las pestañas solo hacen scroll de costado: sin barra vertical por el píxel que pisa la línea', async () => {
+    loads();
+    mount();
+    await loaded();
+    const list = screen.getByRole('tablist', { name: 'Estado' });
+    expect(list.className).toContain('overflow-x-auto');
+    expect(list.className).toContain('overflow-y-hidden');
+  });
+
   test('el coordinador: carga con el ngo_id de la URL y "Volver" va a su panel', async () => {
     const manage = loads();
     mount('/equipo/ngo-1/postulaciones');

@@ -130,7 +130,8 @@ export function NGOApplications({ team = false }: { team?: boolean }) {
               </p>
             )}
 
-            <div role="tablist" aria-label="Estado" className="flex border-b border-hairline overflow-x-auto">
+            {/* overflow-y-hidden (§322): el -mb-px de las pestañas dibujaba una barra de scroll vertical. */}
+            <div role="tablist" aria-label="Estado" className="flex border-b border-hairline overflow-x-auto overflow-y-hidden">
               {TABS.map((t) => (
                 <button key={t.key} type="button" role="tab" aria-selected={filters.status === t.key}
                   onClick={() => setFilters({ status: t.key })}
