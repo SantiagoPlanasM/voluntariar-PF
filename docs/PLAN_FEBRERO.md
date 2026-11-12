@@ -2,15 +2,15 @@
 
 > Estado al 12/11/2026. El 5/11 fue la presentación de avances; la final es **después de febrero** (falta la fecha exacta).
 > El proyecto es académico y no se lanza al mercado, pero se sigue mejorando. Las reglas de trabajo no cambian (`CLAUDE.md`).
-> Producción está en `87e785c` (CI, Deploy y SonarCloud en verde el 12/11, 0 issues abiertas). Investigación de pagos:
+> Producción está en `1088775` (CI, Deploy y SonarCloud en verde el 12/11, 0 issues abiertas). Investigación de pagos:
 > [informe de Mercado Pago](https://claude.ai/artifact/WF4evt666tG7cXNkGWJGc2).
 
 ## Para retomar (próxima sesión)
 
 En este orden:
 
-1. [x] **Patrocinio, paso 5: proponer con puntos** (§329, 12/11). Hecho en local, con commit y **sin pushear**: falta
-   el push, y después mirar el CI, el Deploy y **SonarCloud** (el CI no mira el gate "Sonar way", §323).
+1. [x] **Patrocinio, paso 5: proponer con puntos** (§329, 12/11). En producción (`1088775`): CI, Deploy (smoke y E2E)
+   y SonarCloud en verde. Falta la prueba del usuario en la interfaz.
 2. **Revisión de todo el frontend contra el diseño** (pedido del 12/11). **Lo próximo.** El diseño es `docs/DESIGN.md` (1.1, el
    rediseño de §239–§240). Va después del paso 5 para que cubra las pantallas del patrocinio ya terminadas. Son varias
    sesiones: se hace por tandas y **no se arregla nada sin que el usuario elija** (regla 16).
@@ -77,7 +77,7 @@ Sin Figma: diseño propio del 11/11 ([lienzo](https://claude.ai/artifact/EvgwaAn
 2. [x] Frontend: lista única con filtros, "agregado/editado por" y "cambió desde que aceptaste" (§325).
 3. [x] Frontend: pantalla del historial de versiones (§326).
 4. [x] Una versión por guardado: borrador en pantalla y "Guardar cambios" en una transacción (§327).
-5. [x] Proponer con puntos, en la versión de la propuesta (§329). Sin pushear.
+5. [x] Proponer con puntos, en la versión de la propuesta (§329).
 
 Lo que pedía la etapa:
 
@@ -118,7 +118,7 @@ En este orden, salvo que el usuario diga otra cosa (orden propuesto, sin confirm
 - [ ] Cargar `ADMIN_EMAILS` en el panel de Render (servicio del backend; varios, separados por coma) con el mail de una cuenta tuya que ya exista en prod.
 - [ ] Probar en la interfaz la validación de ONG (pedirla con una ONG, aprobar o rechazar como admin) y la pantalla de postulaciones (filtros, lote, cupos).
 
-- [ ] Cuando esté desplegado §329: proponer un patrocinio con puntos desde el perfil de la empresa y volver a proponer después de un rechazo.
+- [ ] Probar en producción (§329, ya desplegado): proponer un patrocinio con puntos desde el perfil de la empresa y volver a proponer después de un rechazo.
 - [ ] Probar en producción el acuerdo de patrocinio, como empresa y como ONG: varios cambios y "Guardar cambios" (una versión), "Descartar", el aviso "cambió desde que aceptaste" desde la otra cuenta y "Historial de versiones". Los acuerdos de antes no tienen historial previo (el aviso dice "al menos").
 - [ ] Probar en tu compu la barra lateral nueva de la ONG (grupos Panel, Comunidad y Mi ONG) y el Panel en dos columnas; en una notebook, la barra con nombres desde 1024 px.
 - [ ] Activar en el panel de Webhooks de Mercado Pago los eventos **Contracargos** y **Vinculación de aplicaciones** (§311, §313).

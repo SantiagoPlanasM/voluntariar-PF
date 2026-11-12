@@ -717,4 +717,4 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - El resto de "Proponer" y del perfil de la empresa sigue con los estilos viejos (violeta, grises): lo nuevo usa los tokens, y la mezcla queda para la revisión contra `DESIGN.md`.
 - El aviso de propuesta rechazada lo vi solo en claro.
 - Si el refresco en caliente de Vite volvió a andar en la pantalla del acuerdo al sacar `POINT_TYPE_LABEL`.
-- Producción, el CI y SonarCloud: no está pusheado.
+- Producción a mano: después del push (`1088775`) dieron verde el CI (9 jobs), el Deploy (smoke y E2E) y SonarCloud (gate OK, 0 issues abiertas), pero nadie propuso con puntos en la interfaz de producción.
