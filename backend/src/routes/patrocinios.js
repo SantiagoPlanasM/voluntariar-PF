@@ -155,6 +155,17 @@ async function changePoints(req, res, status, change) {
   }
 }
 
+/** Una edición parcial combinada con el punto de la base: lo que no viene queda; pasar a otro tipo borra el monto. */
+function mergeEdit(current, body) {
+  const merged = {
+    type: body.type !== undefined ? body.type : TYPE[current.tipo],
+    detail: body.detail !== undefined ? body.detail : current.detalle,
+    amount: body.amount !== undefined ? body.amount : (current.monto == null ? null : Number(current.monto)),
+  };
+  if (merged.type !== 'money' && body.amount === undefined) merged.amount = null;
+  return merged;
+}
+
 /** Un punto en la forma de la base, para guardarlo y para el registro de cambios. */
 const dbPoint = (type, detail, amount) => ({ tipo: TYPE_DB[type], detalle: detail.trim(), monto: type === 'money' ? amount : null });
 
@@ -232,13 +243,7 @@ router.patch('/:empresaId/:projectId/puntos/:puntoId', requireAuth, agreementPar
     const a = req.agreement;
     const current = await ownPoint(db, a, req.params.puntoId);
     if (!current) return res.status(404).json({ error: 'Punto no encontrado' });
-    const body = req.body || {};
-    const merged = {
-      type: body.type !== undefined ? body.type : TYPE[current.tipo],
-      detail: body.detail !== undefined ? body.detail : current.detalle,
-      amount: body.amount !== undefined ? body.amount : (current.monto == null ? null : Number(current.monto)),
-    };
-    if (merged.type !== 'money' && body.amount === undefined) merged.amount = null; // pasar a otro tipo borra el monto
+    const merged = mergeEdit(current, req.body || {});
     const error = pointError(merged);
     if (error) return res.status(400).json({ error });
     await changePoints(req, res, 200, async (tx, version) => {
@@ -381,6 +386,104 @@ router.post('/:empresaId/:projectId/mensajes', requireAuth, agreementParty, asyn
   } catch (err) {
     console.error('POST /patrocinios/mensajes error:', err);
     res.status(500).json({ error: 'Error al enviar el mensaje' });
+  }
+});
+
+// ── POST /api/patrocinios/:empresaId/:projectId/cambios (§327) ───────────
+// El borrador de una parte, guardado como UNA versión (decisión del usuario, 11/11). `{ version, changes }`, con
+// `version` la versión sobre la que se armó: si el acuerdo cambió mientras tanto, 409 y nada (no se pisa lo de la
+// otra parte). Todo en una transacción: el compare-and-swap de la versión primero (en Postgres bloquea la fila: de dos
+// lotes sobre la misma versión, el segundo ve la versión nueva y es 409), después cada cambio con su registro.
+const MAX_CHANGES = 60;   // a lo sumo 20 puntos propios: agregar, editar o quitar todos y algo más
+const NO_CHANGES = 'No hay cambios para guardar';
+const CHANGE_ACTIONS = new Set(['add', 'edit', 'remove']);
+const samePoint = (p, q) => p.tipo === q.tipo && p.detalle === q.detalle
+  && (p.monto == null ? null : Number(p.monto)) === (q.monto == null ? null : Number(q.monto));
+
+/** Valida el lote sin mirar la base. Devuelve el error o null. Lo que depende de los puntos se valida en la transacción. */
+function batchError(version, changes) {
+  if (!Array.isArray(changes) || changes.length === 0) return NO_CHANGES;
+  if (!Number.isInteger(version) || version < 1) return 'version inválida';
+  if (changes.length > MAX_CHANGES) return `Hasta ${MAX_CHANGES} cambios por vez`;
+  const seen = new Set();
+  for (const c of changes) {
+    if (!c || typeof c !== 'object' || !CHANGE_ACTIONS.has(c.action)) return 'Cambio inválido';
+    if (c.action === 'add') {
+      const error = pointError({ type: c.type, detail: c.detail, amount: c.amount });
+      if (error) return error;
+      continue;
+    }
+    if (typeof c.point_id !== 'string' || !c.point_id) return 'Cambio inválido';
+    if (seen.has(c.point_id)) return 'Un punto aparece dos veces en los cambios';
+    seen.add(c.point_id);
+  }
+  return null;
+}
+
+router.post('/:empresaId/:projectId/cambios', requireAuth, agreementParty, async (req, res) => {
+  const { version, changes } = req.body || {};
+  const error = batchError(version, changes);
+  if (error) return res.status(400).json({ error });
+  const a = req.agreement;
+  try {
+    await db.transaction(async (tx) => {
+      const bump = await tx.run(
+        `UPDATE empresa_voluntariados SET version = version + 1, updated_at = CURRENT_TIMESTAMP
+         WHERE empresa_id = $1 AND project_id = $2 AND estado = 'propuesto' AND version = $3`,
+        [a.empresa_id, a.project_id, version]
+      );
+      if (bump.changes === 0) {
+        const row = await tx.get('SELECT estado FROM empresa_voluntariados WHERE empresa_id = $1 AND project_id = $2', [a.empresa_id, a.project_id]);
+        throw new AgreementError(409, row && row.estado === 'propuesto' ? STALE : CLOSED);
+      }
+      const next = version + 1;
+      let applied = 0;
+      for (const c of changes) {
+        if (c.action === 'add') {
+          const id = crypto.randomUUID();
+          const after = dbPoint(c.type, c.detail, c.amount);
+          await tx.run(
+            `INSERT INTO patrocinio_puntos (id, empresa_id, project_id, lado, tipo, detalle, monto, autor_id, created_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+            [id, a.empresa_id, a.project_id, a.side, after.tipo, after.detalle, after.monto, req.user.id, new Date().toISOString()]
+          );
+          await recordChange(tx, a, next, 'agrega', id, req.user.id, null, after);
+          applied += 1;
+          continue;
+        }
+        const before = await ownPoint(tx, a, c.point_id);
+        if (!before) throw new AgreementError(404, 'Punto no encontrado');
+        if (c.action === 'remove') {
+          await tx.run('DELETE FROM patrocinio_puntos WHERE id = $1 AND lado = $2', [before.id, a.side]);
+          await recordChange(tx, a, next, 'quita', before.id, req.user.id, before, null);
+          applied += 1;
+          continue;
+        }
+        const merged = mergeEdit(before, c);
+        const pointErr = pointError(merged);
+        if (pointErr) throw new AgreementError(400, pointErr);
+        const after = dbPoint(merged.type, merged.detail, merged.amount);
+        if (samePoint(before, after)) continue;   // una edición que no cambia nada no cuenta
+        await tx.run(
+          `UPDATE patrocinio_puntos SET tipo = $1, detalle = $2, monto = $3, editor_id = $4, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $5 AND lado = $6`,
+          [after.tipo, after.detalle, after.monto, req.user.id, before.id, a.side]
+        );
+        await recordChange(tx, a, next, 'edita', before.id, req.user.id, before, after);
+        applied += 1;
+      }
+      if (applied === 0) throw new AgreementError(400, NO_CHANGES);
+      const n = await tx.get(
+        'SELECT COUNT(*) AS n FROM patrocinio_puntos WHERE empresa_id = $1 AND project_id = $2 AND lado = $3',
+        [a.empresa_id, a.project_id, a.side]
+      );
+      if ((Number(n.n) || 0) > MAX_POINTS) throw new AgreementError(409, `Hasta ${MAX_POINTS} puntos por lado`);
+    });
+    await respond(req, res);
+  } catch (err) {
+    if (err instanceof AgreementError) return res.status(err.status).json({ error: err.message });
+    console.error('POST /patrocinios/cambios error:', err);
+    res.status(500).json({ error: 'Error al guardar el acuerdo' });
   }
 });
 

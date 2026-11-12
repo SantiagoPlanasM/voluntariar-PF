@@ -167,6 +167,18 @@ describe('Autorización por dueño entre ONGs', () => {
       assert.equal((await patrocinio()).estado, 'propuesto');
     });
 
+    // §327: guardar un lote de cambios en un acuerdo ajeno: 404 y el acuerdo no cambia.
+    test('guardar cambios en el acuerdo de patrocinio de un proyecto ajeno', async () => {
+      const before = await db.get(`SELECT version FROM empresa_voluntariados WHERE empresa_id=$1 AND project_id='proj-1'`, [empresaId]);
+      const r = await api(`/api/patrocinios/${empresaId}/proj-1/cambios`, {
+        token: other, method: 'POST', body: { version: Number(before.version), changes: [{ action: 'add', type: 'supplies', detail: 'Ajeno' }] },
+      });
+      assert.equal(r.status, 404);
+      const after = await db.get(`SELECT version FROM empresa_voluntariados WHERE empresa_id=$1 AND project_id='proj-1'`, [empresaId]);
+      assert.equal(Number(after.version), Number(before.version));
+      assert.equal(Number((await db.get(`SELECT COUNT(*) AS n FROM patrocinio_puntos WHERE project_id='proj-1'`)).n), 0);
+    });
+
     // §324: el historial del acuerdo (con montos) es solo de las partes. GET: se mira que no filtre nada.
     test('ver el historial de un acuerdo de patrocinio de un proyecto ajeno', async () => {
       const h = await api(`/api/patrocinios/${empresaId}/proj-1/historial`, { token: other });
@@ -346,6 +358,11 @@ describe('Autorización por dueño entre ONGs', () => {
 
       const list = await api('/api/ngos/me/patrocinios', { token: owner });
       assert.ok(JSON.stringify(list.body).includes('proj-1'));
+      // §327, mismos ids: la dueña llega al acuerdo (409 por versión vieja, no 404) sin cambiarlo.
+      const lote = await api(`/api/patrocinios/${empresaId}/proj-1/cambios`, {
+        token: owner, method: 'POST', body: { version: 999, changes: [{ action: 'add', type: 'supplies', detail: 'x' }] },
+      });
+      assert.equal(lote.status, 409);
       const h = await api(`/api/patrocinios/${empresaId}/proj-1/historial`, { token: owner });   // §324, mismos ids
       assert.equal(h.status, 200);
       assert.deepEqual(h.body.versions.map((v) => v.version), [1]);

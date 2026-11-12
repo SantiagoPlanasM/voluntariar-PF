@@ -237,6 +237,9 @@ export const api = {
     /** §324: las versiones de la más nueva a la más vieja, con sus cambios y quién las aceptó. */
     history: (empresaId: string, projectId: string) =>
       req<{ versions: SponsorshipVersion[] }>(`/patrocinios/${empresaId}/${projectId}/historial`),
+    /** §327: el borrador de una parte como UNA versión. `version`: sobre la que se armó (si cambió, 409). */
+    saveChanges: (empresaId: string, projectId: string, version: number, changes: SponsorshipChangeInput[]) =>
+      req<{ agreement: SponsorshipAgreement }>(`/patrocinios/${empresaId}/${projectId}/cambios`, { method: 'POST', body: JSON.stringify({ version, changes }) }),
   },
   // Donaciones con Mercado Pago (§170–§172). `get` con `paymentId` concilia con Mercado Pago (lo que trae la URL de vuelta).
   donaciones: {
@@ -541,6 +544,11 @@ export interface SponsorshipPoint {
   /** §324: quién lo agregó; y, si alguien lo editó (desde §324), quién y cuándo. null si la cuenta ya no existe. */
   created_by_name: string | null; edited_by_name: string | null; edited_at: string | null;
 }
+/** §327: un cambio del lote de POST …/cambios. `amount` solo en dinero. */
+export type SponsorshipChangeInput =
+  | ({ action: 'add' } & SponsorshipPointInput)
+  | ({ action: 'edit'; point_id: string } & SponsorshipPointInput)
+  | { action: 'remove'; point_id: string };
 /** §324: un punto como quedó en el historial (antes o después de un cambio). */
 export interface SponsorshipPointSnapshot { type: SponsorshipPoint['type']; detail: string; amount: number | null }
 export interface SponsorshipChange {

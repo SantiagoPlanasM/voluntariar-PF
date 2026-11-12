@@ -647,3 +647,27 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 ### ⚠️ NO verificado
 - La pantalla desde el lado de la empresa (mismo componente).
 - Producción: los pasos 1 a 3 no están pusheados.
+
+## 327. Acuerdo de patrocinio, paso 4: borrador y "Guardar cambios" como una versión
+
+### Qué se hizo
+- Decisión del usuario (11/11): la versión nueva se crea al guardar, no por cada punto.
+- Backend: `POST /api/patrocinios/:empresaId/:projectId/cambios` `{ version, changes[] }`. Todo en una transacción: compare-and-swap de la versión (si el acuerdo cambió mientras se armaba el borrador, 409 y nada; no se pisa lo de la otra parte), después cada cambio (agregar, editar, quitar) con su registro de §324. Una edición que no cambia nada no cuenta; el tope de 20 por lado se mira después del lote. `mergeEdit` salió del `PATCH` para usarse en los dos. Los endpoints de a un punto quedan (la pantalla ya no los usa).
+- Frontend: `lib/sponsorshipDraft.ts` (funciones puras del borrador) y la pantalla del acuerdo: "Listo" pone el punto en el borrador ("Sin guardar"); quitar no pregunta y se puede deshacer ("Se va a quitar"); la barra "Cambios sin guardar" con "Guardar cambios" y "Descartar" (con confirmación). Con borrador no se puede aceptar y cerrar la pestaña pide confirmación. Un 409 recarga el acuerdo y deja el borrador para reintentar.
+- Visto en Chrome y corregido en el mismo paso: (1) la barra no quedaba pegada abajo: el `overflow-hidden` de la sección rompía el `sticky`; (2) con un acuerdo de antes de §324 (aceptado en la v1, historial desde la v5), el aviso contaba solo lo registrado: ahora dice "al menos" (o "Hubo cambios") y que lo anterior no se guardaba.
+
+### Verificación
+- Backend: 1254/1254 en SQLite, 1256/1256 en Postgres 18 y 1254/1254 con `TZ=America/Argentina/Cordoba` (+15: 14 en `patrocinio-lote.test.js` y 1 en `ownership.test.js`, regla 15). Rojo antes del código: 11 de 11 por comportamiento. `npm audit` en 0.
+- Frontend: 1448/1448 (antes 1428; +20), `typecheck` sin errores, `npm audit` en 0. Cobertura: sentencias 91,92 %, ramas 88,59 %, funciones 89,04 %, líneas 94,36 %. Rojo antes del código: 9 de la pantalla y los 2 del historial incompleto, por comportamiento.
+- Mutation testing (scripts con corrida de control): backend 18 mutantes, sobrevivían 4 y con 3 tests más queda uno equivalente (el lote vacío da el mismo 400 un paso después). Frontend 21, sobrevivían 5: dos equivalentes que simplifiqué (el JSON descarta `undefined`; los ids `new:` nunca están en el mapa de cambios) y tres sin test, que ahora mueren con 4 tests más.
+- Chrome, en local, del lado de la **empresa** (TechCorp): editar y quitar al borrador, la barra pegada abajo, "Estoy de acuerdo" desactivado, guardar (pasó a la versión 11 con un solo pedido) y el aviso "al menos". El `beforeunload` frenó una recarga real de la pestaña con cambios sin guardar.
+
+### Errores propios
+- El contrato de `saveChanges` y las funciones del borrador los escribí en el mismo paso que sus tests, sin correr el rojo antes.
+- La barra "pegada abajo" no lo estaba (el `overflow-hidden` que yo mismo puse en §325); lo vi recién en Chrome.
+- Para recargar la pestaña con cambios sin guardar tuve que descartarlos desde la app: el aviso del navegador frenaba la recarga.
+
+### ⚠️ NO verificado
+- El celular con la barra sobre la barra inferior de la app (`bottom` de 56 px más la zona segura): solo lo razoné, no lo miré en un teléfono.
+- El diálogo de `beforeunload` en otros navegadores (cada uno muestra el suyo y algunos lo saltean sin interacción previa).
+- Producción: los pasos 1 a 4 no están pusheados.

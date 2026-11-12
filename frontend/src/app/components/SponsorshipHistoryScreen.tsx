@@ -109,7 +109,7 @@ export function SponsorshipHistoryScreen() {
         <header>
           <h1 className="text-[22px] font-bold tracking-[-0.3px]">Historial de versiones</h1>
           <p className="text-sm text-ink-soft">
-            {a.project_title} · {a.company_name} con {a.ngo_name}. Cada versión es un cambio en los puntos; las versiones no se editan.
+            {a.project_title} · {a.company_name} con {a.ngo_name}. Cada versión es lo que una parte guardó de una vez; las versiones no se editan.
           </p>
         </header>
 

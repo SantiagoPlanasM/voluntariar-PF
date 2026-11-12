@@ -37,7 +37,7 @@ Sin Figma: diseño propio del 11/11 ([lienzo](https://claude.ai/artifact/EvgwaAn
 1. [x] Backend: quién cambió qué, aceptaciones con fecha e historial (§324).
 2. [x] Frontend: lista única con filtros, "agregado/editado por" y "cambió desde que aceptaste" (§325).
 3. [x] Frontend: pantalla del historial de versiones (§326).
-4. [ ] Una versión por guardado: borrador en pantalla y "Guardar cambios" en una transacción.
+4. [x] Una versión por guardado: borrador en pantalla y "Guardar cambios" en una transacción (§327).
 5. [ ] Proponer con puntos (versión 1).
 
 Lo que pedía la etapa:

@@ -112,8 +112,8 @@ describe('Acuerdo de patrocinio: la lista de puntos', () => {
     expect(screen.queryByText(/Dinero comprometido/)).not.toBeInTheDocument();
   });
 
-  test('agregar: el monto aparece solo con dinero y se manda como número', async () => {
-    const add = vi.spyOn(api.sponsorships, 'addPoint').mockResolvedValue({ agreement: base({ version: 4 }) });
+  test('agregar: el monto aparece solo con dinero; queda en el borrador hasta "Guardar cambios"', async () => {
+    const save = vi.spyOn(api.sponsorships, 'saveChanges').mockResolvedValue({ agreement: base({ version: 4 }) });
     mount();
     fireEvent.click(await screen.findByRole('button', { name: 'Agregar punto' }));
     fill('Tipo de punto', 'supplies');
@@ -121,36 +121,130 @@ describe('Acuerdo de patrocinio: la lista de puntos', () => {
     fill('Tipo de punto', 'money');
     fill('Detalle del punto', '  Para bolsas  ');
     fill('Monto en pesos', '50000');
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar punto' }));
-    await waitFor(() => expect(add).toHaveBeenCalledWith('e1', 'p1', { type: 'money', detail: 'Para bolsas', amount: 50000 }));
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Guardar punto' })).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Listo' }));
+    expect(save).not.toHaveBeenCalled();                                   // todavía no se mandó nada
+    expect(within(punto('Para bolsas')).getByText('Sin guardar')).toBeInTheDocument();
+    const barra = screen.getByRole('region', { name: 'Cambios sin guardar' });
+    expect(barra).toHaveTextContent('1 cambio sin guardar');
+    fireEvent.click(within(barra).getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith('e1', 'p1', 3, [{ action: 'add', type: 'money', detail: 'Para bolsas', amount: 50000 }]));
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Cambios sin guardar' })).not.toBeInTheDocument());
   });
 
-  test('agregar un punto que no es dinero no manda monto; un error del backend se muestra', async () => {
-    const add = vi.spyOn(api.sponsorships, 'addPoint').mockRejectedValue(new ApiError('Hasta 20 puntos por lado', 409));
+  test('varios cambios van juntos en un solo "Guardar cambios"; un error del backend se muestra y el borrador queda', async () => {
+    const save = vi.spyOn(api.sponsorships, 'saveChanges').mockRejectedValue(new ApiError('Hasta 20 puntos por lado', 409));
     mount();
     fireEvent.click(await screen.findByRole('button', { name: 'Agregar punto' }));
     fill('Tipo de punto', 'volunteers');
     fill('Detalle del punto', '10 empleados');
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar punto' }));
-    await waitFor(() => expect(add).toHaveBeenCalledWith('e1', 'p1', { type: 'volunteers', detail: '10 empleados' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Listo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Editar punto: Aporte para materiales' }));
+    fill('Monto en pesos', '250000');
+    fireEvent.click(screen.getByRole('button', { name: 'Listo' }));
+    expect(screen.getByRole('region', { name: 'Cambios sin guardar' })).toHaveTextContent('2 cambios sin guardar');
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith('e1', 'p1', 3, [
+      { action: 'add', type: 'volunteers', detail: '10 empleados' },
+      { action: 'edit', point_id: 'pt1', type: 'money', detail: 'Aporte para materiales', amount: 250000 },
+    ]));
     expect(await screen.findByRole('alert')).toHaveTextContent('Hasta 20 puntos por lado');
+    expect(screen.getByRole('region', { name: 'Cambios sin guardar' })).toHaveTextContent('2 cambios sin guardar');
   });
 
-  test('editar abre el formulario precargado; borrar pide confirmación', async () => {
-    const upd = vi.spyOn(api.sponsorships, 'updatePoint').mockResolvedValue({ agreement: base() });
-    const del = vi.spyOn(api.sponsorships, 'deletePoint').mockResolvedValue({ agreement: base({ points: [] }) });
+  test('editar abre el formulario precargado y marca el punto "Sin guardar"', async () => {
     mount();
     fireEvent.click(await screen.findByRole('button', { name: 'Editar punto: Aporte para materiales' }));
     expect(screen.getByLabelText('Detalle del punto')).toHaveValue('Aporte para materiales');
     expect(screen.getByLabelText('Monto en pesos')).toHaveValue(200000);
     fill('Monto en pesos', '250000');
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar punto' }));
-    await waitFor(() => expect(upd).toHaveBeenCalledWith('e1', 'p1', 'pt1', { type: 'money', detail: 'Aporte para materiales', amount: 250000 }));
+    fireEvent.click(screen.getByRole('button', { name: 'Listo' }));
+    const fila = punto('Aporte para materiales');
+    expect(within(fila).getByText('Sin guardar')).toBeInTheDocument();
+    expect(within(fila).getByText(/250\.000/)).toBeInTheDocument();
+  });
 
+  test('quitar no pregunta (se puede deshacer): queda tachado hasta guardar', async () => {
+    const save = vi.spyOn(api.sponsorships, 'saveChanges').mockResolvedValue({ agreement: base({ points: [base().points[1]], version: 4 }) });
+    mount();
     fireEvent.click(await screen.findByRole('button', { name: 'Borrar punto: Aporte para materiales' }));
-    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Borrar punto' }));
-    await waitFor(() => expect(del).toHaveBeenCalledWith('e1', 'p1', 'pt1'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(within(punto('Aporte para materiales')).getByText('Se va a quitar')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Deshacer: Aporte para materiales' }));
+    expect(within(punto('Aporte para materiales')).queryByText('Se va a quitar')).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Cambios sin guardar' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Borrar punto: Aporte para materiales' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith('e1', 'p1', 3, [{ action: 'remove', point_id: 'pt1' }]));
+  });
+
+  test('"Listo" con el detalle vacío avisa y no agrega nada', async () => {
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'Agregar punto' }));
+    fill('Detalle del punto', '   ');
+    fireEvent.click(screen.getByRole('button', { name: 'Listo' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('El detalle no puede estar vacío');
+    expect(screen.queryByRole('region', { name: 'Cambios sin guardar' })).not.toBeInTheDocument();
+  });
+
+  test('lo que se va a quitar no cuenta en los filtros ni en el total', async () => {
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'Borrar punto: Aporte para materiales' }));
+    expect(screen.getByRole('button', { name: 'Todos · 1' })).toBeInTheDocument();
+    expect(screen.queryByText(/Dinero comprometido/)).not.toBeInTheDocument();
+  });
+
+  test('si al guardar el acuerdo ya estaba cerrado, no queda la barra (no hay nada que guardar)', async () => {
+    vi.spyOn(api.sponsorships, 'saveChanges').mockRejectedValue(new ApiError('El acuerdo ya está cerrado: no se puede cambiar', 409));
+    const { get } = mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'Borrar punto: Aporte para materiales' }));
+    get.mockResolvedValue({ agreement: base({ status: 'rechazado' }) });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    expect(await screen.findByText('Acuerdo cerrado: Rechazado')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Cambios sin guardar' })).not.toBeInTheDocument();
+  });
+
+  test('"Descartar" pide confirmación y vacía el borrador; "Volver" lo deja', async () => {
+    const save = vi.spyOn(api.sponsorships, 'saveChanges');
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'Borrar punto: Aporte para materiales' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Volver' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('region', { name: 'Cambios sin guardar' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Descartar cambios' }));
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Cambios sin guardar' })).not.toBeInTheDocument());
+    expect(within(punto('Aporte para materiales')).queryByText('Se va a quitar')).not.toBeInTheDocument();
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  test('con cambios sin guardar no se puede aceptar (primero guardar o descartar)', async () => {
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'Borrar punto: Aporte para materiales' }));
+    expect(screen.getByRole('button', { name: 'Estoy de acuerdo' })).toBeDisabled();
+    expect(screen.getByText('Guardá o descartá tus cambios antes de aceptar.')).toBeInTheDocument();
+  });
+
+  test('si el acuerdo cambió al guardar (409), recarga y el borrador queda para volver a intentar', async () => {
+    vi.spyOn(api.sponsorships, 'saveChanges').mockRejectedValue(new ApiError('El acuerdo cambió: revisalo de nuevo', 409));
+    const { get } = mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'Borrar punto: Aporte para materiales' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('El acuerdo cambió: revisalo de nuevo');
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole('region', { name: 'Cambios sin guardar' })).toBeInTheDocument();
+  });
+
+  test('con cambios sin guardar, cerrar o recargar la pestaña pide confirmación', async () => {
+    mount();
+    await screen.findByRole('button', { name: 'Agregar punto' });
+    const sinCambios = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(sinCambios);
+    expect(sinCambios.defaultPrevented).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Borrar punto: Aporte para materiales' }));
+    const conCambios = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(conCambios);
+    expect(conCambios.defaultPrevented).toBe(true);
   });
 });
 
@@ -172,6 +266,30 @@ describe('Acuerdo de patrocinio: lo que cambió desde que aceptaste', () => {
     const aviso = await screen.findByRole('region', { name: 'Cambios desde tu aceptación' });
     expect(within(aviso).getByRole('link', { name: 'Ver qué cambió' })).toHaveAttribute('href', '/company/patrocinios/e1/p1/historial');
     expect(screen.getByRole('link', { name: 'Historial de versiones' })).toHaveAttribute('href', '/company/patrocinios/e1/p1/historial');
+  });
+
+  // Visto en Chrome con un acuerdo de antes de §324: aceptado en la v1 y el historial empieza en la v5. La cuenta
+  // solo ve lo registrado: tiene que decir "al menos" y avisar que lo anterior no se guardaba.
+  test('si el historial empieza después de mi aceptación, dice "al menos" y lo explica', async () => {
+    const v5: SponsorshipVersion = { ...v3, version: 5, changes: [v3.changes[0]] };
+    mount(base({ version: 5, accepted_versions: { company: 1, ngo: null } }), [v5]);
+    const aviso = await screen.findByRole('region', { name: 'Cambios desde tu aceptación' });
+    expect(aviso).toHaveTextContent('Cambió al menos 1 punto desde que aceptaste la versión 1.');
+    expect(aviso).toHaveTextContent('Los cambios de antes de la versión 5 no se guardaban.');
+  });
+
+  test('si el historial empieza justo después de mi aceptación, está completo: sin "al menos"', async () => {
+    mount(base(), [v3]);   // acepté la v2 y el historial tiene la v3
+    const aviso = await screen.findByRole('region', { name: 'Cambios desde tu aceptación' });
+    expect(aviso).toHaveTextContent('Cambiaron 2 puntos desde que aceptaste la versión 2.');
+    expect(aviso).not.toHaveTextContent('no se guardaban');
+  });
+
+  test('sin cambios registrados pero con historial incompleto, igual avisa que hubo cambios', async () => {
+    const v4: SponsorshipVersion = { ...v2, version: 4, changes: [] };
+    mount(base({ version: 4, accepted_versions: { company: 1, ngo: null } }), [v4]);
+    const aviso = await screen.findByRole('region', { name: 'Cambios desde tu aceptación' });
+    expect(aviso).toHaveTextContent('Hubo cambios desde que aceptaste la versión 1.');
   });
 
   test('un punto agregado después de mi aceptación se marca como nuevo', async () => {
@@ -202,10 +320,11 @@ describe('Acuerdo de patrocinio: lo que cambió desde que aceptaste', () => {
     const { history } = mount(base(), [v3, v2]);
     expect(await screen.findByText('Cambió desde que aceptaste')).toBeInTheDocument();
     history.mockRejectedValue(new ApiError('Error', 500));
-    vi.spyOn(api.sponsorships, 'addPoint').mockResolvedValue({ agreement: base({ version: 4 }) });
+    vi.spyOn(api.sponsorships, 'saveChanges').mockResolvedValue({ agreement: base({ version: 4 }) });
     fireEvent.click(screen.getByRole('button', { name: 'Agregar punto' }));
     fill('Detalle del punto', 'Guantes');
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar punto' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Listo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     await waitFor(() => expect(history).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.queryByText(/desde que aceptaste/)).not.toBeInTheDocument());
   });
@@ -253,16 +372,12 @@ describe('Acuerdo de patrocinio: aceptar y rechazar', () => {
 });
 
 describe('Acuerdo de patrocinio: "Volver" en la confirmación no hace nada', () => {
-  test('ni borra el punto ni rechaza el acuerdo', async () => {
-    const del = vi.spyOn(api.sponsorships, 'deletePoint');
+  test('no rechaza el acuerdo', async () => {
     const rej = vi.spyOn(api.sponsorships, 'reject');
     mount();
-    for (const name of ['Borrar punto: Aporte para materiales', 'Rechazar acuerdo']) {
-      fireEvent.click(await screen.findByRole('button', { name }));
-      fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Volver' }));
-      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    }
-    expect(del).not.toHaveBeenCalled();
+    fireEvent.click(await screen.findByRole('button', { name: 'Rechazar acuerdo' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Volver' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(rej).not.toHaveBeenCalled();
     expect(within(lista()).getByText('Aporte para materiales')).toBeInTheDocument();
   });

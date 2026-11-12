@@ -442,6 +442,11 @@ Una por ONG (tabla `ngo_validaciones`). Estados en la API: `none` (sin pedido) �
   - En una transacción, primero `version = version + 1 … AND estado = 'propuesto'` y después el punto.
   - No avisan.
   - §324: cada uno queda en `patrocinio_cambios` con su versión, quién, cuándo y el punto antes y después, en la misma transacción. El `PATCH` guarda quién editó.
+- **`POST …/cambios`** (§327) `{ version, changes[] }` → 200 `{ agreement }`: el borrador de una parte como **una** versión. Es lo que usa la pantalla; los endpoints de a un punto siguen (cada uno, una versión).
+  - `changes[]` (1 a 60): `{ action: "add", type, detail, amount? }`, `{ action: "edit", point_id, type?, detail?, amount? }` (parcial, como el `PATCH`) o `{ action: "remove", point_id }`.
+  - `version` es la versión sobre la que se armó: en una transacción, primero `version = version + 1 … AND version = $version AND estado = 'propuesto'` y después cada cambio con su registro en `patrocinio_cambios`. De dos lotes sobre la misma versión, entra uno.
+  - Una edición que no cambia nada no cuenta. El tope de 20 por lado se mira después del lote (quitar uno y agregar otro entra).
+  - **400:** "No hay cambios para guardar" (vacío o sin cambios reales), "version inválida", "Hasta 60 cambios por vez", "Cambio inválido", "Un punto aparece dos veces en los cambios" y los de un punto. **404:** "Punto no encontrado" (del otro lado o inexistente). **409:** "El acuerdo cambió: revisalo de nuevo", cerrado, "Hasta 20 puntos por lado". Cualquier error: no se aplica nada.
 - **`POST …/aceptar`** `{ version }`:
   - **Errores:** 400 "version inválida" · 409 "El acuerdo cambió: revisalo de nuevo" · 409 si está cerrado.
   - Si cierra el acuerdo, avisa `sponsorship_closed`; si no, `sponsorship_accepted_by_other`.
