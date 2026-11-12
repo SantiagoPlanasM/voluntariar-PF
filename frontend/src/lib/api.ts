@@ -199,8 +199,9 @@ export const api = {
     dashboard: () => req<CompanyDashboard>('/empresas/me/dashboard'),
     patrocinios: {
       list: () => req<{ patrocinios: Patrocinio[] }>('/empresas/me/patrocinios'),
-      propose: (project_id: string, mensaje?: string) =>
-        req<{ message: string }>('/empresas/me/patrocinios', { method: 'POST', body: JSON.stringify({ project_id, mensaje }) }),
+      /** §329: `points`, los puntos que la empresa propone (van en la misma versión que la propuesta). */
+      propose: (project_id: string, mensaje?: string, points?: SponsorshipPointInput[]) =>
+        req<{ message: string }>('/empresas/me/patrocinios', { method: 'POST', body: JSON.stringify({ project_id, mensaje, points }) }),
       withdraw: (projectId: string) =>
         req<{ message: string }>(`/empresas/me/patrocinios/${projectId}`, { method: 'DELETE' }),
     },

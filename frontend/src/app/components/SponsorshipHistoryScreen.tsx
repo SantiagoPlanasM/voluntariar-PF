@@ -12,10 +12,9 @@ import { parseBackendDate } from '../../lib/format';
 import { useLatestRequest } from '../../lib/useLatestRequest';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { LoadError, describeLoadError } from './LoadError';
-import { POINT_TYPE_LABEL } from './SponsorshipAgreementScreen';
+import { POINT_TYPE_LABEL, formatMoney as money } from '../../lib/sponsorship';
 
 type Side = 'company' | 'ngo';
-const money = (n: number) => `$ ${n.toLocaleString('es-AR')}`;
 const ACTION_LABEL: Record<SponsorshipChange['action'], string> = { add: 'Agregó', edit: 'Editó', remove: 'Quitó' };
 // El tipo de cambio se distingue por el texto y por el borde, no solo por el color.
 const ACTION_STYLE: Record<SponsorshipChange['action'], string> = {

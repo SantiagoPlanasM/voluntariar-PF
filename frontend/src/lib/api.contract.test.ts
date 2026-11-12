@@ -101,6 +101,9 @@ const CASES: Case[] = [
   ['empresas.dashboard', () => api.empresas.dashboard(), 'GET', '/empresas/me/dashboard'],
   ['empresas.patrocinios.list', () => api.empresas.patrocinios.list(), 'GET', '/empresas/me/patrocinios'],
   ['empresas.patrocinios.propose (campo "mensaje")', () => api.empresas.patrocinios.propose('p1', 'Hola'), 'POST', '/empresas/me/patrocinios', { project_id: 'p1', mensaje: 'Hola' }],
+  // §329: proponer con puntos. `points` como lo lee routes/empresas.js; sin puntos, el campo no viaja (caso de arriba).
+  ['empresas.patrocinios.propose (con "points")', () => api.empresas.patrocinios.propose('p1', undefined, [{ type: 'money', detail: 'Plantines', amount: 500 }, { type: 'supplies', detail: 'Bolsas' }]),
+    'POST', '/empresas/me/patrocinios', { project_id: 'p1', points: [{ type: 'money', detail: 'Plantines', amount: 500 }, { type: 'supplies', detail: 'Bolsas' }] }],
   ['empresas.patrocinios.withdraw', () => api.empresas.patrocinios.withdraw('p1'), 'DELETE', '/empresas/me/patrocinios/p1'],
   // cuenta de Mercado Pago de la ONG (Marketplace, §218): body { code, state } como lo lee routes/mercadopago.js
   ['ngos.mercadopago.get', () => api.ngos.mercadopago.get(), 'GET', '/ngos/me/mercadopago'],

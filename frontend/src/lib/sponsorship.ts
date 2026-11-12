@@ -5,7 +5,23 @@
 // Única fuente: la usan CompanyDashboard.tsx, CompanyOwnProfile.tsx y
 // NGOPatrocinios.tsx (las dos últimas tenían copias idénticas hasta REVISION S7).
 // Cualquier pantalla nueva importa de acá en vez de copiar los mapas.
-import type { Patrocinio, SponsorshipPointSnapshot, SponsorshipVersion } from './api';
+import type { Patrocinio, SponsorshipPoint, SponsorshipPointSnapshot, SponsorshipVersion } from './api';
+import type { PointFields } from './sponsorshipDraft';
+
+/** Los tipos de un punto del acuerdo, como se leen (acuerdo, historial y propuesta). */
+export const POINT_TYPE_LABEL: Record<SponsorshipPoint['type'], string> = {
+  money: 'Dinero', supplies: 'Insumos', volunteers: 'Voluntarios de la empresa', outreach: 'Difusión', other: 'Otro',
+};
+export const formatMoney = (n: number) => `$ ${n.toLocaleString('es-AR')}`;
+
+/** El formulario de un punto (SponsorshipPointForm): `id` null es uno nuevo; si no, el id del punto que se edita. */
+export type PointFormValue = { id: string | null; type: SponsorshipPoint['type']; detail: string; amount: string };
+export const newPointForm = (): PointFormValue => ({ id: null, type: 'supplies', detail: '', amount: '' });
+export const editPointForm = (pt: { id: string } & PointFields): PointFormValue =>
+  ({ id: pt.id, type: pt.type, detail: pt.detail, amount: pt.amount == null ? '' : String(pt.amount) });
+/** Lo que va al borrador: el monto solo en dinero (lo valida el backend al guardar). */
+export const formFields = (f: PointFormValue): PointFields =>
+  ({ type: f.type, detail: f.detail, amount: f.type === 'money' ? Number(f.amount) : null });
 
 export type SponsorshipState = Patrocinio['estado'];
 

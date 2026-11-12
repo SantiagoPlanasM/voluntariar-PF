@@ -685,3 +685,36 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 
 ### ⚠️ NO verificado
 - Los registros de antes de este arreglo (solo en las bases locales de prueba) quedan con orden 0: ordenan como antes.
+
+## 329. Acuerdo de patrocinio, paso 5: proponer con puntos
+
+### Qué se hizo
+- Decisión del usuario (11/11): la empresa propone con puntos. Cierra la Etapa 2 de `PLAN_FEBRERO.md`.
+- Backend: `POST /api/empresas/me/patrocinios` acepta `points[]` (`{ type, detail, amount? }`, hasta 20), validados con el mismo `pointError` de los cambios. Se guardan en la transacción de la propuesta: del lado de la empresa, en la versión de la propuesta (la 1), cada uno con su registro en `patrocinio_cambios` (en el orden en que llegaron, `orden` de §328) y antes de la aceptación de la empresa, que es de esa misma versión. Re-proponer tras un rechazo: una sola versión nueva con esos puntos; los de antes quedan y el tope de 20 cuenta todos los de la empresa (si se pasa, 409 y la transacción se deshace: sigue rechazado, en su versión y con su mensaje).
+- En `routes/patrocinios.js`: `insertPoint` y `checkPointLimit` salieron de los dos lugares que daban de alta un punto (`POST …/puntos` y `POST …/cambios`) y los usa también la propuesta (`proposalPointsError`, `addProposalPoints`). En `POST …/puntos` el tope pasó de mirarse antes del alta (`>= 20`) a mirarse después (`> 20`), dentro de la misma transacción: mismo resultado.
+- Frontend: en "Proponer" (`CompanyOwnProfile`), "Qué proponés aportar (opcional)": lista de puntos con editar y borrar (44 px), "Agregar punto" y el formulario del acuerdo, que pasó a un componente (`SponsorshipPointForm`) para las dos pantallas. Los puntos van a un borrador de `lib/sponsorshipDraft.ts` (`toPoints`) y viajan con la propuesta; sin puntos, el pedido de siempre. Con un punto a medio escribir no manda y lo dice. Con 20, deja de ofrecer "Agregar punto".
+- Visto en Chrome y agregado en el mismo paso: al volver a proponer, los puntos del acuerdo rechazado siguen en el acuerdo pero el formulario no lo decía. Ahora avisa ("Los puntos de ese acuerdo se mantienen: lo que agregues acá se suma") con un link al acuerdo.
+- De la Etapa 4: `POINT_TYPE_LABEL` pasó a `lib/sponsorship.ts` (lo necesitaba el formulario compartido), junto con `formatMoney` y el valor del formulario. El historial dejó de importar de la pantalla del acuerdo.
+
+### Verificación
+- Backend: 1282/1282 en SQLite, 1284/1284 en Postgres 18, y lo mismo con `TZ=America/Argentina/Cordoba` en los dos motores (+27, todos en `patrocinio-proponer-puntos.test.js`). Rojo antes del código, por comportamiento (los puntos no se guardaban). `npm audit` en 0.
+- Frontend: 1461/1461 (antes 1448; +13: 11 en `ProposeWithPoints.test.tsx`, 1 de `toPoints` y 1 del contrato), `typecheck` sin errores, `npm audit` en 0. Cobertura: sentencias 91,95 %, ramas 88,73 %, funciones 89,13 %, líneas 94,38 %. Rojo antes del código en la pantalla: 8 de 9 (el noveno, "sin puntos sale como siempre", tenía que pasar) y el del aviso.
+- Mutation testing (script con corrida de control): backend 37 mutantes, mueren 35; los 2 que sobreviven son equivalentes (el tope mirado antes de la transacción solo ahorra trabajo: adentro se corta igual con el mismo 409; con `[]` solo se evita un `COUNT`). Frontend 45: en la primera corrida sobrevivían 6 y 3 no se aplicaron (ver errores propios); con más aserciones en los tests mueren 42 y quedan 3 equivalentes (`toPoints` con la clave: `body` no la copia; el monto fuera de dinero: el borrador lo deja en null; el aviso con cualquier estado: un proyecto con propuesta vigente nunca queda elegido).
+- Chrome, en local (base SQLite aparte, mails desactivados), en claro y oscuro:
+  - **Empresa** (TechCorp): armar dos puntos (dinero y voluntarios), el aviso de punto a medio escribir, enviar; el acuerdo quedó en versión 1 con los dos puntos, "Agregado por Admin TechCorp", la empresa de acuerdo; el historial muestra la versión 1 con "agregó 2 puntos". Sin errores en la consola.
+  - **ONG** (Banco de Alimentos): ve los puntos sin editar ni borrar (son de la empresa) y rechaza.
+  - **Empresa** de nuevo: el aviso de la propuesta rechazada, re-proponer con un punto: versión 2 con ese punto.
+  - En un marco de 390 px: sin scroll horizontal, botones de 44×44 y un detalle largo corta en varias líneas.
+
+### Errores propios
+- `toPoints` y el contrato de `propose` con `points` los escribí en el mismo paso que sus tests, sin correr el rojo antes (igual que en §327).
+- El test de los 20 puntos pasaba solo y fallaba por tiempo (más de 5 s) con toda la suite: 20 altas con `getByRole`. Lo cambié a buscar por texto.
+- Tres mutantes del frontend no se aplicaron en la primera corrida: los escribí con `\n` y `CompanyOwnProfile.tsx` es CRLF. El script lo avisó ("0 coincidencias") y los corrí de nuevo.
+- Usé `sed -i` sobre el test nuevo del backend (es LF, no cambió) y un heredoc para un script de edición, que falló; seguí con `Edit`.
+
+### ⚠️ NO verificado
+- Un celular real: solo el marco de 390 px en Chrome de escritorio.
+- El resto de "Proponer" y del perfil de la empresa sigue con los estilos viejos (violeta, grises): lo nuevo usa los tokens, y la mezcla queda para la revisión contra `DESIGN.md`.
+- El aviso de propuesta rechazada lo vi solo en claro.
+- Si el refresco en caliente de Vite volvió a andar en la pantalla del acuerdo al sacar `POINT_TYPE_LABEL`.
+- Producción, el CI y SonarCloud: no está pusheado.

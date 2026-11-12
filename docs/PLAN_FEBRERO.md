@@ -9,11 +9,9 @@
 
 En este orden:
 
-1. **Patrocinio, paso 5: proponer con puntos.** Hoy `POST /api/empresas/me/patrocinios` recibe solo `{ project_id, mensaje }`.
-   - Backend: que acepte también `points[]` (validados como en `POST …/cambios`) y los guarde en la misma transacción de la propuesta. Van como versión 1, con su registro en `patrocinio_cambios` y la aceptación de la empresa. Re-proponer tras un rechazo: versión nueva con esos puntos.
-   - Frontend: en "Proponer" (`CompanyOwnProfile`), agregar puntos antes de mandar, con el mismo formulario del acuerdo. El historial ya muestra la versión 1 con sus cambios.
-   - Probar en SQLite, Postgres y Córdoba, mutation testing, Chrome como empresa y como ONG, y mirar **SonarCloud** después del push (el CI no mira el gate "Sonar way", §323).
-2. **Revisión de todo el frontend contra el diseño** (pedido del 12/11). El diseño es `docs/DESIGN.md` (1.1, el
+1. [x] **Patrocinio, paso 5: proponer con puntos** (§329, 12/11). Hecho en local, con commit y **sin pushear**: falta
+   el push, y después mirar el CI, el Deploy y **SonarCloud** (el CI no mira el gate "Sonar way", §323).
+2. **Revisión de todo el frontend contra el diseño** (pedido del 12/11). **Lo próximo.** El diseño es `docs/DESIGN.md` (1.1, el
    rediseño de §239–§240). Va después del paso 5 para que cubra las pantallas del patrocinio ya terminadas. Son varias
    sesiones: se hace por tandas y **no se arregla nada sin que el usuario elija** (regla 16).
    - **a. Barrido por código** (barato, sin navegador). Lista de reglas sacada de "Hacer y no hacer", "Accesibilidad",
@@ -40,8 +38,9 @@ En este orden:
      informe del TP. Además una página (artifact) con la tabla y las capturas para que el usuario elija.
    - **e. Arreglos** por tandas que elige el usuario, un commit por tanda, con test rojo → verde cuando se puede
      (lo visual queda NO verificado en un celular real). Las pantallas nuevas se suman a `DESIGN.md` (estado actual).
-   - De paso, la deuda chica del front de la Etapa 4: `POINT_TYPE_LABEL` a `lib/sponsorship.ts` y `es-AR` en
-     `NGOProjectDetail`.
+   - De paso, la deuda chica del front de la Etapa 4: `es-AR` en `NGOProjectDetail`.
+   - Sumar al inventario lo nuevo de §329: los puntos en "Proponer" (`CompanyOwnProfile`, que sigue con el resto de
+     la pantalla en los estilos viejos) y `SponsorshipPointForm`.
 3. **Notificaciones instantáneas** por el WebSocket que ya existe (Etapa 3). Ahí sumar el contador de postulaciones pendientes en la barra lateral de la ONG, que quedó afuera en §320 porque hoy no hay una forma barata de contarlas.
 4. Después, lo que siga de la Etapa 3 (reputación: antes definir qué se mide) o lo que decida el usuario.
 
@@ -78,7 +77,7 @@ Sin Figma: diseño propio del 11/11 ([lienzo](https://claude.ai/artifact/EvgwaAn
 2. [x] Frontend: lista única con filtros, "agregado/editado por" y "cambió desde que aceptaste" (§325).
 3. [x] Frontend: pantalla del historial de versiones (§326).
 4. [x] Una versión por guardado: borrador en pantalla y "Guardar cambios" en una transacción (§327).
-5. [ ] Proponer con puntos (versión 1). **Lo próximo** (ver "Para retomar").
+5. [x] Proponer con puntos, en la versión de la propuesta (§329). Sin pushear.
 
 Lo que pedía la etapa:
 
@@ -111,7 +110,7 @@ En este orden, salvo que el usuario diga otra cosa (orden propuesto, sin confirm
 - [ ] Ver por qué `node --watch` se reinicia solo en Windows (§308).
 - [ ] Reescribir `GUION_DEFENSA.md` para la presentación final y sumar la línea de la muestra.
 - [ ] Patrocinio: los endpoints de a un punto (`POST/PATCH/DELETE …/puntos`) quedaron sin uso en la pantalla desde §327; decidir si se sacan (cada uno sigue creando una versión).
-- [ ] Patrocinio: `SponsorshipAgreementScreen` exporta `POINT_TYPE_LABEL` y eso impide el refresco en caliente de Vite (recarga la página entera); moverlo a `lib/sponsorship.ts`.
+- [x] Patrocinio: `POINT_TYPE_LABEL` pasó a `lib/sponsorship.ts` (§329; lo necesitaba el formulario compartido). No miré si el refresco en caliente de Vite volvió a andar en esa pantalla.
 - [ ] Los dos tests con finales de línea mezclados (`FeedPostCard.test.tsx`, `NGOKPIs.test.tsx`, `w/mixed`): normalizarlos a CRLF.
 
 ## Te toca a vos
@@ -119,6 +118,7 @@ En este orden, salvo que el usuario diga otra cosa (orden propuesto, sin confirm
 - [ ] Cargar `ADMIN_EMAILS` en el panel de Render (servicio del backend; varios, separados por coma) con el mail de una cuenta tuya que ya exista en prod.
 - [ ] Probar en la interfaz la validación de ONG (pedirla con una ONG, aprobar o rechazar como admin) y la pantalla de postulaciones (filtros, lote, cupos).
 
+- [ ] Cuando esté desplegado §329: proponer un patrocinio con puntos desde el perfil de la empresa y volver a proponer después de un rechazo.
 - [ ] Probar en producción el acuerdo de patrocinio, como empresa y como ONG: varios cambios y "Guardar cambios" (una versión), "Descartar", el aviso "cambió desde que aceptaste" desde la otra cuenta y "Historial de versiones". Los acuerdos de antes no tienen historial previo (el aviso dice "al menos").
 - [ ] Probar en tu compu la barra lateral nueva de la ONG (grupos Panel, Comunidad y Mi ONG) y el Panel en dos columnas; en una notebook, la barra con nombres desde 1024 px.
 - [ ] Activar en el panel de Webhooks de Mercado Pago los eventos **Contracargos** y **Vinculación de aplicaciones** (§311, §313).

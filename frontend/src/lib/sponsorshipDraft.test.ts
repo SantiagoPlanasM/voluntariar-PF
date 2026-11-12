@@ -4,7 +4,7 @@
 // juntos como una versión. Estas funciones llevan el borrador y lo traducen al lote de POST …/cambios.
 import { describe, test, expect } from 'vitest';
 import type { SponsorshipPoint } from './api';
-import { addPoint, draftCount, editPoint, emptyDraft, isNew, removePoint, toChanges, undoRemove } from './sponsorshipDraft';
+import { addPoint, draftCount, editPoint, emptyDraft, isNew, removePoint, toChanges, toPoints, undoRemove } from './sponsorshipDraft';
 
 const server: SponsorshipPoint = {
   id: 'pt1', side: 'company', type: 'money', detail: 'Plantines', amount: 1000, created_at: '', updated_at: '',
@@ -68,5 +68,18 @@ describe('borrador del acuerdo', () => {
     d = editPoint(d, server, 'pt1', { type: 'money', detail: 'Otra', amount: 1000 });
     d = addPoint(d, 'a', { type: 'other', detail: 'Informe', amount: null });
     expect(toChanges(d).map(c => c.action)).toEqual(['add', 'edit', 'remove']);
+  });
+
+  // §329: al proponer, el borrador solo tiene puntos nuevos y viajan como `points` (sin `action`).
+  test('toPoints: los agregados como los recibe la propuesta, en orden y con el monto solo en dinero', () => {
+    expect(toPoints(emptyDraft())).toEqual([]);
+    let d = addPoint(emptyDraft(), 'a', { type: 'money', detail: ' Plantines ', amount: 500 });
+    d = addPoint(d, 'b', { type: 'supplies', detail: 'Guantes', amount: 99 });
+    d = editPoint(d, undefined, 'new:b', { type: 'supplies', detail: 'Guantes y bolsas', amount: null });
+    expect(toPoints(d)).toEqual([
+      { type: 'money', detail: 'Plantines', amount: 500 },
+      { type: 'supplies', detail: 'Guantes y bolsas' },
+    ]);
+    expect(Object.keys(toPoints(d)[1])).toEqual(['type', 'detail', 'amount']);   // amount undefined: no viaja en el JSON
   });
 });

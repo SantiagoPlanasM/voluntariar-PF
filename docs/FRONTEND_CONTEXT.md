@@ -175,8 +175,11 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
 ### Empresa
 - **`CompanyDashboard`:** 4 KPIs y los proyectos. Las horas y los voluntarios se muestran solo en patrocinios aceptados.
 - **`CompanyOwnProfile`:** perfil y patrocinios (proponer, retirar, "Ver acuerdo"). Con `?proponer=<projectId>`, abre "Proponer" con ese proyecto elegido. El listado pide `limit: 500`.
+  - **Proponer con puntos (§329):** "Qué proponés aportar (opcional)": los puntos se arman antes de mandar, con `SponsorshipPointForm` y un borrador de `lib/sponsorshipDraft.ts` (solo agregados; cada uno con editar y borrar), y viajan con la propuesta (`toPoints`). Sin puntos, el pedido de siempre. Hasta 20 (después no ofrece "Agregar punto"). Con un punto a medio escribir no manda. Un error del backend se muestra y los puntos quedan.
+  - Si el proyecto elegido tiene una propuesta rechazada, avisa que los puntos de ese acuerdo se mantienen y lleva al acuerdo.
+- **`SponsorshipPointForm`:** el formulario de un punto (tipo, detalle y monto solo en dinero; "Listo" y "Cancelar"). Controlado: lo usan el acuerdo y "Proponer".
 - **`CompanyPublicProfile`:** la pestaña Patrocinios usa `sponsored_projects`.
-- **`lib/sponsorship.ts`:** etiquetas y colores de los estados de un patrocinio.
+- **`lib/sponsorship.ts`:** etiquetas y colores de los estados de un patrocinio, `POINT_TYPE_LABEL`, `formatMoney`, el valor del formulario de un punto (`PointFormValue`, `newPointForm`, `editPointForm`, `formFields`) y `changesSince`.
 
 ### Momentos
 - **`MomentsPage`**, **`MomentsFeed`** (paginado, con "Compartir un momento"), **`PostCard`**, **`PhotoCarousel`** (botones, teclado, deslizar), **`PostComposer`** y **`MomentsGrid`** (miniaturas de 3 × 3, que abren la publicación en un modal).

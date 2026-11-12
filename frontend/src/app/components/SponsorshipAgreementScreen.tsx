@@ -12,19 +12,15 @@ import { useLocation, useParams, Link } from 'react-router';
 import { ArrowLeft, Check, History, Loader2, Pencil, Plus, Trash2, Undo2 } from 'lucide-react';
 import { api, ApiError, SponsorshipAgreement, SponsorshipPoint, SponsorshipVersion } from '../../lib/api';
 import { formatTime, timeAgo, userMessage } from '../../lib/format';
-import { SPONSORSHIP_LABEL, changesSince } from '../../lib/sponsorship';
+import { POINT_TYPE_LABEL, PointFormValue, SPONSORSHIP_LABEL, changesSince, editPointForm, formFields, formatMoney as money, newPointForm } from '../../lib/sponsorship';
 import { Draft, addPoint, draftCount, editPoint, emptyDraft, newId, removePoint, toChanges, undoRemove } from '../../lib/sponsorshipDraft';
 import { useLatestRequest } from '../../lib/useLatestRequest';
 import { useConfirm } from '../ui/UiProvider';
 import { LoadError, describeLoadError } from './LoadError';
-
-export const POINT_TYPE_LABEL: Record<SponsorshipPoint['type'], string> = {
-  money: 'Dinero', supplies: 'Insumos', volunteers: 'Voluntarios de la empresa', outreach: 'Difusión', other: 'Otro',
-};
-const money = (n: number) => `$ ${n.toLocaleString('es-AR')}`;
+import { SponsorshipPointForm } from './SponsorshipPointForm';
 
 /** El formulario de un punto: `id` null es uno nuevo; si no, el id del punto (guardado o `new:<clave>`). */
-type Form = { id: string | null; type: SponsorshipPoint['type']; detail: string; amount: string };
+type Form = PointFormValue;
 type Side = SponsorshipPoint['side'];
 /** Un punto como se ve: el guardado con el borrador aplicado, o uno nuevo del borrador. */
 type Row = SponsorshipPoint & { pending?: 'new' | 'edited' | 'removing' };
@@ -128,7 +124,7 @@ export function SponsorshipAgreementScreen() {
     if (!form) return;
     if (!form.detail.trim()) { setError('El detalle no puede estar vacío'); return; }
     setError('');
-    const fields = { type: form.type, detail: form.detail, amount: form.type === 'money' ? Number(form.amount) : null };
+    const fields = formFields(form);
     setPending(d => (form.id
       ? editPoint(d, a.points.find(pt => pt.id === form.id), form.id, fields)
       : addPoint(d, String(++nextKey.current), fields)));
@@ -151,22 +147,7 @@ export function SponsorshipAgreementScreen() {
   };
 
   const pointForm = () => form && (
-    <div className="p-3 rounded-xl bg-surface-soft flex flex-col gap-2">
-      <select aria-label="Tipo de punto" value={form.type} className={field}
-        onChange={ev => setForm({ ...form, type: ev.target.value as Form['type'] })}>
-        {Object.entries(POINT_TYPE_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-      </select>
-      <input aria-label="Detalle del punto" maxLength={300} value={form.detail} className={field}
-        placeholder="Ej: 10 empleados una jornada" onChange={ev => setForm({ ...form, detail: ev.target.value })} />
-      {form.type === 'money' && (
-        <input aria-label="Monto en pesos" type="number" min="1" value={form.amount} className={field}
-          onChange={ev => setForm({ ...form, amount: ev.target.value })} />
-      )}
-      <div className="flex gap-2">
-        <button type="button" onClick={applyForm} className={`${btn} flex-1 bg-ink text-on-ink`}>Listo</button>
-        <button type="button" onClick={() => setForm(null)} className={`${btn} bg-surface text-ink`}>Cancelar</button>
-      </div>
-    </div>
+    <SponsorshipPointForm value={form} onChange={setForm} onDone={applyForm} onCancel={() => setForm(null)} />
   );
 
   const visible = rows.filter(r => r.pending !== 'removing');
@@ -226,7 +207,7 @@ export function SponsorshipAgreementScreen() {
         ) : (
           <div className="flex flex-shrink-0">
             <button type="button" aria-label={`Editar punto: ${pt.detail}`}
-              onClick={() => setForm({ id: pt.id, type: pt.type, detail: pt.detail, amount: pt.amount == null ? '' : String(pt.amount) })}
+              onClick={() => setForm(editPointForm(pt))}
               className="w-11 h-11 rounded-full hover:bg-surface-pressed inline-flex items-center justify-center text-ink-soft">
               <Pencil size={16} aria-hidden="true" />
             </button>
@@ -326,7 +307,7 @@ export function SponsorshipAgreementScreen() {
             {open && (
               <div className="px-4 py-3 border-t border-hairline">
                 {form && !form.id ? pointForm() : (
-                  <button type="button" onClick={() => setForm({ id: null, type: 'supplies', detail: '', amount: '' })}
+                  <button type="button" onClick={() => setForm(newPointForm())}
                     className={`${btn} bg-surface-soft text-ink`}>
                     <Plus size={16} aria-hidden="true" />Agregar punto
                   </button>

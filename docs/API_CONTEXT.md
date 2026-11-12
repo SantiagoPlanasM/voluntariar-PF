@@ -413,9 +413,10 @@ Una por ONG (tabla `ngo_validaciones`). Estados en la API: `none` (sin pedido) �
 
 ### Propuesta (`empresas.js` y `ngos.js`; tabla `empresa_voluntariados`)
 - **`POST /api/empresas/me/patrocinios`** (company):
-  - **Body:** `{ project_id, mensaje? (≤ 1000) }`. El proyecto tiene que estar `active` (si no, 404).
-  - Si la propuesta anterior fue rechazada, se reutiliza con un compare-and-swap.
-  - **Errores:** 409 "Ya existe una propuesta de patrocinio con este proyecto" (también si llegan dos a la vez).
+  - **Body:** `{ project_id, mensaje? (≤ 1000), points? }`. El proyecto tiene que estar `active` (si no, 404).
+  - `points[]` (§329, opcional, hasta 20): `{ type, detail, amount? }`, lo que la empresa propone aportar. Se validan como un `add` de `POST …/cambios` y se guardan en la misma transacción que la propuesta: son del lado `company`, van en la versión de la propuesta (la 1) con su registro en `patrocinio_cambios`, en el orden en que llegaron, y esa es la versión que la empresa acepta al proponer. Sin `points`, con `null` o con `[]`, la versión 1 queda sin cambios.
+  - Si la propuesta anterior fue rechazada, se reutiliza con un compare-and-swap: una versión nueva (una sola), con los `points` registrados en ella. Los puntos de antes quedan, de las dos partes; el tope de 20 cuenta todos los de la empresa.
+  - **Errores:** 400 "points inválido" (no es una lista), "Punto inválido" (no es un objeto) y los de un punto · 409 "Hasta 20 puntos por lado" (no se crea ni cambia nada) · 409 "Ya existe una propuesta de patrocinio con este proyecto" (también si llegan dos a la vez).
   - Avisa a la ONG en la app y por mail. **201:** `{ message }`.
 - **`DELETE /api/empresas/me/patrocinios/:projectId`:** retira la propuesta solo si está `propuesto` (si no, 404).
 - **`GET /api/empresas/me/patrocinios`** y **`GET /api/ngos/me/patrocinios`:** todas las propuestas, con los datos del otro lado.
@@ -452,9 +453,10 @@ Una por ONG (tabla `ngo_validaciones`). Estados en la API: `none` (sin pedido) �
   - Si cierra el acuerdo, avisa `sponsorship_closed`; si no, `sponsorship_accepted_by_other`.
 - **`POST …/rechazar`:** pasa de `propuesto` a `rechazado` → aviso `sponsorship_rejected`.
 - **`GET …/historial`** (§324) → `{ versions[] }`, de la más nueva a la más vieja. Solo las partes (404 para el resto), también con el acuerdo cerrado.
-  - `versions[] = { version, side, author_name, created_at, changes[], accepted_by[] }`. Una versión sin cambios de puntos (la propuesta) tiene `side`/`author_name` null y la fecha de su primera aceptación.
+  - `versions[] = { version, side, author_name, created_at, changes[], accepted_by[] }`. Una versión sin cambios de puntos (una propuesta sin puntos) tiene `side`/`author_name` null y la fecha de su primera aceptación.
   - `changes[] = { action: add|edit|remove, point_id, side, before, after }`, con `before`/`after` = `{ type, detail, amount }` o null. Lleva montos: es privado.
   - `accepted_by[] = { side, author_name, accepted_at }`. Quedan registradas las aceptaciones de `…/aceptar`, del `PATCH` de la ONG y de proponer (la empresa, en la misma transacción que la propuesta).
+  - Una propuesta con puntos (§329) es una versión con `side: company`, su autor y esos `add`.
   - Los acuerdos de antes de §324 no tienen el historial previo.
 - **`POST …/mensajes`** `{ body (≤ 1000) }`: solo con el acuerdo `propuesto`, y no cambia la versión → aviso `sponsorship_message`, 201.
 

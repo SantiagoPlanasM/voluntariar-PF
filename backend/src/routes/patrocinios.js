@@ -28,6 +28,7 @@ class AgreementError extends Error {
 }
 const CLOSED = 'El acuerdo ya está cerrado: no se puede cambiar';
 const STALE = 'El acuerdo cambió: revisalo de nuevo';
+const TOO_MANY = `Hasta ${MAX_POINTS} puntos por lado`;
 // Columna de la aceptación de cada lado (nombre fijo: nunca sale del request).
 const ACCEPT_COL = { empresa: 'acepta_empresa_version', ong: 'acepta_ong_version' };
 
@@ -181,6 +182,52 @@ function recordChange(tx, a, version, accion, puntoId, userId, antes, despues, o
   );
 }
 
+/** Da de alta un punto del lado de `a.side` y lo registra en la versión `version` (va dentro de la transacción). */
+async function insertPoint(tx, a, version, { type, detail, amount }, userId, orden = 0) {
+  const id = crypto.randomUUID();
+  const after = dbPoint(type, detail, amount);
+  await tx.run(
+    `INSERT INTO patrocinio_puntos (id, empresa_id, project_id, lado, tipo, detalle, monto, autor_id, created_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+    [id, a.empresa_id, a.project_id, a.side, after.tipo, after.detalle, after.monto, userId, new Date().toISOString()]
+  );
+  await recordChange(tx, a, version, 'agrega', id, userId, null, after, orden);
+}
+
+/** El tope de puntos del lado de `a.side`, mirado después de agregar: si quedó pasado, 409 (y la transacción se deshace). */
+async function checkPointLimit(tx, a) {
+  const n = await tx.get(
+    'SELECT COUNT(*) AS n FROM patrocinio_puntos WHERE empresa_id = $1 AND project_id = $2 AND lado = $3',
+    [a.empresa_id, a.project_id, a.side]
+  );
+  if ((Number(n.n) || 0) > MAX_POINTS) throw new AgreementError(409, TOO_MANY);
+}
+
+// ── Proponer con puntos (§329): lo usa POST /api/empresas/me/patrocinios (routes/empresas.js) ──
+/** Valida los puntos de una propuesta sin mirar la base. Devuelve `{ status, error }` o null. Sin `points`, nada que validar. */
+function proposalPointsError(points) {
+  if (points == null) return null;
+  if (!Array.isArray(points)) return { status: 400, error: 'points inválido' };
+  if (points.length > MAX_POINTS) return { status: 409, error: TOO_MANY };
+  for (const p of points) {
+    if (!p || typeof p !== 'object' || Array.isArray(p)) return { status: 400, error: 'Punto inválido' };
+    const error = pointError({ type: p.type, detail: p.detail, amount: p.amount });
+    if (error) return { status: 400, error };
+  }
+  return null;
+}
+
+/**
+ * Guarda los puntos de una propuesta, del lado de la empresa, como cambios de `version`. Va dentro de la transacción
+ * de la propuesta. Al re-proponer quedan los puntos de antes: si con estos se pasa el tope, AgreementError 409.
+ */
+async function addProposalPoints(tx, empresaId, projectId, version, points, userId) {
+  if (!points || points.length === 0) return;
+  const a = { empresa_id: empresaId, project_id: projectId, side: 'empresa' };
+  for (const [i, p] of points.entries()) await insertPoint(tx, a, version, p, userId, i);
+  await checkPointLimit(tx, a);
+}
+
 /**
  * Registra que `side` aceptó `version` (§324). Una sola vez por lado y versión: volver a aceptar la misma (el PATCH de
  * siempre de la ONG lo permite) no duplica. Va dentro de la transacción de la aceptación.
@@ -221,19 +268,8 @@ router.post('/:empresaId/:projectId/puntos', requireAuth, agreementParty, async 
   if (error) return res.status(400).json({ error });
   const a = req.agreement;
   await changePoints(req, res, 201, async (tx, version) => {
-    const n = await tx.get(
-      'SELECT COUNT(*) AS n FROM patrocinio_puntos WHERE empresa_id = $1 AND project_id = $2 AND lado = $3',
-      [a.empresa_id, a.project_id, a.side]
-    );
-    if ((Number(n.n) || 0) >= MAX_POINTS) throw new AgreementError(409, `Hasta ${MAX_POINTS} puntos por lado`);
-    const id = crypto.randomUUID();
-    const after = dbPoint(type, detail, amount);
-    await tx.run(
-      `INSERT INTO patrocinio_puntos (id, empresa_id, project_id, lado, tipo, detalle, monto, autor_id, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [id, a.empresa_id, a.project_id, a.side, after.tipo, after.detalle, after.monto, req.user.id, new Date().toISOString()]
-    );
-    await recordChange(tx, a, version, 'agrega', id, req.user.id, null, after);
+    await insertPoint(tx, a, version, { type, detail, amount }, req.user.id);
+    await checkPointLimit(tx, a);
   });
 });
 
@@ -440,14 +476,7 @@ router.post('/:empresaId/:projectId/cambios', requireAuth, agreementParty, async
       let applied = 0;
       for (const c of changes) {
         if (c.action === 'add') {
-          const id = crypto.randomUUID();
-          const after = dbPoint(c.type, c.detail, c.amount);
-          await tx.run(
-            `INSERT INTO patrocinio_puntos (id, empresa_id, project_id, lado, tipo, detalle, monto, autor_id, created_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-            [id, a.empresa_id, a.project_id, a.side, after.tipo, after.detalle, after.monto, req.user.id, new Date().toISOString()]
-          );
-          await recordChange(tx, a, next, 'agrega', id, req.user.id, null, after, applied);
+          await insertPoint(tx, a, next, c, req.user.id, applied);
           applied += 1;
           continue;
         }
@@ -473,11 +502,7 @@ router.post('/:empresaId/:projectId/cambios', requireAuth, agreementParty, async
         applied += 1;
       }
       if (applied === 0) throw new AgreementError(400, NO_CHANGES);
-      const n = await tx.get(
-        'SELECT COUNT(*) AS n FROM patrocinio_puntos WHERE empresa_id = $1 AND project_id = $2 AND lado = $3',
-        [a.empresa_id, a.project_id, a.side]
-      );
-      if ((Number(n.n) || 0) > MAX_POINTS) throw new AgreementError(409, `Hasta ${MAX_POINTS} puntos por lado`);
+      await checkPointLimit(tx, a);
     });
     await respond(req, res);
   } catch (err) {
@@ -540,3 +565,6 @@ router.get('/:empresaId/:projectId/historial', requireAuth, agreementParty, asyn
 module.exports = router;
 module.exports.acceptVersion = acceptVersion;
 module.exports.recordAcceptance = recordAcceptance;
+module.exports.proposalPointsError = proposalPointsError;
+module.exports.addProposalPoints = addProposalPoints;
+module.exports.AgreementError = AgreementError;

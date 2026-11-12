@@ -3,7 +3,7 @@
 // Decisión del usuario (11/11): agregar, editar o quitar puntos no crea una versión al instante; los cambios de una
 // parte quedan acá hasta "Guardar cambios", que los manda juntos (POST …/cambios) como UNA versión. Funciones puras:
 // cada una devuelve un borrador nuevo. Los puntos nuevos se identifican como `new:<clave>` hasta guardarse.
-import type { SponsorshipChangeInput, SponsorshipPoint } from './api';
+import type { SponsorshipChangeInput, SponsorshipPoint, SponsorshipPointInput } from './api';
 
 export type PointFields = { type: SponsorshipPoint['type']; detail: string; amount: number | null };
 export interface Draft {
@@ -51,6 +51,11 @@ export function undoRemove(d: Draft, id: string): Draft {
 
 // `clean` ya dejó el monto en null fuera de dinero: `undefined` no viaja en el JSON.
 const body = (f: PointFields) => ({ type: f.type, detail: f.detail, amount: f.amount ?? undefined });
+
+/** §329: los puntos de una propuesta nueva (`points` de POST /empresas/me/patrocinios): solo los agregados, en orden. */
+export function toPoints(d: Draft): SponsorshipPointInput[] {
+  return d.adds.map(({ key: _key, ...f }) => body(f));
+}
 
 /** El lote para POST …/cambios: agregados, editados y quitados. */
 export function toChanges(d: Draft): SponsorshipChangeInput[] {

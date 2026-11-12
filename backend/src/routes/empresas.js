@@ -14,7 +14,8 @@ const { checkText, firstError } = require('../lib/inputs');
 const { isUniqueViolation } = require('../lib/dbErrors');
 const { sendEmail } = require('../lib/email');
 const { sponsorProposalEmail } = require('../lib/emailTemplates');
-const { recordAcceptance } = require('./patrocinios');   // §324: proponer queda registrado como aceptación
+// §324: proponer queda registrado como aceptación. §329: y puede llevar puntos.
+const { recordAcceptance, proposalPointsError, addProposalPoints, AgreementError } = require('./patrocinios');
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
@@ -245,12 +246,15 @@ router.get('/me/patrocinios', requireAuth, requireRole('company'), async (req, r
 // (ver PATCH /api/ngos/me/patrocinios/:empresaId/:projectId).
 router.post('/me/patrocinios', requireAuth, requireRole('company'), async (req, res) => {
   try {
-    const { project_id, mensaje } = req.body;
+    const { project_id, mensaje, points } = req.body;
     if (!project_id) return res.status(400).json({ error: 'project_id requerido' });
     // Tipo y largo antes de tocar la base (REVISION A6): un objeto rompía el parámetro del SQL en SQLite (500).
     if (typeof project_id !== 'string') return res.status(400).json({ error: 'project_id inválido' });
     const mensajeErr = checkText(mensaje, { label: 'El mensaje', max: 1000 });
     if (mensajeErr) return res.status(400).json({ error: mensajeErr });
+    // §329: los puntos de la propuesta, validados como en POST /api/patrocinios/…/cambios.
+    const pointsErr = proposalPointsError(points);
+    if (pointsErr) return res.status(pointsErr.status).json({ error: pointsErr.error });
 
     const empresa = await db.get(
       'SELECT id, nombre FROM empresas WHERE user_id=$1', [req.user.id]
@@ -298,6 +302,8 @@ router.post('/me/patrocinios', requireAuth, requireRole('company'), async (req, 
           );
           if (changes !== 1) throw DUPLICATE;
           const row = await tx.get('SELECT version FROM empresa_voluntariados WHERE empresa_id=$1 AND project_id=$2', [empresa.id, project_id]);
+          // §329: los puntos van en esa misma versión nueva (una sola), que es la que la empresa acepta.
+          await addProposalPoints(tx, empresa.id, project_id, Number(row.version), points, req.user.id);
           await recordAcceptance(tx, empresa.id, project_id, 'empresa', Number(row.version), req.user.id);
         } else {
           await tx.run(
@@ -305,11 +311,13 @@ router.post('/me/patrocinios', requireAuth, requireRole('company'), async (req, 
              VALUES ($1,$2,'propuesto',$3,1)`, // proponer es aceptar la versión 1 (§264)
             [empresa.id, project_id, mensaje || null]
           );
+          await addProposalPoints(tx, empresa.id, project_id, 1, points, req.user.id);   // §329: van en la versión 1
           await recordAcceptance(tx, empresa.id, project_id, 'empresa', 1, req.user.id);
         }
       });
     } catch (err) {
       if (err === DUPLICATE || isUniqueViolation(err)) return duplicate();
+      if (err instanceof AgreementError) return res.status(err.status).json({ error: err.message });
       throw err;
     }
 
