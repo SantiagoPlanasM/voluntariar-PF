@@ -671,3 +671,17 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - El celular con la barra sobre la barra inferior de la app (`bottom` de 56 px más la zona segura): solo lo razoné, no lo miré en un teléfono.
 - El diálogo de `beforeunload` en otros navegadores (cada uno muestra el suyo y algunos lo saltean sin interacción previa).
 - Producción: los pasos 1 a 4 no están pusheados.
+
+## 328. Historial del patrocinio: los cambios de un lote, en el orden en que se mandaron
+
+### Qué se hizo
+- El CI de 8015875 (§327) falló en Backend · SQLite · UTC: los cambios de un lote caen en el mismo milisegundo y el historial los desempataba por el id (al azar), así que a veces salían en otro orden. Columna aditiva `patrocinio_cambios.orden` (`addColumnIfNotExists`, por defecto 0) con la posición del cambio en su lote; el historial ordena por versión, orden, fecha e id.
+
+### Verificación
+- Test nuevo con 15 cambios en un lote: rojo 3 de 3 antes del arreglo, verde 3 de 3 después. Backend: 1255/1255 en SQLite, 1257/1257 en Postgres 18 y 1255/1255 en Córdoba.
+
+### Errores propios
+- El orden dentro de una versión dependía de la fecha con milisegundos; en mi máquina el test pasaba por suerte. Lo pushée sin verlo: el CI lo atajó y no se desplegó.
+
+### ⚠️ NO verificado
+- Los registros de antes de este arreglo (solo en las bases locales de prueba) quedan con orden 0: ordenan como antes.

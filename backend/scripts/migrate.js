@@ -585,6 +585,9 @@ async function migrate() {
       created_at     ${NOW},
       FOREIGN KEY (empresa_id, project_id) REFERENCES empresa_voluntariados(empresa_id, project_id) ON DELETE CASCADE
     )`);
+  // §328: la posición del cambio dentro de su versión. Los de un lote caen en el mismo milisegundo y el desempate por
+  // id (al azar) los desordenaba en el historial.
+  await addColumnIfNotExists('patrocinio_cambios', 'orden', 'INTEGER NOT NULL DEFAULT 0');
   await db.query(`CREATE TABLE IF NOT EXISTS patrocinio_aceptaciones (
       id          ${UUID_PK},
       empresa_id  TEXT NOT NULL,

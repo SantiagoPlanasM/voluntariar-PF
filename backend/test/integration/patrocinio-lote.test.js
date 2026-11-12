@@ -82,6 +82,15 @@ describe('Acuerdo de patrocinio: guardar un lote de cambios', () => {
     assert.equal(h[0].author_name, 'Admin TechCorp');
   });
 
+  // §328 (CI de 8015875): los cambios de un lote caen en el mismo milisegundo y se desempataban por el id (al azar).
+  test('el historial guarda los cambios de un lote en el orden en que se mandaron', async () => {
+    const url = await acuerdoNuevo();
+    const nombres = Array.from({ length: 15 }, (_, i) => `Punto ${String(i + 1).padStart(2, '0')}`);
+    assert.equal((await lote(url, company, 1, nombres.map((d) => add(d)))).status, 200);
+    const v2 = (await call(`${url}/historial`, { token: company })).body.versions[0];
+    assert.deepEqual(v2.changes.map((c) => c.after.detail), nombres);
+  });
+
   test('cada parte guarda solo lo suyo; la otra parte no puede tocar esos puntos (404, nada cambia)', async () => {
     const url = await acuerdoNuevo();
     const r = await lote(url, company, 1, [add('De la empresa')]);

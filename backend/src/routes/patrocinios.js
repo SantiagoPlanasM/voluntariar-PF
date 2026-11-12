@@ -170,14 +170,14 @@ function mergeEdit(current, body) {
 const dbPoint = (type, detail, amount) => ({ tipo: TYPE_DB[type], detalle: detail.trim(), monto: type === 'money' ? amount : null });
 
 /** Registra un cambio de un punto (§324), dentro de la transacción del cambio. `antes`/`despues`: { tipo, detalle, monto } o null. */
-function recordChange(tx, a, version, accion, puntoId, userId, antes, despues) {
+function recordChange(tx, a, version, accion, puntoId, userId, antes, despues, orden = 0) {
   return tx.run(
     `INSERT INTO patrocinio_cambios (id, empresa_id, project_id, version, accion, punto_id, lado,
-       tipo_antes, detalle_antes, monto_antes, tipo_despues, detalle_despues, monto_despues, autor_id, created_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+       tipo_antes, detalle_antes, monto_antes, tipo_despues, detalle_despues, monto_despues, autor_id, created_at, orden)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
     [crypto.randomUUID(), a.empresa_id, a.project_id, version, accion, puntoId, a.side,
      antes?.tipo ?? null, antes?.detalle ?? null, antes?.monto ?? null,
-     despues?.tipo ?? null, despues?.detalle ?? null, despues?.monto ?? null, userId, new Date().toISOString()]
+     despues?.tipo ?? null, despues?.detalle ?? null, despues?.monto ?? null, userId, new Date().toISOString(), orden]
   );
 }
 
@@ -447,7 +447,7 @@ router.post('/:empresaId/:projectId/cambios', requireAuth, agreementParty, async
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
             [id, a.empresa_id, a.project_id, a.side, after.tipo, after.detalle, after.monto, req.user.id, new Date().toISOString()]
           );
-          await recordChange(tx, a, next, 'agrega', id, req.user.id, null, after);
+          await recordChange(tx, a, next, 'agrega', id, req.user.id, null, after, applied);
           applied += 1;
           continue;
         }
@@ -455,7 +455,7 @@ router.post('/:empresaId/:projectId/cambios', requireAuth, agreementParty, async
         if (!before) throw new AgreementError(404, 'Punto no encontrado');
         if (c.action === 'remove') {
           await tx.run('DELETE FROM patrocinio_puntos WHERE id = $1 AND lado = $2', [before.id, a.side]);
-          await recordChange(tx, a, next, 'quita', before.id, req.user.id, before, null);
+          await recordChange(tx, a, next, 'quita', before.id, req.user.id, before, null, applied);
           applied += 1;
           continue;
         }
@@ -469,7 +469,7 @@ router.post('/:empresaId/:projectId/cambios', requireAuth, agreementParty, async
            WHERE id = $5 AND lado = $6`,
           [after.tipo, after.detalle, after.monto, req.user.id, before.id, a.side]
         );
-        await recordChange(tx, a, next, 'edita', before.id, req.user.id, before, after);
+        await recordChange(tx, a, next, 'edita', before.id, req.user.id, before, after, applied);
         applied += 1;
       }
       if (applied === 0) throw new AgreementError(400, NO_CHANGES);
@@ -501,7 +501,7 @@ router.get('/:empresaId/:projectId/historial', requireAuth, agreementParty, asyn
       `SELECT c.version, c.accion, c.punto_id, c.lado, c.tipo_antes, c.detalle_antes, c.monto_antes,
               c.tipo_despues, c.detalle_despues, c.monto_despues, c.created_at, u.name AS autor_name
        FROM patrocinio_cambios c LEFT JOIN users u ON u.id = c.autor_id
-       WHERE c.empresa_id = $1 AND c.project_id = $2 ORDER BY c.version, c.created_at, c.id`,
+       WHERE c.empresa_id = $1 AND c.project_id = $2 ORDER BY c.version, c.orden, c.created_at, c.id`,
       [a.empresa_id, a.project_id]
     );
     const accepts = await db.all(
