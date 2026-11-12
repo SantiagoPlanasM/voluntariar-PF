@@ -13,8 +13,37 @@ En este orden:
    - Backend: que acepte también `points[]` (validados como en `POST …/cambios`) y los guarde en la misma transacción de la propuesta. Van como versión 1, con su registro en `patrocinio_cambios` y la aceptación de la empresa. Re-proponer tras un rechazo: versión nueva con esos puntos.
    - Frontend: en "Proponer" (`CompanyOwnProfile`), agregar puntos antes de mandar, con el mismo formulario del acuerdo. El historial ya muestra la versión 1 con sus cambios.
    - Probar en SQLite, Postgres y Córdoba, mutation testing, Chrome como empresa y como ONG, y mirar **SonarCloud** después del push (el CI no mira el gate "Sonar way", §323).
-2. **Notificaciones instantáneas** por el WebSocket que ya existe (Etapa 3). Ahí sumar el contador de postulaciones pendientes en la barra lateral de la ONG, que quedó afuera en §320 porque hoy no hay una forma barata de contarlas.
-3. Después, lo que siga de la Etapa 3 (reputación: antes definir qué se mide) o lo que decida el usuario.
+2. **Revisión de todo el frontend contra el diseño** (pedido del 12/11). El diseño es `docs/DESIGN.md` (1.1, el
+   rediseño de §239–§240). Va después del paso 5 para que cubra las pantallas del patrocinio ya terminadas. Son varias
+   sesiones: se hace por tandas y **no se arregla nada sin que el usuario elija** (regla 16).
+   - **a. Barrido por código** (barato, sin navegador). Lista de reglas sacada de "Hacer y no hacer", "Accesibilidad",
+     "Paneles de gestión" y "Comportamiento responsive", buscada con Grep en `frontend/src`:
+     colores fuera de los tokens (hex sueltos, `yellow`/`amber`/`orange`, colores por categoría o por rol);
+     azul que no sea dinero o marca y verde que no sea personas; degradés; sombras en el feed y en los paneles;
+     tarjetas dentro de tarjetas; `alert()`/`window.confirm()`; tocables de menos de 44 px (`h-8`, `w-8`, `p-1` en
+     botones de ícono); íconos sin nombre accesible; fechas y números sin `es-AR` (`toLocaleString()` pelado, ya
+     anotado en `NGOProjectDetail`); corazón usado para "seguir"; insignia de verificada que falte donde aparece una ONG.
+   - **b. Inventario de pantallas**: cada sección de `DESIGN.md` (Componentes, 1.1 y Paneles) contra su componente, con
+     *igual / distinto / falta / sobra*. Prioridad a las que **nunca se revisaron**:
+     - las que §240 dejó solo con la paleta remapeada: `NGOProjectDetail`, `NGOKPIs`, `NGOPatrocinios`,
+       `CreateVoluntariado`, `ReviewsModal`, `FilterModal` (`NGOEmpleados` se saca en la Etapa 4: no revisarla);
+     - las que se hicieron **después** de `DESIGN.md` 1.1 y no tienen sección propia: equipo de la ONG (`NGOTeam`,
+       `TeamPanel`, `TeamInvites`), entrevistas (`InterviewPanel`), patrocinio (acuerdo e historial; ahí sumar el
+       [lienzo del 11/11](https://claude.ai/artifact/EvgwaAnYzYoiTzpAPSX6BZ)), validación de ONG y admin
+       (`NGOValidation`, `AdminValidations`), postulaciones (`NGOApplications`), ingreso con Google, Mercado Pago
+       (`MercadoPagoAccount`, retornos), certificado, restablecer contraseña, transparencia.
+   - **c. En Chrome local** (memoria "Verificación local", datos de `npm run db:reset` en el backend): recorrido por
+     rol (visitante, voluntario, ONG, empresa, admin), cada pantalla a **375 px y 1440 px**, **claro y oscuro**, más
+     768 y 1024 px donde cambia la navegación. Es el punto 4 de "Guía para iterar" de `DESIGN.md`.
+   - **d. Resultado**: se anota como **sesión exploratoria nueva** en `docs/calidad/SESION_EXPLORATORIA.md` (charter,
+     heurísticas, hallazgos, lo no cubierto) y cada hallazgo en `REGISTRO_DEFECTOS.md` con severidad: sirve para el
+     informe del TP. Además una página (artifact) con la tabla y las capturas para que el usuario elija.
+   - **e. Arreglos** por tandas que elige el usuario, un commit por tanda, con test rojo → verde cuando se puede
+     (lo visual queda NO verificado en un celular real). Las pantallas nuevas se suman a `DESIGN.md` (estado actual).
+   - De paso, la deuda chica del front de la Etapa 4: `POINT_TYPE_LABEL` a `lib/sponsorship.ts` y `es-AR` en
+     `NGOProjectDetail`.
+3. **Notificaciones instantáneas** por el WebSocket que ya existe (Etapa 3). Ahí sumar el contador de postulaciones pendientes en la barra lateral de la ONG, que quedó afuera en §320 porque hoy no hay una forma barata de contarlas.
+4. Después, lo que siga de la Etapa 3 (reputación: antes definir qué se mide) o lo que decida el usuario.
 
 ## Devolución de los directores (5/11)
 
