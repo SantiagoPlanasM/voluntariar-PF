@@ -78,3 +78,93 @@ Ninguno se corrigió en la sesión (la exploración informa, no arregla). Despu�
   - H8 → D23 (`3d9a2ba`): el test estático de contraste encontró **otras 5 combinaciones** del mismo defecto, y se corrigieron las 7;
   - H11 → D24 (`c538022`): además, `migrate.js` no actualizaba las FAQs ya cargadas, así que el arreglo del texto no habría llegado a producción.
 - **Después, los otros cinco (§247):** D25 (H9) y D29 (H10) con el test de contraste ampliado a textos de color, como **trinquete** (22 casos conocidos de pantallas sin rehacer quedaron listados: no podían aparecer nuevos y la lista solo podía bajar; en §248 se bajó a 0); D26 (H7), D27 (H1) y D28 (H3) con su test. **Los 8 defectos están corregidos.** Las observaciones H4, H5, H6 y H12 no se registraron como defectos: son decisiones de diseño.
+
+---
+
+# Sesión de prueba exploratoria #2 (todo el frontend contra `DESIGN.md`)
+
+> Hecha el 12/11/2026 a pedido del usuario. El detalle de cada tanda, con archivo y línea, está en
+> `docs/PLAN_FEBRERO.md` → "Para retomar" → 2a, 2b y 2c. Detalle técnico en `PROJECT_ANALYSIS.md §330`.
+
+## 1. Charter
+
+| | |
+|---|---|
+| **Misión** | Comparar **todo el frontend** con `docs/DESIGN.md` 1.1 para encontrar lo que no lo cumple, con prioridad en las pantallas que el rediseño (§240) dejó solo con la paleta remapeada y en las que se hicieron después del diseño (equipo, entrevistas, patrocinio, validación, postulaciones). |
+| **Fuera de alcance** | Arreglar (regla 16: el usuario elige las tandas). Pagos, subida de fotos y mails (servicios externos apagados). |
+| **Tiempo fijo** | No se fijó. Fueron tres tandas en una misma sesión de trabajo; no se midió el reloj de cada una. |
+| **Quién** | El asistente de IA (Claude, en Claude Code). **Sesgo:** el mismo de la sesión #1, es quien escribió buena parte del código. |
+| **Versión** | `1088775` (la de producción el 12/11). |
+| **Entorno** | Local: backend con una base SQLite descartable (seed, más un patrocinio con puntos y dos versiones, tres KPIs y una entrevista cargados por la API); `RESEND_API_KEY` y `CLOUDINARY_*` vacías; Vite en `localhost:5173`; Chrome de escritorio. El ancho de celular es un marco de 375 px dentro de la página. |
+
+## 2. Heurísticas y recorridos usados
+
+- **Barrido por código (2a):** una lista de reglas sacada de "Hacer y no hacer", "Accesibilidad", "Paneles de gestión" y "Comportamiento responsive", buscada con Grep en los 117 archivos fuente de `frontend/src`, más un script que lee cada etiqueta tocable y su alto.
+- **Inventario de pantallas (2b):** cada pantalla contra su sección de `DESIGN.md` (o contra las reglas de los paneles si no tiene sección), con *igual / distinto / falta / sobra*, leyendo el código.
+- **Recorrido por rol en Chrome (2c):** visitante, voluntaria (María), miembro de equipo (Sofía), ONG (Sustentando) y empresa (TechCorp).
+- **Medición automática dentro de la exploración:** un script cargó 56 pantallas a 375 y 1440 px, en claro y oscuro (224 corridas), y 7 más a 768 y 1024 px. En cada una midió scroll horizontal, contraste WCAG de cada texto contra su fondo (4,5:1, o 3:1 en texto grande), botones de ícono de menos de 44 px, texto de menos de 12 px y qué elementos usan el azul y el verde. No mide textos sobre fotos ni elementos con opacidad.
+- **Capturas** de las pantallas dudosas (unas 15 vistas), incluidos el mapa y la hoja de filtros abiertos en oscuro.
+
+## 3. Hallazgos
+
+### Defectos (algo se rompe o no se puede leer)
+
+| # | Hallazgo | Tipo | Sev. | Evidencia |
+|---|---|---|---|---|
+| **C1a** → D33 | **Panel de impacto de la empresa con scroll horizontal a 375 px:** 76 px de más. Se cortan las cifras ("Propuestas pendien…") y el estado de cada proyecto queda fuera de la pantalla. | Defecto (responsive) | media | Medición (`scrollWidth` 451 en un marco de 375) y captura de `/company/dashboard` |
+| **C1b** → D34 | **Propuestas de patrocinio de la ONG con scroll horizontal a 375 px:** 48 px de más. Se corta el botón "Rechazar" y el texto de la propuesta. | Defecto (responsive) | media | Medición (423 en 375) y captura de `/ngo/patrocinios` |
+| **C3** → D35 | **Hoja de filtros de Explorar en oscuro: "Mostrar 12 voluntariados" no se lee.** El botón es `bg-ink text-white`: en oscuro `ink` es casi blanco. | Defecto (accesibilidad) | media | Captura; `FilterModal.tsx:380`. Por cuenta, 1,10:1 |
+| **C2** → D36 | Globito de no leídos: blanco sobre `like`, **3,91:1** en claro y **3,02:1** en oscuro, con texto de 11 px. | Defecto (accesibilidad) | baja | Medición en el Panel de la ONG; `AppShell.tsx:39`, `NGODashboard.tsx:195` |
+| **B2/C5** → D37 | El detalle del voluntariado de la ONG muestra lo recaudado como **`$8,500`**: `toLocaleString()` sin `es-AR` y el `$` pegado. | Defecto (formato) | baja | Captura de `/ngo/dashboard/project/proj-1`; `NGOProjectDetail.tsx:170` |
+| **C4** → D38 | Pie fijo de "Nuevo voluntariado": entre 768 y 1023 px queda corrido respecto del formulario (arranca a 240 px con la barra lateral de 72); a 375 px deja una rendija de 8 px sobre la barra inferior por la que se ve el formulario. | Defecto (visual) | baja | Capturas a 900 y 375 px; `CreateVoluntariado.tsx:622` (`md:left-60`, `bottom-16`) |
+| **C6** → D39 | Contraste **4,32:1** en claro: "Última actualización" de Privacidad y el título "Pendientes (2)" de las propuestas de patrocinio (`text-gray-400` sobre `bg-gray-50`). | Defecto (accesibilidad) | baja | Medición en `/privacidad` y `/ngo/patrocinios` |
+| **C3b** → D40 | Dos textos de la hoja de filtros en tuteo: "Personaliza tu búsqueda de voluntariados" y "Elige según el tiempo y dedicación que desees aportar". El resto de la app usa voseo. | Defecto (texto) | baja | Captura; `FilterModal.tsx:159` |
+
+### Deuda contra `DESIGN.md` (funciona, pero no es lo que dice el diseño)
+
+| # | Qué | Dónde |
+|---|---|---|
+| I1 | **Pantallas que siguen con la forma vieja** (colores nuevos por el remapeo; botones, campos y diálogos propios; títulos de 16 px). | `NGOProjectDetail`, `NGOKPIs`, `NGOPatrocinios`, `CreateVoluntariado` (3 pasos, el diseño pide 5), `ReviewsModal`, `FilterModal`, `ProjectMap`, `CompanyOwnProfile` (edición y lista), `MercadoPagoAccount` (sección del perfil), `MercadoPagoReturn`, `DonationReturn`, `DeleteAccountPage`, `PrivacyPage`, `FollowListModal`, `NGOMoments`, `MomentsGrid`, `LocationPicker`, media `CompanyDashboard` |
+| B3/C11 | **Verde que no es personas.** | Botones de `DonationReturn`, `MercadoPagoReturn`, `NGOPatrocinios` ("Aceptar"), `CreateVoluntariado` ("Publicar"), `ReviewsModal`, `ProjectMap`; enlaces de `PrivacyPage` y `MomentsGrid`; spinners; iniciales; chips por rol y por tipo; valores de los KPIs |
+| B4/C11 | **Azul que no es dinero.** | 13 enlaces azules subrayados (entrevistas, calendario, "Ver acuerdo") y el chip de filtro elegido de `NGOProjectDetail` |
+| B8/C7 | **Botones de ícono de menos de 44 px** (decisión del 12/11: 44 solo para íconos). | Medidos entre 28 y 40 px: "Volver" y "Compartir" del voluntariado, estrellas para puntuar, "Volver" de KPIs, crear y detalle, editar y borrar KPI, mensaje al inscripto, retirar propuesta, sacar del equipo, controles del mapa, "Cerrar" de cuatro diálogos |
+| B1 | Queda un `window.confirm` (era H5 en la sesión #1). | `CompanyOwnProfile.tsx:125` |
+| B9 | Spinner a pantalla completa donde el diseño pide esqueletos. | `CreateVoluntariado`, `CompanyOwnProfile`, `NGOProjectDetail`, `TeamPanel`, `RequireRole` |
+| B5/B7 | Clases que ya no dibujan lo que dicen: unas 597 de la paleta vieja en 29 archivos y 48 sombras. | Sobre todo `ProjectMap` (95), `CreateVoluntariado` (79), `NGOKPIs` (53) |
+| B6/C10 | Colores fijos que no cambian en oscuro. | Chip "Participó" de `ReviewsModal`; fondo del mapa |
+| C8/B10 | Texto de menos de 12 px. | Iniciales de los avatares de 32 px (11 px); los dos globitos de no leídos |
+| C9 | El avatar de la cuenta en la barra muestra a la persona (iniciales en círculo), no el logo cuadrado de la ONG o la empresa. El logo de una empresa sin foto sale con color (DiceBear) donde no pasa por `Avatar`. | `AppShell`; `NGOPatrocinios` |
+| I3 | **Insignia de verificada**: el dato solo llega en voluntariados y en el perfil de la ONG. Falta, y necesita backend, en "ONGs para seguir", mensajes, notificaciones, listas de seguidos y Mis voluntariados. | `FeedSidebar`, `MessagesScreen`, `ChatThread`, `NotificationsScreen`, `FollowListModal`, `MyParticipation`, `PostCard` |
+| I2 | Las pantallas hechas después del diseño siguen las reglas de los paneles, pero **no tienen sección en `DESIGN.md`**; el mismo botón está copiado en cuatro archivos en vez de usar `ui/Button`. | Acuerdo e historial de patrocinio, postulaciones, validación, admin, equipo, entrevistas, restablecer contraseña, transparencia, certificado |
+| B10 | Chicos: corazón como ícono de Mercado Pago y del rol ONG; emojis en el resumen de "Nuevo voluntariado"; "Ver Proyecto", "KPIs de Impacto", "Reseñas y Calificaciones" con mayúsculas de título; el tipo en minúscula ("fugaz") en el detalle de la ONG. | `navConfig`, `AuthModal`, `CreateVoluntariado`, `ProjectMap`, `NGOKPIs`, `ReviewsModal`, `NGOProjectDetail` |
+
+**Resumen:** 8 defectos (3 de severidad media, 5 baja) y 13 grupos de deuda de diseño. Los tres de severidad media están en pantallas que no se rehicieron en §240 o se rehicieron a medias.
+
+## 4. Lo que funcionó bien (también es resultado)
+
+- Las 15 pantallas de la voluntaria y las 9 del visitante: sin fallas de contraste ni scroll horizontal en ninguno de los cuatro modos (salvo la línea de Privacidad, C6).
+- El acuerdo y el historial de patrocinio, postulaciones, validación, equipo, mensajes y notificaciones: sin hallazgos en la medición.
+- A 768 y 1024 px, sin scroll horizontal en las 7 pantallas medidas.
+- Por código: 0 degradés, 0 `alert()`, 0 imágenes sin `alt`, 0 `fetch` fuera de `api.ts`, `lang="es"`, y ningún botón sin texto ni nombre accesible (con una heurística que deja pasar casos).
+
+## 5. Sin cubrir en esta sesión (⚠️ no verificado)
+
+- Las hojas de donar, inscribirse y reseñas, y el compositor de publicaciones.
+- Publicaciones y Momentos con fotos (el seed no trae y no se subió nada).
+- Notificaciones de rechazo: los globitos `bg-ink-muted text-white` darían 2,96:1 en oscuro **por cuenta**; no se vieron.
+- Validación y admin con un pedido cargado; el certificado.
+- El mapa de Explorar en oscuro: el fondo queda claro y en esta corrida no cargaron las imágenes del mapa; no se sabe si es del entorno de prueba.
+- La navegación a 768 y 1024 px más allá del scroll horizontal, y el modo oscuro en esos anchos.
+- Foco con teclado, texto al 200 %, lector de pantalla y un celular real.
+- No se guardaron las capturas en disco: la evidencia que queda son las mediciones y las líneas de código.
+
+## 6. Lectura
+
+- **La medición automática encontró lo que el código no mostraba:** los dos scroll horizontales (C1) no salen de ninguna búsqueda; salen de cargar la pantalla con datos a 375 px. La sesión #1 había anotado que el escritorio de la ONG y la empresa "se miró poco"; esta vez lo que faltaba era el celular de la empresa.
+- **El trinquete de contraste tiene un hueco:** `paletteContrast.test.ts` exige 4,5:1 al `text-white` sobre la paleta, pero no mira `bg-ink`, `bg-ink-muted` ni `bg-like`. D35 es el mismo defecto que D23 (1,10:1 en oscuro) en una combinación que el test no conoce.
+- **El remapeo de la paleta tapa la deuda:** las pantallas viejas se ven "del rediseño" de lejos, y por eso nunca se revisaron. La deuda está concentrada: nueve archivos tienen el 76 % de las clases viejas.
+- `DESIGN.md` se contradecía (44 px para todo lo tocable, y botones de 40 y chips de 32). El usuario decidió el 12/11: 44 solo para los botones de ícono.
+
+## 7. Qué se hizo con los hallazgos
+
+Ninguno se corrigió en la sesión. Los 8 defectos quedaron en `REGISTRO_DEFECTOS.md` como D33–D40, **abiertos y todavía sin Issue en GitHub**. La deuda de diseño no se registra como defecto: se arregla por tandas que elige el usuario (`PLAN_FEBRERO.md`, paso 2e).

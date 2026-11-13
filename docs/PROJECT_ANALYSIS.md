@@ -718,3 +718,31 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - El aviso de propuesta rechazada lo vi solo en claro.
 - Si el refresco en caliente de Vite volvió a andar en la pantalla del acuerdo al sacar `POINT_TYPE_LABEL`.
 - Producción a mano: después del push (`1088775`) dieron verde el CI (9 jobs), el Deploy (smoke y E2E) y SonarCloud (gate OK, 0 issues abiertas), pero nadie propuso con puntos en la interfaz de producción.
+
+## 330. Revisión de todo el frontend contra `DESIGN.md` (sesión exploratoria #2)
+
+### Qué se hizo
+- Pedido del usuario (12/11): revisar todo el frontend contra `docs/DESIGN.md` 1.1, sin arreglar nada (regla 16). Es el punto 2 de "Para retomar" de `PLAN_FEBRERO.md`, pasos a–d. **No se tocó código.**
+- **2a, barrido por código:** reglas de "Hacer y no hacer", "Accesibilidad", "Paneles de gestión" y "Comportamiento responsive" buscadas con Grep en los 117 archivos fuente, más un script que lee el alto de cada etiqueta tocable. Hallazgos B1–B11.
+- **2b, inventario de pantallas:** cada pantalla contra su sección del diseño, leyendo el código. Tres grupos (I1–I3): las que siguen con la forma vieja, las hechas después del diseño (cumplen las reglas de los paneles y no tienen sección propia) y dónde falta la insignia de verificada.
+- **2c, Chrome local:** un script dentro de la página cargó 56 pantallas por rol a 375 y 1440 px, en claro y oscuro (224 corridas), y 7 a 768 y 1024 px; midió scroll horizontal, contraste, botones de ícono de menos de 44 px, texto de menos de 12 px y el uso del azul y el verde. Más unas 15 capturas. Hallazgos C1–C11.
+- **2d, registro:** sesión exploratoria #2 en `calidad/SESION_EXPLORATORIA.md`; 8 defectos nuevos, **D33–D40** (3 de severidad media, 5 baja), abiertos en `calidad/REGISTRO_DEFECTOS.md`; el resto queda como deuda de diseño, no como defecto. Una página con la tabla para que el usuario elija las tandas de arreglo.
+- Decisión del usuario (12/11): los botones de 40 px y los chips de 32 quedan; los 44 px valen solo para los botones de ícono. `DESIGN.md` → Accesibilidad lo dice así (antes se contradecía con sus propios tamaños).
+
+### Verificación
+- No se corrieron las suites: no cambió ningún archivo de código ni de tests.
+- Los números de 2a salen de las búsquedas; los de 2c, del script de medición. Los hallazgos C1, C3, C4 y C5 se vieron además en captura.
+- La API y Vite locales se cerraron por puerto al terminar; la base de prueba quedó en el scratchpad, fuera del repo.
+
+### Errores propios
+- En la primera versión del resumen de 2a conté 69 tocables "de menos de 44 px" sin separar los que siguen los tamaños del propio `DESIGN.md` (40 y 32); lo aclaré en el mismo mensaje y el usuario decidió la regla.
+- El primer intento de cargar un cambio en el acuerdo de patrocinio dio 400: mandé el punto anidado (`{ action, point }`) y la API lo espera plano. Era un dato de prueba, no un defecto.
+- No guardé las capturas en disco: la página para elegir no las tiene, aunque el plan las pedía.
+- Edité `PLAN_FEBRERO.md` y `DESIGN.md` con `Edit`, que les cambia los saltos de línea en la copia de trabajo (`DESIGN.md` quedó `w/crlf`); en el repositorio siguen en LF.
+
+### ⚠️ NO verificado
+- Lo que la sesión no cubrió: las hojas de donar, inscribirse y reseñas, el compositor, publicaciones y Momentos con fotos, notificaciones de rechazo, validación y admin con un pedido cargado, el certificado, la navegación a 768 y 1024 px más allá del scroll, el modo oscuro en esos anchos, foco con teclado, texto al 200 %, lector de pantalla y un celular real.
+- El contraste de los globitos `bg-ink-muted text-white` en oscuro (2,96:1) y el promedio "4.5" de `ReviewsModal` salen del código: no se vieron.
+- Si el mapa de Explorar sin imágenes en oscuro es del entorno de prueba o un defecto.
+- En qué otros endpoints haría falta mandar el dato de ONG verificada: se miró el frontend y los `SELECT` que ya lo traen, no cada ruta.
+- Los defectos D33–D40 no tienen Issue en GitHub (los anteriores sí): falta que el usuario diga si se abren. `calidad/METRICAS.md` y el informe del TP no se actualizaron (tienen fecha de corte).

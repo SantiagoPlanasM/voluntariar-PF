@@ -171,10 +171,17 @@ En este orden:
          2b: por cuenta dan 2,96:1 en oscuro, **no se vieron**); validación y admin con un pedido cargado; el
          certificado; la navegación a 768 y 1024 px más allá del scroll; foco con teclado; texto al 200 %; lector
          de pantalla; un celular real.
-   - **d. Resultado** (**lo próximo**): se anota como **sesión exploratoria nueva** en `docs/calidad/SESION_EXPLORATORIA.md` (charter,
+   - **d. Resultado**: se anota como **sesión exploratoria nueva** en `docs/calidad/SESION_EXPLORATORIA.md` (charter,
      heurísticas, hallazgos, lo no cubierto) y cada hallazgo en `REGISTRO_DEFECTOS.md` con severidad: sirve para el
      informe del TP. Además una página (artifact) con la tabla y las capturas para que el usuario elija.
-   - **e. Arreglos** por tandas que elige el usuario, un commit por tanda, con test rojo → verde cuando se puede
+     - [x] **Hecho el 12/11** (§330): sesión exploratoria #2 en `SESION_EXPLORATORIA.md`; 8 defectos nuevos,
+       **D33–D40** (3 de severidad media), abiertos en `REGISTRO_DEFECTOS.md` y **todavía sin Issue en GitHub** (falta
+       que el usuario diga si se abren); el resto es deuda de diseño, no defecto.
+       [Página para elegir las tandas](https://claude.ai/artifact/5FLvxTAFSd629UcB8X59x2), sin capturas (no se
+       guardaron). Tandas propuestas, T1 a T13; sugeridas para empezar: **T1** (los tres defectos de severidad
+       media), **T2** (contraste y el hueco de `paletteContrast.test.ts`) y **T4** (botones de ícono a 44 px).
+       `METRICAS.md` y el informe del TP no se tocaron.
+   - **e. Arreglos** (**lo próximo: falta que el usuario elija las tandas**) por tandas que elige el usuario, un commit por tanda, con test rojo → verde cuando se puede
      (lo visual queda NO verificado en un celular real). Las pantallas nuevas se suman a `DESIGN.md` (estado actual).
    - De paso, la deuda chica del front de la Etapa 4: `es-AR` en `NGOProjectDetail`.
    - Sumar al inventario lo nuevo de §329: los puntos en "Proponer" (`CompanyOwnProfile`, que sigue con el resto de

@@ -8,9 +8,9 @@
 
 ## Resumen
 
-- **32 defectos.** Severidad: alta 2 · media 14 · baja 16. **Todos corregidos** (D25–D29 el 22/10, §247; D30–D32 el 23/10, §253, §254 y §257).
-- **Dónde se encontraron:** revisión de código 6 · pipeline/CI 5 · SonarCloud 3 · mutation testing 1 · suite de regresión 2 · sesión exploratoria 8 · prueba manual en Chrome sin guion 1 (D30, con el label `encontrado:exploratoria`) · **producción 6** (D31 y D32 los encontré yo, en pruebas manuales sobre producción).
-- **Tasa de defectos escapados a producción** (métrica de proceso, T11): 6 de 32 = **18,8 %** **de este registro** (5 de 31 = 16,1 % antes de D32) (4 de 18 = 22,2 % antes del rediseño del frontend, §240; 4 de 21 = 19,0 % antes de la sesión exploratoria, §245; 4 de 29 = 13,8 % en el corte del informe, §249; 4 de 30 = 13,3 % con D30). Ojo: el registro es una **selección** (abajo); con todos los hallazgos de `REVISION.md`, que se encontraron antes de producción, el denominador sería mucho mayor y la tasa, menor. Para el informe vale como "sobre los defectos registrados", no como tasa del proceso completo.
+- **40 defectos.** Severidad: alta 2 · media 17 · baja 21. **32 corregidos y 8 abiertos**: D33–D40, de la sesión exploratoria #2 del 12/11 (§330), todavía **sin Issue en GitHub y sin arreglo**. D25–D29 se corrigieron el 22/10 (§247); D30–D32 el 23/10 (§253, §254 y §257).
+- **Dónde se encontraron:** revisión de código 6 · pipeline/CI 5 · SonarCloud 3 · mutation testing 1 · suite de regresión 2 · sesión exploratoria 16 (8 en la #1, 8 en la #2) · prueba manual en Chrome sin guion 1 (D30, con el label `encontrado:exploratoria`) · **producción 6** (D31 y D32 los encontré yo, en pruebas manuales sobre producción).
+- **Tasa de defectos escapados a producción** (métrica de proceso, T11): 6 de 40 = **15,0 %** **de este registro** (6 de 32 = 18,8 % antes de la sesión #2, §330; D33–D40 se encontraron en local, pero sobre el código que estaba en producción: nadie los había reportado) (5 de 31 = 16,1 % antes de D32) (4 de 18 = 22,2 % antes del rediseño del frontend, §240; 4 de 21 = 19,0 % antes de la sesión exploratoria, §245; 4 de 29 = 13,8 % en el corte del informe, §249; 4 de 30 = 13,3 % con D30). Ojo: el registro es una **selección** (abajo); con todos los hallazgos de `REVISION.md`, que se encontraron antes de producción, el denominador sería mucho mayor y la tasa, menor. Para el informe vale como "sobre los defectos registrados", no como tasa del proceso completo.
 - **D22–D29 (sesión exploratoria, §245) son los primeros Issues abiertos antes del arreglo:** se reportaron el 22/10, D22–D24 se corrigieron con un test que primero falló (§246) y D25–D29 también (§247). Los D01–D21 están todos corregidos, y todos con prueba de regresión que corre en el CI (salvo D08, que era un defecto del propio test, y D09/D10, que se verifican en el run siguiente).
 - **No se registran como defectos** (son mejoras o decisiones): el hallazgo 4 de §173 (los avisos que salían bien no dejaban línea en los logs: observabilidad) y las issues de SonarCloud que resultaron falsos positivos (`TRIAGE_SONAR.md`). Tampoco la promesa sin `void` de `MyParticipation` que SonarCloud marcó como bug en `7b05f02` (§243): `Promise.allSettled` no rechaza nunca, así que no había un fallo posible; es mantenibilidad. Ni el aviso de `vite` 6.4.3 que hizo fallar `npm audit` en el CI #34 (§242): es una vulnerabilidad de una dependencia, publicada después de instalarla, no un defecto del código. Los defectos de REVISION.md que no figuran acá también están corregidos (ver su tabla); se eligieron los de mayor severidad o con prueba de regresión propia.
 
@@ -50,6 +50,14 @@
 | D30 | [#31](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/31) | Modo oscuro: la tarjeta del proyecto en el mapa queda blanca con el texto claro (1,10:1) | media | prueba manual en Chrome | RF-3 | frontend styles/paletteContrast.test.ts ("superficies blancas con opacidad") | `1053d1d` |
 | D31 | [#32](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/32) | Mapa de Explorar: los voluntariados remotos tienen pin | baja | producción | RF-3 | frontend ProjectMap.test.tsx ("los remotos no van al mapa") | `e113674` |
 | D32 | [#33](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/33) | Mapa de Explorar: no encuadra los pines (un voluntariado lejos de la ciudad no se ve) | media | producción | RF-3 | frontend ProjectMap.test.tsx ("encuadra los pines") | `e95f7ce` |
+| D33 | pendiente | Panel de impacto de la empresa: scroll horizontal a 375 px (76 px de más) | media | sesión exploratoria | RF-12 | pendiente (sin test todavía) | **abierto** |
+| D34 | pendiente | Propuestas de patrocinio de la ONG: scroll horizontal a 375 px (48 px de más) | media | sesión exploratoria | RF-12 | pendiente (sin test todavía) | **abierto** |
+| D35 | pendiente | Modo oscuro: "Mostrar N voluntariados" de la hoja de filtros no se lee | media | sesión exploratoria | RF-3 | pendiente (sin test todavía) | **abierto** |
+| D36 | pendiente | Globito de no leídos con contraste 3,91:1 (claro) y 3,02:1 (oscuro) | baja | sesión exploratoria | RF-14 | pendiente (sin test todavía) | **abierto** |
+| D37 | pendiente | Detalle del voluntariado de la ONG: lo recaudado sin formato argentino (`$8,500`) | baja | sesión exploratoria | RF-6 | pendiente (sin test todavía) | **abierto** |
+| D38 | pendiente | "Nuevo voluntariado": el pie fijo queda corrido entre 768 y 1023 px y deja una rendija a 375 px | baja | sesión exploratoria | RF-2 | pendiente (sin test todavía) | **abierto** |
+| D39 | pendiente | Contraste 4,32:1 en "Última actualización" (Privacidad) y "Pendientes" (patrocinios) | baja | sesión exploratoria | — | pendiente (sin test todavía) | **abierto** |
+| D40 | pendiente | Hoja de filtros: dos textos en tuteo ("Personaliza…", "Elige…") | baja | sesión exploratoria | RF-3 | pendiente (sin test todavía) | **abierto** |
 
 ## Trazabilidad por requisito
 
@@ -392,3 +400,83 @@
 - **Esperado:** el mapa abre mostrando todos los voluntariados que cuenta la pastilla
 - **Obtenido:** "2 proyectos" y un solo pin visible: el mapa abría siempre en el centro de Córdoba con zoom 13; el de Mar Chiquita aparecía recién alejando 7 niveles. Igual en el mapa ampliado. Anterior a §252
 - **Arreglo:** `e95f7ce` (`fitToProjects`: `fitBounds` con todos los pines, zoom 13 como máximo; reencuadra al cambiar la lista, no al tocar un pin; el ampliado abierto desde un pin elegido respeta ese centro) · **Regresión:** ProjectMap.test.tsx (rojo: `fitBounds` nunca se llamaba → verde, §257)
+
+### D33 — Panel de impacto de la empresa: scroll horizontal a 375 px (76 px de más)
+
+- **Issue:** pendiente (no se abrió todavía) · **Severidad:** media · **Encontrado en:** sesión exploratoria #2 (12/11, §330) · **Área:** frontend
+- **Requisito:** RF-12 Patrocinios · **Caso:** pendiente
+- **Origen:** PROJECT_ANALYSIS.md §330, SESION_EXPLORATORIA.md (sesión #2) · **Entorno:** Local (`1088775`, datos de la semilla más un patrocinio), Chrome, marco de 375 px
+- **Pasos:** (1) Empresa TechCorp (2) Panel de impacto, a 375 px de ancho
+- **Esperado:** la pantalla entra en el ancho, sin scroll horizontal
+- **Obtenido:** `scrollWidth` 451 en un marco de 375: se cortan las cifras ("Propuestas pendien…") y el estado de cada proyecto queda fuera de la pantalla. A 768 y 1024 px no pasa (`CompanyDashboard.tsx`)
+- **Arreglo:** **abierto** · **Regresión:** pendiente
+
+### D34 — Propuestas de patrocinio de la ONG: scroll horizontal a 375 px (48 px de más)
+
+- **Issue:** pendiente (no se abrió todavía) · **Severidad:** media · **Encontrado en:** sesión exploratoria #2 (12/11, §330) · **Área:** frontend
+- **Requisito:** RF-12 Patrocinios · **Caso:** pendiente
+- **Origen:** PROJECT_ANALYSIS.md §330, SESION_EXPLORATORIA.md (sesión #2) · **Entorno:** Local (`1088775`), Chrome, marco de 375 px
+- **Pasos:** (1) ONG Sustentando con una propuesta pendiente (2) Patrocinios, a 375 px
+- **Esperado:** la pantalla entra en el ancho
+- **Obtenido:** `scrollWidth` 423 en 375: se corta el botón "Rechazar" y el texto de la propuesta (`NGOPatrocinios.tsx`)
+- **Arreglo:** **abierto** · **Regresión:** pendiente
+
+### D35 — Modo oscuro: "Mostrar N voluntariados" de la hoja de filtros no se lee
+
+- **Issue:** pendiente (no se abrió todavía) · **Severidad:** media · **Encontrado en:** sesión exploratoria #2 (12/11, §330) · **Área:** frontend
+- **Requisito:** RF-3 Listar y buscar proyectos · **Caso:** pendiente
+- **Origen:** PROJECT_ANALYSIS.md §330, SESION_EXPLORATORIA.md (sesión #2) · **Entorno:** Local (`1088775`), Chrome, tema oscuro
+- **Pasos:** (1) Tema oscuro (2) Explorar → Filtros
+- **Esperado:** el botón se lee (≥ 4,5:1)
+- **Obtenido:** `bg-ink text-white` (`FilterModal.tsx:380`): en oscuro `ink` es #f2f4f7 y el texto queda blanco, 1,10:1 por cuenta. Es el mismo defecto que D23 en una combinación que `paletteContrast.test.ts` no mira (`bg-ink`)
+- **Arreglo:** **abierto** · **Regresión:** pendiente
+
+### D36 — Globito de no leídos con contraste 3,91:1 (claro) y 3,02:1 (oscuro)
+
+- **Issue:** pendiente (no se abrió todavía) · **Severidad:** baja · **Encontrado en:** sesión exploratoria #2 (12/11, §330) · **Área:** frontend
+- **Requisito:** RF-14 Notificaciones · **Caso:** pendiente
+- **Origen:** PROJECT_ANALYSIS.md §330, SESION_EXPLORATORIA.md (sesión #2) · **Entorno:** Local (`1088775`), Chrome, los dos temas
+- **Pasos:** (1) ONG con notificaciones sin leer (2) Mirar el contador de la barra lateral y el del Panel
+- **Esperado:** el número se lee (≥ 4,5:1)
+- **Obtenido:** blanco sobre `like` (#e5484d en claro, #ff5c61 en oscuro), con texto de 11 px (`AppShell.tsx:39`, `NGODashboard.tsx:195`). El test de contraste no mira `bg-like`
+- **Arreglo:** **abierto** · **Regresión:** pendiente
+
+### D37 — Detalle del voluntariado de la ONG: lo recaudado sin formato argentino (`$8,500`)
+
+- **Issue:** pendiente (no se abrió todavía) · **Severidad:** baja · **Encontrado en:** sesión exploratoria #2 (12/11, §330) · **Área:** frontend
+- **Requisito:** RF-6 Donaciones · **Caso:** pendiente
+- **Origen:** PROJECT_ANALYSIS.md §330, SESION_EXPLORATORIA.md (sesión #2) · **Entorno:** Local (`1088775`), Chrome en inglés
+- **Pasos:** (1) ONG (2) Panel → un voluntariado con donaciones
+- **Esperado:** `$ 8.500`, como en el resto de la app
+- **Obtenido:** `${project.current_funding.toLocaleString()}` sin `es-AR` y con el `$` pegado (`NGOProjectDetail.tsx:170`): el formato depende del idioma del navegador. Por código, `ReviewsModal.tsx:158` muestra el promedio con punto ("4.5"): **no se vio en Chrome**
+- **Arreglo:** **abierto** · **Regresión:** pendiente
+
+### D38 — "Nuevo voluntariado": el pie fijo queda corrido entre 768 y 1023 px y deja una rendija a 375 px
+
+- **Issue:** pendiente (no se abrió todavía) · **Severidad:** baja · **Encontrado en:** sesión exploratoria #2 (12/11, §330) · **Área:** frontend
+- **Requisito:** RF-2 Publicar proyectos · **Caso:** pendiente
+- **Origen:** PROJECT_ANALYSIS.md §330, SESION_EXPLORATORIA.md (sesión #2) · **Entorno:** Local (`1088775`), Chrome, marcos de 900 y 375 px
+- **Pasos:** (1) ONG (2) Crear voluntariado, a 900 px y a 375 px
+- **Esperado:** el pie con "Continuar" alineado con el formulario y pegado a la barra inferior
+- **Obtenido:** A 900 px arranca a 240 px del borde (`md:left-60`) con la barra lateral de 72 px: queda corrido a la derecha. A 375 px está a 64 px del borde (`bottom-16`) y la barra mide 56: se ve el formulario por 8 px (`CreateVoluntariado.tsx:622`)
+- **Arreglo:** **abierto** · **Regresión:** pendiente
+
+### D39 — Contraste 4,32:1 en "Última actualización" (Privacidad) y "Pendientes" (patrocinios)
+
+- **Issue:** pendiente (no se abrió todavía) · **Severidad:** baja · **Encontrado en:** sesión exploratoria #2 (12/11, §330) · **Área:** frontend
+- **Requisito:** — · **Caso:** pendiente
+- **Origen:** PROJECT_ANALYSIS.md §330, SESION_EXPLORATORIA.md (sesión #2) · **Entorno:** Local (`1088775`), Chrome, tema claro
+- **Pasos:** (1) Tema claro (2) /privacidad, o Patrocinios de la ONG con una propuesta pendiente
+- **Esperado:** ≥ 4,5:1
+- **Obtenido:** `text-gray-400` (#6b7581) sobre `bg-gray-50` (#f4f6f9) = 4,32:1 (`PrivacyPage.tsx`, `NGOPatrocinios.tsx:71`)
+- **Arreglo:** **abierto** · **Regresión:** pendiente
+
+### D40 — Hoja de filtros: dos textos en tuteo ("Personaliza…", "Elige…")
+
+- **Issue:** pendiente (no se abrió todavía) · **Severidad:** baja · **Encontrado en:** sesión exploratoria #2 (12/11, §330) · **Área:** frontend
+- **Requisito:** RF-3 Listar y buscar proyectos · **Caso:** pendiente
+- **Origen:** PROJECT_ANALYSIS.md §330, SESION_EXPLORATORIA.md (sesión #2) · **Entorno:** Local (`1088775`), Chrome
+- **Pasos:** (1) Explorar → Filtros
+- **Esperado:** voseo, como en el resto de la app ("Personalizá", "Elegí")
+- **Obtenido:** "Personaliza tu búsqueda de voluntariados" (`FilterModal.tsx:159`) y "Elige según el tiempo y dedicación que desees aportar"
+- **Arreglo:** **abierto** · **Regresión:** pendiente
