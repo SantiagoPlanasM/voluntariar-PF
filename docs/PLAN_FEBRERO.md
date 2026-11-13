@@ -46,7 +46,8 @@ En este orden:
          `CreateVoluntariado` (3, dos con color), `ProjectMap` (4) y el pin de `mapTiles`.
        - **B8. Tocables de menos de 44 px**: 69 con alto explícito (28 px: 5, 32 px: 23, 36 px: 17, 40 px: 24). Los
          de 40 y los chips de 32 siguen los tamaños del propio `DESIGN.md` (`button-md`, `chip`), que choca con
-         "todo lo tocable mide 44": **hay que decidir cuál vale**. Los claros son los botones de ícono de 28 a 36 px:
+         "todo lo tocable mide 44". **Decidido el 12/11:** 40 y 32 quedan; 44 solo para los botones de ícono
+         (`DESIGN.md` → Accesibilidad ya lo dice así). Los que hay que mirar son los botones de ícono de 28 a 40 px:
          `ProjectMap` 11, `NGOKPIs` 4, `NGOProjectDetail` 3, `CompanyOwnProfile:373` y los "Cerrar" de
          `FilterModal`, `FollowListModal`, `ReviewsModal` y `MomentsGrid`. El script no ve botones sin alto explícito.
        - **B9. Spinner a pantalla completa** (el diseño pide esqueletos): `CreateVoluntariado:192`,
@@ -62,7 +63,7 @@ En este orden:
          con una heurística que deja pasar casos), `fetch` fuera de `api.ts` (0), "Voluntariar" (0), `lang="es"`.
        - **No se puede ver por código**: tarjetas dentro de tarjetas, sombras en el feed, contraste real y todo lo
          visual. Queda para 2c.
-   - **b. Inventario de pantallas** (**lo próximo**): cada sección de `DESIGN.md` (Componentes, 1.1 y Paneles) contra su componente, con
+   - **b. Inventario de pantallas**: cada sección de `DESIGN.md` (Componentes, 1.1 y Paneles) contra su componente, con
      *igual / distinto / falta / sobra*. Prioridad a las que **nunca se revisaron**:
      - las que §240 dejó solo con la paleta remapeada: `NGOProjectDetail`, `NGOKPIs`, `NGOPatrocinios`,
        `CreateVoluntariado`, `ReviewsModal`, `FilterModal` (`NGOEmpleados` se saca en la Etapa 4: no revisarla);
@@ -71,7 +72,56 @@ En este orden:
        [lienzo del 11/11](https://claude.ai/artifact/EvgwaAnYzYoiTzpAPSX6BZ)), validación de ONG y admin
        (`NGOValidation`, `AdminValidations`), postulaciones (`NGOApplications`), ingreso con Google, Mercado Pago
        (`MercadoPagoAccount`, retornos), certificado, restablecer contraseña, transparencia.
-   - **c. En Chrome local** (memoria "Verificación local", datos de `npm run db:reset` en el backend): recorrido por
+     - [x] **Hecho el 12/11**, leyendo el código de cada pantalla (no el navegador). Tres grupos (I = inventario):
+       - **I1. Siguen con la interfaz vieja** (colores nuevos por el remapeo, forma vieja): no usan `ui/Button`, ni
+         `fieldStyles`, ni `Sheet`; títulos de 16 px en vez de `title-lg`; "Volver" de 36 px; bloques `bg-white` con
+         `rounded-2xl` y `shadow-sm` muerta.
+         - `NGOProjectDetail`: **distinto**. Dos cajitas con barras propias en vez de `Meter`; chip de filtro azul;
+           iniciales sobre azul en vez de `Avatar`; botones de ícono de 28 px (CV y mensaje, este sin `aria-label`,
+           solo `title`); "Aprobar" verde suave; botón "KPIs" en vez de "Impacto".
+         - `NGOKPIs`: **distinto** de "Reportes de impacto". **Falta** el gráfico por mes y "Publicar como dato de
+           impacto"; **sobra** el ícono con fondo en cada fila y el chip de color por tipo; título "KPIs de Impacto".
+         - `NGOPatrocinios`: **distinto**. "Aceptar" verde (aceptar un patrocinio no es inscribirse), enlace azul,
+           iniciales de la empresa sobre gris con otra forma que `Avatar kind="org"`, spinner en vez de esqueleto.
+         - `CreateVoluntariado`: **distinto**. Tiene 3 pasos y el diseño pide 5 (**falta** "Dinero" como paso y
+           "Revisar" con la tarjeta tal como se ve en el feed; hoy es un resumen de texto con emojis); arriba hay
+           barra **y** pastillas de pasos; "Continuar" con sombra de color y "Publicar Voluntariado" verde; no guarda
+           borrador al salir; el pie fijo usa `md:left-60` (240 px) y la barra lateral mide 72 o 244: **mirar en 2c**.
+         - `ReviewsModal`: **distinto**. Es un diálogo propio, no `Sheet`; el promedio va en una caja con chip
+           "Excelente/Muy bueno"; formulario en caja verde; chip "Participó" con color fijo; **falta** "Participó en
+           … · abril 2026" y "Reseñas de personas que participaron"; título "Reseñas y Calificaciones".
+         - `FilterModal`: **distinto**. Diálogo propio; "Categorías de Impacto"; "Personaliza tu búsqueda" (tuteo);
+           "Cerrar" de 32 px sin `aria-label`; el botón "Mostrar N voluntariados" es `bg-ink text-white`: en oscuro
+           sería blanco sobre casi blanco (**mirar en 2c**).
+         - También viejas, fuera de esa lista: `CompanyOwnProfile` (formulario de edición y lista de patrocinios; lo
+           de §329 ya usa tokens), `MercadoPagoAccount` (la sección del perfil; el aviso del Panel está bien),
+           `MercadoPagoReturn`, `DonationReturn`, `DeleteAccountPage`, `PrivacyPage`, `FollowListModal`,
+           `NGOMoments`, `MomentsGrid`, `LocationPicker`, `ProjectMap` (la más grande: 95 clases viejas, botones de
+           28 a 36 px, "Ver Proyecto") y media `CompanyDashboard` (la lista "Tus proyectos").
+       - **I2. Hechas después del diseño, sin sección propia: siguen las reglas de los paneles.** `NGOApplications`,
+         `SponsorshipAgreementScreen`, `SponsorshipHistoryScreen`, `SponsorshipPointForm`, `NGOValidation`,
+         `AdminValidations`, `NGOTeam`, `TeamPanel`, `TeamInvites`, `TeamSection`, `InterviewPanel`,
+         `ResetPasswordPage`, `NGOTransparency`, `CertificatePage` y el ingreso con Google en `AuthModal`:
+         fondo `canvas-soft`, bloques `surface` con borde `hairline`, sin sombra, título de 22 px, "Volver" de 44 px.
+         Diferencias chicas:
+         - `InterviewPanel` y `MyParticipation`: enlaces azules (B4); "Marcar realizada" en verde.
+         - `NGOTeam:133`: "Sacar del equipo" de 36 px (ícono). `NGOTeam` y `TeamPanel` cargan con spinner.
+         - `NGOApplications`: el aviso de resultado va siempre en verde; casillas nativas de 16 px.
+         - Tres copias del mismo botón (`btn` local en el acuerdo, el historial, el formulario de puntos y
+           `ResetPasswordPage`) en vez de `ui/Button`; `money()` local en vez de `formatMoney`.
+         - `NGOValidation`: coincide con "Validación de ONGs" salvo la línea de tiempo (son tres bloques sueltos).
+         - `AdminValidations`: tarjetas en vez de la tabla que dice el diseño (en celular se lee mejor así).
+         - `CertificatePage`: papel blanco fijo en los dos temas y un rótulo en mayúsculas; es para imprimir.
+         - **Falta agregar a `DESIGN.md`** una sección para cada una (paso e).
+       - **I3. Insignia de verificada (cierra B11).** El dato llega solo en las listas y el detalle de voluntariados
+         (`ngo_verified`) y en el perfil de la ONG (`verified`). **Falta, y necesita backend**: "ONGs para seguir"
+         (`FeedSidebar`), bandeja y conversación de mensajes, notificaciones, listas de seguidos
+         (`FollowListModal`, perfiles), `MyParticipation` y el vínculo de `PostCard`. `VolunteeringTile` recibe el
+         dato y no lo muestra (ahí el nombre va como texto secundario: decidir si lleva insignia).
+       - **Para confirmar en 2c** (salen del código, falta verlos): el botón de `FilterModal` y los globitos
+         `bg-ink-muted text-white` de `NotificationsScreen:17,24,28,34` en oscuro; el pie de `CreateVoluntariado`
+         en 768–1023 px.
+   - **c. En Chrome local** (**lo próximo**; memoria "Verificación local", datos de `npm run db:reset` en el backend): recorrido por
      rol (visitante, voluntario, ONG, empresa, admin), cada pantalla a **375 px y 1440 px**, **claro y oscuro**, más
      768 y 1024 px donde cambia la navegación. Es el punto 4 de "Guía para iterar" de `DESIGN.md`.
    - **d. Resultado**: se anota como **sesión exploratoria nueva** en `docs/calidad/SESION_EXPLORATORIA.md` (charter,

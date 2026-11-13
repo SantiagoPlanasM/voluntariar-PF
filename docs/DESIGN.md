@@ -916,7 +916,8 @@ La app ya usa **Lucide** (`lucide-react`): se queda, con `strokeWidth={1.75}` po
 
 ## Accesibilidad
 
-- Todo lo tocable mide al menos 44×44px.
+- Los botones que son solo un ícono miden al menos 44×44px. Los botones con texto y los chips usan los
+  altos de este archivo (`button-lg` 48, `button-md` 40, `button-sm` y `chip` 32).
 - Toda foto lleva texto alternativo: en Crear hay un campo "Describí la foto" (opcional, con una
   sugerencia a partir del texto).
 - El color nunca es la única señal: Donar e Inscribirme tienen texto, las barras tienen números, el
