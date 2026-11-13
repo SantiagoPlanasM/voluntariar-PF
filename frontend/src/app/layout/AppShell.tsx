@@ -36,7 +36,7 @@ function useBadges() {
 function Badge({ n, className = '' }: { n: number; className?: string }) {
   if (n <= 0) return null;
   return (
-    <span aria-hidden="true" className={`min-w-[18px] h-[18px] px-1 rounded-full bg-like text-white text-[11px] font-bold flex items-center justify-center ${className}`}>
+    <span aria-hidden="true" className={`min-w-[18px] h-[18px] px-1 rounded-full bg-critical text-on-ink text-xs font-bold flex items-center justify-center ${className}`}>
       {n > 9 ? '9+' : n}
     </span>
   );

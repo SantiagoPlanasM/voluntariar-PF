@@ -80,5 +80,5 @@ export function ResetPasswordPage() {
       </div>
     </>);
   }
-  return <div className="min-h-screen bg-canvas px-4 py-16 max-w-md mx-auto">{content}</div>;
+  return <div className="w-full min-h-screen bg-canvas px-4 py-16 max-w-md mx-auto">{content}</div>;
 }

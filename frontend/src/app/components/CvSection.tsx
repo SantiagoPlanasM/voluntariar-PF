@@ -108,7 +108,7 @@ export function CvSection({ userId }: { userId: string }) {
           {confirming && (
             <div role="group" aria-label="¿Borrar tu CV?" className="mt-3 p-3 bg-surface-soft rounded-xl flex flex-wrap items-center gap-2">
               <p className="text-[13px] text-ink-soft flex-1">¿Borrar tu CV? Las ONG dejan de poder verlo.</p>
-              <button type="button" onClick={remove} className={`${btn} bg-critical text-white hover:opacity-90`}>Sí, borrar</button>
+              <button type="button" onClick={remove} className={`${btn} bg-critical text-on-ink hover:opacity-90`}>Sí, borrar</button>
               <button type="button" onClick={() => setConfirming(false)} className={`${btn} bg-surface text-ink`}>Cancelar</button>
             </div>
           )}

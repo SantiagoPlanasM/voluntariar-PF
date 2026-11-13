@@ -48,7 +48,7 @@ export function DeleteAccountSection() {
             No se puede deshacer.
           </p>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={send} disabled={sending} className={`${btn} bg-critical text-white hover:opacity-90`}>
+            <button type="button" onClick={send} disabled={sending} className={`${btn} bg-critical text-on-ink hover:opacity-90`}>
               {sending ? 'Mandando…' : 'Mandarme el email'}
             </button>
             <button type="button" onClick={() => setConfirming(false)} disabled={sending} className={`${btn} bg-surface-soft text-ink`}>

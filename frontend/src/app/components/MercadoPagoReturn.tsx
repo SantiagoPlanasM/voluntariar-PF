@@ -55,7 +55,7 @@ export function MercadoPagoReturn() {
     );
   }
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-16 max-w-md mx-auto">
+    <div className="w-full min-h-screen bg-gray-50 px-4 py-16 max-w-md mx-auto">
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-center space-y-3">{content}</div>
     </div>
   );

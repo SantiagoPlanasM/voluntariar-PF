@@ -49,7 +49,7 @@ export function NGOPatrocinios() {
   );
 
   return (
-    <div className="p-4 md:p-8 max-w-3xl mx-auto">
+    <div className="w-full p-4 md:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-2 mb-6">
         <Handshake className="w-5 h-5 text-blue-600" />
         <h1 className="text-xl font-black text-gray-900">Propuestas de patrocinio</h1>

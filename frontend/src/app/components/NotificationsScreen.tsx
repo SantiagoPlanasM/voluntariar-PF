@@ -14,24 +14,24 @@ import { Button } from '../ui/Button';
 // Tipo → círculo de 20 px sobre el ícono: verde = te aceptaron, el resto, neutro. Sin colores nuevos.
 const KIND: Record<string, { icon: typeof Bell; badge: string }> = {
   enrollment_approved: { icon: Check,    badge: 'bg-people text-white' },
-  enrollment_rejected: { icon: X,        badge: 'bg-ink-muted text-white' },
+  enrollment_rejected: { icon: X,        badge: 'bg-ink-muted text-on-ink' },
   new_enrollment:      { icon: UserPlus, badge: 'bg-ink text-on-ink' },
   new_follower:        { icon: UserPlus, badge: 'bg-ink text-on-ink' },
   new_project:         { icon: Bell,     badge: 'bg-ink text-on-ink' },
   // §271: entrevistas (§261) y acuerdo de patrocinio (§264); el acuerdo cerrado, en verde como una aceptación.
   interview_scheduled:   { icon: CalendarClock, badge: 'bg-ink text-on-ink' },
   interview_rescheduled: { icon: CalendarClock, badge: 'bg-ink text-on-ink' },
-  interview_cancelled:   { icon: CalendarClock, badge: 'bg-ink-muted text-white' },
+  interview_cancelled:   { icon: CalendarClock, badge: 'bg-ink-muted text-on-ink' },
   sponsorship_message:           { icon: Handshake, badge: 'bg-ink text-on-ink' },
   sponsorship_accepted_by_other: { icon: Handshake, badge: 'bg-ink text-on-ink' },
   sponsorship_closed:            { icon: Handshake, badge: 'bg-people text-white' },
-  sponsorship_rejected:          { icon: Handshake, badge: 'bg-ink-muted text-white' },
+  sponsorship_rejected:          { icon: Handshake, badge: 'bg-ink-muted text-on-ink' },
   // §296: el equipo de la ONG.
   team_invite: { icon: Users, badge: 'bg-ink text-on-ink' },
   team_joined: { icon: Users, badge: 'bg-people text-white' },
   // §317: la validación de la ONG.
   ngo_validation_approved: { icon: Check, badge: 'bg-people text-white' },
-  ngo_validation_rejected: { icon: X,     badge: 'bg-ink-muted text-white' },
+  ngo_validation_rejected: { icon: X,     badge: 'bg-ink-muted text-on-ink' },
 };
 
 // "Hace cuánto": el timeAgo compartido (lib/format.ts). Antes había una copia acá con `new Date(fecha)`, que

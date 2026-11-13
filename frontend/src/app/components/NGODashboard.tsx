@@ -73,11 +73,11 @@ export function NGODashboard() {
   const filtered = projects.filter(p => (p.title ?? '').toLowerCase().includes(search.toLowerCase().trim()));
 
   if (loading) return (
-    <div role="status" aria-label="Cargando el panel" className="p-6 md:p-10 max-w-[1400px] mx-auto flex flex-col gap-5">
+    <div role="status" aria-label="Cargando el panel" className="w-full p-6 md:p-10 max-w-[1400px] mx-auto flex flex-col gap-5">
       <div className="h-8 w-48 rounded skeleton" /><div className="h-24 rounded-xl skeleton" /><div className="h-64 rounded-xl skeleton" />
     </div>
   );
-  if (loadError) return <div className="p-4 md:p-8 max-w-3xl mx-auto"><InlineError message={loadError} onRetry={load} /></div>;
+  if (loadError) return <div className="w-full p-4 md:p-8 max-w-3xl mx-auto"><InlineError message={loadError} onRetry={load} /></div>;
 
   const th = 'text-left text-xs font-semibold text-ink-muted px-4 py-2.5 border-b border-hairline';
   const td = 'px-4 py-3 border-b border-hairline align-middle';
@@ -192,7 +192,7 @@ export function NGODashboard() {
             className="md:hidden relative w-11 h-11 flex items-center justify-center rounded-full hover:bg-surface-soft">
             <Bell size={22} strokeWidth={1.75} aria-hidden="true" />
             {unread > 0 && (
-              <span aria-hidden="true" className="absolute top-1.5 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-like text-white text-[11px] font-bold flex items-center justify-center">
+              <span aria-hidden="true" className="absolute top-1.5 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-critical text-on-ink text-xs font-bold flex items-center justify-center">
                 {unread > 9 ? '9+' : unread}
               </span>
             )}

@@ -377,7 +377,7 @@ export function FilterModal({
           <button
             type="button"
             onClick={handleApply}
-            className="bg-ink hover:opacity-90 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm transition-all shadow-sm active:scale-95 cursor-pointer flex items-center gap-2"
+            className="bg-ink hover:opacity-90 text-on-ink font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm transition-all shadow-sm active:scale-95 cursor-pointer flex items-center gap-2"
           >
             <span>Mostrar {previewCount} voluntariados</span>
           </button>

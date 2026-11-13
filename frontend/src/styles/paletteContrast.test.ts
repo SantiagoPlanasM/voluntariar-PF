@@ -158,6 +158,83 @@ describe('contraste de text-white sobre los fondos de la paleta (claro y oscuro)
   });
 });
 
+// D35 y D36 (Issues #36 y #37, sesión exploratoria 2, §330): `offenders()` mira `text-white` sobre la PALETA
+// (`bg-violet-600`), no sobre los TOKENS (`bg-ink`, `bg-ink-muted`, `bg-like`). En oscuro `ink` es casi blanco:
+// "Mostrar N voluntariados" (`bg-ink text-white`) daba 1,10:1, el mismo defecto que D23. El globito de no leídos
+// (`bg-like text-white`) daba 3,91:1 en claro y 3,02:1 en oscuro.
+describe('text-white sobre los tokens (claro y oscuro)', () => {
+  const tok = (block: string) => new Map([...block.matchAll(/--([a-z-]+):\s*(#[0-9a-fA-F]{6})/g)].map(m => [m[1], m[2]]));
+  const lightT = tok(blocks(':root'));
+  const darkT = new Map([...lightT, ...tok(blocks("[data-theme='dark']"))]);
+
+  function tokenOffenders(): { found: string[]; seen: number } {
+    const found = new Set<string>();
+    let seen = 0;
+    for (const rel of readdirSync(join(SRC, 'app'), { recursive: true }) as string[]) {
+      if (!rel.endsWith('.tsx') || rel.includes('.test.')) continue;
+      const text = readFileSync(join(SRC, 'app', rel), 'utf8');
+      for (const s of text.matchAll(/(["'`])([^"'`\n]*\btext-white\b[^"'`\n]*)\1/g)) {
+        for (const bg of s[2].matchAll(/(?<![\w:-])bg-([a-z]+(?:-[a-z]+)*)(?![\w/-])/g)) {
+          if (!lightT.has(bg[1])) continue;
+          for (const [mode, t] of [['claro', lightT], ['oscuro', darkT]] as const) {
+            seen++;
+            const ratio = contrast('#ffffff', t.get(bg[1])!);
+            if (ratio < 4.5) found.add(`${rel.replace(/\\/g, '/')}: bg-${bg[1]} + text-white en ${mode} = ${ratio.toFixed(2)}:1`);
+          }
+        }
+      }
+    }
+    return { found: [...found].sort(), seen };
+  }
+
+  test('la medición coincide con la de la sesión: blanco sobre ink oscuro = 1,10:1 y sobre like = 3,91:1 y 3,02:1', () => {
+    expect(contrast('#ffffff', darkT.get('ink')!)).toBeCloseTo(1.1, 1);
+    expect(contrast('#ffffff', lightT.get('like')!)).toBeCloseTo(3.91, 1);
+    expect(contrast('#ffffff', darkT.get('like')!)).toBeCloseTo(3.02, 1);
+  });
+
+  test('ningún componente pone text-white sobre un token que no llega a 4,5:1', () => {
+    const { found, seen } = tokenOffenders();
+    expect(seen).toBeGreaterThan(10); // si no encuentra combinaciones, el test no probaría nada
+    expect(found).toEqual([]);
+  });
+
+  test('los reemplazos llegan a 4,5:1 en los dos temas', () => {
+    // fondo, texto: el globito de no leídos y los círculos grises de las notificaciones
+    for (const [mode, t] of [['claro', lightT], ['oscuro', darkT]] as const) {
+      for (const [bg, fg] of [['critical', 'on-ink'], ['ink-muted', 'on-ink'], ['ink', 'on-ink']]) {
+        expect(contrast(t.get(bg)!, t.get(fg)!), `${bg} / ${fg} en ${mode}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+});
+
+// D39 (Issue #40, §330): `text-gray-400` daba 4,32:1 sobre `bg-gray-50` (el fondo de las pantallas sin rehacer).
+// El trinquete de arriba mide los textos sueltos contra la tarjeta, no contra el fondo de la página.
+describe('grises de texto sobre el fondo de la página', () => {
+  // Solo `gray`: ningún componente usa `slate` ni `zinc` (y su paleta oscura está incompleta en theme.css).
+  test('ningún componente usa slate ni zinc', () => {
+    const used = (readdirSync(join(SRC, 'app'), { recursive: true }) as string[])
+      .filter(rel => rel.endsWith('.tsx') && !rel.includes('.test.'))
+      .filter(rel => /(?<![\w-])(?:slate|zinc)-\d/.test(readFileSync(join(SRC, 'app', rel), 'utf8')));
+    expect(used).toEqual([]);
+  });
+
+  test('gray de 400 en adelante llega a 4,5:1 sobre gray-50, en claro y en oscuro', () => {
+    const low: string[] = [];
+    for (const [mode, p] of [['claro', light], ['oscuro', dark]] as const) {
+      for (const family of ['gray']) {
+        const bg = p.get(`${family}-50`)!;
+        for (const tone of [400, 500, 600, 700, 800, 900]) {
+          const fg = p.get(`${family}-${tone}`);
+          if (fg && contrast(fg, bg) < 4.5) low.push(`${family}-${tone} sobre ${family}-50 en ${mode} = ${contrast(fg, bg).toFixed(2)}:1`);
+        }
+      }
+    }
+    expect(low).toEqual([]);
+  });
+});
+
 // D30 (Issue #31, §253): en oscuro, `theme.css` pasa `bg-white` a la superficie oscura clase por clase, y cada opacidad
 // (`bg-white/95`, `/90`…) es una clase aparte. La tarjeta del mapa usaba `bg-white/98`, que no estaba: quedaba blanca
 // con el texto ya invertido (#f2f4f7 sobre blanco, 1,10:1). Los tests de arriba miran pares de la paleta, no esto.

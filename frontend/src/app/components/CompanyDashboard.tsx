@@ -25,13 +25,13 @@ export function CompanyDashboard() {
   };
 
   if (loading) return (
-    <div role="status" aria-label="Cargando el panel" className="p-6 md:p-10 max-w-[900px] mx-auto flex flex-col gap-4">
+    <div role="status" aria-label="Cargando el panel" className="w-full p-6 md:p-10 max-w-[900px] mx-auto flex flex-col gap-4">
       <div className="h-8 w-48 rounded skeleton" /><div className="h-24 rounded-xl skeleton" /><div className="h-48 rounded-xl skeleton" />
     </div>
   );
 
   if (error || !data) return (
-    <div className="p-4 md:p-8 max-w-4xl mx-auto">
+    <div className="w-full p-4 md:p-8 max-w-4xl mx-auto">
       <div role="alert" className="bg-surface rounded-xl border border-hairline text-center py-12 px-4">
         <AlertCircle className="w-8 h-8 text-ink-muted mx-auto mb-3" strokeWidth={1.75} />
         <p className="text-[15px] text-ink-soft mb-4">{error || 'No pudimos cargar el panel'}</p>
@@ -58,7 +58,7 @@ export function CompanyDashboard() {
   ];
 
   return (
-    <div className="p-4 md:p-10 max-w-[900px] mx-auto">
+    <div className="w-full p-4 md:p-10 max-w-[900px] mx-auto">
       <h1 className="text-[22px] font-bold tracking-[-0.3px] mb-5">Panel de impacto</h1>
 
       <dl className="grid grid-cols-2 md:grid-cols-4 rounded-xl bg-surface border border-hairline overflow-hidden">
