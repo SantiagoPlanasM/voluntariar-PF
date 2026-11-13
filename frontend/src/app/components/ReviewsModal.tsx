@@ -155,7 +155,7 @@ export function ReviewsModal({
           <div className="flex items-center justify-between p-4 rounded-2xl bg-amber-50/60 border border-amber-100/80">
             <div className="flex items-center gap-3">
               <div className="text-3xl font-black text-amber-500">
-                {calculatedAvg > 0 ? calculatedAvg.toFixed(1) : '—'}
+                {calculatedAvg > 0 ? calculatedAvg.toFixed(1).replace('.', ',') : '—'}
               </div>
               <div>
                 <div className="flex items-center gap-0.5">

@@ -801,3 +801,29 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - El pin del mapa mide 32×38: es un marcador de Leaflet, no un botón de la app; quedó fuera de la tanda.
 - En el perfil de la empresa, el título del proyecto se corta antes ("Reforestaci…") porque el botón de retirar ocupa 16 px más.
 - Botones de ícono sin tamaño explícito en pantallas que el barrido no abrió (admin, certificado, restablecer contraseña, hojas de donar e inscribirse).
+
+## 333. Defectos D37, D38 y D40: formato argentino, pie de "Nuevo voluntariado" y voseo en los filtros
+
+### Qué se hizo
+- Los tres defectos que quedaban abiertos de la sesión exploratoria #2 (§330). El usuario dio el OK para pushear §331–§332 y para seguir.
+- **Push de §331 y §332:** producción en `d963a56`, CI #90 y Deploy #86 en verde (smoke y E2E), SonarCloud en OK con 0 abiertas. Se cerraron los Issues #34–#37 y #40 (D33–D36 y D39).
+- **D37 (formato argentino).** En `NGOProjectDetail` lo recaudado pasó de `${current_funding.toLocaleString()}` a `formatMoney` (`$ 8.500`, es-AR, como en el Panel). En `ReviewsModal` el promedio va con coma (`4,5`), igual que en el feed y en la página del voluntariado.
+- **D38 (pie fijo de "Nuevo voluntariado").** El pie usa las medidas de `AppShell`: arranca a 72 px entre 768 y 1023 px y a 244 desde 1024 (antes, 240 siempre), y en el celular queda a `56px + área segura` del borde, pegado a la barra inferior (antes, 64).
+- **D40 (voseo).** "Personalizá tu búsqueda de voluntariados" y "Elegí según el tiempo y la dedicación que quieras aportar".
+- Tests nuevos: `NGOProjectDetailMoney.test.tsx`, `ReviewsModalAverage.test.tsx`, `FilterModalCopy.test.tsx` y `app/layout/fixedFooter.test.ts` (lee las medidas de `AppShell` y las compara con las clases del pie: jsdom no calcula posiciones).
+
+### Verificación
+- Rojo → verde: 9 de los 11 tests nuevos fallaban antes del arreglo (los otros 2 comprueban la lectura de `AppShell` y que haya un solo pie).
+- Frontend: 1484/1484 (antes 1473; +11), `typecheck` sin errores. El backend no se tocó: no se corrieron sus suites.
+- Chrome local (navegador en inglés, `en-GB`): el detalle del voluntariado muestra `$ 8.500` donde `toLocaleString()` sin idioma da `8,500`. El pie medido a 375, 768, 883, 1007 y 1263 px de ancho: empieza donde termina la barra lateral (72 y 244 px) y su contenido queda alineado con el formulario; a 375 px termina donde empieza la barra inferior. La hoja de filtros muestra los dos textos nuevos.
+- Mutación (16 mutantes): 15 muertos y 1 vivo equivalente (`formatMoney(Number(x) || 0)` sin el `|| 0`: `formatMoney` ya pasa a 0 lo que no es un número). Se sacó el `|| 0` que sobraba.
+
+### Errores propios
+- Un test viejo de `ReviewsModal.test.tsx` esperaba el promedio "4.0", con el formato defectuoso: falló con el arreglo y lo pasé a "4,0". No lo busqué antes de cambiar el componente.
+
+### ⚠️ NO verificado
+- El promedio con coma en la hoja de reseñas no se abrió en Chrome: lo cubren los tests.
+- El área segura del celular (`env(safe-area-inset-bottom)`): en Chrome de escritorio vale 0. Falta un celular real con barra de gestos.
+- `NGOApplications` tiene una barra flotante con `bottom-16` (64 px): es una tarjeta separada del borde a propósito y no se tocó.
+- Quedan cuatro formas de escribir plata (`formatPesos`, los dos `formatMoney`, el `money()` local): unificarlas es deuda, no parte de D37.
+- `calidad/METRICAS.md` y el informe del TP no se actualizaron (tienen fecha de corte).

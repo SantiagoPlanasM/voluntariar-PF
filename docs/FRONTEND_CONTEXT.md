@@ -269,6 +269,8 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
   - las listas de conocidos están vacías: cualquier caso nuevo hace fallar el test.
 - **Ancho de las pantallas** (`app/layout/pageWidth.test.ts`): toda raíz de pantalla con `mx-auto` lleva `w-full`. Sin eso no se estira dentro de `AppShell` (flex en columna) y un texto que no corta da scroll horizontal en el celular.
 - **Globito de no leídos:** `bg-critical text-on-ink text-xs`. `like` es solo para el corazón.
+- **Pie fijo de `CreateVoluntariado`** (`app/layout/fixedFooter.test.ts`): usa las medidas de `AppShell` (barra lateral de 72 y 244 px, barra inferior de `56px + área segura`). Si cambian en `AppShell`, el test obliga a cambiarlas en el pie.
+- **Plata y promedios:** montos con `formatMoney` (`$ 8.500`), nunca `toLocaleString()` sin `es-AR`; promedios con coma (`4,5`).
 - **Botones de ícono** (`app/layout/iconButtonSize.test.ts`): miden 44 px, `w-11 h-11 flex-shrink-0` (o `IconButton` de `ui/Button`). Sin `shrink-0`, en una fila flex ceden ancho al texto de al lado. Un botón que pierde el texto en el celular (`hidden sm:inline`) también mide 44 ahí.
 - **Combinaciones correctas:**
   - Botones llenos: `bg-ink text-on-ink`, `bg-people text-white`, `bg-critical text-on-ink`.

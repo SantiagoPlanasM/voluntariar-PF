@@ -9,6 +9,7 @@ import { MomentsFeed } from './MomentsFeed';
 import { InterviewPanel } from './InterviewPanel';
 import { LoadError, describeLoadError } from './LoadError';
 import { useConfirm } from '../ui/UiProvider';
+import { formatMoney } from '../ui/Meter';
 import { PROJECT_STATUS_LABEL } from '../volunteering/status';
 import { EnrollmentPhone } from './EnrollmentPhone';
 
@@ -167,7 +168,7 @@ export function NGOProjectDetail({ team = false }: { team?: boolean } = {}) {
           </div>
           <div className="bg-white rounded-xl p-3 shadow-sm">
             <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><DollarSign className="w-3.5 h-3.5" />Financiamiento</p>
-            <p className="text-lg font-bold text-brand-text">${project.current_funding.toLocaleString()}</p>
+            <p className="text-lg font-bold text-brand-text">{formatMoney(Number(project.current_funding))}</p>
             <div className="w-full h-1.5 bg-gray-100 rounded-full mt-1.5 overflow-hidden">
               <div className="h-full bg-brand rounded-full" style={{ width: `${fundPct}%` }} />
             </div>

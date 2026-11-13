@@ -71,7 +71,7 @@ describe('Feed: reabrir las reseñas después de calificar (S3)', () => {
     expect(await within(d).findByText('2 reseñas en total')).toBeInTheDocument();
     expect(within(d).getByText('Faltó organización', { selector: 'p' })).toBeInTheDocument();
     // El promedio del modal sale de la lista actualizada (5 y 3), no de la vieja (solo el 5).
-    expect(within(d).getByText('4.0')).toBeInTheDocument();
+    expect(within(d).getByText('4,0')).toBeInTheDocument(); // con coma (D37)
   });
 
   test('mientras recarga se sigue viendo la lista que vino del feed (no un spinner en blanco)', async () => {

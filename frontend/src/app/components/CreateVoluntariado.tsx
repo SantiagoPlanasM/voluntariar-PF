@@ -619,7 +619,7 @@ export function CreateVoluntariado() {
       </main>
 
       {/* Footer fijo — siempre visible al scrollear */}
-      <div className="fixed bottom-16 md:bottom-0 left-0 md:left-60 right-0 z-20 bg-white border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
+      <div className="fixed bottom-[calc(56px+env(safe-area-inset-bottom,0px))] md:bottom-0 left-0 md:left-[72px] lg:left-[244px] right-0 z-20 bg-white border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
         <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-4 flex gap-3">
           {step > 1 && (
             <button type="button" onClick={back}

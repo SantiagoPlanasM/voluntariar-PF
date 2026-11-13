@@ -156,7 +156,7 @@ export function FilterModal({
               Filtros
             </h3>
             <p className="text-xs text-gray-500 mt-0.5">
-              Personaliza tu búsqueda de voluntariados
+              Personalizá tu búsqueda de voluntariados
             </p>
           </div>
           <button
@@ -223,7 +223,7 @@ export function FilterModal({
               Tipo de Compromiso
             </p>
             <p className="text-xs text-gray-500 mb-3">
-              Elige según el tiempo y dedicación que desees aportar
+              Elegí según el tiempo y la dedicación que quieras aportar
             </p>
             <div className="grid grid-cols-3 gap-2.5">
               {[
