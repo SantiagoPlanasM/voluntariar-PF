@@ -118,7 +118,7 @@ export function PostCard({ post, project, onDeleted }: Props) {
         {post.can_delete && (
           <div className="relative">
             <button type="button" onClick={() => setMenuOpen(v => !v)} aria-label="Más opciones" aria-haspopup="menu" aria-expanded={menuOpen}
-              className="w-11 h-11 inline-flex items-center justify-center rounded-full hover:bg-surface-soft">
+              className="w-11 h-11 flex-shrink-0 inline-flex items-center justify-center rounded-full hover:bg-surface-soft">
               <MoreHorizontal size={24} strokeWidth={1.75} aria-hidden="true" />
             </button>
             {menuOpen && (

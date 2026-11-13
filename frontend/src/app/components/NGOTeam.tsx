@@ -75,7 +75,7 @@ export function NGOTeam() {
     <div className="min-h-screen bg-canvas-soft pb-8">
       <div className="max-w-[640px] mx-auto px-4 pt-2 md:pt-8 flex flex-col gap-5">
         <header className="flex items-center gap-1 -ml-3">
-          <Link to="/ngo/dashboard" aria-label="Volver" className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-surface-soft">
+          <Link to="/ngo/dashboard" aria-label="Volver" className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-full hover:bg-surface-soft">
             <ArrowLeft size={22} strokeWidth={1.75} aria-hidden="true" />
           </Link>
           <div>
@@ -130,7 +130,7 @@ export function NGOTeam() {
                     {TEAM_ROLES.map((r) => <option key={r} value={r}>{TEAM_ROLE_LABEL[r]}</option>)}
                   </select>
                   <button type="button" onClick={() => void remove(m)} aria-label={`Sacar a ${m.name} del equipo`}
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-critical hover:bg-surface-soft">
+                    className="w-11 h-11 flex-shrink-0 rounded-full flex items-center justify-center text-critical hover:bg-surface-soft">
                     <Trash2 size={16} strokeWidth={1.75} aria-hidden="true" />
                   </button>
                 </li>

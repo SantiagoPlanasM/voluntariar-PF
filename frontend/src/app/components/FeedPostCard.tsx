@@ -283,7 +283,7 @@ export function FeedPostCard({ project, onRefresh }: FeedPostCardProps) {
                   className="flex-1 min-w-0 h-11 px-4 rounded-full bg-surface-soft text-[15px] outline-none focus:bg-surface focus:ring-[1.5px] focus:ring-ink"
                 />
                 <button type="submit" disabled={!newComment.trim() || submittingComment} aria-label="Enviar comentario"
-                  className="w-11 h-11 rounded-full inline-flex items-center justify-center text-ink disabled:opacity-40">
+                  className="w-11 h-11 flex-shrink-0 rounded-full inline-flex items-center justify-center text-ink disabled:opacity-40">
                   <Send size={20} strokeWidth={1.75} aria-hidden="true" />
                 </button>
               </form>

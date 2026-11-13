@@ -181,7 +181,7 @@ export function VolunteerProfile() {
         <div className="bg-canvas md:rounded-2xl md:border md:border-hairline">
           <header className="h-[52px] pl-4 pr-1 flex items-center justify-between">
             <h1 className="text-lg font-bold tracking-[-0.2px] truncate">{user.name}</h1>
-            <Link to="/settings" aria-label="Configuración" className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-surface-soft">
+            <Link to="/settings" aria-label="Configuración" className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-full hover:bg-surface-soft">
               <Menu size={24} strokeWidth={1.75} aria-hidden="true" />
             </Link>
           </header>

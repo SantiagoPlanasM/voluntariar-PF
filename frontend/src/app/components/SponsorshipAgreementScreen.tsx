@@ -208,11 +208,11 @@ export function SponsorshipAgreementScreen() {
           <div className="flex flex-shrink-0">
             <button type="button" aria-label={`Editar punto: ${pt.detail}`}
               onClick={() => setForm(editPointForm(pt))}
-              className="w-11 h-11 rounded-full hover:bg-surface-pressed inline-flex items-center justify-center text-ink-soft">
+              className="w-11 h-11 flex-shrink-0 rounded-full hover:bg-surface-pressed inline-flex items-center justify-center text-ink-soft">
               <Pencil size={16} aria-hidden="true" />
             </button>
             <button type="button" aria-label={`Borrar punto: ${pt.detail}`} onClick={() => setPending(d => removePoint(d, pt.id))}
-              className="w-11 h-11 rounded-full hover:bg-surface-pressed inline-flex items-center justify-center text-critical">
+              className="w-11 h-11 flex-shrink-0 rounded-full hover:bg-surface-pressed inline-flex items-center justify-center text-critical">
               <Trash2 size={16} aria-hidden="true" />
             </button>
           </div>

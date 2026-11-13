@@ -362,7 +362,7 @@ function ProjectMapModal({
             {/* Botón cerrar en pantallas pequeñas */}
             <button
               onClick={onClose}
-              className="md:hidden w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-colors shrink-0"
+              className="md:hidden w-11 h-11 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-colors shrink-0"
               title="Cerrar (Esc)"
             >
               <X className="w-4 h-4" />
@@ -375,7 +375,7 @@ function ProjectMapModal({
               <button
                 type="button"
                 onClick={() => scrollFilters('left')}
-                className="w-7 h-7 rounded-full bg-white shadow-xs border border-gray-200 text-gray-700 hover:bg-gray-100 flex items-center justify-center transition-all shrink-0 cursor-pointer"
+                className="w-11 h-11 rounded-full bg-white shadow-xs border border-gray-200 text-gray-700 hover:bg-gray-100 flex items-center justify-center transition-all shrink-0 cursor-pointer"
                 title="Categorías anteriores"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -451,7 +451,7 @@ function ProjectMapModal({
               <button
                 type="button"
                 onClick={() => scrollFilters('right')}
-                className="w-7 h-7 rounded-full bg-white shadow-xs border border-gray-200 text-gray-700 hover:bg-gray-100 flex items-center justify-center transition-all shrink-0 cursor-pointer"
+                className="w-11 h-11 rounded-full bg-white shadow-xs border border-gray-200 text-gray-700 hover:bg-gray-100 flex items-center justify-center transition-all shrink-0 cursor-pointer"
                 title="Más categorías"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -462,7 +462,7 @@ function ProjectMapModal({
           {/* Botón cerrar en escritorio */}
           <button
             onClick={onClose}
-            className="hidden md:flex w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 items-center justify-center transition-colors shrink-0 ml-2 cursor-pointer"
+            className="hidden md:flex w-11 h-11 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 items-center justify-center transition-colors shrink-0 ml-2 cursor-pointer"
             title="Cerrar (Esc)"
           >
             <X className="w-4 h-4" />
@@ -485,7 +485,7 @@ function ProjectMapModal({
               onClick={handleLocateMe}
               title="Centrar en mi ubicación"
               disabled={isLocating}
-              className="w-9 h-9 rounded-full bg-white/95 backdrop-blur-md shadow-md border border-gray-200/80 text-gray-700 flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-transform disabled:opacity-50"
+              className="w-11 h-11 flex-shrink-0 rounded-full bg-white/95 backdrop-blur-md shadow-md border border-gray-200/80 text-gray-700 flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-transform disabled:opacity-50"
             >
               <Navigation className={`w-4 h-4 ${isLocating ? 'animate-spin text-emerald-600' : 'text-gray-700'}`} />
             </button>
@@ -493,7 +493,7 @@ function ProjectMapModal({
             <button
               onClick={handleZoomIn}
               title="Acercar"
-              className="w-9 h-9 rounded-full bg-white/95 backdrop-blur-md shadow-md border border-gray-200/80 text-gray-700 font-bold text-sm flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-transform"
+              className="w-11 h-11 flex-shrink-0 rounded-full bg-white/95 backdrop-blur-md shadow-md border border-gray-200/80 text-gray-700 font-bold text-sm flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-transform"
             >
               +
             </button>
@@ -501,7 +501,7 @@ function ProjectMapModal({
             <button
               onClick={handleZoomOut}
               title="Alejar"
-              className="w-9 h-9 rounded-full bg-white/95 backdrop-blur-md shadow-md border border-gray-200/80 text-gray-700 font-bold text-sm flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-transform"
+              className="w-11 h-11 flex-shrink-0 rounded-full bg-white/95 backdrop-blur-md shadow-md border border-gray-200/80 text-gray-700 font-bold text-sm flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-transform"
             >
               −
             </button>
@@ -729,7 +729,7 @@ export function ProjectMap({ projects: allProjects, className = '', onSelectProj
           <button
             onClick={() => setIsModalOpen(true)}
             title="Abrir mapa ampliado (Pop-up)"
-            className="w-8 h-8 rounded-full bg-white/95 backdrop-blur-md shadow-sm border border-gray-200/80 text-gray-700 flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-transform"
+            className="w-11 h-11 flex-shrink-0 rounded-full bg-white/95 backdrop-blur-md shadow-sm border border-gray-200/80 text-gray-700 flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-transform"
           >
             <Maximize2 className="w-4 h-4" />
           </button>
@@ -739,7 +739,7 @@ export function ProjectMap({ projects: allProjects, className = '', onSelectProj
             onClick={handleLocateMe}
             title="Centrar en mi ubicación"
             disabled={isLocating}
-            className="w-8 h-8 rounded-full bg-white/95 backdrop-blur-md shadow-sm border border-gray-200/80 text-gray-700 flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-transform disabled:opacity-50"
+            className="w-11 h-11 flex-shrink-0 rounded-full bg-white/95 backdrop-blur-md shadow-sm border border-gray-200/80 text-gray-700 flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-transform disabled:opacity-50"
           >
             <Navigation className={`w-4 h-4 ${isLocating ? 'animate-spin text-emerald-600' : 'text-gray-700'}`} />
           </button>
@@ -748,7 +748,7 @@ export function ProjectMap({ projects: allProjects, className = '', onSelectProj
           <button
             onClick={handleZoomIn}
             title="Acercar"
-            className="w-8 h-8 rounded-full bg-white/95 backdrop-blur-md shadow-sm border border-gray-200/80 text-gray-700 font-bold text-sm flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-transform"
+            className="w-11 h-11 flex-shrink-0 rounded-full bg-white/95 backdrop-blur-md shadow-sm border border-gray-200/80 text-gray-700 font-bold text-sm flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-transform"
           >
             +
           </button>
@@ -757,7 +757,7 @@ export function ProjectMap({ projects: allProjects, className = '', onSelectProj
           <button
             onClick={handleZoomOut}
             title="Alejar"
-            className="w-8 h-8 rounded-full bg-white/95 backdrop-blur-md shadow-sm border border-gray-200/80 text-gray-700 font-bold text-sm flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-transform"
+            className="w-11 h-11 flex-shrink-0 rounded-full bg-white/95 backdrop-blur-md shadow-sm border border-gray-200/80 text-gray-700 font-bold text-sm flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-transform"
           >
             −
           </button>

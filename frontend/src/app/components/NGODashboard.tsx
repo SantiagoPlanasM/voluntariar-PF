@@ -109,12 +109,12 @@ export function NGODashboard() {
                 <Check size={16} strokeWidth={2.25} aria-hidden="true" />Aceptar
               </Button>
               <Button variant="text" onClick={() => handleEnrollment(e, 'rejected')} disabled={processing === e.id}
-                aria-label={`Rechazar a ${e.volunteer_name} en ${e.project_title}`} className="!h-9 !px-2 !text-[13px]">
+                aria-label={`Rechazar a ${e.volunteer_name} en ${e.project_title}`} className="!h-11 !w-11 !px-0 sm:!h-9 sm:!w-auto sm:!px-2 !text-[13px]">
                 <X size={16} strokeWidth={2} aria-hidden="true" /><span className="hidden sm:inline">Rechazar</span>
               </Button>
               {/* §279: a la postulación en el detalle del voluntariado, con la entrevista a mano. */}
               <ButtonLink variant="text" to={`/ngo/dashboard/project/${e.project_id}?postulacion=${e.id}`}
-                aria-label={`Entrevista con ${e.volunteer_name} en ${e.project_title}`} className="!h-9 !px-2 !text-[13px]">
+                aria-label={`Entrevista con ${e.volunteer_name} en ${e.project_title}`} className="!h-11 !w-11 !px-0 sm:!h-9 sm:!w-auto sm:!px-2 !text-[13px]">
                 <CalendarClock size={16} strokeWidth={2} aria-hidden="true" /><span className="hidden sm:inline">Entrevista</span>
               </ButtonLink>
             </div>
@@ -189,7 +189,7 @@ export function NGODashboard() {
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
           <Link to="/ngo/notifications" aria-label={unread > 0 ? `Notificaciones (${unread} sin leer)` : 'Notificaciones'}
-            className="md:hidden relative w-11 h-11 flex items-center justify-center rounded-full hover:bg-surface-soft">
+            className="md:hidden relative w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-full hover:bg-surface-soft">
             <Bell size={22} strokeWidth={1.75} aria-hidden="true" />
             {unread > 0 && (
               <span aria-hidden="true" className="absolute top-1.5 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-critical text-on-ink text-xs font-bold flex items-center justify-center">

@@ -774,3 +774,30 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - El punto de color de cada categoría en la hoja de filtros sigue sin verse en oscuro (se ve en la captura): es deuda de diseño, quedó fuera de D35.
 - Los globitos grises de las notificaciones de rechazo se arreglaron por código y los cubre el test; en Chrome no había ninguna de ese tipo para verlos.
 - Los Issues #34–#37 y #40 siguen abiertos: se cierran cuando el CI del push dé verde. `calidad/METRICAS.md` y el informe del TP no se actualizaron (tienen fecha de corte).
+
+## 332. Botones de ícono a 44 px (tanda T4)
+
+### Qué se hizo
+- Tanda T4 de la revisión contra `DESIGN.md` (§330, hallazgos B8 y C7): "los botones que son solo un ícono miden al menos 44×44px". No es un defecto del registro: es deuda de diseño.
+- **33 botones cuadrados de 28 a 40 px pasaron a `w-11 h-11`** (el ícono de adentro no cambia de tamaño): los "Volver" de `CreateVoluntariado`, `NGOEmpleados`, `NGOKPIs`, `NGOProjectDetail` y `ProjectDetails`; los "Cerrar" de `FilterModal`, `FollowListModal`, `MomentsGrid`, `ReviewsModal`, el formulario de KPI y los dos del mapa; los 11 controles de `ProjectMap`; editar y borrar KPI; CV y mensaje al inscripto; sacar del equipo; retirar propuesta; las flechas de `PhotoCarousel`; quitar foto en `PostComposer`; limpiar búsqueda en Explorar; compartir y las cinco estrellas de `ProjectDetails`.
+- **`flex-shrink-0` en los 25 botones cuadrados que no lo tenían.** Con `w-11 h-11` en el código, los "Volver" de `NGOTeam` y del asistente medían 31×44 y 37×44 a 375 px: dentro de una fila flex cedían ancho al texto de al lado.
+- **Panel de la ONG:** "Rechazar" y "Entrevista" pierden el texto en el celular y medían 32×36. Ahora miden 44×44 por debajo de 640 px y siguen como estaban desde ahí.
+- Test nuevo: `app/layout/iconButtonSize.test.ts` (mira el código: jsdom no calcula tamaños). Ningún botón o enlace cuadrado mide menos de 44 px, todos llevan `shrink-0`, y los dos del Panel tienen su caso aparte.
+
+### Verificación
+- Rojo → verde: el test listó los 33 botones antes del cambio.
+- Frontend: 1473/1473 (antes 1468; +5), `typecheck` sin errores. El backend no se tocó: no se corrieron sus suites.
+- Chrome local, con un script que mide cada botón o enlace sin texto: 36 pantallas (18 de la ONG, 3 de la empresa, 15 de la voluntaria) a 375 y 1440 px. Después del cambio de tamaño quedaban tres casos (los dos "Volver" y los dos botones del Panel); con el arreglo, ninguno, y esas tres pantallas se midieron también a 768 px. Ninguna pantalla con scroll horizontal.
+- Capturas a 375 px: Panel de la ONG, detalle del voluntariado (mensaje al inscripto), KPIs (editar y borrar), página del voluntariado (volver, compartir, estrellas), Explorar con el mapa y sus controles, el mapa ampliado, la hoja de filtros, la lista de seguidores y el perfil de la empresa (retirar propuesta). No se vio nada roto ni encimado.
+- Mutación (60 mutantes: cada línea cambiada vuelve a su versión anterior): 54 muertos, 0 vivos y 6 que no se pudieron aplicar (seis líneas de `ProjectMap` idénticas entre sí, el script no puede elegir una).
+
+### Errores propios
+- El script de T4 solo veía botones con tamaño cuadrado explícito. Los tres casos restantes salieron recién al medir en Chrome; ya estaban anotados en C7 de §330 y no los había pasado a la lista.
+- En el barrido, las pantallas comparten la sesión del navegador: al entrar con otra cuenta para la tercera captura, la lista de seguidores de la primera mostró "Requiere rol: volunteer". Es del arnés, no de la app.
+
+### ⚠️ NO verificado
+- Un celular real: si los botones más grandes molestan al tocar o tapan algo.
+- No se abrieron: la hoja de reseñas, el visor de Momentos, el carrusel de fotos y "Quitar foto" del compositor (la base de prueba no tiene fotos y no se sube nada), el formulario de KPI abierto ni "Limpiar búsqueda" con texto escrito. Sus botones cambiaron por código y los cubre el test.
+- El pin del mapa mide 32×38: es un marcador de Leaflet, no un botón de la app; quedó fuera de la tanda.
+- En el perfil de la empresa, el título del proyecto se corta antes ("Reforestaci…") porque el botón de retirar ocupa 16 px más.
+- Botones de ícono sin tamaño explícito en pantallas que el barrido no abrió (admin, certificado, restablecer contraseña, hojas de donar e inscribirse).

@@ -186,7 +186,10 @@ En este orden:
      - [x] **T1 y T2** (§331, 12–13/11): D33–D36 y D39 corregidos y vistos en Chrome a 375 px, en claro y oscuro.
        Issues #34–#41 abiertos para D33–D40. **Sin push**: al pushear, mirar CI, Deploy y Sonar y cerrar los Issues
        #34–#37 y #40. El globito de no leídos pasó de `like` a `critical` (`DESIGN.md` actualizado).
-     - [ ] **T4** (botones de ícono a 44 px): **lo próximo**.
+     - [x] **T4** (§332, 13/11): los 33 botones de ícono de menos de 44 px pasaron a 44, todos los cuadrados
+       llevan `shrink-0`, y "Rechazar" y "Entrevista" del Panel miden 44 en el celular. Medido en Chrome en 36
+       pantallas. **Sin push.**
+     - **Lo próximo:** que el usuario dé el OK para pushear (despliega) y elija la tanda que sigue.
      - Abiertos: D37 (`es-AR` en `NGOProjectDetail`), D38 (pie de `CreateVoluntariado`) y D40 (tuteo en la hoja
        de filtros). El resto de las tandas (T3, T5–T13), cuando el usuario las elija.
    - De paso, la deuda chica del front de la Etapa 4: `es-AR` en `NGOProjectDetail`.

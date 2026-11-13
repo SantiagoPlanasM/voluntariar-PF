@@ -308,11 +308,11 @@ function TopBar({ badges }: { badges: Record<string, number> }) {
       <Link to={volunteer ? '/feed' : '/'} aria-label="VoluntariAR, inicio"><Logo /></Link>
       {volunteer ? (
         <div className="flex items-center -mr-3">
-          <Link to="/notifications" aria-label={badges.notifications ? `Notificaciones, ${badges.notifications} sin leer` : 'Notificaciones'} className="relative w-11 h-11 flex items-center justify-center text-ink">
+          <Link to="/notifications" aria-label={badges.notifications ? `Notificaciones, ${badges.notifications} sin leer` : 'Notificaciones'} className="relative w-11 h-11 flex-shrink-0 flex items-center justify-center text-ink">
             <Bell size={24} strokeWidth={1.75} aria-hidden="true" />
             <Badge n={badges.notifications} className="absolute top-1.5 right-1" />
           </Link>
-          <Link to="/messages" aria-label={badges.messages ? `Mensajes, ${badges.messages} sin leer` : 'Mensajes'} className="relative w-11 h-11 flex items-center justify-center text-ink">
+          <Link to="/messages" aria-label={badges.messages ? `Mensajes, ${badges.messages} sin leer` : 'Mensajes'} className="relative w-11 h-11 flex-shrink-0 flex items-center justify-center text-ink">
             <MessageCircle size={24} strokeWidth={1.75} aria-hidden="true" />
             <Badge n={badges.messages} className="absolute top-1.5 right-1" />
           </Link>

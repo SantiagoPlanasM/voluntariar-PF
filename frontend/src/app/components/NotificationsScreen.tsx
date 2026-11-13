@@ -165,7 +165,7 @@ export function NotificationsScreen(_props: { inPanel?: boolean } = {}) {
         <div className="bg-canvas md:rounded-2xl md:border md:border-hairline min-h-[60vh]">
           <header className="h-14 pl-1 pr-2 flex items-center gap-1">
             <button type="button" onClick={() => navigate(-1)} aria-label="Volver"
-              className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-surface-soft md:hidden">
+              className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-full hover:bg-surface-soft md:hidden">
               <ArrowLeft size={22} strokeWidth={1.75} aria-hidden="true" />
             </button>
             <h1 className="flex-1 text-[22px] font-bold tracking-[-0.3px] pl-3 md:pl-4">Notificaciones</h1>

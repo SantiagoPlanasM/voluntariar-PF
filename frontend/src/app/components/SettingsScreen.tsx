@@ -53,7 +53,7 @@ export function SettingsScreen() {
     <div className="min-h-screen bg-canvas-soft pb-8">
       <div className="max-w-[560px] mx-auto px-4 pt-2 md:pt-8 flex flex-col gap-5">
         <header className="flex items-center gap-1 -ml-3">
-          <Link to={back} aria-label="Volver" className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-surface-soft">
+          <Link to={back} aria-label="Volver" className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-full hover:bg-surface-soft">
             <ArrowLeft size={22} strokeWidth={1.75} aria-hidden="true" />
           </Link>
           <h1 className="text-[22px] font-bold tracking-[-0.3px]">Configuración</h1>

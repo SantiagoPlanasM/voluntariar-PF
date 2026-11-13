@@ -116,7 +116,7 @@ export function NGOKPIs() {
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={() => navigate(-1)} aria-label="Volver"
-              className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
+              className="w-11 h-11 flex-shrink-0 rounded-full bg-gray-100 flex items-center justify-center">
               <ArrowLeft className="w-4 h-4 text-gray-600" />
             </button>
             <div>
@@ -159,7 +159,7 @@ export function NGOKPIs() {
                 {editing ? 'Editar KPI' : 'Nuevo KPI'}
               </h2>
               <button type="button" onClick={cancelForm} aria-label="Cerrar formulario"
-                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200">
+                className="w-11 h-11 flex-shrink-0 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200">
                 <X className="w-4 h-4 text-gray-500" />
               </button>
             </div>
@@ -251,11 +251,11 @@ export function NGOKPIs() {
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button onClick={() => handleEdit(kpi)} aria-label={`Editar KPI ${kpi.nombre}`}
-                          className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
+                          className="w-11 h-11 flex-shrink-0 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
                           <Edit2 className="w-3.5 h-3.5 text-gray-500" />
                         </button>
                         <button onClick={() => handleDelete(kpi.id)} aria-label={`Borrar KPI ${kpi.nombre}`}
-                          className="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center transition-colors">
+                          className="w-11 h-11 flex-shrink-0 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center transition-colors">
                           <Trash2 className="w-3.5 h-3.5 text-red-500" />
                         </button>
                       </div>

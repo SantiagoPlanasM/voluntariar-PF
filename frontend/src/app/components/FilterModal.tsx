@@ -161,7 +161,7 @@ export function FilterModal({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-colors cursor-pointer"
+            className="w-11 h-11 flex-shrink-0 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-colors cursor-pointer"
             title="Cerrar (Esc)"
           >
             <X className="w-4 h-4" />

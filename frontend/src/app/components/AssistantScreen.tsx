@@ -65,7 +65,7 @@ export function AssistantScreen() {
   return (
     <div className="max-w-2xl mx-auto w-full flex flex-col h-[calc(100dvh-56px)] md:h-screen bg-canvas">
       <header className="flex items-center gap-3 px-2 h-14 border-b border-hairline flex-shrink-0">
-        <Link to={messagesBase(user?.role)} aria-label="Volver" className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-surface-soft">
+        <Link to={messagesBase(user?.role)} aria-label="Volver" className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-full hover:bg-surface-soft">
           <ArrowLeft size={22} strokeWidth={1.75} />
         </Link>
         <LogoMark size={32} />

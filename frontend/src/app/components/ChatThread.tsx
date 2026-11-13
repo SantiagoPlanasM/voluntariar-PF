@@ -71,7 +71,7 @@ export function ChatThread() {
   return (
     <div className="max-w-2xl mx-auto w-full flex flex-col h-[calc(100dvh-56px)] md:h-screen bg-canvas">
       <header className="flex items-center gap-2 px-2 h-14 border-b border-hairline bg-canvas sticky top-0 z-10 flex-shrink-0">
-        <button type="button" onClick={() => navigate(backTo)} aria-label="Volver" className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-surface-soft">
+        <button type="button" onClick={() => navigate(backTo)} aria-label="Volver" className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-full hover:bg-surface-soft">
           <ArrowLeft size={22} strokeWidth={1.75} />
         </button>
         <Avatar src={other?.avatar} name={other?.name || '?'} kind={other && 'role' in other && (other as any).role !== 'volunteer' ? 'org' : 'person'} size={32} />

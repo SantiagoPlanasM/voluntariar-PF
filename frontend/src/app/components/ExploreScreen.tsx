@@ -162,7 +162,7 @@ export function ExploreScreen() {
             />
             {searchQuery && (
               <button type="button" onClick={() => setSearchQuery('')} aria-label="Limpiar búsqueda"
-                className="-mr-2 w-9 h-9 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-surface-pressed">
+                className="-mr-2 w-11 h-11 flex-shrink-0 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-surface-pressed">
                 <X size={16} strokeWidth={2} aria-hidden="true" />
               </button>
             )}

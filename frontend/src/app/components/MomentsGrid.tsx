@@ -143,7 +143,7 @@ export function MomentsGrid({ filters, pageSize = 9 }: Props) {
               type="button"
               onClick={() => setOpen(null)}
               aria-label="Cerrar"
-              className="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80"
+              className="absolute top-2 right-2 z-10 w-11 h-11 flex-shrink-0 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80"
             >
               <X className="w-4 h-4" />
             </button>

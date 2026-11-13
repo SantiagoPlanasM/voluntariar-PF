@@ -207,7 +207,7 @@ export function CreateVoluntariado() {
         <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-4">
           <div className="flex items-center gap-3 mb-4">
             <button onClick={() => step > 1 ? back() : navigate(-1)} aria-label="Volver"
-              className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors flex-shrink-0">
+              className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors flex-shrink-0">
               <ArrowLeft className="w-4 h-4 text-gray-700" />
             </button>
             <div className="flex-1 min-w-0">

@@ -224,7 +224,7 @@ export function PostComposer({ onClose, onCreated }: Props) {
                         onClick={() => removePhoto(p.id)}
                         disabled={busy}
                         aria-label={`Quitar foto ${i + 1}`}
-                        className="absolute top-1 right-1 w-8 h-8 rounded-full bg-[var(--photo-chip-dark)] text-white flex items-center justify-center disabled:opacity-40"
+                        className="absolute top-1 right-1 w-11 h-11 flex-shrink-0 rounded-full bg-[var(--photo-chip-dark)] text-white flex items-center justify-center disabled:opacity-40"
                       >
                         <X className="w-4 h-4" aria-hidden="true" />
                       </button>

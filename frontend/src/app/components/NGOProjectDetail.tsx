@@ -131,7 +131,7 @@ export function NGOProjectDetail({ team = false }: { team?: boolean } = {}) {
     <div className="min-h-screen bg-gray-50 pb-8">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="flex items-center gap-3 p-4">
-          <button onClick={() => navigate(-1)} aria-label="Volver" className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
+          <button onClick={() => navigate(-1)} aria-label="Volver" className="w-11 h-11 flex-shrink-0 rounded-full bg-gray-100 flex items-center justify-center">
             <ArrowLeft className="w-4 h-4 text-gray-700" />
           </button>
           <div>
@@ -244,13 +244,13 @@ export function NGOProjectDetail({ team = false }: { team?: boolean } = {}) {
                           </span>
                           {e.has_cv && (
                             <button onClick={() => viewCv(e)} aria-label={`Ver CV de ${e.volunteer_name}`}
-                              className="w-7 h-7 rounded-full bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center transition-colors"
+                              className="w-11 h-11 flex-shrink-0 rounded-full bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center transition-colors"
                               title={`CV de ${e.volunteer_name}`}>
                               <FileText className="w-3.5 h-3.5 text-emerald-600" />
                             </button>
                           )}
                           <button onClick={() => navigate(`${team ? '' : '/ngo'}/messages/${e.user_id}`)}
-                            className="w-7 h-7 rounded-full bg-blue-50 hover:bg-blue-100 flex items-center justify-center transition-colors"
+                            className="w-11 h-11 flex-shrink-0 rounded-full bg-blue-50 hover:bg-blue-100 flex items-center justify-center transition-colors"
                             title={`Mensaje a ${e.volunteer_name}`}>
                             <MessageCircle className="w-3.5 h-3.5 text-blue-600" />
                           </button>

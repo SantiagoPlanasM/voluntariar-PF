@@ -173,7 +173,7 @@ export function CompanyOwnProfile() {
               { n: empresa.followers ?? 0, label: 'Seguidores' },
             ]}
             corner={(
-              <Link to="/settings" aria-label="Configuración" className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-surface-soft">
+              <Link to="/settings" aria-label="Configuración" className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-full hover:bg-surface-soft">
                 <Menu size={24} strokeWidth={1.75} aria-hidden="true" />
               </Link>
             )}
@@ -307,12 +307,12 @@ export function CompanyOwnProfile() {
                                   <div className="flex flex-shrink-0">
                                     <button type="button" aria-label={`Editar punto: ${pt.detail}`}
                                       onClick={() => { setPointForm(editPointForm({ ...pt, id })); setProposeErr(''); }}
-                                      className="w-11 h-11 rounded-full hover:bg-surface-pressed inline-flex items-center justify-center text-ink-soft">
+                                      className="w-11 h-11 flex-shrink-0 rounded-full hover:bg-surface-pressed inline-flex items-center justify-center text-ink-soft">
                                       <Pencil size={16} aria-hidden="true" />
                                     </button>
                                     <button type="button" aria-label={`Borrar punto: ${pt.detail}`}
                                       onClick={() => setProposePoints(d => removePoint(d, id))}
-                                      className="w-11 h-11 rounded-full hover:bg-surface-pressed inline-flex items-center justify-center text-critical">
+                                      className="w-11 h-11 flex-shrink-0 rounded-full hover:bg-surface-pressed inline-flex items-center justify-center text-critical">
                                       <Trash2 size={16} aria-hidden="true" />
                                     </button>
                                   </div>
@@ -371,7 +371,7 @@ export function CompanyOwnProfile() {
                       </span>
                       {p.estado === 'propuesto' && (
                         <button onClick={() => handleWithdraw(p.project_id)}
-                          className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-red-50 flex-shrink-0" title="Retirar propuesta">
+                          className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-red-50 flex-shrink-0" title="Retirar propuesta">
                           <Trash2 className="w-3.5 h-3.5 text-red-400" />
                         </button>
                       )}

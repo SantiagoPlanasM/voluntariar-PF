@@ -13,7 +13,7 @@ export function PasswordInput({ toggleLabel = 'Mostrar contraseña', className =
     <div className="relative">
       <input {...input} type={shown ? 'text' : 'password'} className={`${className} pr-12`} />
       <button type="button" onClick={() => setShown(s => !s)} aria-label={toggleLabel} aria-pressed={shown}
-        className="absolute right-0.5 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center text-ink-muted hover:text-ink">
+        className="absolute right-0.5 top-1/2 -translate-y-1/2 w-11 h-11 flex-shrink-0 flex items-center justify-center text-ink-muted hover:text-ink">
         {shown ? <EyeOff size={18} strokeWidth={1.75} aria-hidden="true" /> : <Eye size={18} strokeWidth={1.75} aria-hidden="true" />}
       </button>
     </div>

@@ -155,7 +155,7 @@ export function MyParticipation() {
       {opts.menu && item.status === 'pending' && (
         <div className="relative flex-shrink-0 -mr-3">
           <button type="button" onClick={() => setMenuFor(menuFor === item.id ? null : item.id)} aria-label={`Opciones de ${item.title}`} aria-haspopup="menu" aria-expanded={menuFor === item.id}
-            className="w-11 h-11 inline-flex items-center justify-center rounded-full text-ink-muted hover:bg-surface-soft">
+            className="w-11 h-11 flex-shrink-0 inline-flex items-center justify-center rounded-full text-ink-muted hover:bg-surface-soft">
             <MoreHorizontal size={22} strokeWidth={1.75} aria-hidden="true" />
           </button>
           {menuFor === item.id && (

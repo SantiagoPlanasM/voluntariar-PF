@@ -289,12 +289,12 @@ export function ProjectDetails() {
                 <span className="w-full h-full flex items-center justify-center opacity-30" aria-hidden="true"><LogoMark size={72} /></span>
               )}
               <button type="button" onClick={() => navigate(-1)} aria-label="Volver"
-                className="absolute top-3 left-3 w-10 h-10 rounded-full bg-[var(--photo-chip)] text-[var(--on-photo)] flex items-center justify-center active:scale-95 transition-transform">
+                className="absolute top-3 left-3 w-11 h-11 flex-shrink-0 rounded-full bg-[var(--photo-chip)] text-[var(--on-photo)] flex items-center justify-center active:scale-95 transition-transform">
                 <ArrowLeft size={20} strokeWidth={1.75} aria-hidden="true" />
               </button>
               <div className="absolute top-3 right-3 flex gap-2">
                 <button type="button" onClick={handleShare} aria-label="Compartir"
-                  className="w-10 h-10 rounded-full bg-[var(--photo-chip)] text-[var(--on-photo)] flex items-center justify-center active:scale-95 transition-transform">
+                  className="w-11 h-11 flex-shrink-0 rounded-full bg-[var(--photo-chip)] text-[var(--on-photo)] flex items-center justify-center active:scale-95 transition-transform">
                   <Share2 size={18} strokeWidth={1.75} aria-hidden="true" />
                 </button>
                 {(!user || user.role === 'volunteer') && (
@@ -433,7 +433,7 @@ export function ProjectDetails() {
                         <button type="button" key={star}
                           aria-label={`${star} estrella${star > 1 ? 's' : ''}`} aria-pressed={star === userRating}
                           onClick={() => { setUserRating(star); prefillPending.current = false; }}
-                          className="w-10 h-10 -mx-0.5 flex items-center justify-center active:scale-90 transition-transform">
+                          className="w-11 h-11 flex-shrink-0 -mx-0.5 flex items-center justify-center active:scale-90 transition-transform">
                           <Star size={26} className={star <= userRating ? 'fill-star text-star' : 'text-border-strong'} aria-hidden="true" />
                         </button>
                       ))}
@@ -519,7 +519,7 @@ export function ProjectDetails() {
                     />
                     {user && (
                       <button type="submit" disabled={commenting} aria-label="Publicar comentario"
-                        className="w-11 h-11 rounded-full inline-flex items-center justify-center disabled:opacity-40">
+                        className="w-11 h-11 flex-shrink-0 rounded-full inline-flex items-center justify-center disabled:opacity-40">
                         <Send size={20} strokeWidth={1.75} aria-hidden="true" />
                       </button>
                     )}

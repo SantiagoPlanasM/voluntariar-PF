@@ -31,7 +31,7 @@ export function Sheet({ title, titleId, onClose, children, footer, closeOnOverla
       </div>
       <div className="flex items-center justify-between gap-2 pl-4 pr-1 md:pt-3 flex-shrink-0">
         <h2 id={titleId} className="text-lg font-bold tracking-[-0.2px] truncate">{title}</h2>
-        <button type="button" onClick={onClose} disabled={closeDisabled} aria-label="Cerrar" className="w-11 h-11 inline-flex items-center justify-center rounded-full hover:bg-surface-soft disabled:opacity-40">
+        <button type="button" onClick={onClose} disabled={closeDisabled} aria-label="Cerrar" className="w-11 h-11 flex-shrink-0 inline-flex items-center justify-center rounded-full hover:bg-surface-soft disabled:opacity-40">
           <X size={22} strokeWidth={1.75} aria-hidden="true" />
         </button>
       </div>

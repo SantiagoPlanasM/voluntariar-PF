@@ -49,7 +49,7 @@ export function FollowListModal({ mode, load, emptyText, meId, onClose }: Props)
           <h3 id={titleId} className="font-bold text-gray-900">
             {mode === 'followers' ? 'Seguidores' : 'Siguiendo'}
           </h3>
-          <button onClick={onClose} aria-label="Cerrar" className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
+          <button onClick={onClose} aria-label="Cerrar" className="w-11 h-11 flex-shrink-0 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
             <X className="w-4 h-4 text-gray-600" />
           </button>
         </div>
