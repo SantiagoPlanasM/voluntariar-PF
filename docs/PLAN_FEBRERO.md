@@ -21,7 +21,48 @@ En este orden:
      tarjetas dentro de tarjetas; `alert()`/`window.confirm()`; tocables de menos de 44 px (`h-8`, `w-8`, `p-1` en
      botones de ícono); íconos sin nombre accesible; fechas y números sin `es-AR` (`toLocaleString()` pelado, ya
      anotado en `NGOProjectDetail`); corazón usado para "seguir"; insignia de verificada que falte donde aparece una ONG.
-   - **b. Inventario de pantallas**: cada sección de `DESIGN.md` (Componentes, 1.1 y Paneles) contra su componente, con
+     - [x] **Hecho el 12/11** sobre los 117 archivos fuente de `frontend/src` (sin tests). Solo Grep y un script que
+       lee las etiquetas tocables: **nada se miró en un navegador** y nada se arregló. Hallazgos (B = barrido):
+       - **B1. `window.confirm`**: queda uno, `CompanyOwnProfile:125` (retirar propuesta). `alert()`: 0.
+       - **B2. Formato argentino**: `NGOProjectDetail:170` (`$` pegado y `toLocaleString()` sin `es-AR`);
+         `ReviewsModal:158` (promedio con punto, "4.5"); `formatPesos` escribe `$32.000` sin espacio
+         (`DonationReturn` y los mensajes de monto mínimo y máximo). Hay cuatro formas de escribir plata:
+         `formatPesos`, `formatMoney`, el `nf` de `Meter` y un `money()` local.
+       - **B3. Verde que no es personas** (se ve): botones verdes en `DonationReturn:66,78`, `MercadoPagoReturn:44`,
+         `NGOPatrocinios:93`, `CreateVoluntariado:573,637`, `ReviewsModal:244`, `ProjectMap:571,810`; enlaces verdes
+         en `PrivacyPage:22` y `MomentsGrid:103`; spinners verdes (`FollowListModal`, `ReviewsModal`, `RequireRole`,
+         `NGOMoments`); iniciales sobre verde (`FollowListModal:81`, `ReviewsModal:287`); chips verdes por rol y por
+         tipo (`NGOEmpleados:61`, `NGOKPIs:13`); bloque verde de la reseña (`ReviewsModal:186`).
+       - **B4. Azul que no es dinero**: 13 enlaces `text-brand-text underline` (`MyParticipation` 5, `InterviewPanel` 3,
+         `ProjectDetails` 2, `CompanyOwnProfile` 2, `NGOPatrocinios` 1; el diseño pide `ink` peso 600) y el chip de
+         filtro elegido de `NGOProjectDetail:215` (`bg-brand`).
+       - **B5. Paleta vieja** (no se ve, por el remapeo de `theme.css`; es deuda): unas 597 clases `gray/blue/emerald/…`
+         en 29 archivos, 452 en nueve: `ProjectMap` 95, `CreateVoluntariado` 79, `NGOKPIs` 53, `ReviewsModal` 51,
+         `FilterModal` 43, `NGOProjectDetail` 40, `NGOEmpleados` 37, `CompanyOwnProfile` 30, `NGOPatrocinios` 24.
+       - **B6. Colores fijos que no cambian en oscuro**: `ReviewsModal:294` (`bg-[#e4f1e0] text-[#255f24]`),
+         `ProjectMap:473,476,705,709` (fondo del mapa), `FeedPostCard:180` (`text-[#d12d21]` sobre chip blanco:
+         puede ser a propósito). `CATEGORY_COLORS` de `ProjectMap` quedó con todas las categorías iguales (sobra).
+       - **B7. Sombras**: 48 `shadow-sm/md/xs` que ya no dibujan nada (remapeadas). Visibles fuera de lo que flota:
+         `CreateVoluntariado` (3, dos con color), `ProjectMap` (4) y el pin de `mapTiles`.
+       - **B8. Tocables de menos de 44 px**: 69 con alto explícito (28 px: 5, 32 px: 23, 36 px: 17, 40 px: 24). Los
+         de 40 y los chips de 32 siguen los tamaños del propio `DESIGN.md` (`button-md`, `chip`), que choca con
+         "todo lo tocable mide 44": **hay que decidir cuál vale**. Los claros son los botones de ícono de 28 a 36 px:
+         `ProjectMap` 11, `NGOKPIs` 4, `NGOProjectDetail` 3, `CompanyOwnProfile:373` y los "Cerrar" de
+         `FilterModal`, `FollowListModal`, `ReviewsModal` y `MomentsGrid`. El script no ve botones sin alto explícito.
+       - **B9. Spinner a pantalla completa** (el diseño pide esqueletos): `CreateVoluntariado:192`,
+         `CompanyOwnProfile:153`, `NGOProjectDetail:121`, `TeamPanel:33`, `RequireRole:33`. Hay esqueletos en 14 pantallas.
+       - **B10. Chicos**: dos contadores a 11 px (`AppShell:39`, `NGODashboard:195`); mayúsculas en
+         `CertificatePage:48`; corazón como ícono de Mercado Pago (`navConfig:97`) y del rol ONG (`AuthModal:128`);
+         emojis en el paso "Revisar" de `CreateVoluntariado:602,604`; `rounded-3xl` en `ProjectMap`.
+       - **B11. Insignia de verificada**: la muestran 6 componentes. Nombran una ONG sin ella, entre otros,
+         `VolunteeringTile`, `FeedSidebar`, `PostCard`, `MainFeed`, `MyParticipation`, `CompanyPublicProfile`,
+         `VolunteerProfile`, `VolunteerPublicProfile`, `ProjectMap` y `CertificatePage`. **Sin confirmar** en cuáles
+         el endpoint manda el dato: se mira en 2b.
+       - **Sin hallazgos**: degradés (0), `alert()` (0), `<img>` sin `alt` (0), botones sin texto ni `aria-label` (0,
+         con una heurística que deja pasar casos), `fetch` fuera de `api.ts` (0), "Voluntariar" (0), `lang="es"`.
+       - **No se puede ver por código**: tarjetas dentro de tarjetas, sombras en el feed, contraste real y todo lo
+         visual. Queda para 2c.
+   - **b. Inventario de pantallas** (**lo próximo**): cada sección de `DESIGN.md` (Componentes, 1.1 y Paneles) contra su componente, con
      *igual / distinto / falta / sobra*. Prioridad a las que **nunca se revisaron**:
      - las que §240 dejó solo con la paleta remapeada: `NGOProjectDetail`, `NGOKPIs`, `NGOPatrocinios`,
        `CreateVoluntariado`, `ReviewsModal`, `FilterModal` (`NGOEmpleados` se saca en la Etapa 4: no revisarla);
