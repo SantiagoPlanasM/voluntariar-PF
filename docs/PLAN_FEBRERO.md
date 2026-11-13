@@ -121,10 +121,57 @@ En este orden:
        - **Para confirmar en 2c** (salen del código, falta verlos): el botón de `FilterModal` y los globitos
          `bg-ink-muted text-white` de `NotificationsScreen:17,24,28,34` en oscuro; el pie de `CreateVoluntariado`
          en 768–1023 px.
-   - **c. En Chrome local** (**lo próximo**; memoria "Verificación local", datos de `npm run db:reset` en el backend): recorrido por
+   - **c. En Chrome local** (memoria "Verificación local", datos de `npm run db:reset` en el backend): recorrido por
      rol (visitante, voluntario, ONG, empresa, admin), cada pantalla a **375 px y 1440 px**, **claro y oscuro**, más
      768 y 1024 px donde cambia la navegación. Es el punto 4 de "Guía para iterar" de `DESIGN.md`.
-   - **d. Resultado**: se anota como **sesión exploratoria nueva** en `docs/calidad/SESION_EXPLORATORIA.md` (charter,
+     - [x] **Hecho el 12/11** en Chrome local, con una base SQLite aparte (seed más un patrocinio con puntos y dos
+       versiones, tres KPIs y una entrevista, cargados por la API). Dos partes:
+       - **Medición automática** de 56 pantallas por rol (visitante 9, voluntario 15, miembro de equipo 6, ONG 17,
+         empresa 9), cada una a 375 y 1440 px, en claro y oscuro (224 corridas), más 7 pantallas a 768 y 1024 px
+         en claro. Un script dentro de la página midió: scroll horizontal, contraste de cada texto contra su fondo
+         (4,5:1, o 3:1 en texto grande), botones de ícono de menos de 44 px, texto de menos de 12 px, y qué
+         elementos usan el azul y el verde. No mide textos sobre fotos ni elementos con opacidad.
+       - **Capturas** de las dudosas (unas 20 vistas). Hallazgos (C = Chrome); los que dicen "confirma" ya estaban
+         en 2a o 2b:
+       - **C1. Scroll horizontal a 375 px** (nuevo): `/company/dashboard` (76 px de más: se cortan las cifras, "Propuestas
+         pendien…", y el estado de cada proyecto queda fuera de la pantalla) y `/ngo/patrocinios` (48 px: se corta
+         "Rechazar" y el texto de la propuesta). A 768 y 1024 px no pasa. El resto de las pantallas, sin scroll.
+       - **C2. Contraste del globito de no leídos** (nuevo): blanco sobre `like`, 3,91:1 en claro y 3,02:1 en
+         oscuro, con texto de 11 px (barra lateral y Panel de la ONG). `paletteContrast.test.ts` no mira `bg-like`.
+       - **C3. `FilterModal` en oscuro** (confirma 2b): "Mostrar 12 voluntariados" no se lee (blanco sobre casi
+         blanco). Además: el punto de color de cada categoría no se ve, y "Elige según el tiempo y dedicación que
+         desees aportar" (tuteo, se suma a "Personaliza").
+       - **C4. Pie de `CreateVoluntariado`** (confirma 2b): a 900 px arranca a 240 px del borde con la barra lateral de
+         72, así que queda corrido respecto del formulario. A 375 px queda 8 px por encima de la barra inferior y se
+         ve el formulario por la rendija.
+       - **C5. `NGOProjectDetail`** (confirma B2 y B8): en este Chrome el monto se ve `$8,500` (formato de EE. UU.);
+         a 375 px "Volver" queda de 26×36 px; el tipo sale en minúscula ("fugaz").
+       - **C6. Contraste 4,32:1** en claro: "Última actualización" de `/privacidad` y el título "Pendientes (2)" de
+         `/ngo/patrocinios` (`gray-400` sobre `gray-50`).
+       - **C7. Botones de ícono de menos de 44 px medidos** (confirma B8): "Volver" y "Compartir" de la página del
+         voluntariado y las estrellas para puntuar (40); "Volver" de `NGOKPIs`, `CreateVoluntariado` y
+         `NGOProjectDetail` (36); editar y borrar KPI (32); mensaje al inscripto y retirar propuesta (28); sacar del
+         equipo (36); en el Panel a 375 px, rechazar y entrevista (32×36); "Volver" del asistente (37×44) y de
+         `NGOTeam` (31×44) a 375 px.
+       - **C8. Iniciales del avatar a 11 px** en los avatares chicos (32 px), en casi todas las pantallas.
+       - **C9. Avatar de la cuenta en la barra**: para la ONG y la empresa muestra las iniciales de la persona
+         ("AS", "AT") en un círculo, no el logo cuadrado de la organización. En `/ngo/patrocinios` el logo de la
+         empresa sin foto sale con fondo rojo (imagen de DiceBear: no pasa por `Avatar`).
+       - **C10. Mapa de Explorar en oscuro**: el fondo queda claro (B6) y en esta corrida no cargaron las imágenes
+         del mapa (**sin confirmar** si es del entorno de prueba). El contador dice "10 proyectos".
+       - **C11. Azul y verde medidos** (confirma B3 y B4): fuera de Donar, Inscribirme, montos, cupos y el tipo,
+         aparecen en `NGOProjectDetail` (chip "Todos" azul, iniciales azules, enlaces de la entrevista),
+         `NGOPatrocinios` ("Aceptar" verde, enlace azul), `NGOKPIs` (valores en verde), `CompanyOwnProfile` ("Ver
+         acuerdo" azul) y `/privacidad` en oscuro ("Volver al inicio" verde).
+       - **Sin hallazgos en la medición**: las 15 pantallas del voluntario y las del visitante no tienen fallas de
+         contraste ni scroll horizontal (salvo C6); tampoco el acuerdo y el historial de patrocinio, postulaciones,
+         validación, equipo, mensajes ni notificaciones.
+       - **⚠️ No cubierto**: las hojas de donar, inscribirse y reseñas, y el compositor; publicaciones y Momentos
+         con fotos (el seed no trae y no se sube nada); notificaciones de rechazo (los globitos `bg-ink-muted` de
+         2b: por cuenta dan 2,96:1 en oscuro, **no se vieron**); validación y admin con un pedido cargado; el
+         certificado; la navegación a 768 y 1024 px más allá del scroll; foco con teclado; texto al 200 %; lector
+         de pantalla; un celular real.
+   - **d. Resultado** (**lo próximo**): se anota como **sesión exploratoria nueva** en `docs/calidad/SESION_EXPLORATORIA.md` (charter,
      heurísticas, hallazgos, lo no cubierto) y cada hallazgo en `REGISTRO_DEFECTOS.md` con severidad: sirve para el
      informe del TP. Además una página (artifact) con la tabla y las capturas para que el usuario elija.
    - **e. Arreglos** por tandas que elige el usuario, un commit por tanda, con test rojo → verde cuando se puede
