@@ -212,6 +212,10 @@ describe('<AppShell />', () => {
     const perfil = within(tabBar()).getByRole('link', { name: 'Perfil' });
     expect(perfil).toHaveTextContent('AP');
     expect(perfil).toHaveAttribute('aria-current', 'page');
+    // El aro del ítem activo es redondo, como el avatar de una persona (T6, §334).
+    const ring = perfil.querySelector('[data-initial]')!.parentElement!;
+    expect(ring.className).toContain('ring-2');
+    expect(ring.className).toContain('rounded-full');
   });
 
   test('el botón de tema cambia a oscuro y lo recuerda', () => {

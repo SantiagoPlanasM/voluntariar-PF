@@ -3,7 +3,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Home, Search, SquarePlus, CalendarCheck, MessageCircle, Bell, User, LayoutDashboard,
-  Handshake, Camera, Users, Building2, Heart, UserCheck, BadgeCheck, Settings,
+  Handshake, Camera, Users, Building2, Wallet, UserCheck, BadgeCheck, Settings,
 } from 'lucide-react';
 
 export type NavRole = 'volunteer' | 'ngo' | 'company' | 'visitor';
@@ -94,7 +94,7 @@ const ngo: NavSet = (() => {
       { to: '/ngo/notifications', label: 'Notificaciones', icon: Bell, fill: true, badge: 'notifications' },
       { label: 'Mi ONG', icon: User, avatar: true, children: [
         profile,
-        { to: '/ngo/profile#mercadopago', label: 'Mercado Pago', icon: Heart },
+        { to: '/ngo/profile#mercadopago', label: 'Mercado Pago', icon: Wallet },
         { to: '/ngo/validacion', label: 'Validación', icon: BadgeCheck },   // §317
         { to: '/settings', label: 'Configuración', icon: Settings },
       ] },

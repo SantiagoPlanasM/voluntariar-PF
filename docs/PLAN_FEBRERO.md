@@ -2,7 +2,7 @@
 
 > Estado al 13/11/2026. El 5/11 fue la presentación de avances; la final es **después de febrero** (falta la fecha exacta).
 > El proyecto es académico y no se lanza al mercado, pero se sigue mejorando. Las reglas de trabajo no cambian (`CLAUDE.md`).
-> Producción está en `d963a56` (CI, Deploy y SonarCloud en verde el 13/11, 0 issues abiertas). Investigación de pagos:
+> Producción está en `f1ebd2e` o posterior (CI, Deploy y SonarCloud en verde el 13/11, 0 issues abiertas). Investigación de pagos:
 > [informe de Mercado Pago](https://claude.ai/artifact/WF4evt666tG7cXNkGWJGc2).
 
 ## Para retomar (próxima sesión)
@@ -190,9 +190,16 @@ En este orden:
        pantallas.
      - [x] **D37, D38 y D40** (§333, 13/11): formato argentino en `NGOProjectDetail` y `ReviewsModal`, pie de
        `CreateVoluntariado` con las medidas de `AppShell`, voseo en la hoja de filtros.
-     - **Los 8 defectos de la sesión #2 (D33–D40) están corregidos**, con sus Issues #34–#41. En producción hasta
-       §332 (`d963a56`, CI #90, Deploy #86, Sonar en OK).
-     - **Lo próximo:** que el usuario elija la tanda que sigue (T3, T5–T13 de la
+     - **Los 8 defectos de la sesión #2 (D33–D40) están corregidos y en producción**, con sus Issues #34–#41
+       cerrados (`f1ebd2e`, CI #91, Deploy #87, Sonar en OK). T3 quedó hecha con ellos, salvo unificar las
+       cuatro funciones que escriben plata.
+     - [x] **T6, primera parte** (§334, 13/11): iniciales del avatar a 12 px, el corazón solo para el "me gusta"
+       (billetera en Mercado Pago, grupo de personas en el rol ONG), sin `uppercase`, sin emojis, y el aro del
+       avatar de la cuenta con la forma del avatar.
+     - [ ] **T6, lo que falta:** el logo de la organización en el avatar de la cuenta (guardar el perfil de
+       `/auth/me` en `AuthContext`) y esqueletos en vez de spinner a pantalla completa en `CreateVoluntariado`,
+       `CompanyOwnProfile`, `NGOProjectDetail`, `TeamPanel` y `RequireRole`.
+     - **Lo próximo:** terminar T6, o la tanda que elija el usuario (T5, T7–T13 de la
        [página de tandas](https://claude.ai/artifact/5FLvxTAFSd629UcB8X59x2)); es deuda de diseño, no defectos.
    - [x] De paso, la deuda chica del front de la Etapa 4: `es-AR` en `NGOProjectDetail` (§333).
    - Sumar al inventario lo nuevo de §329: los puntos en "Proponer" (`CompanyOwnProfile`, que sigue con el resto de

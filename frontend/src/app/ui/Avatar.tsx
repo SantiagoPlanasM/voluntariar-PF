@@ -29,7 +29,7 @@ interface Props {
 
 export function Avatar({ src, name, kind = 'person', size = 44, className = '', alt = '' }: Props) {
   const radius = kind === 'org' ? '28%' : '9999px';
-  const style = { width: size, height: size, borderRadius: radius, fontSize: Math.max(11, Math.round(size * 0.34)) };
+  const style = { width: size, height: size, borderRadius: radius, fontSize: Math.max(12, Math.round(size * 0.34)) };
   if (!isPlaceholder(src)) {
     return <img src={src!} alt={alt} style={style} className={`object-cover flex-shrink-0 bg-surface-soft ${className}`} />;
   }

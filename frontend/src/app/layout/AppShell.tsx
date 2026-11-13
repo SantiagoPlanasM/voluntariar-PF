@@ -45,9 +45,11 @@ function Badge({ n, className = '' }: { n: number; className?: string }) {
 function ItemIcon({ item, active, size }: { item: Pick<NavItem, 'icon' | 'fill' | 'avatar'>; active: boolean; size: number }) {
   const { user } = useAuth();
   if (item.avatar && user) {
+    // El aro del ítem activo sigue la forma del avatar: redondo para una persona, cuadrado redondeado para una organización.
+    const org = user.role !== 'volunteer';
     return (
-      <span className={`rounded-full ${active ? 'ring-2 ring-ink ring-offset-2 ring-offset-canvas' : ''}`}>
-        <Avatar src={user.avatar} name={user.name} kind={user.role === 'volunteer' ? 'person' : 'org'} size={size} />
+      <span className={`inline-flex ${org ? 'rounded-[28%]' : 'rounded-full'} ${active ? 'ring-2 ring-ink ring-offset-2 ring-offset-canvas' : ''}`}>
+        <Avatar src={user.avatar} name={user.name} kind={org ? 'org' : 'person'} size={size} />
       </span>
     );
   }

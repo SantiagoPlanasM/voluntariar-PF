@@ -210,6 +210,15 @@ describe('barra con nombres (≥ 1024 px): acordeón', () => {
     expect(within(sideBar()).getByRole('link', { name: 'Configuración' })).toHaveAttribute('aria-current', 'page');
   });
 
+  // T6 (§334): el aro del ítem activo era siempre redondo y el avatar de una organización es cuadrado.
+  test('el aro del avatar activo sigue la forma del avatar de la organización (cuadrado redondeado)', () => {
+    app('/settings');
+    const ring = group('Mi ONG').querySelector('[data-initial]')!.parentElement!;
+    expect(ring.className).toContain('ring-2');
+    expect(ring.className).toContain('rounded-[28%]');
+    expect(ring.className).not.toContain('rounded-full');
+  });
+
   test('los ítems sueltos siguen siendo links con su contador', async () => {
     vi.mocked(api.notifications.list).mockResolvedValue({ notifications: [], unread: 4 } as never);
     app('/ngo/dashboard');

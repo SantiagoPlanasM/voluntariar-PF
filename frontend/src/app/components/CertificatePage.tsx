@@ -45,7 +45,7 @@ export function CertificatePage() {
       <article aria-label="Certificado de participación"
         className="w-full max-w-[720px] bg-white text-gray-900 rounded-2xl border-4 border-double border-gray-300 px-8 py-12 text-center flex flex-col items-center gap-4 print:border-gray-400">
         <LogoMark size={40} />
-        <p className="text-sm tracking-[0.2em] uppercase text-gray-600">Certificado de participación</p>
+        <p className="text-sm font-semibold text-gray-600">Certificado de participación</p>
         <p className="text-base text-gray-700">VoluntariAR certifica que</p>
         <p className="text-3xl font-bold">{user.name}</p>
         <p className="text-base text-gray-700">participó como voluntario/a en</p>

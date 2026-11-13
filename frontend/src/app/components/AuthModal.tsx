@@ -1,6 +1,6 @@
 // src/app/components/AuthModal.tsx
 import { useState, useEffect, useRef } from 'react';
-import { X, User, Heart, Building2, Check } from 'lucide-react';
+import { X, User, Users, Building2, Check } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useNavigate } from 'react-router';
 import { Modal } from './Modal';
@@ -125,7 +125,7 @@ function ForgotPasswordForm({ initialEmail, onBack }: { initialEmail: string; on
 
 const ROLES = [
   { id: 'volunteer' as const, label: 'Voluntario', icon: User,      hint: 'Me sumo, dono y cuento lo que hice' },
-  { id: 'ngo'       as const, label: 'ONG',        icon: Heart,     hint: 'Publico voluntariados y recibo ayuda' },
+  { id: 'ngo'       as const, label: 'ONG',        icon: Users,     hint: 'Publico voluntariados y recibo ayuda' },
   { id: 'company'   as const, label: 'Empresa',    icon: Building2, hint: 'Patrocino y sumo a mi equipo' },
 ];
 type Role = typeof ROLES[number]['id'];

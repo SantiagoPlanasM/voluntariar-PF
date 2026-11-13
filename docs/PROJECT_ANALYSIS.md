@@ -827,3 +827,29 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - `NGOApplications` tiene una barra flotante con `bottom-16` (64 px): es una tarjeta separada del borde a propósito y no se tocó.
 - Quedan cuatro formas de escribir plata (`formatPesos`, los dos `formatMoney`, el `money()` local): unificarlas es deuda, no parte de D37.
 - `calidad/METRICAS.md` y el informe del TP no se actualizaron (tienen fecha de corte).
+
+## 334. Chicos de la interfaz (tanda T6, primera parte)
+
+### Qué se hizo
+- El usuario dejó elegir la tanda ("la que quieras") con poca sesión por delante: fue T6, la chica de frontend. §333 quedó en producción antes de empezar (`f1ebd2e`, CI #91, Deploy #87, SonarCloud en OK); se cerraron los Issues #38, #39 y #41 y no queda ninguno abierto.
+- **Iniciales del avatar a 12 px como mínimo** (antes 11 en los avatares de 26 y 32 px): "nada por debajo de 12px".
+- **El corazón queda solo para el "me gusta".** En el menú de la ONG, Mercado Pago pasó al ícono de billetera; en el registro, el rol ONG pasó al de grupo de personas.
+- **Sin mayúsculas completas:** el rótulo "Certificado de participación" ya no va con `uppercase`.
+- **Sin emojis:** se sacaron los dos del paso "Revisar" de crear un voluntariado (Remoto e Híbrido).
+- **Aro del avatar de la cuenta:** en el ítem activo seguía siendo redondo aunque el avatar de una ONG o de una empresa es cuadrado redondeado. Ahora sigue la forma del avatar.
+- Tests nuevos: `app/layout/designRules.test.ts` (mira el código: corazón, `uppercase` y emojis en toda la app), `app/ui/Avatar.test.tsx`, y un caso en `AppShell.test.tsx` y otro en `SideNavGroups.test.tsx` para el aro.
+
+### Verificación
+- Rojo → verde: 6 tests de las reglas y del avatar fallaban antes del arreglo. Los dos casos del aro se escribieron junto con el cambio: no los vi en rojo, los cubre la mutación.
+- Frontend: 1495/1495 (antes 1484; +11), `typecheck` sin errores. El backend no se tocó: no se corrieron sus suites en local.
+- Mutación (10 mutantes): 10 muertos, 0 vivos.
+- Chrome local, como ONG: en la barra lateral y en la barra inferior el avatar "AS" mide 12 px de letra y el aro del ítem activo es cuadrado redondeado (28 %); ningún avatar con letra de menos de 12 px en las dos pantallas que se abrieron.
+
+### Errores propios
+- El primer test de `designRules` pedía más de 100 archivos fuente y hay 98: lo bajé a 80.
+
+### ⚠️ NO verificado
+- **Lo que quedó de T6 sin hacer:** el avatar de la cuenta sigue mostrando las iniciales de la persona y no el logo de la organización (la sesión solo guarda al usuario; `/auth/me` ya manda el perfil, falta guardarlo en `AuthContext`), y los esqueletos en lugar del spinner a pantalla completa en cinco pantallas (B9).
+- No se vieron en Chrome el ícono nuevo de Mercado Pago (el grupo "Mi ONG" estaba cerrado), el del rol ONG en el registro, el certificado ni el paso "Revisar". Los íconos elegidos (billetera, grupo de personas) son una decisión mía: si el usuario prefiere otros, se cambian.
+- De paso se vio que el perfil de la ONG tiene scroll horizontal en un marco de 320 px (las tres cifras de arriba). El diseño se revisa a 375 px y ahí no pasa; queda anotado, sin tocar.
+- Un celular real.

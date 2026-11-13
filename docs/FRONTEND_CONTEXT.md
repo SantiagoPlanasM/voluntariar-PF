@@ -271,6 +271,8 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
 - **Globito de no leídos:** `bg-critical text-on-ink text-xs`. `like` es solo para el corazón.
 - **Pie fijo de `CreateVoluntariado`** (`app/layout/fixedFooter.test.ts`): usa las medidas de `AppShell` (barra lateral de 72 y 244 px, barra inferior de `56px + área segura`). Si cambian en `AppShell`, el test obliga a cambiarlas en el pie.
 - **Plata y promedios:** montos con `formatMoney` (`$ 8.500`), nunca `toLocaleString()` sin `es-AR`; promedios con coma (`4,5`).
+- **Reglas chicas** (`app/layout/designRules.test.ts`, mira el código de toda la app): el `Heart` de lucide solo en `PostCard` (el "me gusta"), ninguna clase `uppercase`, ningún emoji.
+- **`Avatar`:** las iniciales miden 12 px como mínimo. En la navegación, el aro del ítem activo sigue la forma del avatar (redondo para una persona, 28 % para una organización).
 - **Botones de ícono** (`app/layout/iconButtonSize.test.ts`): miden 44 px, `w-11 h-11 flex-shrink-0` (o `IconButton` de `ui/Button`). Sin `shrink-0`, en una fila flex ceden ancho al texto de al lado. Un botón que pierde el texto en el celular (`hidden sm:inline`) también mide 44 ahí.
 - **Combinaciones correctas:**
   - Botones llenos: `bg-ink text-on-ink`, `bg-people text-white`, `bg-critical text-on-ink`.

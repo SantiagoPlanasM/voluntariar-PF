@@ -599,9 +599,9 @@ export function CreateVoluntariado() {
                   <span>
                     · {form.category} · {
                       form.modality === 'remoto'
-                        ? '💻 Remoto'
+                        ? 'Remoto'
                         : form.modality === 'hibrido'
-                        ? `🌐 Híbrido (${form.location || 'Online + Sede'})`
+                        ? `Híbrido (${form.location || 'Online + Sede'})`
                         : (form.location || '—')
                     }
                   </span>
