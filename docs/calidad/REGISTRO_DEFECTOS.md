@@ -8,7 +8,7 @@
 
 ## Resumen
 
-- **40 defectos.** Severidad: alta 2 · media 17 · baja 21. **37 corregidos y 3 abiertos** (D37, D38 y D40). D33–D40 salieron de la sesión exploratoria #2 del 12/11 (§330) y tienen los Issues #34–#41; D33–D36 y D39 se corrigieron el 12/11 (§331). D25–D29 se corrigieron el 22/10 (§247); D30–D32 el 23/10 (§253, §254 y §257).
+- **40 defectos.** Severidad: alta 2 · media 17 · baja 21. **40 corregidos y 0 abiertos.** D33–D40 salieron de la sesión exploratoria #2 del 12/11 (§330) y tienen los Issues #34–#41; D33–D36 y D39 se corrigieron el 12/11 (§331) y D37, D38 y D40 el 13/11 (§333). D25–D29 se corrigieron el 22/10 (§247); D30–D32 el 23/10 (§253, §254 y §257).
 - **Dónde se encontraron:** revisión de código 6 · pipeline/CI 5 · SonarCloud 3 · mutation testing 1 · suite de regresión 2 · sesión exploratoria 16 (8 en la #1, 8 en la #2) · prueba manual en Chrome sin guion 1 (D30, con el label `encontrado:exploratoria`) · **producción 6** (D31 y D32 los encontré yo, en pruebas manuales sobre producción).
 - **Tasa de defectos escapados a producción** (métrica de proceso, T11): 6 de 40 = **15,0 %** **de este registro** (6 de 32 = 18,8 % antes de la sesión #2, §330; D33–D40 se encontraron en local, pero sobre el código que estaba en producción: nadie los había reportado) (5 de 31 = 16,1 % antes de D32) (4 de 18 = 22,2 % antes del rediseño del frontend, §240; 4 de 21 = 19,0 % antes de la sesión exploratoria, §245; 4 de 29 = 13,8 % en el corte del informe, §249; 4 de 30 = 13,3 % con D30). Ojo: el registro es una **selección** (abajo); con todos los hallazgos de `REVISION.md`, que se encontraron antes de producción, el denominador sería mucho mayor y la tasa, menor. Para el informe vale como "sobre los defectos registrados", no como tasa del proceso completo.
 - **D22–D29 (sesión exploratoria, §245) son los primeros Issues abiertos antes del arreglo:** se reportaron el 22/10, D22–D24 se corrigieron con un test que primero falló (§246) y D25–D29 también (§247). Los D01–D21 están todos corregidos, y todos con prueba de regresión que corre en el CI (salvo D08, que era un defecto del propio test, y D09/D10, que se verifican en el run siguiente).
@@ -54,10 +54,10 @@
 | D34 | [#35](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/35) | Propuestas de patrocinio de la ONG: scroll horizontal a 375 px (48 px de más) | media | sesión exploratoria | RF-12 | frontend pageWidth.test.ts ("toda raíz con mx-auto lleva w-full") | `335140c` |
 | D35 | [#36](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/36) | Modo oscuro: "Mostrar N voluntariados" de la hoja de filtros no se lee | media | sesión exploratoria | RF-3 | frontend paletteContrast.test.ts ("ningún componente pone text-white sobre un token que no llega a 4,5:1") | `335140c` |
 | D36 | [#37](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/37) | Globito de no leídos con contraste 3,91:1 (claro) y 3,02:1 (oscuro) | baja | sesión exploratoria | RF-14 | frontend paletteContrast.test.ts ("ningún componente pone text-white sobre un token que no llega a 4,5:1") | `335140c` |
-| D37 | [#38](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/38) | Detalle del voluntariado de la ONG: lo recaudado sin formato argentino (`$8,500`) | baja | sesión exploratoria | RF-6 | pendiente (sin test todavía) | **abierto** |
-| D38 | [#39](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/39) | "Nuevo voluntariado": el pie fijo queda corrido entre 768 y 1023 px y deja una rendija a 375 px | baja | sesión exploratoria | RF-2 | pendiente (sin test todavía) | **abierto** |
+| D37 | [#38](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/38) | Detalle del voluntariado de la ONG: lo recaudado sin formato argentino (`$8,500`) | baja | sesión exploratoria | RF-6 | frontend NGOProjectDetailMoney.test.tsx y ReviewsModalAverage.test.tsx | `a5d2ec5` |
+| D38 | [#39](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/39) | "Nuevo voluntariado": el pie fijo queda corrido entre 768 y 1023 px y deja una rendija a 375 px | baja | sesión exploratoria | RF-2 | frontend fixedFooter.test.ts ("arranca donde termina la barra lateral", "queda pegado a la barra inferior") | `a5d2ec5` |
 | D39 | [#40](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/40) | Contraste 4,32:1 en "Última actualización" (Privacidad) y "Pendientes" (patrocinios) | baja | sesión exploratoria | — | frontend paletteContrast.test.ts ("gray de 400 en adelante llega a 4,5:1 sobre gray-50") | `335140c` |
-| D40 | [#41](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/41) | Hoja de filtros: dos textos en tuteo ("Personaliza…", "Elige…") | baja | sesión exploratoria | RF-3 | pendiente (sin test todavía) | **abierto** |
+| D40 | [#41](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/41) | Hoja de filtros: dos textos en tuteo ("Personaliza…", "Elige…") | baja | sesión exploratoria | RF-3 | frontend FilterModalCopy.test.tsx | `a5d2ec5` |
 
 ## Trazabilidad por requisito
 
@@ -444,22 +444,22 @@
 ### D37 — Detalle del voluntariado de la ONG: lo recaudado sin formato argentino (`$8,500`)
 
 - **Issue:** [#38](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/38) · **Severidad:** baja · **Encontrado en:** sesión exploratoria #2 (12/11, §330) · **Área:** frontend
-- **Requisito:** RF-6 Donaciones · **Caso:** pendiente
+- **Requisito:** RF-6 Donaciones · **Caso:** frontend NGOProjectDetailMoney.test.tsx y ReviewsModalAverage.test.tsx
 - **Origen:** PROJECT_ANALYSIS.md §330, SESION_EXPLORATORIA.md (sesión #2) · **Entorno:** Local (`1088775`), Chrome en inglés
 - **Pasos:** (1) ONG (2) Panel → un voluntariado con donaciones
 - **Esperado:** `$ 8.500`, como en el resto de la app
 - **Obtenido:** `${project.current_funding.toLocaleString()}` sin `es-AR` y con el `$` pegado (`NGOProjectDetail.tsx:170`): el formato depende del idioma del navegador. Por código, `ReviewsModal.tsx:158` muestra el promedio con punto ("4.5"): **no se vio en Chrome**
-- **Arreglo:** **abierto** · **Regresión:** pendiente
+- **Arreglo:** `a5d2ec5` (`formatMoney` (`$ 8.500`, es-AR) en `NGOProjectDetail` y el promedio de `ReviewsModal` con coma. En un Chrome en inglés se ve `$ 8.500` (§333)) · **Regresión:** NGOProjectDetailMoney.test.tsx y ReviewsModalAverage.test.tsx (rojo: 5 tests → verde, §333)
 
 ### D38 — "Nuevo voluntariado": el pie fijo queda corrido entre 768 y 1023 px y deja una rendija a 375 px
 
 - **Issue:** [#39](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/39) · **Severidad:** baja · **Encontrado en:** sesión exploratoria #2 (12/11, §330) · **Área:** frontend
-- **Requisito:** RF-2 Publicar proyectos · **Caso:** pendiente
+- **Requisito:** RF-2 Publicar proyectos · **Caso:** frontend fixedFooter.test.ts ("arranca donde termina la barra lateral", "queda pegado a la barra inferior")
 - **Origen:** PROJECT_ANALYSIS.md §330, SESION_EXPLORATORIA.md (sesión #2) · **Entorno:** Local (`1088775`), Chrome, marcos de 900 y 375 px
 - **Pasos:** (1) ONG (2) Crear voluntariado, a 900 px y a 375 px
 - **Esperado:** el pie con "Continuar" alineado con el formulario y pegado a la barra inferior
 - **Obtenido:** A 900 px arranca a 240 px del borde (`md:left-60`) con la barra lateral de 72 px: queda corrido a la derecha. A 375 px está a 64 px del borde (`bottom-16`) y la barra mide 56: se ve el formulario por 8 px (`CreateVoluntariado.tsx:622`)
-- **Arreglo:** **abierto** · **Regresión:** pendiente
+- **Arreglo:** `a5d2ec5` (el pie usa las medidas de `AppShell`: `md:left-[72px] lg:left-[244px]` y `bottom-[calc(56px+env(safe-area-inset-bottom,0px))]`. Medido en Chrome a 375, 768, 883, 1007 y 1263 px (§333)) · **Regresión:** fixedFooter.test.ts (rojo: 2 tests → verde, §333)
 
 ### D39 — Contraste 4,32:1 en "Última actualización" (Privacidad) y "Pendientes" (patrocinios)
 
@@ -474,9 +474,9 @@
 ### D40 — Hoja de filtros: dos textos en tuteo ("Personaliza…", "Elige…")
 
 - **Issue:** [#41](https://github.com/SantiagoPlanasM/voluntariar-PF/issues/41) · **Severidad:** baja · **Encontrado en:** sesión exploratoria #2 (12/11, §330) · **Área:** frontend
-- **Requisito:** RF-3 Listar y buscar proyectos · **Caso:** pendiente
+- **Requisito:** RF-3 Listar y buscar proyectos · **Caso:** frontend FilterModalCopy.test.tsx
 - **Origen:** PROJECT_ANALYSIS.md §330, SESION_EXPLORATORIA.md (sesión #2) · **Entorno:** Local (`1088775`), Chrome
 - **Pasos:** (1) Explorar → Filtros
 - **Esperado:** voseo, como en el resto de la app ("Personalizá", "Elegí")
 - **Obtenido:** "Personaliza tu búsqueda de voluntariados" (`FilterModal.tsx:159`) y "Elige según el tiempo y dedicación que desees aportar"
-- **Arreglo:** **abierto** · **Regresión:** pendiente
+- **Arreglo:** `a5d2ec5` ("Personalizá tu búsqueda de voluntariados" y "Elegí según el tiempo y la dedicación que quieras aportar" (§333)) · **Regresión:** FilterModalCopy.test.tsx (rojo: 2 tests → verde, §333)

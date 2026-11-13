@@ -167,4 +167,4 @@ Ninguno se corrigió en la sesión (la exploración informa, no arregla). Despu�
 
 ## 7. Qué se hizo con los hallazgos
 
-Ninguno se corrigió en la sesión. Los 8 defectos quedaron en `REGISTRO_DEFECTOS.md` como D33–D40 (Issues #34–#41). **Después de la sesión:** D33–D36 y D39 se corrigieron el 12/11 (§331); D37, D38 y D40 siguen abiertos. La deuda de diseño no se registra como defecto: se arregla por tandas que elige el usuario (`PLAN_FEBRERO.md`, paso 2e).
+Ninguno se corrigió en la sesión. Los 8 defectos quedaron en `REGISTRO_DEFECTOS.md` como D33–D40 (Issues #34–#41). **Después de la sesión:** D33–D36 y D39 se corrigieron el 12/11 (§331) y D37, D38 y D40 el 13/11 (§333): no queda ninguno abierto. La deuda de diseño no se registra como defecto: se arregla por tandas que elige el usuario (`PLAN_FEBRERO.md`, paso 2e).

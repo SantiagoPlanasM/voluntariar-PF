@@ -1,8 +1,8 @@
 # PLAN_FEBRERO.md — Lo que sigue hasta la presentación final
 
-> Estado al 12/11/2026. El 5/11 fue la presentación de avances; la final es **después de febrero** (falta la fecha exacta).
+> Estado al 13/11/2026. El 5/11 fue la presentación de avances; la final es **después de febrero** (falta la fecha exacta).
 > El proyecto es académico y no se lanza al mercado, pero se sigue mejorando. Las reglas de trabajo no cambian (`CLAUDE.md`).
-> Producción está en `1088775` (CI, Deploy y SonarCloud en verde el 12/11, 0 issues abiertas). Investigación de pagos:
+> Producción está en `d963a56` (CI, Deploy y SonarCloud en verde el 13/11, 0 issues abiertas). Investigación de pagos:
 > [informe de Mercado Pago](https://claude.ai/artifact/WF4evt666tG7cXNkGWJGc2).
 
 ## Para retomar (próxima sesión)
@@ -184,15 +184,17 @@ En este orden:
    - **e. Arreglos** por tandas que elige el usuario, un commit por tanda, con test rojo → verde cuando se puede
      (lo visual queda NO verificado en un celular real). Las pantallas nuevas se suman a `DESIGN.md` (estado actual).
      - [x] **T1 y T2** (§331, 12–13/11): D33–D36 y D39 corregidos y vistos en Chrome a 375 px, en claro y oscuro.
-       Issues #34–#41 abiertos para D33–D40. **Sin push**: al pushear, mirar CI, Deploy y Sonar y cerrar los Issues
-       #34–#37 y #40. El globito de no leídos pasó de `like` a `critical` (`DESIGN.md` actualizado).
+       El globito de no leídos pasó de `like` a `critical` (`DESIGN.md` actualizado).
      - [x] **T4** (§332, 13/11): los 33 botones de ícono de menos de 44 px pasaron a 44, todos los cuadrados
        llevan `shrink-0`, y "Rechazar" y "Entrevista" del Panel miden 44 en el celular. Medido en Chrome en 36
-       pantallas. **Sin push.**
-     - **Lo próximo:** que el usuario dé el OK para pushear (despliega) y elija la tanda que sigue.
-     - Abiertos: D37 (`es-AR` en `NGOProjectDetail`), D38 (pie de `CreateVoluntariado`) y D40 (tuteo en la hoja
-       de filtros). El resto de las tandas (T3, T5–T13), cuando el usuario las elija.
-   - De paso, la deuda chica del front de la Etapa 4: `es-AR` en `NGOProjectDetail`.
+       pantallas.
+     - [x] **D37, D38 y D40** (§333, 13/11): formato argentino en `NGOProjectDetail` y `ReviewsModal`, pie de
+       `CreateVoluntariado` con las medidas de `AppShell`, voseo en la hoja de filtros.
+     - **Los 8 defectos de la sesión #2 (D33–D40) están corregidos**, con sus Issues #34–#41. En producción hasta
+       §332 (`d963a56`, CI #90, Deploy #86, Sonar en OK).
+     - **Lo próximo:** que el usuario elija la tanda que sigue (T3, T5–T13 de la
+       [página de tandas](https://claude.ai/artifact/5FLvxTAFSd629UcB8X59x2)); es deuda de diseño, no defectos.
+   - [x] De paso, la deuda chica del front de la Etapa 4: `es-AR` en `NGOProjectDetail` (§333).
    - Sumar al inventario lo nuevo de §329: los puntos en "Proponer" (`CompanyOwnProfile`, que sigue con el resto de
      la pantalla en los estilos viejos) y `SponsorshipPointForm`.
 3. **Notificaciones instantáneas** por el WebSocket que ya existe (Etapa 3). Ahí sumar el contador de postulaciones pendientes en la barra lateral de la ONG, que quedó afuera en §320 porque hoy no hay una forma barata de contarlas.
