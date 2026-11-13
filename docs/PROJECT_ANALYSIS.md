@@ -746,3 +746,31 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - Si el mapa de Explorar sin imágenes en oscuro es del entorno de prueba o un defecto.
 - En qué otros endpoints haría falta mandar el dato de ONG verificada: se miró el frontend y los `SELECT` que ya lo traen, no cada ruta.
 - Los defectos D33–D40 no tienen Issue en GitHub (los anteriores sí): falta que el usuario diga si se abren. `calidad/METRICAS.md` y el informe del TP no se actualizaron (tienen fecha de corte).
+
+## 331. Defectos D33–D36 y D39: scroll horizontal a 375 px y contraste sobre tokens (tandas T1 y T2)
+
+### Qué se hizo
+- El usuario eligió las tandas T1 (los tres defectos de severidad media) y T2 (contraste) de la página de §330, y pidió abrir los Issues: **#34–#41** para D33–D40.
+- **D33 y D34 (scroll horizontal a 375 px).** El contenido de `AppShell` es un flex en columna: una pantalla cuya raíz lleva `mx-auto` no se estira, toma el ancho de su contenido, y con un texto que no corta quedaba más ancha que la pantalla. Se agregó `w-full` a las 10 raíces con `mx-auto` que no lo tenían (`CompanyDashboard` 3, `NGODashboard` 2, `NGOPatrocinios`, `DeleteAccountPage`, `DonationReturn`, `MercadoPagoReturn`, `ResetPasswordPage`). Test nuevo: `app/layout/pageWidth.test.ts` (mira el código: jsdom no calcula anchos).
+- **D35 (botón de la hoja de filtros en oscuro) y los globitos grises de las notificaciones.** `text-white` sobre `bg-ink`, `bg-ink-muted` y `bg-critical` pasó a `text-on-ink`, que cambia con el tema (`FilterModal`, `NotificationsScreen` 4, `CvSection`, `DeleteAccountSection`).
+- **D36 (globito de no leídos).** Pasó de `bg-like text-white` a 11 px a `bg-critical text-on-ink` a 12 px (`AppShell` y `NGODashboard`). **Cambia el diseño:** `like` queda solo para el corazón; `DESIGN.md` actualizado.
+- **D39.** `gray-400` en claro pasó de #6b7581 a #646e7a en `theme.css` (4,32:1 → 4,79:1 sobre `gray-50`); también `slate-400` y `zinc-400`, que ningún componente usa.
+- `paletteContrast.test.ts` ahora mira `text-white` y `text-on-ink` sobre los tokens (antes solo la paleta), los grises contra el fondo de la página y que ningún número sobre `critical` o `like` mida menos de 12 px.
+- `REGISTRO_DEFECTOS.md`: D33–D36 y D39 corregidos (37 corregidos, 3 abiertos: D37, D38 y D40).
+
+### Verificación
+- Rojo → verde: con el código anterior (`335140c~1`) y los tests nuevos, 3 fallan (10 raíces sin `w-full`, 8 usos de `text-white` sobre tokens, `gray-400` a 4,32:1); con el arreglo, verde.
+- Frontend: 1468/1468, `typecheck` sin errores. El backend no se tocó: no se corrieron sus suites.
+- Chrome local a 375 px, en claro y oscuro, con el mismo script de medición de §330: `/company/dashboard`, `/ngo/patrocinios`, `/ngo/dashboard`, `/ngo/notifications` y `/privacidad` sin scroll horizontal y sin textos por debajo de 4,5:1. El globito mide 12 px: blanco sobre #d12d21 en claro, #0b0d10 sobre #ff6b5e en oscuro. "Mostrar 12 voluntariados" en oscuro: #0b0d10 sobre #f2f4f7. Captura de las tres pantallas.
+- Mutación (28 mutantes: cada línea cambiada vuelve a su versión anterior, más 6 finos sobre el globito y los grises): 25 muertos y 3 vivos, los tres equivalentes (`slate-400` y `zinc-400` no se usan; `gray-400` en #68727e da 4,51:1, que cumple).
+
+### Errores propios
+- **El commit `335140c` dejó `REGISTRO_DEFECTOS.md` duplicado** (925 líneas en vez de 483). El script que ponía los enlaces a los Issues usó `String.replace` con un texto que tenía un `$` seguido de un acento grave (en D37), y JavaScript lo tomó como "lo que está antes de la coincidencia": pegó el archivo adentro de sí mismo. Se rearmó desde la versión anterior aplicando solo los 16 enlaces. Los reemplazos de texto en scripts van con `split`/`join` o con una función.
+- La sesión del 12/11 se cortó por el límite antes de verificar en Chrome, de correr la mutación y de escribir esta sección: se hizo el 13/11.
+- La primera corrida de mutación dejó 3 vivos que no eran equivalentes: el test miraba solo `text-white`, así que `bg-like text-on-ink` en `AppShell` pasaba, y nada miraba los 11 px. Se amplió el test.
+
+### ⚠️ NO verificado
+- Un celular real, y los anchos intermedios (se midió a 375 px; a 768 y 1024 px no había scroll antes del arreglo y no se volvió a medir).
+- El punto de color de cada categoría en la hoja de filtros sigue sin verse en oscuro (se ve en la captura): es deuda de diseño, quedó fuera de D35.
+- Los globitos grises de las notificaciones de rechazo se arreglaron por código y los cubre el test; en Chrome no había ninguna de ese tipo para verlos.
+- Los Issues #34–#37 y #40 siguen abiertos: se cierran cuando el CI del push dé verde. `calidad/METRICAS.md` y el informe del TP no se actualizaron (tienen fecha de corte).

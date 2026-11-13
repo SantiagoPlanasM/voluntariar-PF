@@ -173,18 +173,35 @@ describe('text-white sobre los tokens (claro y oscuro)', () => {
     for (const rel of readdirSync(join(SRC, 'app'), { recursive: true }) as string[]) {
       if (!rel.endsWith('.tsx') || rel.includes('.test.')) continue;
       const text = readFileSync(join(SRC, 'app', rel), 'utf8');
-      for (const s of text.matchAll(/(["'`])([^"'`\n]*\btext-white\b[^"'`\n]*)\1/g)) {
+      // `text-white` es blanco en los dos temas; `text-on-ink` cambia con el tema (blanco en claro, casi negro en oscuro).
+      for (const s of text.matchAll(/(["'`])([^"'`\n]*(?<![\w:-])text-(white|on-ink)\b[^"'`\n]*)\1/g)) {
         for (const bg of s[2].matchAll(/(?<![\w:-])bg-([a-z]+(?:-[a-z]+)*)(?![\w/-])/g)) {
           if (!lightT.has(bg[1])) continue;
-          for (const [mode, t] of [['claro', lightT], ['oscuro', darkT]] as const) {
-            seen++;
-            const ratio = contrast('#ffffff', t.get(bg[1])!);
-            if (ratio < 4.5) found.add(`${rel.replace(/\\/g, '/')}: bg-${bg[1]} + text-white en ${mode} = ${ratio.toFixed(2)}:1`);
+          for (const fg of new Set([...s[2].matchAll(/(?<![\w:-])text-(white|on-ink)\b/g)].map(m => m[1]))) {
+            for (const [mode, t] of [['claro', lightT], ['oscuro', darkT]] as const) {
+              seen++;
+              const ratio = contrast(fg === 'white' ? '#ffffff' : t.get('on-ink')!, t.get(bg[1])!);
+              if (ratio < 4.5) found.add(`${rel.replace(/\\/g, '/')}: bg-${bg[1]} + text-${fg} en ${mode} = ${ratio.toFixed(2)}:1`);
+            }
           }
         }
       }
     }
     return { found: [...found].sort(), seen };
+  }
+
+  // El globito medía 11 px (D36). Un número sobre un fondo lleno no baja de 12 px (`text-xs`).
+  function smallOnFilled(): string[] {
+    const found: string[] = [];
+    for (const rel of readdirSync(join(SRC, 'app'), { recursive: true }) as string[]) {
+      if (!rel.endsWith('.tsx') || rel.includes('.test.')) continue;
+      const text = readFileSync(join(SRC, 'app', rel), 'utf8');
+      for (const s of text.matchAll(/(["'`])([^"'`\n]*(?<![\w:-])bg-(?:critical|like)\b[^"'`\n]*)\1/g)) {
+        const size = /(?<![\w:-])text-\[(\d+(?:\.\d+)?)px\]/.exec(s[2]);
+        if (size && Number(size[1]) < 12) found.push(`${rel.replace(/\\/g, '/')}: ${size[0]}`);
+      }
+    }
+    return found;
   }
 
   test('la medición coincide con la de la sesión: blanco sobre ink oscuro = 1,10:1 y sobre like = 3,91:1 y 3,02:1', () => {
@@ -197,6 +214,10 @@ describe('text-white sobre los tokens (claro y oscuro)', () => {
     const { found, seen } = tokenOffenders();
     expect(seen).toBeGreaterThan(10); // si no encuentra combinaciones, el test no probaría nada
     expect(found).toEqual([]);
+  });
+
+  test('ningún número sobre critical o like mide menos de 12 px', () => {
+    expect(smallOnFilled()).toEqual([]);
   });
 
   test('los reemplazos llegan a 4,5:1 en los dos temas', () => {

@@ -35,7 +35,7 @@ colors:
   people-soft: "#E7F3EA"       # fondo de estado "Aceptado", cupos reservados
   on-people: "#FFFFFF"
 
-  like: "#E5484D"              # corazón de "me gusta" (solo forma, nunca texto) y contadores de no leídos
+  like: "#E5484D"              # corazón de "me gusta" (solo forma, nunca texto ni fondo de texto)
   star: "#E0A100"              # estrella de puntaje (siempre acompañada del número)
   critical: "#D12D21"
   scrim: "rgba(15, 20, 25, 0.56)"
@@ -391,8 +391,10 @@ Reglas:
 
 ### Otros
 
-- `like` `#E5484D`: el corazón lleno de "me gusta" y el globito con el número de no leídos (en la
-  barra y en el menú lateral).
+- `like` `#E5484D`: el corazón lleno de "me gusta". Solo como forma: el blanco encima no llega a
+  4,5:1.
+- El globito con el número de no leídos (en la barra y en el menú lateral) va en `critical` con el
+  número en `on-ink`, a 12px.
 - `star` `#E0A100`: la estrella del puntaje. Tiene poco contraste, así que **siempre** va con el
   número al lado ("★ 4,5").
 - `critical`: errores y acciones destructivas.

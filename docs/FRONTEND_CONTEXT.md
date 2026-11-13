@@ -264,7 +264,11 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
 - **Paleta vieja:** la de Tailwind (`blue`, `sky`, `indigo`…) está remapeada a la escala neutra.
 - **Contraste** (`styles/paletteContrast.test.ts`):
   - exige 4,5:1 a todo `text-white` sobre `bg-<color>-<tono>`, a los textos de color y a los tokens usados como texto, en los dos modos;
+  - también a `text-white` y `text-on-ink` sobre los tokens (`bg-ink`, `bg-ink-muted`, `bg-critical`, `bg-like`) y a los grises desde `gray-400` sobre `gray-50`;
+  - ningún número sobre `bg-critical` o `bg-like` mide menos de 12 px;
   - las listas de conocidos están vacías: cualquier caso nuevo hace fallar el test.
+- **Ancho de las pantallas** (`app/layout/pageWidth.test.ts`): toda raíz de pantalla con `mx-auto` lleva `w-full`. Sin eso no se estira dentro de `AppShell` (flex en columna) y un texto que no corta da scroll horizontal en el celular.
+- **Globito de no leídos:** `bg-critical text-on-ink text-xs`. `like` es solo para el corazón.
 - **Combinaciones correctas:**
   - Botones llenos: `bg-ink text-on-ink`, `bg-people text-white`, `bg-critical text-on-ink`.
   - Texto de color: `text-people-text` y `text-brand-text`, **no** `text-people` ni `text-brand`.

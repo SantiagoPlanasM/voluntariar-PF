@@ -20,9 +20,10 @@ Respondé en español rioplatense (voseo).
   - `test:pg` necesita Postgres en `localhost:5432` (`TEST_PG_*` en `helpers.js`): `docker run --rm -d -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=voluntariar_test postgres:18` (la versión de producción).
   - `email-redos.test.js` tiene 1500 ms de umbral (con 500 fallaba a veces en local).
   - Scripts del CI aparte: `node --test ".github/scripts/*.test.js"` (con comillas).
-- **Frontend:** `npm test`, **solo** (a la par de las suites del backend varios pasan los 5 s). Hoy **1461** tests; cobertura: sentencias 91,95 %, ramas 88,73 %, funciones 89,13 %, líneas 94,38 % (`npm run test:coverage`, reportes en `frontend/reports/`).
+- **Frontend:** `npm test`, **solo** (a la par de las suites del backend varios pasan los 5 s). Hoy **1468** tests; cobertura: sentencias 91,95 %, ramas 88,73 %, funciones 89,13 %, líneas 94,38 % (`npm run test:coverage`, reportes en `frontend/reports/`).
   - Tipos: `npm run typecheck` (TypeScript 7), **0 errores**. Nunca `npx tsc`: el paquete `tsc` de npm no es TypeScript.
-  - `src/styles/paletteContrast.test.ts` exige 4,5:1 a todo `text-white` sobre la paleta y a los textos de color, en claro y oscuro. Para texto: `text-people-text`/`text-brand-text`, no `text-people`/`text-brand`.
+  - `src/styles/paletteContrast.test.ts` exige 4,5:1 a todo `text-white` sobre la paleta y a los textos de color, en claro y oscuro. Para texto: `text-people-text`/`text-brand-text`, no `text-people`/`text-brand`. Sobre `bg-ink`/`bg-critical`: `text-on-ink`, no `text-white`.
+  - `src/app/layout/pageWidth.test.ts`: toda raíz de pantalla con `mx-auto` lleva `w-full` (si no, scroll horizontal a 375 px).
 - **CI:** `.github/workflows/ci.yml` corre todo en Node 22, SQLite y Postgres 18, UTC y Córdoba, con cobertura mínima del 80 % en el backend.
 - **`npm audit` en 0** en los dos paquetes. La base de avisos cambia sola: si aparece uno, avisá.
 
