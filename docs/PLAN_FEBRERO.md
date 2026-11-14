@@ -211,10 +211,16 @@ En este orden:
    (`e5f65e1`, CI #94, Deploy #90, SonarCloud en OK con 0 issues); falta probarlo en la interfaz desplegada.
 4. [x] **Sin `window.confirm` y una sola forma de escribir plata** (§337, 14/11; hallazgos B1 y B2, lo que quedaba
    de T3): retirar una propuesta pregunta con el diálogo propio, y `formatMoney` (`lib/format.ts`) reemplaza a
-   `formatPesos`, a los dos `formatMoney` y al `money()` local. Commit local, **sin push** (falta el OK). Quedó
-   afuera: los mensajes de monto mínimo y máximo (`$100`, `$500.000`), que son textos del backend; y decidir si un
-   monto con centavos va `$ 99,5` o `$ 99,50`.
-5. **Lo próximo:** otra tanda de diseño (T5, T7–T13), o lo que siga de la Etapa 3: reputación (antes, que el
+   `formatPesos`, a los dos `formatMoney` y al `money()` local. En producción (`c9813bd`, CI #95, Deploy #91,
+   SonarCloud en OK con 0 issues). Quedó afuera: los mensajes de monto mínimo y máximo (`$100`, `$500.000`), que
+   son textos del backend; y decidir si un monto con centavos va `$ 99,5` o `$ 99,50`.
+5. [x] **T5: azul solo dinero, verde solo personas** (§338, 14/11; hallazgos B3 y B4): los botones verdes que no
+   eran "Inscribirme" y el chip azul pasaron a `ink`; los 13 enlaces azules y los 2 verdes, a `ink` peso 600;
+   spinners, iniciales, chips y el bloque de la reseña, a los grises. Regla nueva en `designRules.test.ts`.
+   Commit local, **sin push** (falta el OK). **Nada se vio en el navegador.** Quedó para decidir: los globitos
+   verdes de "acuerdo cerrado", "te sumaste al equipo" y "ONG validada" en Notificaciones, y el "Aceptado" verde
+   de un patrocinio.
+6. **Lo próximo:** otra tanda de diseño (T7–T13), o lo que siga de la Etapa 3: reputación (antes, que el
    usuario defina qué se mide) o empleados de empresa con cupos reservados. Elige el usuario.
 
 ## Devolución de los directores (5/11)

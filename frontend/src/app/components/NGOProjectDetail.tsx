@@ -226,7 +226,7 @@ export function NGOProjectDetail({ team = false }: { team?: boolean } = {}) {
               {['all', 'pending', 'approved', 'rejected'].map(f => (
                 <button key={f} onClick={() => setFilter(f as any)}
                   className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                    filter === f ? 'bg-brand text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    filter === f ? 'bg-ink text-on-ink' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}>
                   {f === 'all' ? 'Todos' : f === 'pending' ? 'Pendientes' : f === 'approved' ? 'Aprobados' : 'Rechazados'}
                   {' '}({f === 'all' ? enrollments.length : enrollments.filter(e => e.status === f).length})
@@ -242,7 +242,7 @@ export function NGOProjectDetail({ team = false }: { team?: boolean } = {}) {
               {filtered.map(e => (
                 <div key={e.id} id={`postulacion-${e.id}`} className={`p-4 ${e.id === marked ? 'bg-surface-soft' : ''}`}>
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-brand-soft flex items-center justify-center text-sm font-bold text-brand-text flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-surface-soft flex items-center justify-center text-sm font-bold text-ink flex-shrink-0">
                       {e.volunteer_name[0]}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -258,9 +258,9 @@ export function NGOProjectDetail({ team = false }: { team?: boolean } = {}) {
                           </span>
                           {e.has_cv && (
                             <button onClick={() => viewCv(e)} aria-label={`Ver CV de ${e.volunteer_name}`}
-                              className="w-11 h-11 flex-shrink-0 rounded-full bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center transition-colors"
+                              className="w-11 h-11 flex-shrink-0 rounded-full bg-surface-soft hover:bg-surface-pressed flex items-center justify-center transition-colors"
                               title={`CV de ${e.volunteer_name}`}>
-                              <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                              <FileText className="w-3.5 h-3.5 text-ink" />
                             </button>
                           )}
                           <button onClick={() => navigate(`${team ? '' : '/ngo'}/messages/${e.user_id}`)}
@@ -279,7 +279,7 @@ export function NGOProjectDetail({ team = false }: { team?: boolean } = {}) {
                   {e.status === 'pending' && (
                     <div className="flex gap-2 mt-3 ml-13">
                       <button onClick={() => handle(e.id, 'approved')} disabled={processing === e.id}
-                        className="flex-1 py-2 bg-green-50 text-green-700 rounded-xl text-xs font-semibold hover:bg-green-100 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50">
+                        className="flex-1 py-2 bg-people-soft text-people-text rounded-xl text-xs font-semibold hover:opacity-80 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50">
                         {processing === e.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
                         Aprobar
                       </button>

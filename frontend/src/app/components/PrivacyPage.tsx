@@ -19,7 +19,7 @@ export function PrivacyPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
-        <Link to="/" className="inline-flex items-center gap-1 text-sm text-emerald-700 font-semibold">
+        <Link to="/" className="inline-flex items-center gap-1 text-sm text-ink font-semibold">
           <ArrowLeft className="w-4 h-4" aria-hidden="true" />Volver al inicio
         </Link>
         <header className="space-y-1">

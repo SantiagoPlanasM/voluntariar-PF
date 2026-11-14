@@ -43,7 +43,7 @@ export function DeleteAccountPage() {
 
   let content: React.ReactNode;
   if (done) {
-    content = card(<CheckCircle className="w-10 h-10 text-emerald-500" />, 'Tu cuenta se borró',
+    content = card(<CheckCircle className="w-10 h-10 text-ink" />, 'Tu cuenta se borró',
       <><p className="text-center">Gracias por haber sido parte de VoluntariAR.</p><div className="text-center">{home}</div></>);
   } else if (!token) {
     content = card(<XCircle className="w-10 h-10 text-gray-300" />, 'Este link no es válido',

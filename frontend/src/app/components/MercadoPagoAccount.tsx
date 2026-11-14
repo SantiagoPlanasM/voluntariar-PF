@@ -81,7 +81,7 @@ export function MercadoPagoAccountSection({ go = (url: string) => window.locatio
           <p className="text-sm text-amber-700 flex gap-2"><AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
             Tu cuenta de Mercado Pago dejó de funcionar y no estás recibiendo donaciones. Volvé a vincularla.</p>
         ) : (
-          <p className="text-sm text-gray-600 flex gap-2"><CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" aria-hidden="true" />
+          <p className="text-sm text-gray-600 flex gap-2"><CheckCircle className="w-4 h-4 text-ink flex-shrink-0 mt-0.5" aria-hidden="true" />
             Cuenta vinculada: recibís las donaciones de tus proyectos en tu cuenta de Mercado Pago.</p>
         )}
         <p className="text-xs text-gray-400">

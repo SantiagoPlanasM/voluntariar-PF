@@ -16,7 +16,7 @@ interface Props {
   load: (mode: FollowListMode) => Promise<{ volunteers: VolunteerPublic[] }>;
   /** Texto de la lista vacía para cada modo ("Todavía no tenés…" en el propio, "Todavía no tiene…" en el público). */
   emptyText: Record<FollowListMode, string>;
-  /** Id del usuario logueado: su fila lleva a /profile y dice "Tú". */
+  /** Id del usuario logueado: su fila lleva a /profile y dice "Vos". */
   meId?: string;
   onClose: () => void;
 }
@@ -56,7 +56,7 @@ export function FollowListModal({ mode, load, emptyText, meId, onClose }: Props)
         <div className="overflow-y-auto flex-1 p-2">
           {loading ? (
             <div className="flex justify-center py-8">
-              <Loader2 className="w-6 h-6 text-emerald-600 animate-spin" />
+              <Loader2 className="w-6 h-6 text-ink-muted animate-spin" />
             </div>
           ) : error ? (
             <InlineError message={error} onRetry={() => setAttempt(a => a + 1)} />
@@ -78,7 +78,7 @@ export function FollowListModal({ mode, load, emptyText, meId, onClose }: Props)
                   {vol.avatar ? (
                     <img src={vol.avatar} alt={vol.name} className="w-11 h-11 rounded-full object-cover ring-2 ring-gray-100" />
                   ) : (
-                    <div className="w-11 h-11 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-sm ring-2 ring-gray-100">
+                    <div className="w-11 h-11 rounded-full bg-surface-soft text-ink font-bold flex items-center justify-center text-sm ring-2 ring-gray-100">
                       {vol.name[0]}
                     </div>
                   )}
@@ -89,7 +89,7 @@ export function FollowListModal({ mode, load, emptyText, meId, onClose }: Props)
                     </p>
                   </div>
                   {vol.user_id === meId && (
-                    <span className="text-xs font-bold text-people-text bg-people-soft px-2 py-0.5 rounded-full">Tú</span>
+                    <span className="text-xs font-bold text-ink-soft bg-surface-soft px-2 py-0.5 rounded-full">Vos</span>
                   )}
                 </Link>
               ))}

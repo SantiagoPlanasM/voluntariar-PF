@@ -77,18 +77,18 @@ const open = async (name: 'Seguidores' | 'Siguiendo') => {
 beforeEach(() => lists(people));
 
 describe('listas de seguidores/seguidos', () => {
-  test('cada persona: link a su perfil (o a /profile si soy yo, con "Tú"), foto o inicial, ubicación y seguidores', async () => {
+  test('cada persona: link a su perfil (o a /profile si soy yo, con "Vos"), foto o inicial, ubicación y seguidores', async () => {
     own();
     const d = await open('Seguidores');
     const juan = await within(d).findByRole('link', { name: /Juan/ });
     expect(juan).toHaveAttribute('href', '/volunteer/u-2');
     expect(within(juan).getByRole('img', { name: 'Juan' })).toHaveAttribute('src', 'https://img/juan.jpg');
     expect(juan).toHaveTextContent('Córdoba · 3 seguidores');
-    expect(juan).not.toHaveTextContent('Tú');
+    expect(juan).not.toHaveTextContent('Vos');
 
     const me = within(d).getByRole('link', { name: /María/ });
     expect(me).toHaveAttribute('href', '/profile');
-    expect(me).toHaveTextContent('Tú');
+    expect(me).toHaveTextContent('Vos');
     expect(me).toHaveTextContent('Argentina · 2 seguidores');
     expect(within(me).getByRole('img', { name: 'María' })).toHaveAttribute('src', 'https://img/maria.jpg');
 

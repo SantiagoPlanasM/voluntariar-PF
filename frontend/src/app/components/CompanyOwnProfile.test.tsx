@@ -204,7 +204,7 @@ describe('<CompanyOwnProfile />', () => {
 
     const pendiente = await screen.findByText('Pendiente');
     expect(pendiente.className).toContain('bg-amber-50 text-amber-700');
-    expect(screen.getByText('Aceptado').className).toContain('bg-emerald-50 text-emerald-700');
+    expect(screen.getByText('Aceptado').className).toContain('bg-people-soft text-people-text');
     expect(screen.getByText('Rechazado').className).toContain('bg-red-50 text-red-600');
   });
 });

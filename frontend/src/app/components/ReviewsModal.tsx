@@ -183,9 +183,9 @@ export function ReviewsModal({
 
           {/* Formulario de Calificación (si es participante aprobado) */}
           {canRate && (
-            <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-100/90 space-y-3">
-              <div className="flex items-center gap-1.5 text-xs font-extrabold text-emerald-900">
-                <UserCheck className="w-4 h-4 text-emerald-700" />
+            <div className="p-4 rounded-2xl bg-surface-soft border border-hairline space-y-3">
+              <div className="flex items-center gap-1.5 text-xs font-extrabold text-ink">
+                <UserCheck className="w-4 h-4 text-ink-soft" />
                 <span>{editing
                   ? 'Ya calificaste este voluntariado. Podés editar tu reseña.'
                   : '¿Participaste en este voluntariado? Dejá tu opinión'}</span>
@@ -224,14 +224,14 @@ export function ReviewsModal({
                   onChange={e => { setUserComment(e.target.value); setErrorMsg(''); }}
                   placeholder="Contá tu experiencia, aprendizajes o qué te pareció la coordinación..."
                   rows={2}
-                  className="w-full px-3.5 py-2.5 bg-white text-xs rounded-xl border border-gray-200 focus:border-emerald-500 focus:outline-none resize-none"
+                  className="w-full px-3.5 py-2.5 bg-white text-xs rounded-xl border border-gray-200 focus:border-ink focus:outline-none resize-none"
                 />
 
                 {errorMsg && (
                   <p role="alert" className="text-xs text-red-600 font-medium">{errorMsg}</p>
                 )}
                 {successMsg && (
-                  <p className="text-xs text-emerald-700 font-bold flex items-center gap-1">
+                  <p className="text-xs text-ink font-bold flex items-center gap-1">
                     <CheckCircle2 className="w-4 h-4" />
                     <span>{successMsg}</span>
                   </p>
@@ -241,7 +241,7 @@ export function ReviewsModal({
                   type="submit"
                   // Mientras cargan no se sabe si ya calificó: mandar ahí pisaría su reseña con 5 ★ (S4).
                   disabled={submitting || loading}
-                  className="px-4 py-2 bg-people hover:bg-people-pressed disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                  className="px-4 py-2 bg-ink hover:opacity-90 disabled:opacity-50 text-on-ink rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
                 >
                   {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>{editing ? 'Actualizar reseña' : 'Publicar reseña'}</span>
@@ -259,7 +259,7 @@ export function ReviewsModal({
             {/* Si ya hay una lista (la del feed), se sigue viendo mientras se recarga. */}
             {loading && ratings.length === 0 ? (
               <div className="py-8 flex items-center justify-center text-gray-400">
-                <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+                <Loader2 className="w-6 h-6 animate-spin text-ink-muted" />
               </div>
             ) : loadError ? (
               <InlineError message={loadError} onRetry={loadRatings} />
@@ -284,7 +284,7 @@ export function ReviewsModal({
                         {r.user_avatar ? (
                           <img src={r.user_avatar} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
                         ) : (
-                          <div data-initial className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-xs">
+                          <div data-initial className="w-7 h-7 rounded-full bg-surface-soft text-ink font-bold flex items-center justify-center text-xs">
                             {r.user_name?.[0] || 'U'}
                           </div>
                         )}

@@ -100,7 +100,7 @@ export function MomentsGrid({ filters, pageSize = 9 }: Props) {
     return (
       <div className="text-sm space-y-1">
         <p role="alert" className="text-red-600">No pudimos cargar los momentos.</p>
-        <button type="button" onClick={loadFirst} className="font-semibold text-emerald-700 hover:underline">Reintentar</button>
+        <button type="button" onClick={loadFirst} className="font-semibold text-ink underline">Reintentar</button>
       </div>
     );
   }

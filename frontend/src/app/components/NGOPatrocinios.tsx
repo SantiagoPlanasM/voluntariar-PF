@@ -85,12 +85,12 @@ export function NGOPatrocinios() {
                         </div>
                       </div>
                       {p.mensaje && <p className="text-sm text-gray-600 bg-gray-50 rounded-xl px-3 py-2 mb-3">{p.mensaje}</p>}
-                      <Link to={`/ngo/patrocinios/${p.empresa_id}/${p.project_id}`} className="text-xs font-semibold text-brand-text underline mb-3 inline-block">
+                      <Link to={`/ngo/patrocinios/${p.empresa_id}/${p.project_id}`} className="text-xs font-semibold text-ink underline mb-3 inline-block">
                         Ver acuerdo: puntos y charla
                       </Link>
                       <div className="flex gap-2">
                         <button onClick={() => decide(p.empresa_id, p.project_id, 'aceptado')} disabled={decidingKey === key}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold disabled:opacity-60 transition-colors">
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-ink hover:opacity-90 text-on-ink rounded-xl text-xs font-bold disabled:opacity-60 transition-colors">
                           {decidingKey === key ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                           Aceptar
                         </button>

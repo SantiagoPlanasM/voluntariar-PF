@@ -177,7 +177,7 @@ export function FilterModal({
                 Categorías de Impacto
               </p>
               {draft.categories.length > 0 && (
-                <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                <span className="text-xs font-semibold text-ink-soft bg-surface-soft px-2 py-0.5 rounded-full">
                   {draft.categories.length} seleccionadas
                 </span>
               )}
@@ -286,7 +286,7 @@ export function FilterModal({
                     onClick={() => setDraft(prev => ({ ...prev, modality: opt.id as any }))}
                     className={`p-2.5 rounded-xl border text-center flex items-center justify-center gap-1.5 transition-all cursor-pointer font-semibold text-xs ${
                       isSelected
-                        ? 'border-ink bg-emerald-50/40 text-ink ring-1 ring-ink'
+                        ? 'border-ink bg-surface-soft text-ink ring-1 ring-ink'
                         : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
                     }`}
                   >
@@ -318,7 +318,7 @@ export function FilterModal({
                     onClick={() => setDraft(prev => ({ ...prev, cost: opt.id as any }))}
                     className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                       isSelected
-                        ? 'border-ink bg-emerald-50/40 text-ink ring-1 ring-ink'
+                        ? 'border-ink bg-surface-soft text-ink ring-1 ring-ink'
                         : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
                     }`}
                   >
@@ -351,7 +351,7 @@ export function FilterModal({
                     onClick={() => setDraft(prev => ({ ...prev, hours: opt.id as FilterState['hours'] }))}
                     className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                       isSelected
-                        ? 'border-ink bg-emerald-50/40 text-ink ring-1 ring-ink'
+                        ? 'border-ink bg-surface-soft text-ink ring-1 ring-ink'
                         : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
                     }`}
                   >

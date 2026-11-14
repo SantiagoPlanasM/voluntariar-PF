@@ -341,7 +341,7 @@ function ProjectMapModal({
           {/* Título y Conteo */}
           <div className="flex items-center justify-between min-w-0">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-surface-soft text-ink flex items-center justify-center shrink-0">
                 <Compass className="w-5 h-5" />
               </div>
               <div className="min-w-0">
@@ -349,7 +349,7 @@ function ProjectMapModal({
                   Mapa de Voluntariados
                 </h3>
                 <p className="text-xs text-gray-500 truncate flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                  <span className="w-2 h-2 rounded-full bg-ink-muted animate-pulse inline-block" />
                   <span>
                     {selectedCategories.length === 0
                       ? `${projects.length} proyectos solidarios geolocalizados`
@@ -487,7 +487,7 @@ function ProjectMapModal({
               disabled={isLocating}
               className="w-11 h-11 flex-shrink-0 rounded-full bg-white/95 backdrop-blur-md shadow-md border border-gray-200/80 text-gray-700 flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-transform disabled:opacity-50"
             >
-              <Navigation className={`w-4 h-4 ${isLocating ? 'animate-spin text-emerald-600' : 'text-gray-700'}`} />
+              <Navigation className={`w-4 h-4 ${isLocating ? 'animate-spin text-ink' : 'text-gray-700'}`} />
             </button>
 
             <button
@@ -534,12 +534,12 @@ function ProjectMapModal({
                         className="w-12 h-12 rounded-xl object-cover border border-gray-100 shrink-0"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-xl bg-people-soft text-people-text flex items-center justify-center shrink-0">
+                      <div className="w-12 h-12 rounded-xl bg-surface-soft text-ink-soft flex items-center justify-center shrink-0">
                         <MapPin className="w-6 h-6" />
                       </div>
                     )}
                     <div className="min-w-0">
-                      <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full inline-block">
+                      <span className="text-xs font-bold text-ink-soft bg-surface-soft px-2 py-0.5 rounded-full inline-block">
                         {selectedProject.category || 'General'}
                       </span>
                       <h4 className="font-bold text-xs sm:text-sm text-gray-900 truncate mt-0.5" title={selectedProject.title}>
@@ -568,7 +568,7 @@ function ProjectMapModal({
                       onClose();
                       navigate(`/project/${selectedProject.id}`);
                     }}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-colors flex items-center gap-1.5 shadow-sm shrink-0"
+                    className="bg-ink hover:opacity-90 text-on-ink font-bold px-3.5 py-1.5 rounded-xl text-xs transition-colors flex items-center gap-1.5 shadow-sm shrink-0"
                   >
                     <span>Ver Proyecto</span>
                     <ExternalLink className="w-3.5 h-3.5" />
@@ -717,7 +717,7 @@ export function ProjectMap({ projects: allProjects, className = '', onSelectProj
         {/* ── Pastilla Superior con Conteo Dinámico ──────────────────────── */}
         <div className="absolute top-3.5 left-3.5 z-10 flex items-center gap-2 pointer-events-auto">
           <div className="bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-full shadow-sm border border-gray-200/80 text-xs text-gray-700 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-ink-muted animate-pulse" />
             <span className="font-extrabold text-gray-900">{projects.length} proyectos</span>
             <span className="hidden sm:inline text-gray-500">en tu área</span>
           </div>
@@ -741,7 +741,7 @@ export function ProjectMap({ projects: allProjects, className = '', onSelectProj
             disabled={isLocating}
             className="w-11 h-11 flex-shrink-0 rounded-full bg-white/95 backdrop-blur-md shadow-sm border border-gray-200/80 text-gray-700 flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-transform disabled:opacity-50"
           >
-            <Navigation className={`w-4 h-4 ${isLocating ? 'animate-spin text-emerald-600' : 'text-gray-700'}`} />
+            <Navigation className={`w-4 h-4 ${isLocating ? 'animate-spin text-ink' : 'text-gray-700'}`} />
           </button>
 
           {/* Zoom In */}
@@ -776,12 +776,12 @@ export function ProjectMap({ projects: allProjects, className = '', onSelectProj
                       className="w-11 h-11 rounded-xl object-cover border border-gray-100 shrink-0"
                     />
                   ) : (
-                    <div className="w-11 h-11 rounded-xl bg-people-soft text-people-text flex items-center justify-center shrink-0">
+                    <div className="w-11 h-11 rounded-xl bg-surface-soft text-ink-soft flex items-center justify-center shrink-0">
                       <MapPin className="w-5 h-5" />
                     </div>
                   )}
                   <div className="min-w-0">
-                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full inline-block">
+                    <span className="text-xs font-bold text-ink-soft bg-surface-soft px-2 py-0.5 rounded-full inline-block">
                       {selectedProject.category || 'General'}
                     </span>
                     <h4 className="font-bold text-xs text-gray-900 truncate mt-0.5" title={selectedProject.title}>
@@ -807,7 +807,7 @@ export function ProjectMap({ projects: allProjects, className = '', onSelectProj
                 </span>
                 <button
                   onClick={() => navigate(`/project/${selectedProject.id}`)}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1 rounded-lg text-xs transition-colors flex items-center gap-1 shadow-sm shrink-0"
+                  className="bg-ink hover:opacity-90 text-on-ink font-bold px-3 py-1 rounded-lg text-xs transition-colors flex items-center gap-1 shadow-sm shrink-0"
                 >
                   <span>Ver</span>
                   <ExternalLink className="w-3 h-3" />

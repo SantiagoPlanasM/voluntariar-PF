@@ -960,3 +960,35 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - **Montos con centavos:** se escriben `$ 99,5`, no `$ 99,50`. No se decidió con el usuario cuál va; hoy solo puede pasar en el costo por persona y en un punto de dinero del acuerdo.
 - El botón de ícono "Retirar propuesta" sigue con `title` y sin `aria-label`, y con los colores viejos (`red-50`, `red-400`): es parte de la deuda de `CompanyOwnProfile` (I1), no de esta tanda.
 - Producción: sin desplegar al escribir esto.
+
+## 338. Azul solo dinero, verde solo personas (T5)
+
+### Qué se hizo
+- §337 quedó en producción antes de empezar (`c9813bd`, CI #95, Deploy #91 con smoke y E2E, SonarCloud en OK con 0 issues). El usuario dejó elegir la tanda: T5 de la revisión contra `DESIGN.md` (hallazgos B3 y B4). Solo frontend y solo colores: ninguna pantalla cambió de forma.
+- **Botones verdes que no son "Inscribirme" → `bg-ink text-on-ink`:** "Volver al proyecto" e "Iniciar sesión" de la vuelta de la donación, "Ir a mi perfil" de la vuelta de Mercado Pago, "Aceptar" un patrocinio, "Publicar Voluntariado" y "Agregar requisito" (se fue también la sombra de color), "Publicar reseña" y los dos "Ver Proyecto" del mapa. El paso ya hecho del asistente de crear también pasó a `ink`.
+- **Chip de filtro elegido** del detalle de la ONG: de azul a `ink`.
+- **Enlaces → `text-ink font-semibold underline`:** los 13 azules (entrevista y calendario en `InterviewPanel`, `MyParticipation` y `ProjectDetails`; "Ver acuerdo" en `CompanyOwnProfile` y `NGOPatrocinios`) y los 2 verdes ("Volver al inicio" de Privacidad, "Reintentar" de Momentos).
+- **A los grises** (`surface-soft`, `ink`, `ink-soft`, `ink-muted`): los indicadores de carga (`FollowListModal`, `ReviewsModal`, `NGOMoments`, "ubicarme" del mapa), las iniciales sobre verde o azul (`FollowListModal`, `ReviewsModal`, `NGOProjectDetail`), el chip verde del tipo de KPI, el bloque verde del formulario de reseña, los chips de requisitos y sugerencias de crear, el contador y las opciones elegidas de la hoja de filtros, y en el mapa el ícono del título, el punto que late, el ícono sin foto y el chip de categoría.
+- **Tildes de éxito:** el de "¡Gracias por tu donación!" quedó azul (es dinero); los de cuenta borrada y Mercado Pago vinculado, en `ink`.
+- **Siguen verdes, ahora con los tokens:** "Aprobar" una postulación (`people-soft`) y el estado "Aceptado" de un patrocinio (`SPONSORSHIP_BADGE`).
+- De paso, en la lista de seguidos la fila propia decía "Tú": ahora "Vos" (voseo), en gris.
+- **Regla nueva en `app/layout/designRules.test.ts`** (5 tests): ninguna clase `emerald`/`green`/`teal`/`lime` en la app; `bg-people` y `bg-brand` solo en una lista de archivos; ningún `text-brand-text` con `underline`; ningún indicador de carga con azul o verde.
+- `paletteContrast.test.ts`: el piso del contador de combinaciones `text-white` bajó de "más de 20" a "más de 10" (quedan 20: los botones que salieron ahora son `text-on-ink`, que mira el test de los tokens).
+- Docs: `FRONTEND_CONTEXT.md`, `PLAN_FEBRERO.md` y `CLAUDE.md` (conteos).
+
+### Verificación
+- Rojo → verde: 3 de las 5 reglas nuevas fallaban antes del cambio, y los 3 tests cambiados ("Vos" y el color de "Aceptado" en dos pantallas). Las otras 2 reglas (`bg-brand` y los indicadores de carga) nacieron en verde: las faltas que cubren ya las atrapaba la regla de los verdes viejos o comparten archivo con un uso válido.
+- Frontend: **1541**/1541 (antes 1536; +5), `typecheck` sin errores. Cobertura: sentencias 92,12 %, ramas 88,91 %, funciones 89,32 %, líneas 94,55 %.
+- Mutación (11 mutantes, con corrida de control en verde): se volvió a meter cada falta en una pantalla (verde viejo, `bg-people` y `bg-brand` fuera de lista, enlace azul en los dos órdenes, indicador verde y azul, "Tú", "Aceptado" sin verde). 11 muertos, incluidas las dos reglas que nacieron en verde.
+- Saltos de línea sin cambios en los archivos tocados.
+- Backend: no se tocó y no se corrió.
+
+### Errores propios
+- No preví que sacar `text-white` de los botones verdes bajaba el contador de `paletteContrast.test.ts`: la primera corrida completa dio 1 falla (20 combinaciones, pedía más de 20).
+
+### ⚠️ NO verificado
+- **Nada se vio en un navegador**, ni en claro ni en oscuro. Los pares usados (`ink`/`on-ink`, `surface-soft` con `ink`, `ink-soft` e `ink-muted`, `people-soft`/`people-text`) están entre los que mide `paletteContrast.test.ts`, salvo `surface-soft`/`ink-soft`, que no está en la lista (queda entre dos que sí).
+- **Las reglas miran archivos, no elementos.** `bg-brand` y `bg-people` se controlan por archivo: un chip azul nuevo en `NGOProjectDetail` o `CreateVoluntariado`, que ya tienen un uso válido, pasaría. `people-soft`, `people-text`, `brand-soft` y `brand-text` no se controlan: se revisaron a mano.
+- **Sin decidir con el usuario** (quedaron verdes): en Notificaciones, los globitos de "acuerdo cerrado", "te sumaste al equipo" y "ONG validada" usan el mismo verde que "te aceptaron"; y el estado "Aceptado" de un patrocinio.
+- **Fuera de esta tanda:** `NGOEmpleados` (se saca en la Etapa 4), el chip "Participó" con color fijo de `ReviewsModal` (T9), los valores en verde de `NGOKPIs` (T7) y el fondo del mapa en oscuro (T10).
+- Producción: sin desplegar al escribir esto.

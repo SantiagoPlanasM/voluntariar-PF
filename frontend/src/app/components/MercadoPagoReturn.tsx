@@ -38,10 +38,10 @@ export function MercadoPagoReturn() {
   } else if (status === 'done') {
     content = (
       <>
-        <CheckCircle className="w-10 h-10 text-emerald-500 mx-auto" aria-hidden="true" />
+        <CheckCircle className="w-10 h-10 text-ink mx-auto" aria-hidden="true" />
         <h1 className="text-lg font-bold text-gray-900">Tu cuenta de Mercado Pago quedó vinculada</h1>
         <p className="text-sm text-gray-600">Tus proyectos ya pueden recibir donaciones, y la plata te llega a esa cuenta.</p>
-        <Link to="/ngo/profile" className={`${link} bg-emerald-600 text-white hover:bg-emerald-700 inline-block`}>Ir a mi perfil</Link>
+        <Link to="/ngo/profile" className={`${link} bg-ink text-on-ink hover:opacity-90 inline-block`}>Ir a mi perfil</Link>
       </>
     );
   } else {

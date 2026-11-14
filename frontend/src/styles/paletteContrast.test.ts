@@ -153,7 +153,9 @@ describe('contraste de text-white sobre los fondos de la paleta (claro y oscuro)
 
   test('ningún componente pone text-white sobre un fondo que no llega a 4,5:1', () => {
     const found = offenders();
-    expect(checked).toBeGreaterThan(20); // si no encuentra combinaciones, el test no probaría nada
+    // Si no encuentra combinaciones, el test no probaría nada. Hoy son 20 (eran más: T5, §338, pasó a `bg-ink
+    // text-on-ink` los botones verdes que no eran "Inscribirme", y esos los mira el test de los tokens).
+    expect(checked).toBeGreaterThan(10);
     expect(found).toEqual([]);
   });
 });

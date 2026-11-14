@@ -173,15 +173,15 @@ export function MyParticipation() {
           {iv.place && <span className="text-ink-soft">{iv.place}</span>}
           {iv.link && (
             <a href={iv.link} target="_blank" rel="noopener noreferrer" aria-label="Abrir el link de la entrevista"
-              className="text-brand-text underline break-all">{iv.link}</a>
+              className="font-semibold text-ink underline break-all">{iv.link}</a>
           )}
           {iv.note && <span className="text-ink-muted italic">{iv.note}</span>}
           {/* §268: agregar al calendario (Google, o el .ics para cualquier otro). */}
           <span className="flex flex-wrap gap-x-3 gap-y-1 mt-0.5">
             <a href={googleCalendarUrl(interviewEvent(iv, item.title, item.ngo_name))} target="_blank" rel="noopener noreferrer"
-              className="font-semibold text-brand-text underline">Agregar a Google Calendar</a>
+              className="font-semibold text-ink underline">Agregar a Google Calendar</a>
             <a href={icsHref(toIcs(interviewEvent(iv, item.title, item.ngo_name), iv.id))} download="entrevista.ics"
-              className="font-semibold text-brand-text underline">Descargar .ics</a>
+              className="font-semibold text-ink underline">Descargar .ics</a>
           </span>
         </div>
       )}
@@ -189,9 +189,9 @@ export function MyParticipation() {
         <div className="basis-full pl-[68px] -mt-1 pb-1 flex flex-col gap-0.5 text-[13px]">
           <span className="font-semibold">{scheduleLabel(item)}</span>
           <span className="flex flex-wrap gap-x-3 gap-y-1 mt-0.5">
-            <a href={googleCalendarUrl(ev)} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-text underline">Agregar a Google Calendar</a>
+            <a href={googleCalendarUrl(ev)} target="_blank" rel="noopener noreferrer" className="font-semibold text-ink underline">Agregar a Google Calendar</a>
             <a href={icsHref(toIcs(ev, item.project_id, new Date(), 'voluntariado'))} download="voluntariado.ics"
-              className="font-semibold text-brand-text underline">Descargar .ics</a>
+              className="font-semibold text-ink underline">Descargar .ics</a>
           </span>
         </div>
       )}

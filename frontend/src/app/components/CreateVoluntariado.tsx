@@ -246,10 +246,10 @@ export function CreateVoluntariado() {
               const active = id === step;
               return (
                 <div key={id} className={`flex-1 flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  active ? 'bg-blue-50 text-blue-700' : done ? 'text-emerald-600' : 'text-gray-400'
+                  active ? 'bg-blue-50 text-blue-700' : done ? 'text-ink' : 'text-gray-400'
                 }`}>
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    done ? 'bg-people text-white' : active ? 'bg-blue-600 text-white' : 'bg-surface-soft text-ink-muted'
+                    done ? 'bg-ink text-on-ink' : active ? 'bg-blue-600 text-white' : 'bg-surface-soft text-ink-muted'
                   }`}>
                     {done ? <Check className="w-3 h-3" /> : <Icon className="w-3 h-3" />}
                   </div>
@@ -575,19 +575,19 @@ export function CreateVoluntariado() {
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {SUGGESTED_REQS.filter(r => !requirements.includes(r)).map(r => (
                   <button key={r} type="button" onClick={() => addReq(r)}
-                    className="px-2.5 py-1 bg-people-soft text-people-text text-xs rounded-full font-medium hover:opacity-80 transition-opacity">
+                    className="px-2.5 py-1 bg-surface-soft text-ink-soft text-xs rounded-full font-medium hover:opacity-80 transition-opacity">
                     + {r}
                   </button>
                 ))}
               </div>
               <div className="flex gap-2 mb-2">
                 <input
-                  className={`flex-1 px-4 py-3 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 ${reqError ? 'border-red-400' : 'border-gray-200'}`}
+                  className={`flex-1 px-4 py-3 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ink ${reqError ? 'border-red-400' : 'border-gray-200'}`}
                   placeholder="O escribí uno personalizado..."
                   aria-label="Requisito personalizado" value={newReq} onChange={e => { setNewReq(e.target.value); setReqError(''); }}
                   onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addReq())} />
                 <button type="button" onClick={() => addReq()} aria-label="Agregar requisito"
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors flex-shrink-0">
+                  className="px-4 py-2 bg-ink text-on-ink rounded-xl hover:opacity-90 transition-colors flex-shrink-0">
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
@@ -595,7 +595,7 @@ export function CreateVoluntariado() {
               {requirements.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {requirements.map(r => (
-                    <span key={r} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs rounded-full font-medium">
+                    <span key={r} className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-soft text-ink text-xs rounded-full font-medium">
                       {r}
                       <button type="button" onClick={() => setReqs(requirements.filter(x => x !== r))} aria-label={`Quitar requisito ${r}`}>
                         <X className="w-3 h-3" />
@@ -651,7 +651,7 @@ export function CreateVoluntariado() {
             </button>
           ) : (
             <button type="button" onClick={handleSubmit} disabled={loading}
-              className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm transition-colors disabled:opacity-60 shadow-md shadow-emerald-200">
+              className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-ink hover:opacity-90 text-on-ink rounded-xl font-bold text-sm transition-colors disabled:opacity-60">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               {editing ? 'Guardar cambios' : 'Publicar Voluntariado'}
             </button>

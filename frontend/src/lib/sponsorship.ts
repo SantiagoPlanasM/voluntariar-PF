@@ -26,7 +26,7 @@ export type SponsorshipState = Patrocinio['estado'];
 
 export const SPONSORSHIP_BADGE: Record<SponsorshipState, string> = {
   propuesto: 'bg-amber-50 text-amber-700',
-  aceptado:  'bg-emerald-50 text-emerald-700',
+  aceptado:  'bg-people-soft text-people-text',
   rechazado: 'bg-red-50 text-red-600',
 };
 

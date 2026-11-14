@@ -10,7 +10,7 @@ const TIPO_COLORS: Record<string, string> = {
   numero:     'bg-blue-50 text-blue-700',
   porcentaje: 'bg-violet-50 text-violet-700',
   texto:      'bg-gray-100 text-gray-600',
-  booleano:   'bg-emerald-50 text-emerald-700',
+  booleano:   'bg-gray-100 text-gray-600',
 };
 
 // Etiquetas de todos los tipos (los KPIs de tipo 'texto' que ya existían se siguen mostrando)…

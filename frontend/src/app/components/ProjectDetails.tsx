@@ -359,8 +359,8 @@ export function ProjectDetails() {
                 <span className="flex-1 min-w-0 flex flex-col gap-1">
                   <span>{when}</span>
                   <span className="flex flex-wrap gap-x-3 gap-y-1 text-[13px]">
-                    <a href={googleCalendarUrl(calendarEvent)} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-text underline">Agregar a Google Calendar</a>
-                    <a href={icsHref(toIcs(calendarEvent, project.id, new Date(), 'voluntariado'))} download="voluntariado.ics" className="font-semibold text-brand-text underline">Descargar .ics</a>
+                    <a href={googleCalendarUrl(calendarEvent)} target="_blank" rel="noopener noreferrer" className="font-semibold text-ink underline">Agregar a Google Calendar</a>
+                    <a href={icsHref(toIcs(calendarEvent, project.id, new Date(), 'voluntariado'))} download="voluntariado.ics" className="font-semibold text-ink underline">Descargar .ics</a>
                   </span>
                 </span>
               </div>

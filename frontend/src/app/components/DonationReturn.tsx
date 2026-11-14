@@ -64,7 +64,7 @@ export function DonationReturn() {
   );
   const toProject = donation?.project_id && (
     <Link to={`/project/${donation.project_id}`}
-      className="px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
+      className="px-4 py-2 rounded-xl text-sm font-semibold bg-ink text-on-ink hover:opacity-90 transition-colors">
       Volver al proyecto
     </Link>
   );
@@ -76,7 +76,7 @@ export function DonationReturn() {
     content = box(<Clock className="w-10 h-10 text-gray-300" />, 'Iniciá sesión para ver tu donación',
       'Tu pago quedó registrado en Mercado Pago. Iniciá sesión con la misma cuenta para ver si se confirmó.',
       <button onClick={() => openAuthModal('Iniciá sesión para ver tu donación')}
-        className="px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700">Iniciar sesión</button>);
+        className="px-4 py-2 rounded-xl text-sm font-semibold bg-ink text-on-ink hover:opacity-90">Iniciar sesión</button>);
   } else if (notFound) {
     content = box(<XCircle className="w-10 h-10 text-gray-300" />, 'No encontramos esta donación',
       'Revisá que hayas iniciado sesión con la cuenta con la que donaste.',
@@ -84,7 +84,7 @@ export function DonationReturn() {
   } else if (error) {
     content = <InlineError message={error} onRetry={refresh} />;
   } else if (donation?.status === 'completed') {
-    content = box(<CheckCircle className="w-10 h-10 text-emerald-500" />, '¡Gracias por tu donación!',
+    content = box(<CheckCircle className="w-10 h-10 text-brand-text" />, '¡Gracias por tu donación!',
       <>Donaste <strong>{formatMoney(donation.amount)}</strong>{donation.project_title ? <> a <strong>{donation.project_title}</strong></> : null}. Gracias por apoyar este proyecto.</>,
       toProject);
   } else if (donation && (donation.status === 'failed' || donation.status === 'refunded' || NOT_PAID.has(mpStatus ?? 'null'))) {

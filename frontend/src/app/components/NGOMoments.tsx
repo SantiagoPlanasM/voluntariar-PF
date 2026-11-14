@@ -47,7 +47,7 @@ export function NGOMoments() {
           <InlineError message={error} onRetry={loadNgo} />
         ) : (
           <div role="status" aria-label="Cargando momentos" className="flex justify-center py-12">
-            <div aria-hidden="true" className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            <div aria-hidden="true" className="w-8 h-8 border-4 border-ink-muted border-t-transparent rounded-full animate-spin" />
           </div>
         )}
       </div>

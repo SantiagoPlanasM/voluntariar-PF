@@ -292,7 +292,7 @@ export function CompanyOwnProfile() {
                         {previousRejected && (
                           <p className="text-xs text-ink-soft">
                             La ONG rechazó tu propuesta anterior para este proyecto. Los puntos de ese acuerdo se mantienen: lo que agregues acá se suma.{' '}
-                            <Link to={`/company/patrocinios/${previousRejected.empresa_id}/${previousRejected.project_id}`} className="font-semibold text-brand-text underline">
+                            <Link to={`/company/patrocinios/${previousRejected.empresa_id}/${previousRejected.project_id}`} className="font-semibold text-ink underline">
                               Ver el acuerdo anterior
                             </Link>
                           </p>
@@ -373,7 +373,7 @@ export function CompanyOwnProfile() {
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-gray-900 truncate">{p.project_title}</p>
                         <p className="text-xs text-gray-400 truncate">{p.ngo_name}</p>
-                        <Link to={`/company/patrocinios/${p.empresa_id}/${p.project_id}`} className="text-xs font-semibold text-brand-text underline">
+                        <Link to={`/company/patrocinios/${p.empresa_id}/${p.project_id}`} className="text-xs font-semibold text-ink underline">
                           Ver acuerdo
                         </Link>
                       </div>

@@ -89,13 +89,13 @@ export function InterviewPanel({ enrollment, onChange, startOpen = false }: {
           {scheduled.place && <p className="text-xs text-ink-soft">{scheduled.place}</p>}
           {scheduled.link && (
             <a href={scheduled.link} target="_blank" rel="noopener noreferrer" aria-label="Abrir el link de la entrevista"
-              className="text-xs text-brand-text underline break-all">{scheduled.link}</a>
+              className="text-xs font-semibold text-ink underline break-all">{scheduled.link}</a>
           )}
           {scheduled.note && <p className="text-xs text-ink-muted italic">{scheduled.note}</p>}
           {calendarEvent && (
             <p className="text-xs flex flex-wrap gap-x-3">
-              <a href={googleCalendarUrl(calendarEvent)} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-text underline">Agregar a Google Calendar</a>
-              <a href={icsHref(toIcs(calendarEvent, scheduled.id))} download="entrevista.ics" className="font-semibold text-brand-text underline">Descargar .ics</a>
+              <a href={googleCalendarUrl(calendarEvent)} target="_blank" rel="noopener noreferrer" className="font-semibold text-ink underline">Agregar a Google Calendar</a>
+              <a href={icsHref(toIcs(calendarEvent, scheduled.id))} download="entrevista.ics" className="font-semibold text-ink underline">Descargar .ics</a>
             </p>
           )}
           <div className="flex flex-wrap gap-2 mt-1">
