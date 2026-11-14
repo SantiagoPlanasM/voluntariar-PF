@@ -206,8 +206,11 @@ En este orden:
    - [x] De paso, la deuda chica del front de la Etapa 4: `es-AR` en `NGOProjectDetail` (§333).
    - Sumar al inventario lo nuevo de §329: los puntos en "Proponer" (`CompanyOwnProfile`, que sigue con el resto de
      la pantalla en los estilos viejos) y `SponsorshipPointForm`.
-3. **Notificaciones instantáneas** por el WebSocket que ya existe (Etapa 3). Ahí sumar el contador de postulaciones pendientes en la barra lateral de la ONG, que quedó afuera en §320 porque hoy no hay una forma barata de contarlas.
-4. Después, lo que siga de la Etapa 3 (reputación: antes definir qué se mide) o lo que decida el usuario.
+3. [x] **Notificaciones instantáneas** por el WebSocket (§336, 13/11): toda notificación avisa al instante a su
+   destinatario, y la ONG tiene el contador de postulaciones sin responder en la barra lateral. **Commit local, sin
+   push** (falta el OK del usuario); no se probó en producción.
+4. **Lo próximo:** la tanda de diseño que elija el usuario (T5, T7–T13), o lo que siga de la Etapa 3: reputación
+   (antes, que el usuario defina qué se mide) o empleados de empresa con cupos reservados.
 
 ## Devolución de los directores (5/11)
 
@@ -259,7 +262,7 @@ En este orden, salvo que el usuario diga otra cosa (orden propuesto, sin confirm
    - [x] **Pantalla de postulaciones** (§319; pedido del 11/11, fuera del orden): todas las de la ONG juntas, filtros, de a 50 y decisión en lote con tope de cupos, también para la coordinación. Falta la prueba del usuario en la interfaz.
 2. [x] **Iniciar sesión con Google** (§314): pantalla de rol la primera vez; un mail con cuenta se vincula solo si Google lo da por verificado. Falta el Client ID de Google Cloud.
    - [x] **Fechas de los voluntariados y Calendar** (§315): inicio y fin opcionales, con hora opcional; Google Calendar y .ics en el detalle y en "Próximos". Las entrevistas ya lo tenían (§268).
-3. [ ] **Notificaciones instantáneas**, por el WebSocket que ya existe. Después del paso 5 del patrocinio. Sumar el contador de postulaciones pendientes en la barra lateral de la ONG.
+3. [x] **Notificaciones instantáneas**, por el WebSocket que ya existía (§336), con el contador de postulaciones pendientes en la barra lateral de la ONG.
 4. [ ] **Reputación de ONG y usuarios.** Antes, que el usuario defina qué se mide (reseñas, horas, postulaciones respondidas…).
 5. [ ] **Empleados de empresa con cupos reservados** (`PLAN_EQUIPOS.md`, pasos 3 y 4). Toca la invariante de cupos: con cuidado.
 

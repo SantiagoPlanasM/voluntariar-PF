@@ -13,7 +13,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router';
 
 vi.mock('../../lib/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1', name: 'Sustentando', email: 's@x.org', role: 'ngo' }, logout: vi.fn() }) }));
-vi.mock('../../lib/ChatContext', () => ({ useChat: () => ({ unreadTotal: 0 }) }));
+vi.mock('../../lib/ChatContext', () => ({ useChat: () => ({ unreadTotal: 0 }), useChatOptional: () => null }));
 vi.mock('../../lib/api', async () => {
   const actual = await vi.importActual<typeof import('../../lib/api')>('../../lib/api');
   return {

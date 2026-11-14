@@ -16,21 +16,32 @@ import { NAV, NavGroup, NavItem, SideEntry, isActive, isGroup, isGroupActive, na
 
 function useBadges() {
   const { user } = useAuth();
-  const unreadTotal = useChatOptional()?.unreadTotal ?? 0;
+  const chat = useChatOptional();
+  const unreadTotal = chat?.unreadTotal ?? 0;
+  // §336: el servidor avisa por el WebSocket cuando hay una notificación nueva; los contadores se piden de nuevo
+  // con cada aviso, además de al cambiar de pantalla.
+  const tick = chat?.notificationTick ?? 0;
   const { pathname } = useLocation();
   const [notifications, setNotifications] = useState(0);
   useEffect(() => {
     if (!user) { setNotifications(0); return; }
     api.notifications.list().then(r => setNotifications(Number(r.unread) || 0)).catch(() => {});
-  }, [user, pathname]);
+  }, [user, pathname, tick]);
+  // Postulaciones sin responder (§336): solo la ONG. Baja cuando la ONG decide (cambia de pantalla) y sube con el
+  // aviso de una postulación nueva.
+  const [applications, setApplications] = useState(0);
+  useEffect(() => {
+    if (user?.role !== 'ngo') { setApplications(0); return; }
+    api.enrollments.pendingCount().then(r => setApplications(Number(r.pending) || 0)).catch(() => {});
+  }, [user, pathname, tick]);
   // Invitaciones a equipos de ONG sin responder (§305), en Perfil: solo las tiene un voluntario. Se vuelve a pedir
   // al cambiar de pantalla, como las notificaciones, para que aceptar o rechazar borre el contador.
   const [team, setTeam] = useState(0);
   useEffect(() => {
     if (user?.role !== 'volunteer') { setTeam(0); return; }
     api.team.mine().then(r => setTeam(r.memberships.filter(m => m.status === 'invited').length)).catch(() => {});
-  }, [user, pathname]);
-  return { messages: unreadTotal, notifications, team };
+  }, [user, pathname, tick]);
+  return { messages: unreadTotal, notifications, team, applications };
 }
 
 function Badge({ n, className = '' }: { n: number; className?: string }) {
@@ -120,9 +131,13 @@ function SideLink({ item, badges }: { item: NavItem; badges: Record<string, numb
 // Grupo que se despliega (§320). Con nombres es un acordeón: la lista va debajo, con sangría. Con solo íconos es un
 // panel flotante al costado (position: fixed, para que no lo recorte el scroll de la barra); se cierra con Escape
 // (el foco vuelve al botón), con un clic afuera, al sacar el foco con Tab o al cambiar de pantalla.
-function SideGroup({ group, id, wide, expanded, onToggle, onClose }: {
+function SideGroup({ group, id, wide, expanded, onToggle, onClose, badges }: {
   group: NavGroup; id: string; wide: boolean; expanded: boolean; onToggle: () => void; onClose: () => void;
+  badges: Record<string, number>;
 }) {
+  // El contador de un hijo (§336) se ve en el hijo cuando la lista está a la vista; con el acordeón cerrado o con
+  // solo íconos, va en el grupo (la suma de sus hijos) para que no quede escondido.
+  const total = group.children.reduce((sum, c) => sum + (c.badge ? badges[c.badge] ?? 0 : 0), 0);
   const { pathname, hash } = useLocation();
   const box = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -169,8 +184,10 @@ function SideGroup({ group, id, wide, expanded, onToggle, onClose }: {
       >
         <span className="relative flex-shrink-0 w-6 h-6 flex items-center justify-center">
           <ItemIcon item={group} active={active} size={group.avatar ? 26 : 24} />
+          {!wide && <Badge n={total} className="absolute -top-1.5 -right-2" />}
         </span>
         <span className={`hidden lg:block flex-1 text-left truncate ${active ? 'font-bold text-ink' : 'text-ink-soft'}`}>{group.label}</span>
+        {wide && !expanded && <Badge n={total} />}
         <ChevronDown size={18} strokeWidth={1.75} aria-hidden="true" className={`hidden lg:block flex-shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
       </button>
 
@@ -183,9 +200,10 @@ function SideGroup({ group, id, wide, expanded, onToggle, onClose }: {
                 <Link
                   to={c.to}
                   aria-current={on ? 'page' : undefined}
-                  className={`flex items-center h-9 pl-[50px] pr-3 rounded-[10px] text-[14px] transition-colors hover:bg-surface-soft truncate ${on ? 'bg-surface-soft font-bold text-ink' : 'text-ink-soft'}`}
+                  className={`flex items-center gap-2 h-9 pl-[50px] pr-3 rounded-[10px] text-[14px] transition-colors hover:bg-surface-soft ${on ? 'bg-surface-soft font-bold text-ink' : 'text-ink-soft'}`}
                 >
-                  {c.label}
+                  <span className="flex-1 min-w-0 truncate">{c.label}</span>
+                  {c.badge && <Badge n={badges[c.badge] ?? 0} className="flex-shrink-0" />}
                 </Link>
               </li>
             );
@@ -212,7 +230,8 @@ function SideGroup({ group, id, wide, expanded, onToggle, onClose }: {
                     className={`flex items-center gap-3 h-10 px-3 rounded-[10px] text-[14px] transition-colors hover:bg-surface-soft ${on ? 'bg-surface-soft font-bold text-ink' : 'text-ink-soft'}`}
                   >
                     <Icon size={18} strokeWidth={on ? 2.25 : 1.75} aria-hidden="true" className="flex-shrink-0" />
-                    <span className="truncate">{c.label}</span>
+                    <span className="flex-1 min-w-0 truncate">{c.label}</span>
+                    {c.badge && <Badge n={badges[c.badge] ?? 0} className="flex-shrink-0" />}
                   </Link>
                 </li>
               );
@@ -267,6 +286,7 @@ function SideNav({ items, badges, role }: { items: SideEntry[]; badges: Record<s
             expanded={(wide ? open : floating) === entry.label}
             onToggle={() => (wide ? setOpen : setFloating)(g => (g === entry.label ? null : entry.label))}
             onClose={closeFloating}
+            badges={badges}
           />
         ) : (
           <SideLink key={entry.to} item={entry} badges={badges} />

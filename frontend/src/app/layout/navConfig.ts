@@ -14,8 +14,9 @@ export interface NavItem {
   icon: LucideIcon;
   /** Rellenar el ícono cuando está activo (los que tienen forma cerrada). */
   fill?: boolean;
-  /** Contador que muestra el ítem: no leídos, o invitaciones a equipos de ONG pendientes (§305). */
-  badge?: 'messages' | 'notifications' | 'team';
+  /** Contador que muestra el ítem: no leídos, invitaciones a equipos de ONG pendientes (§305) o postulaciones sin
+   *  responder de la ONG (§336). */
+  badge?: 'messages' | 'notifications' | 'team' | 'applications';
   /** Prefijos extra de ruta que también lo dejan activo. */
   also?: string[];
   /** El ítem de perfil se dibuja con el avatar de la persona. */
@@ -82,7 +83,7 @@ const ngo: NavSet = (() => {
     side: [
       { label: 'Panel', icon: LayoutDashboard, fill: true, children: [
         { to: '/ngo/dashboard', label: 'Resumen', icon: LayoutDashboard, also: panelAlso },
-        { to: '/ngo/postulaciones', label: 'Postulaciones', icon: UserCheck },   // §319
+        { to: '/ngo/postulaciones', label: 'Postulaciones', icon: UserCheck, badge: 'applications' },   // §319; contador, §336
       ] },
       { ...create, label: 'Crear voluntariado' },
       { label: 'Comunidad', icon: Users, children: [

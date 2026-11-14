@@ -1,7 +1,8 @@
 // Notificaciones (DESIGN.md → Notificaciones): agrupadas por tiempo ("Hoy", "Esta semana", "Antes"), con un círculo
 // que dice de qué tipo es cada una. Las no leídas llevan fondo suave y un punto. El destino de cada notificación
 // (el voluntariado, el perfil) necesita que el backend la mande en `data`: hoy la lista solo trae título y texto.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useChatOptional } from '../../lib/ChatContext';
 import { Bell, CalendarClock, Check, Handshake, UserPlus, Users, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { api, AppNotification } from '../../lib/api';
@@ -130,6 +131,17 @@ export function NotificationsScreen(_props: { inPanel?: boolean } = {}) {
     catch (e) { setNotifs([]); setUnread(0); setLoadError(userMessage(e, 'No pudimos cargar tus notificaciones. Revisá tu conexión.')); } // antes: "Sin notificaciones" (F9)
     finally { setLoading(false); }
   };
+
+  // §336: con la pantalla abierta, el aviso del servidor (WebSocket) trae la lista de nuevo. Sin esqueleto y sin
+  // error: si este pedido falla, queda lo que ya se veía. El aviso de antes de abrir la pantalla no cuenta (el
+  // pedido del montaje ya la trae).
+  const tick = useChatOptional()?.notificationTick ?? 0;
+  const seenTick = useRef(tick);
+  useEffect(() => {
+    if (tick === seenTick.current) return;
+    seenTick.current = tick;
+    api.notifications.list().then(r => { setNotifs(r.notifications); setUnread(r.unread); setLoadError(''); }).catch(() => {});
+  }, [tick]);
 
   // Al tocar una notificación se marca como leída (sin esperar la respuesta) y se navega a su destino.
   const open = (n: AppNotification) => {

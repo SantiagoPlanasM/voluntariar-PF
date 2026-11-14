@@ -9,6 +9,9 @@ interface ChatContextValue {
   refreshConversations: () => void;
   /** Se suscribe a mensajes entrantes por WS. Devuelve la función para desuscribirse. */
   onMessage: (cb: (m: ChatMessage) => void) => () => void;
+  /** §336: sube en uno con cada aviso `{ type: 'notification' }` del servidor. Quien muestra notificaciones o sus
+   *  contadores lo pone como dependencia de su pedido. El aviso no trae el contenido: hay que pedirlo. */
+  notificationTick: number;
   /** Intenta mandar por el socket abierto; devuelve false si no hay conexión (usar REST como fallback). */
 }
 
@@ -18,6 +21,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const { user, token } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [connected, setConnected]         = useState(false);
+  const [notificationTick, setNotificationTick] = useState(0);
   const wsRef        = useRef<WebSocket | null>(null);
   const listenersRef  = useRef<Set<(m: ChatMessage) => void>>(new Set());
 
@@ -74,6 +78,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           if (data.type === 'message') {
             refreshConversations();
             listenersRef.current.forEach(cb => cb(data.message));
+          } else if (data.type === 'notification') {
+            setNotificationTick(t => t + 1);
           }
         } catch { /* mensaje no-JSON, ignorar */ }
       };
@@ -97,7 +103,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const unreadTotal = conversations.reduce((sum, c) => sum + (c.unread || 0), 0);
 
   return (
-    <ChatContext.Provider value={{ conversations, unreadTotal, connected, refreshConversations, onMessage }}>
+    <ChatContext.Provider value={{ conversations, unreadTotal, connected, refreshConversations, onMessage, notificationTick }}>
       {children}
     </ChatContext.Provider>
   );

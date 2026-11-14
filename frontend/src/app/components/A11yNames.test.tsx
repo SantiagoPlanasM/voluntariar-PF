@@ -34,6 +34,7 @@ const { auth, project, ngo, empresa } = vi.hoisted(() => {
 vi.mock('../../lib/AuthContext', () => ({ useAuth: () => auth }));
 vi.mock('../../lib/ChatContext', () => ({
   useChat: () => ({ onMessage: () => () => {}, refreshConversations: () => {} }),
+  useChatOptional: () => null,
 }));
 vi.mock('./MomentsGrid', () => ({ MomentsGrid: () => null }));
 vi.mock('./MomentsFeed', () => ({ MomentsFeed: () => null }));

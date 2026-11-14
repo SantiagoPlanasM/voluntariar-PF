@@ -130,6 +130,8 @@ export const api = {
     enroll: (project_id: string, extra: { message?: string; phone?: string } = {}) =>
       req<{ enrollment: Enrollment; message: string }>('/enrollments', { method: 'POST', body: JSON.stringify({ project_id, ...extra }) }),
     my: () => req<{ enrollments: EnrollmentWithProject[] }>('/enrollments/my'),
+    /** §336: cuántas postulaciones sin responder tiene la ONG de la sesión (el contador de la barra lateral). */
+    pendingCount: () => req<{ pending: number }>('/enrollments/pending-count'),
     byProject: (id: string) => req<{ enrollments: EnrollmentWithVolunteer[] }>(`/enrollments/project/${id}`),
     updateStatus: (id: string, status: 'approved' | 'rejected') =>
       req<{ message: string }>(`/enrollments/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),

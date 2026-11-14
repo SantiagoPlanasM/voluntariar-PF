@@ -14,6 +14,7 @@ const { checkText, firstError } = require('../lib/inputs');
 const { isUniqueViolation } = require('../lib/dbErrors');
 const { sendEmail } = require('../lib/email');
 const { sponsorProposalEmail } = require('../lib/emailTemplates');
+const { notify } = require('../lib/notify');
 // §324: proponer queda registrado como aceptación. §329: y puede llevar puntos.
 const { recordAcceptance, proposalPointsError, addProposalPoints, AgreementError } = require('./patrocinios');
 
@@ -322,13 +323,9 @@ router.post('/me/patrocinios', requireAuth, requireRole('company'), async (req, 
     }
 
     // Notificar a la ONG (in-app + email, fire-and-forget)
-    await db.run(
-      `INSERT INTO notifications (user_id, type, title, body, data)
-       VALUES ($1,'sponsor_proposal','Nueva propuesta de patrocinio',$2,$3)`,
-      [project.ngo_user_id,
-       `${empresa.nombre} quiere patrocinar "${project.titulo}"`,
-       JSON.stringify({ project_id, empresa_id: empresa.id })]
-    ).catch(() => {});
+    await notify(project.ngo_user_id, 'sponsor_proposal', 'Nueva propuesta de patrocinio',
+      `${empresa.nombre} quiere patrocinar "${project.titulo}"`,
+      { project_id, empresa_id: empresa.id }).catch(() => {});
 
     const { subject, html } = sponsorProposalEmail({
       ngoName: project.ngo_name, empresaName: empresa.nombre,

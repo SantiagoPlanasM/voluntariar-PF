@@ -14,6 +14,7 @@ const { acceptVersion } = require('./patrocinios'); // aceptar por versión (§2
 const { INTERVIEW_COLS, INTERVIEW_JOIN, withInterview } = require('./enrollments'); // la entrevista de cada postulación (§279)
 const { attachAssoc } = require('../lib/projectAssoc');
 const { verifiedSql } = require('../lib/ngoValidation');   // §317: la insignia
+const { notify } = require('../lib/notify');
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
@@ -521,12 +522,9 @@ router.patch('/me/patrocinios/:empresaId/:projectId', requireAuth, requireRole('
       if (result === 'already_closed') return res.status(409).json({ error: 'Esta propuesta ya fue decidida' });
       if (result === 'stale') return res.status(409).json({ error: 'El acuerdo cambió: revisalo de nuevo' });
       if (result === 'accepted') {
-        await db.run(
-          `INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,'sponsorship_accepted_by_other',$2,$3,$4)`,
-          [patrocinio.empresa_user_id, `Acuerdo de "${patrocinio.titulo}"`,
-           `${ngoRow.nombre} aceptó esta versión. Falta que la aceptes vos.`,
-           JSON.stringify({ project_id: patrocinio.project_id, empresa_id: patrocinio.empresa_id })]
-        ).catch(() => {});
+        await notify(patrocinio.empresa_user_id, 'sponsorship_accepted_by_other', `Acuerdo de "${patrocinio.titulo}"`,
+          `${ngoRow.nombre} aceptó esta versión. Falta que la aceptes vos.`,
+          { project_id: patrocinio.project_id, empresa_id: patrocinio.empresa_id }).catch(() => {});
         return res.json({ message: 'Aceptaste esta versión del acuerdo; falta que la empresa la acepte' });
       }
     } else {
@@ -542,19 +540,15 @@ router.patch('/me/patrocinios/:empresaId/:projectId', requireAuth, requireRole('
         return res.status(409).json({ error: 'Esta propuesta ya fue decidida' });
     }
 
-    await db.run(
-      `INSERT INTO notifications (user_id, type, title, body, data)
-       VALUES ($1,$2,$3,$4,$5)`,
-      [patrocinio.empresa_user_id,
-       estado === 'aceptado' ? 'sponsor_accepted' : 'sponsor_rejected',
-       estado === 'aceptado'
-         ? `¡${ngoRow.nombre} aceptó tu patrocinio de "${patrocinio.titulo}"!`
-         : `${ngoRow.nombre} no aceptó tu propuesta de patrocinio a "${patrocinio.titulo}"`,
-       estado === 'aceptado'
-         ? 'Ya podés coordinar los detalles por mensaje.'
-         : 'Podés proponer patrocinar otros proyectos.',
-       JSON.stringify({ project_id: patrocinio.project_id })]
-    ).catch(() => {});
+    await notify(patrocinio.empresa_user_id,
+      estado === 'aceptado' ? 'sponsor_accepted' : 'sponsor_rejected',
+      estado === 'aceptado'
+        ? `¡${ngoRow.nombre} aceptó tu patrocinio de "${patrocinio.titulo}"!`
+        : `${ngoRow.nombre} no aceptó tu propuesta de patrocinio a "${patrocinio.titulo}"`,
+      estado === 'aceptado'
+        ? 'Ya podés coordinar los detalles por mensaje.'
+        : 'Podés proponer patrocinar otros proyectos.',
+      { project_id: patrocinio.project_id }).catch(() => {});
 
     const { subject, html } = sponsorDecisionEmail({
       empresaName: patrocinio.empresa_name, projectTitle: patrocinio.titulo,

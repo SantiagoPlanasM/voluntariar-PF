@@ -885,3 +885,45 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - No se vieron en Chrome los esqueletos de `RequireRole` (solo aparece al recargar, no se pudo demorar) ni de `TeamPanel` (no se entró como voluntaria del equipo); tampoco ninguno a 375 px ni en tema claro. Los cubren los tests.
 - Quedan spinners de página que no son "a pantalla completa" y no entraban en B9: `NGOPatrocinios`, `CertificatePage`, el acuerdo y el historial de patrocinio, `NGOApplications`, `NGOValidation`, `AdminValidations`. Sin tocar (regla 16).
 - Un celular real y un lector de pantalla.
+
+## 336. Notificaciones instantáneas por el WebSocket y contador de postulaciones de la ONG
+
+### Qué se hizo
+- §335 quedó en producción antes de empezar (`263989e`, CI #93, Deploy #89, SonarCloud en OK con 0 issues). El usuario dio el OK para seguir con el punto 3 de `PLAN_FEBRERO.md`.
+- **Problema:** el WebSocket solo empujaba mensajes del chat. Una notificación (postulación nueva, decisión, seguidor, patrocinio…) se veía recién al cambiar de pantalla, cuando la barra volvía a pedir `GET /notifications`.
+- **Backend, un solo lugar para crear notificaciones:** `lib/notify.js` → `notify(userId, type, title, body, data)`. Guarda la fila y, ya guardada, manda `{ type: 'notification', kind: type }` a las conexiones abiertas del destinatario.
+  - Las **14 altas** que había repartidas (`enrollments` ×4, `ngos` ×2, `donaciones` ×2, `empresas`, `follows`, `admin`, `patrocinios`, `ngoTeam`, `sellerAccounts`) pasaron a usarlo. Ninguna estaba dentro de una transacción: todas iban ya después del COMMIT (regla 21). Los textos, los tipos y los datos no cambiaron, ni el manejo de errores de cada una (`.catch(() => {})` o su `try`).
+  - El aviso lleva **solo el tipo**: ni el texto ni los ids viajan por el socket. El cliente vuelve a pedir lo suyo con su sesión.
+- **Backend, `GET /api/enrollments/pending-count`** (solo ONG) → `{ pending }`: las postulaciones `pending` de los voluntariados de la ONG de la sesión. Es el contador que quedó afuera en §320 porque la única forma de saberlo era `GET /ngos/me` (el panel entero). No recibe ids.
+- **Frontend:**
+  - `ChatContext` expone `notificationTick`, que sube con cada aviso.
+  - `useBadges` (`AppShell`) lo usa como dependencia: notificaciones, invitaciones a equipos y postulaciones se piden de nuevo con cada aviso, además de al cambiar de pantalla.
+  - Contador de **Postulaciones** en la barra lateral de la ONG: en el ítem cuando la lista del grupo "Panel" está a la vista; en el grupo cuando el acordeón está cerrado o la barra es de solo íconos.
+  - `NotificationsScreen`: con la pantalla abierta, el aviso trae la lista de nuevo, sin esqueleto; si ese pedido falla, queda lo que se veía.
+- Docs: `API_CONTEXT.md` (endpoint, WebSocket, notificaciones), `BACKEND_CONTEXT.md` (§6 y el árbol), `FRONTEND_CONTEXT.md` (contadores, `ChatContext`, `NotificationsScreen`), `PLAN_FEBRERO.md` y `CLAUDE.md` (conteos).
+
+### Verificación
+- Rojo → verde: backend, 9 de los 11 tests nuevos fallaban antes del código (los otros 2 describen lo que ya andaba: sin conexión abierta, y el del seguidor, que en su primera versión era débil y se reescribió). Frontend, 11 de 15.
+- Backend: SQLite **1293**/1293 (antes 1282; +11), Postgres 18 **1295**/1295, y los dos con `TZ=America/Argentina/Cordoba` (1293 y 1295). 0 cancelados en las cuatro. Después de las cuatro corridas se endureció un test (`notify` con título nulo para un usuario conectado): se volvió a correr completo en SQLite, y en Postgres solo los dos archivos nuevos (la corrida de control de la mutación).
+- Frontend: **1532**/1532 (antes 1516; +16), `typecheck` sin errores. Cobertura: sentencias 92,11 %, ramas 88,87 %, funciones 89,33 %, líneas 94,56 %.
+- `npm audit`: 0 en los dos paquetes.
+- Mutación, con corrida de control en verde:
+  - Backend (11 mutantes, en SQLite y en Postgres): en cada motor sobrevive 1, y es distinto. "Sin `Number()`" sobrevive en SQLite y muere en Postgres (ahí `COUNT` llega como string); "`data` sin serializar" sobrevive en Postgres (acepta el objeto en la columna JSONB) y muere en SQLite. **Ninguno sobrevive en los dos.**
+  - Frontend (21 mutantes): 21 muertos.
+- Chrome local (base SQLite aparte, 1517 px, tema claro), como ONG Sustentando parada en Notificaciones, con una voluntaria nueva que se postula desde otra sesión (por la API): **sin cambiar de pantalla**, a los ~100 ms el contador del grupo "Panel" pasó de 1 a 2, apareció el 1 en Notificaciones, la lista mostró "Vera Prueba quiere unirse a «Reforestación Urbana»" y "1 sin leer". Al abrir el grupo, el 2 quedó en "Postulaciones" (captura vista).
+
+### Errores propios
+- En `ngos.js` importé el helper con otro nombre (`createNotification`) y lo llamé `notify`: lo vi al revisar los nombres antes de correr nada.
+- La pantalla de notificaciones ahora usa `useChatOptional`, y dos tests viejos simulaban `ChatContext` sin exportarlo (`NGONotifications.test.tsx`, `A11yNames.test.tsx`): fallaron en la primera corrida completa y se les sumó.
+- Un test nuevo (el del error que se limpia) usaba `new Error('red')`, que `userMessage` muestra tal cual y no como "No pudimos cargar": dejó en rojo la corrida de control de la mutación del frontend, que hubo que repetir.
+- El primer test del seguidor pasaba con o sin el cambio (María ya seguía a Juan en el seed): se reescribió con una cuenta nueva.
+
+### ⚠️ NO verificado
+- **Producción.** En Render el WebSocket pasa por su proxy; el chat ya anda por ahí, pero este aviso no se probó desplegado.
+- **Un solo proceso.** Las conexiones están en un `Map` en memoria: con más de una instancia, el aviso solo le llega a quien esté conectado a la misma. Hoy hay una (y "escalar a varias instancias" está en "No hacer").
+- **Si el socket se corta**, los avisos de ese rato se pierden y al reconectar no se piden los contadores: se ponen al día al cambiar de pantalla, como antes. No se agregó un pedido al reconectar.
+- **Cada aviso dispara 2 pedidos** (3 para el voluntario y para la ONG). Con muchas notificaciones seguidas no hay agrupado ni espera. No se midió.
+- **La coordinación del equipo** (voluntarios coordinadores) no tiene contador de postulaciones: el endpoint es solo para la ONG dueña.
+- En Chrome se probó solo la postulación nueva hacia la ONG, en escritorio ancho y tema claro. Los otros 13 tipos de aviso los cubren los tests de a tres (postulación, decisión, seguidor) y el test que mira que nadie más inserte; no se vio la barra de solo íconos, el celular ni el tema oscuro. El contador nuevo no se pasó por la medición de contraste (usa el mismo globito `critical` que los otros).
+- El globito del contador va con `aria-hidden`, como los demás: un lector de pantalla no lo anuncia.
+- Un celular real.

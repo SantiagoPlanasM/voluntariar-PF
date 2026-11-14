@@ -7,6 +7,7 @@ const { requireAuth, optionalAuth, requireRole } = require('../middleware/auth')
 // se había desincronizado y no traía latitude/longitude/modality.
 const { fmt: fmtProject, RATINGS_SELECT } = require('./projects');
 const { fmtNgo } = require('./ngos');
+const { notify } = require('../lib/notify');
 
 const router = express.Router();
 
@@ -410,14 +411,8 @@ router.post('/volunteer/:userId', requireAuth, requireRole('volunteer'), async (
 
     if (followed) {
       // Notificación in-app al voluntario seguido (después del COMMIT, una por follow real)
-      await db.run(
-        `INSERT INTO notifications (user_id, type, title, body, data)
-         VALUES ($1,'new_follower',$2,$3,$4)`,
-        [userId,
-         'Nuevo seguidor',
-         `${req.user.name} empezó a seguirte`,
-         JSON.stringify({ follower_id: req.user.id })]
-      ).catch(() => {});
+      await notify(userId, 'new_follower', 'Nuevo seguidor', `${req.user.name} empezó a seguirte`,
+        { follower_id: req.user.id }).catch(() => {});
     }
 
     const updated = await db.get('SELECT COALESCE(followers, 0) AS followers FROM voluntarios WHERE user_id = $1', [userId]);

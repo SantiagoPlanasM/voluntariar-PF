@@ -46,6 +46,7 @@ const CASES: Case[] = [
   ['enrollments.enroll con teléfono (§291)', () => api.enrollments.enroll('p1', { phone: '351 555 1234' }), 'POST', '/enrollments', { project_id: 'p1', phone: '351 555 1234' }],
   ['enrollments.enroll sin nada más', () => api.enrollments.enroll('p1'), 'POST', '/enrollments', { project_id: 'p1' }],
   ['enrollments.my', () => api.enrollments.my(), 'GET', '/enrollments/my'],
+  ['enrollments.pendingCount (§336)', () => api.enrollments.pendingCount(), 'GET', '/enrollments/pending-count'],
   ['enrollments.byProject', () => api.enrollments.byProject('p1'), 'GET', '/enrollments/project/p1'],
   ['enrollments.updateStatus', () => api.enrollments.updateStatus('e1', 'approved'), 'PATCH', '/enrollments/e1', { status: 'approved' }],
   ['enrollments.cancel', () => api.enrollments.cancel('e1'), 'DELETE', '/enrollments/e1'],

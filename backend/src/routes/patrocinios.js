@@ -12,6 +12,7 @@ const crypto = require('node:crypto');
 const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { checkText } = require('../lib/inputs');
+const { notify } = require('../lib/notify');
 
 const router = express.Router();
 
@@ -323,10 +324,7 @@ router.delete('/:empresaId/:projectId/puntos/:puntoId', requireAuth, agreementPa
 /** Aviso in-app a la otra parte (después del COMMIT; si falla, no corta nada). */
 function notifyOther(a, type, title, body) {
   const to = a.side === 'empresa' ? a.ngo_user_id : a.empresa_user_id;
-  return db.run(
-    'INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,$2,$3,$4,$5)',
-    [to, type, title, body, JSON.stringify({ project_id: a.project_id, empresa_id: a.empresa_id })]
-  ).catch(() => {});
+  return notify(to, type, title, body, { project_id: a.project_id, empresa_id: a.empresa_id }).catch(() => {});
 }
 const who = (a) => (a.side === 'empresa' ? a.empresa_name : a.ngo_name);
 

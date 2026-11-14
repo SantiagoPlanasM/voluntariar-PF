@@ -30,6 +30,7 @@ const { createLimiter } = require('../lib/rateLimit');
 const { checkText } = require('../lib/inputs');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { forLog } = require('../lib/logSafe');   // S5145: nada externo entra crudo a un log (§202)
+const { notify } = require('../lib/notify');
 
 const router = express.Router();
 
@@ -154,11 +155,9 @@ async function reverseDonation(d, p) {
         'SELECT n.user_id, p.titulo FROM projects p JOIN ngos n ON n.id = p.ngo_id WHERE p.id=$1', [d.project_id]);
       if (ngo) {
         const why = p.status === 'refunded' ? 'se devolvió' : 'tuvo un contracargo';
-        await db.run(
-          `INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,'donation_reversed','Se revirtió una donación',$2,$3)`,
-          [ngo.user_id, `Una donación de $${monto.toLocaleString('es-AR')} a "${ngo.titulo}" ${why} y ya no suma a lo recaudado`,
-            JSON.stringify({ project_id: d.project_id, donation_id: d.id })]
-        );
+        await notify(ngo.user_id, 'donation_reversed', 'Se revirtió una donación',
+          `Una donación de $${monto.toLocaleString('es-AR')} a "${ngo.titulo}" ${why} y ya no suma a lo recaudado`,
+          { project_id: d.project_id, donation_id: d.id });
       }
     } catch (err) {
       console.error('reverseDonation: no se pudo avisar a la ONG:', err.message);
@@ -227,10 +226,8 @@ async function applyPayment(paymentId, { expectDonationId, accessToken, mpUserId
       const ngo = await db.get(
         'SELECT n.user_id, p.titulo FROM projects p JOIN ngos n ON n.id = p.ngo_id WHERE p.id=$1', [d.project_id]);
       if (ngo) {
-        await db.run(
-          `INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,'donation_received','Recibiste una donación',$2,$3)`,
-          [ngo.user_id, `Donaron $${monto.toLocaleString('es-AR')} a "${ngo.titulo}"`, JSON.stringify({ project_id: d.project_id, donation_id: d.id })]
-        );
+        await notify(ngo.user_id, 'donation_received', 'Recibiste una donación',
+          `Donaron $${monto.toLocaleString('es-AR')} a "${ngo.titulo}"`, { project_id: d.project_id, donation_id: d.id });
       }
     } catch (err) {
       console.error('applyPayment: no se pudo avisar a la ONG:', err.message);

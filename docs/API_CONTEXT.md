@@ -34,6 +34,7 @@
 | POST | `/api/enrollments` | Sí | volunteer |
 | GET | `/api/enrollments/my` | Sí | cualquiera |
 | GET | `/api/enrollments/project/:projectId` | Sí | ngo dueña o coordinación |
+| GET | `/api/enrollments/pending-count` | Sí | ngo |
 | GET · POST | `/api/enrollments/ngo[?ngo_id=]` · `/api/enrollments/bulk` | Sí | ngo dueña o coordinación |
 | PATCH | `/api/enrollments/:id`, `/:id/horas` · POST, PATCH `/:id/entrevista` | Sí | ngo dueña o coordinación |
 | DELETE | `/api/enrollments/:id` | Sí | el voluntario |
@@ -270,6 +271,10 @@
   - `has_cv` y `phone`: solo si la postulación está `pending` o `approved`.
   - `interview`.
 - **Errores:** 403 "Sin permiso sobre este proyecto".
+
+### `GET /api/enrollments/pending-count` — ngo
+- El contador de "Postulaciones" de la barra lateral. **200:** `{ pending }`: cuántas postulaciones `pending` tienen los voluntariados de la ONG de la sesión (las mismas que `pending_enrollments` de `GET /ngos/me`). Siempre número; una ONG sin perfil o sin pendientes da 0.
+- No recibe ids: no hay nada ajeno que pedir. Otro rol → 403. La coordinación del equipo no lo usa.
 
 ### `GET /api/enrollments/ngo[?ngo_id=]` — ngo dueña o coordinación
 - La pantalla de postulaciones: las de **todos** los voluntariados de la ONG. La dueña no manda `ngo_id` (sin él y sin ser dueña de una ONG → 400); un coordinador activo manda el de su ONG (`ngoAccess` → si no puede, 403). Un `ngo_id` repetido llega como lista y se ignora.
@@ -553,7 +558,8 @@ Solo cuentan los activos. Editar voluntariados, KPIs, Mercado Pago, patrocinios 
   - Guarda y empuja por WebSocket. **201:** `{ message }`.
 - **`PATCH /thread/:userId/read`** → `{ success: true }`.
 - **WebSocket** `ws://host/ws?token=<jwt>`:
-  - Con un token inválido cierra con `4001`. Al conectar manda `{ type: 'connected' }`; después, `{ type: 'message', message }`.
+  - Con un token inválido cierra con `4001`. Al conectar manda `{ type: 'connected' }`; después, `{ type: 'message', message }` por cada mensaje del chat y `{ type: 'notification', kind }` por cada notificación nueva.
+  - El aviso de notificación lleva **solo el tipo** (`kind`, el `type` de la notificación): ni el texto ni los ids. El cliente vuelve a pedir `GET /api/notifications` y sus contadores.
   - **Solo recibe:** lo que manda el cliente se ignora, y se envía por REST.
   - `maxPayload` es de 64 KB (cierra con `1009`). Admite varias conexiones por usuario.
   - Las conexiones viven en un `Map` en memoria (un solo proceso).
@@ -565,6 +571,7 @@ Solo cuentan los activos. Editar voluntariados, KPIs, Mercado Pago, patrocinios 
   - `unread`: el total sin leer, contado en SQL.
 - **`PATCH /:id/read`** → `{ message: 'Marcada como leída' }`. Una notificación ajena o inexistente da 200 sin tocar nada.
 - **`PATCH /read-all`** → `{ message: 'Todas marcadas como leídas' }`.
+- **Al instante:** cada notificación que se crea le avisa a su destinatario por el WebSocket (ver arriba), si tiene una conexión abierta. Sin conexión no se pierde nada: queda guardada y se ve al pedir la lista.
 
 ## FAQs (`routes/faqs.js`; sin IA)
 

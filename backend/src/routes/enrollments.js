@@ -7,6 +7,7 @@ const {
   newEnrollmentEmail, enrollmentApprovedEmail, enrollmentRejectedEmail, interviewScheduledEmail,
 } = require('../lib/emailTemplates');
 const { isUniqueViolation } = require('../lib/dbErrors');
+const { notify } = require('../lib/notify');
 const { checkText, firstError, parsePhone } = require('../lib/inputs');
 const { ngoAccess, projectAccess, canManageEnrollments, managedNgoOfEnrollment } = require('../lib/ngoAccess');
 const crypto = require('node:crypto');
@@ -95,13 +96,9 @@ router.post('/', requireAuth, requireRole('volunteer'), async (req, res) => {
        WHERE p.id = $1`, [project_id]
     );
     if (ngo) {
-      await db.run(
-        `INSERT INTO notifications (user_id, type, title, body, data)
-         VALUES ($1,'new_enrollment','Nueva solicitud de inscripción',$2,$3)`,
-        [ngo.id,
-         `${req.user.name} quiere unirse a "${project.titulo}"`,
-         JSON.stringify({ project_id, user_id: req.user.id })]
-      ).catch(() => {}); // no bloquear si falla la notif
+      await notify(ngo.id, 'new_enrollment', 'Nueva solicitud de inscripción',
+        `${req.user.name} quiere unirse a "${project.titulo}"`,
+        { project_id, user_id: req.user.id }).catch(() => {}); // no bloquear si falla la notif
 
       const { subject, html } = newEnrollmentEmail({
         ngoName: ngo.ngo_name, volunteerName: req.user.name,
@@ -177,6 +174,27 @@ router.get('/project/:projectId', requireAuth, requireRole('ngo', 'volunteer'), 
     res.json({ enrollments: (await db.all(sql, params)).map(fmtManaged) });
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener inscripciones' });
+  }
+});
+
+// ── GET /api/enrollments/pending-count ────────────────────────────────────
+// §336: el contador de "Postulaciones" de la barra lateral de la ONG. Solo el número de las `pending` de sus
+// voluntariados (las mismas que lista el Panel, `pendingEnrollmentsOf` en ngos.js), sin traer cada una.
+// Es de la ONG de quien pregunta: no recibe ids, así que no hay nada ajeno que pedir.
+router.get('/pending-count', requireAuth, requireRole('ngo'), async (req, res) => {
+  try {
+    const row = await db.get(
+      `SELECT COUNT(*) AS n
+       FROM enrollments e
+       JOIN projects p ON p.id = e.project_id
+       JOIN ngos n ON n.id = p.ngo_id
+       WHERE n.user_id = $1 AND e.status = 'pending'`,
+      [req.user.id]
+    );
+    res.json({ pending: Number(row?.n) || 0 });   // COUNT llega como string en Postgres
+  } catch (err) {
+    console.error('GET /enrollments/pending-count error:', err);
+    res.status(500).json({ error: 'Error al contar las postulaciones' });
   }
 });
 
@@ -347,14 +365,11 @@ async function applyDecision(enrollment, status) {
 /** El aviso al voluntario (después del COMMIT; si falla, no frena). */
 function notifyDecision(enrollment, status) {
   const approved = status === 'approved';
-  return db.run(
-    `INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,$2,$3,$4,$5)`,
-    [enrollment.user_id,
-     approved ? 'enrollment_approved' : 'enrollment_rejected',
-     approved ? `¡Inscripción aprobada en "${enrollment.titulo}"!` : `Inscripción no seleccionada en "${enrollment.titulo}"`,
-     approved ? 'Ya podés ver los detalles en "Mis participaciones".' : 'Gracias por tu interés. Seguí explorando otros proyectos.',
-     JSON.stringify({ project_id: enrollment.project_id })]
-  ).catch(() => {});
+  return notify(enrollment.user_id,
+    approved ? 'enrollment_approved' : 'enrollment_rejected',
+    approved ? `¡Inscripción aprobada en "${enrollment.titulo}"!` : `Inscripción no seleccionada en "${enrollment.titulo}"`,
+    approved ? 'Ya podés ver los detalles en "Mis participaciones".' : 'Gracias por tu interés. Seguí explorando otros proyectos.',
+    { project_id: enrollment.project_id }).catch(() => {});
 }
 
 /** El mail al voluntario: { to, subject, html }. */
@@ -513,12 +528,9 @@ router.post('/:id/entrevista', requireAuth, requireRole('ngo', 'volunteer'), asy
     const interview = fmtInterview(await db.get('SELECT * FROM reuniones WHERE id=$1', [id]));
 
     const [y, m, d] = value.date.split('-');
-    await db.run(
-      `INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,'interview_scheduled',$2,$3,$4)`,
-      [enrollment.user_id, `Entrevista para "${enrollment.titulo}"`,
-       `${enrollment.ngo_name} te propone una entrevista el ${d}/${m}/${y} a las ${value.time}.`,
-       JSON.stringify({ project_id: enrollment.project_id, enrollment_id: enrollment.id })]
-    ).catch(() => {});
+    await notify(enrollment.user_id, 'interview_scheduled', `Entrevista para "${enrollment.titulo}"`,
+      `${enrollment.ngo_name} te propone una entrevista el ${d}/${m}/${y} a las ${value.time}.`,
+      { project_id: enrollment.project_id, enrollment_id: enrollment.id }).catch(() => {});
     const { subject, html } = interviewScheduledEmail({
       volunteerName: enrollment.volunteer_name, projectTitle: enrollment.titulo, ngoName: enrollment.ngo_name,
       ...value, appUrl: APP_URL,
@@ -583,11 +595,8 @@ router.patch('/:id/entrevista', requireAuth, requireRole('ngo', 'volunteer'), as
       const [type, text] = status === 'cancelled'
         ? ['interview_cancelled', `${current.ngo_name} canceló la entrevista por "${current.titulo}".`]
         : ['interview_rescheduled', `${current.ngo_name} cambió la entrevista: ${d}/${m}/${y} a las ${interview.time}.`];
-      await db.run(
-        `INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,$2,$3,$4,$5)`,
-        [current.user_id, type, `Entrevista para "${current.titulo}"`, text,
-         JSON.stringify({ project_id: current.project_id, enrollment_id: req.params.id })]
-      ).catch(() => {});
+      await notify(current.user_id, type, `Entrevista para "${current.titulo}"`, text,
+        { project_id: current.project_id, enrollment_id: req.params.id }).catch(() => {});
     }
     res.json({ interview });
   } catch (err) {

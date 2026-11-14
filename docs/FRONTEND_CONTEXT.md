@@ -20,7 +20,9 @@ main.tsx: StrictMode > AuthProvider > ChatProvider > UiProvider > RouterProvider
   y como panel flotante (`role="group"`) con solo íconos; `useWide` lee `(min-width: 1024px)` con `matchMedia` y, sin
   él, asume nombres. `isActive(item, pathname, hash)`: un destino con `#ancla` (Mercado Pago) solo se marca con su
   ancla, y el mismo destino sin ancla (Perfil) deja de marcarse cuando hay una.
-- **Contadores (`useBadges` en `AppShell`):** Mensajes (no leídos del chat), Notificaciones (`GET /notifications`) y, solo para el voluntario, **Perfil** con las invitaciones a equipos sin responder (`GET /equipo/mias`). Los dos pedidos se repiten al cambiar de pantalla; si fallan, no hay contador.
+- **Contadores (`useBadges` en `AppShell`):** Mensajes (no leídos del chat), Notificaciones (`GET /notifications`), solo para el voluntario **Perfil** con las invitaciones a equipos sin responder (`GET /equipo/mias`) y, solo para la ONG, **Postulaciones** con las que están sin responder (`GET /enrollments/pending-count`).
+  - Los pedidos se repiten al cambiar de pantalla y con cada aviso del servidor por el WebSocket (`notificationTick` de `ChatContext`); si fallan, no hay contador.
+  - El de Postulaciones es de un ítem dentro del grupo "Panel": se ve en el ítem cuando la lista está a la vista, y en el grupo (la suma de sus hijos) cuando el acordeón está cerrado o la barra es de solo íconos. En el celular no hay contador de postulaciones (el Panel ya las lista).
 - **`ScrollToTop`:** una navegación nueva vuelve arriba; "atrás" y los `#ancla`, no.
 - **`RequireRole`:** muestra un esqueleto ("Verificando sesión") mientras verifica. Sin sesión, va al inicio con el login abierto; con otro rol, al inicio de ese rol (`homeFor`). Es solo experiencia de uso: la autorización está en el backend.
 
@@ -106,7 +108,7 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
   - `VolunteerPublicProfile` muestra las horas verificadas y `MomentsGrid` (por id de usuario).
 - **`VolunteerProfile`:** habilidades con nivel. Si falla una carga, muestra "—" y no pisa las habilidades al guardar. La foto de una persona es siempre `avatar`, nunca `foto_perfil`.
 - **`ProfilePhotoPicker`:** comprime (`compressImage`), sube con `api.auth.uploadPhoto` y actualiza la sesión (`updateUser`).
-- **`NotificationsScreen`:** usa `unread` del backend. `notificationHref(n, role)` lleva a la pantalla de cada aviso: entrevistas a `/participation`, donaciones recibidas o revertidas (`donation_reversed`) al voluntariado en el panel de la ONG acuerdos a su pantalla según el rol y la validación de la ONG (`ngo_validation_approved`/`_rejected`) a `/ngo/validacion`.
+- **`NotificationsScreen`:** usa `unread` del backend. Con la pantalla abierta, un aviso del servidor (`notificationTick`) trae la lista de nuevo, sin esqueleto; si ese pedido falla, queda lo que se veía. `notificationHref(n, role)` lleva a la pantalla de cada aviso: entrevistas a `/participation`, donaciones recibidas o revertidas (`donation_reversed`) al voluntariado en el panel de la ONG acuerdos a su pantalla según el rol y la validación de la ONG (`ngo_validation_approved`/`_rejected`) a `/ngo/validacion`.
 - **`ReviewsModal`:** reseñas y formulario. Cada vez que se abre pide `GET /api/projects/:id`.
 - **`DonateModal`:** monto inicial $ 2.500, con atajos de $ 1.000 a $ 10.000 y "Otro monto". Valida con `checkDonationAmount` y redirige a `checkout_url`.
 - **`DonationReturn`:** lo que muestra lo decide el backend, que concilia el pago. Si está pendiente, vuelve a preguntar hasta 5 veces cada 3 s.
@@ -205,7 +207,8 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
   - `account` es la organización de una ONG o una empresa: `{ name, avatar }`, de `profile.nombre` y `profile.foto_perfil` de `GET /auth/me`. Llega junto con `isAdmin` (mismo pedido, mismas reglas). Es `null` para un voluntario, hasta que responde `/auth/me` y si falla. `updateUser` (cambio de foto) le cambia el `avatar`; cambiar el nombre de la organización no lo actualiza hasta recargar. No se guarda en `localStorage`.
   - Al montar, revalida con `GET /auth/me`. Cierra la sesión **solo** ante un 401 o 404; con otros errores (por ejemplo, un 502 de Render dormido) conserva `v_user`.
   - `logout` solo borra `v_token` y `v_user`: el token no se invalida en el servidor.
-- **`ChatContext`** (`useChat`): `conversations`, `unreadTotal`, `connected`, `refreshConversations`, `onMessage(cb)`.
+- **`ChatContext`** (`useChat`; `useChatOptional` da `null` sin proveedor): `conversations`, `unreadTotal`, `connected`, `refreshConversations`, `onMessage(cb)`, `notificationTick`.
+  - `notificationTick` sube en uno con cada `{ type: 'notification' }` del servidor. El aviso no trae el contenido: quien lo usa (`useBadges`, `NotificationsScreen`) lo pone como dependencia y vuelve a pedir sus datos.
   - Abre el WebSocket (`BASE` con `/api` → `/ws`) cuando hay sesión.
   - Reconecta con backoff (1, 2, 4, 8 s, tope 10 s), salvo ante un `4001`.
   - Cada mensaje entrante refresca las conversaciones.

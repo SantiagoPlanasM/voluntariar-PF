@@ -19,7 +19,7 @@ vi.mock('./api', async () => {
   };
 });
 
-import { ChatProvider } from './ChatContext';
+import { ChatProvider, useChatOptional } from './ChatContext';
 
 class FakeWebSocket {
   static instances: FakeWebSocket[] = [];
@@ -59,5 +59,36 @@ describe('ChatProvider: reconexión del WebSocket', () => {
     act(() => FakeWebSocket.instances[0].serverCloses(4001));
     await act(async () => { vi.advanceTimersByTime(60_000); });
     expect(FakeWebSocket.instances).toHaveLength(1);
+  });
+});
+
+// §336: el servidor avisa de una notificación nueva con `{ type: 'notification', kind }`. ChatContext lo cuenta en
+// `notificationTick`; la barra y la pantalla de notificaciones vuelven a pedir sus datos cuando cambia.
+describe('ChatProvider: aviso de notificación', () => {
+  beforeEach(() => { FakeWebSocket.instances = []; vi.stubGlobal('WebSocket', FakeWebSocket); });
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  function Probe() {
+    const c = useChatOptional();
+    return <p>avisos: {c ? c.notificationTick : 'sin chat'}</p>;
+  }
+  const say = (data: string) => act(() => FakeWebSocket.instances[0].onmessage?.({ data }));
+
+  test('cada { type: "notification" } suma uno; un mensaje del chat, "connected" o algo que no es JSON, no', () => {
+    const r = render(<ChatProvider><Probe /></ChatProvider>);
+    expect(r.getByText('avisos: 0')).toBeTruthy();
+    say(JSON.stringify({ type: 'notification', kind: 'new_enrollment' }));
+    expect(r.getByText('avisos: 1')).toBeTruthy();
+    say(JSON.stringify({ type: 'connected' }));
+    say(JSON.stringify({ type: 'message', message: { id: 'm1', from_user_id: 'u2', to_user_id: 'u1', body: 'hola' } }));
+    say('{esto no es json');
+    expect(r.getByText('avisos: 1')).toBeTruthy();
+    say(JSON.stringify({ type: 'notification', kind: 'new_follower' }));
+    expect(r.getByText('avisos: 2')).toBeTruthy();
+  });
+
+  test('sin proveedor de chat, useChatOptional da null', () => {
+    const r = render(<Probe />);
+    expect(r.getByText('avisos: sin chat')).toBeTruthy();
   });
 });

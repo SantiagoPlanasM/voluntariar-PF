@@ -16,11 +16,11 @@ Respondé en español rioplatense (voseo).
 - La historia de cada cosa ("§N") está en `docs/PROJECT_ANALYSIS.md` (índice) y `docs/archivo/`. No la cargues si no hace falta.
 
 ## Verificación (todo tiene que dar verde)
-- **Backend:** `npm test` y `npm run test:pg`. Hoy **1282** en SQLite y **1284** en Postgres (+2 solo de Postgres). El conteo incluye `test/integration/helpers.js`, que no es un test: los reales son **1281**. Un `before()` que falla deja los tests como **cancelled** (no `fail`): mirá ese número y el código de salida.
+- **Backend:** `npm test` y `npm run test:pg`. Hoy **1293** en SQLite y **1295** en Postgres (+2 solo de Postgres). El conteo incluye `test/integration/helpers.js`, que no es un test: los reales son **1292**. Un `before()` que falla deja los tests como **cancelled** (no `fail`): mirá ese número y el código de salida.
   - `test:pg` necesita Postgres en `localhost:5432` (`TEST_PG_*` en `helpers.js`): `docker run --rm -d -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=voluntariar_test postgres:18` (la versión de producción).
   - `email-redos.test.js` tiene 1500 ms de umbral (con 500 fallaba a veces en local).
   - Scripts del CI aparte: `node --test ".github/scripts/*.test.js"` (con comillas).
-- **Frontend:** `npm test`, **solo** (a la par de las suites del backend varios pasan los 5 s). Hoy **1516** tests; cobertura: sentencias 91,97 %, ramas 88,75 %, funciones 89,15 %, líneas 94,40 % (`npm run test:coverage`, reportes en `frontend/reports/`).
+- **Frontend:** `npm test`, **solo** (a la par de las suites del backend varios pasan los 5 s). Hoy **1532** tests; cobertura: sentencias 92,11 %, ramas 88,87 %, funciones 89,33 %, líneas 94,56 % (`npm run test:coverage`, reportes en `frontend/reports/`).
   - Tipos: `npm run typecheck` (TypeScript 7), **0 errores**. Nunca `npx tsc`: el paquete `tsc` de npm no es TypeScript.
   - `src/styles/paletteContrast.test.ts` exige 4,5:1 a todo `text-white` sobre la paleta y a los textos de color, en claro y oscuro. Para texto: `text-people-text`/`text-brand-text`, no `text-people`/`text-brand`. Sobre `bg-ink`/`bg-critical`: `text-on-ink`, no `text-white`.
   - `src/app/layout/pageWidth.test.ts`: toda raíz de pantalla con `mx-auto` lleva `w-full` (si no, scroll horizontal a 375 px).
@@ -53,6 +53,7 @@ Respondé en español rioplatense (voseo).
 - `migrate.js` en Postgres: toda consulta a `information_schema` filtra por `table_schema = current_schema()`.
 - Búsquedas de texto: `ILIKE`, no `LIKE`. BOOLEAN: `true`/`false`, nunca `1`/`0`. `ON CONFLICT DO NOTHING` anda igual en los dos motores.
 - Formatear proyectos: importar `fmt` desde `routes/projects.js`, no copiarlo.
+- Notificaciones: siempre con `notify()` de `lib/notify.js` (guarda y avisa por el WebSocket), después del COMMIT; nunca un `INSERT INTO notifications` suelto.
 
 ## No tocar sin avisarme
 `render.yaml`, `backend/.npmrc` y cualquier archivo de versión de Node (`.nvmrc`, `.node-version`) si se agrega.

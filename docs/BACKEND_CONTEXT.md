@@ -14,7 +14,7 @@ backend/
 │   ├── db/index.js       # adaptador dual SQLite/Postgres: único acceso a datos
 │   ├── db/sqlTranslate.js# translatePg(): $N → ? (remapParams), CURRENT_TIMESTAMP, ILIKE → LIKE
 │   ├── middleware/auth.js# requireAuth, optionalAuth, requireRole, signToken
-│   ├── ws/index.js       # WebSocket del chat, en el mismo puerto; se autentica con el JWT
+│   ├── ws/index.js       # WebSocket (chat y aviso de notificaciones), en el mismo puerto; se autentica con el JWT
 │   ├── routes/           # ver la tabla
 │   └── lib/              # ver la tabla
 └── scripts/
@@ -180,7 +180,11 @@ Con `onboarding@resend.dev`, Resend solo entrega a la casilla de la cuenta (403 
 
 ## 6. Notificaciones
 
-Se insertan en `notifications` después de la operación principal, con `.catch(() => {})`: si fallan, no se registra y no se reintenta. `ngoTeam.js` tiene su propio helper `notify`.
+Todas se crean con `notify(userId, type, title, body, data)` de `lib/notify.js`: guarda la fila y, ya guardada, manda `{ type: 'notification', kind: type }` por el WebSocket a las conexiones abiertas del destinatario (`sendToUser`). Ningún otro archivo inserta en `notifications` (lo controla `notifications-push.test.js`).
+
+- Se llama después de la operación principal y del COMMIT (regla 21), nunca dentro de `db.transaction()`.
+- Si el alta falla, `notify` rechaza y no avisa. Casi todos los que llaman lo ignoran con `.catch(() => {})`: no se registra y no se reintenta.
+- El aviso lleva solo el tipo. Como las conexiones están en memoria, sirve con un solo proceso.
 
 ## 7. Problemas conocidos
 

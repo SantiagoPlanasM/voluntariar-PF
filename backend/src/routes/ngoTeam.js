@@ -12,6 +12,7 @@ const { isUniqueViolation } = require('../lib/dbErrors');
 const { ngoAccess } = require('../lib/ngoAccess');
 const { validateEmail } = require('../lib/authCommon');
 const { pendingEnrollmentsOf } = require('./ngos');
+const { notify: createNotification } = require('../lib/notify');
 
 const router = express.Router();
 
@@ -36,9 +37,7 @@ const memberRow = (ngoId, userId) => db.get(
   `SELECT ${MEMBER_COLS} FROM ngo_miembros m JOIN users u ON u.id = m.user_id WHERE m.ngo_id=$1 AND m.user_id=$2`,
   [ngoId, userId]);
 // Los avisos no frenan la respuesta si fallan (como el resto de las notificaciones).
-const notify = (userId, type, title, body, data) => db.run(
-  'INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,$2,$3,$4,$5)',
-  [userId, type, title, body, JSON.stringify(data)]).catch(() => {});
+const notify = (userId, type, title, body, data) => createNotification(userId, type, title, body, data).catch(() => {});
 
 // ── Dueño: GET /api/equipo/miembros ──────────────────────────────────────────
 router.get('/miembros', requireAuth, requireRole('ngo'), async (req, res) => {

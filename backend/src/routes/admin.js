@@ -18,6 +18,7 @@ const { requireAdmin, fmtValidation } = require('../lib/ngoValidation');
 const { ngoValidationEmail } = require('../lib/emailTemplates');
 const { checkText } = require('../lib/inputs');
 const { forLog } = require('../lib/logSafe');
+const { notify } = require('../lib/notify');
 const { DOCS } = require('./ngoValidacion');
 
 const router = express.Router();
@@ -80,12 +81,10 @@ async function decide(req, res, approved) {
 
     // Después del cambio (regla 21): notificación y mail. Si fallan, la decisión ya quedó.
     try {
-      await db.run(
-        `INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,$2,$3,$4,$5)`,
-        [v.ngo_user_id, approved ? 'ngo_validation_approved' : 'ngo_validation_rejected',
-          approved ? 'Tu ONG está validada' : 'Revisamos la validación de tu ONG',
-          approved ? 'Ya aparece con la insignia azul.' : `No pudimos validarla: ${reason}`,
-          JSON.stringify({ ngo_id: v.ngo_id })]);
+      await notify(v.ngo_user_id, approved ? 'ngo_validation_approved' : 'ngo_validation_rejected',
+        approved ? 'Tu ONG está validada' : 'Revisamos la validación de tu ONG',
+        approved ? 'Ya aparece con la insignia azul.' : `No pudimos validarla: ${reason}`,
+        { ngo_id: v.ngo_id });
       const owner = await db.get('SELECT email FROM users WHERE id=$1', [v.ngo_user_id]);
       if (owner?.email) {
         await email.sendEmail({ to: owner.email, ...ngoValidationEmail({ ngoName: v.ngo_name, approved, reason, appUrl: APP_URL() }) });

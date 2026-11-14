@@ -8,6 +8,7 @@ const db = require('../db');
 const tokenCrypto = require('./tokenCrypto');
 const payments = require('./payments');   // por propiedad (payments.refreshAccessToken), para los tests
 const { isUniqueViolation } = require('./dbErrors');
+const { notify } = require('./notify');
 
 const STATUS_EN = { activa: 'active', requiere_reconexion: 'needs_reconnect' };
 const ORIGIN_EN = { oauth: 'oauth', manual: 'manual' };
@@ -98,11 +99,9 @@ async function markNeedsReconnect(ngoId, version) {
   try {
     const ngo = await db.get('SELECT user_id FROM ngos WHERE id=$1', [ngoId]);
     if (ngo) {
-      await db.run(
-        `INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,'mp_reconnect_needed',$2,$3,$4)`,
-        [ngo.user_id, 'Volvé a vincular Mercado Pago',
-          'Tu cuenta de Mercado Pago dejó de funcionar y no podés recibir donaciones. Vinculala de nuevo desde tu perfil.',
-          JSON.stringify({ ngo_id: ngoId })]);
+      await notify(ngo.user_id, 'mp_reconnect_needed', 'Volvé a vincular Mercado Pago',
+        'Tu cuenta de Mercado Pago dejó de funcionar y no podés recibir donaciones. Vinculala de nuevo desde tu perfil.',
+        { ngo_id: ngoId });
     }
   } catch (err) {
     console.error('markNeedsReconnect: no se pudo avisar a la ONG:', err.message);
