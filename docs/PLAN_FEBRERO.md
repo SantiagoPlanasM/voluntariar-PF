@@ -207,9 +207,11 @@ En este orden:
    - Sumar al inventario lo nuevo de §329: los puntos en "Proponer" (`CompanyOwnProfile`, que sigue con el resto de
      la pantalla en los estilos viejos) y `SponsorshipPointForm`.
 3. [x] **Notificaciones instantáneas** por el WebSocket (§336, 13/11): toda notificación avisa al instante a su
-   destinatario, y la ONG tiene el contador de postulaciones sin responder en la barra lateral. **Commit local, sin
-   push** (falta el OK del usuario); no se probó en producción.
-4. **Lo próximo:** la tanda de diseño que elija el usuario (T5, T7–T13), o lo que siga de la Etapa 3: reputación
+   destinatario, y la ONG tiene el contador de postulaciones sin responder en la barra lateral. En producción
+   (`e5f65e1`, CI #94, Deploy #90, SonarCloud en OK con 0 issues); falta probarlo en la interfaz desplegada.
+4. **Lo próximo** (el usuario dejó elegir la tanda el 14/11): sacar el `window.confirm` que queda
+   (`CompanyOwnProfile`, retirar propuesta; hallazgo B1) y unificar las cuatro funciones que escriben plata (lo que
+   quedó de T3, hallazgo B2). Después, otra tanda de diseño (T5, T7–T13), o lo que siga de la Etapa 3: reputación
    (antes, que el usuario defina qué se mide) o empleados de empresa con cupos reservados.
 
 ## Devolución de los directores (5/11)
