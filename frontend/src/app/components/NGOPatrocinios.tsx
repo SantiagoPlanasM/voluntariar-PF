@@ -1,14 +1,20 @@
+// Propuestas de patrocinio de la ONG (/ngo/patrocinios). Pantalla de panel (DESIGN.md → Paneles de gestión):
+// fondo `canvas-soft`, bloques `surface` con borde `hairline`, sin sombras. Las pendientes arriba, con el acceso al
+// acuerdo y "Aceptar" / "Rechazar"; abajo, el historial con el estado como chip.
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { Loader2, Check, X as XIcon, Handshake } from 'lucide-react';
 import { api, Patrocinio } from '../../lib/api';
 import { userMessage } from '../../lib/format';
 import { SPONSORSHIP_BADGE, SPONSORSHIP_LABEL } from '../../lib/sponsorship';
+import { Avatar } from '../ui/Avatar';
+import { Button } from '../ui/Button';
 import { InlineError } from './LoadError';
 
+const BLOCK = 'rounded-xl bg-surface border border-hairline';
+const SECTION_TITLE = 'text-[13px] font-semibold text-ink-soft';
+
 export function NGOPatrocinios() {
-  const [patrocinios, setPatrocinios] = useState<Patrocinio[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [patrocinios, setPatrocinios] = useState<Patrocinio[] | null>(null);
   const [decidingKey, setDecidingKey] = useState<string | null>(null);
   const [loadError, setLoadError] = useState('');
   const [actionError, setActionError] = useState('');
@@ -16,13 +22,12 @@ export function NGOPatrocinios() {
 
   useEffect(() => { void load(); }, []);
 
+  // Solo corre con la lista todavía sin cargar (al entrar y en "Reintentar"): por eso se ve el esqueleto.
   const load = async () => {
-    setLoading(true);
     setLoadError('');
     try { const { patrocinios: p } = await api.ngos.patrocinios.list(); setPatrocinios(p); }
     // Antes se tragaba y se veía "Todavía no recibiste propuestas" (REVISION F9).
     catch (e) { setLoadError(userMessage(e, 'No pudimos cargar las propuestas. Revisá tu conexión.')); }
-    finally { setLoading(false); }
   };
 
   const decide = async (empresaId: string, projectId: string, estado: 'aceptado' | 'rechazado') => {
@@ -33,103 +38,104 @@ export function NGOPatrocinios() {
       const { message } = await api.ngos.patrocinios.decide(empresaId, projectId, estado);
       // §264: si los puntos cambiaron, aceptar no cierra el acuerdo: falta la empresa. Se avisa en vez de no mostrar nada.
       setNotice(estado === 'aceptado' && message.startsWith('Aceptaste esta versión') ? message : '');
-      await load();
+    } catch (e) {
+      setActionError(userMessage(e, 'No se pudo guardar tu decisión. Revisá tu conexión y probá de nuevo.'));
+      setDecidingKey(null);
+      return;
     }
-    catch (e) { setActionError(userMessage(e, 'No se pudo guardar tu decisión. Revisá tu conexión y probá de nuevo.')); }
+    // La decisión ya está guardada: la lista se vuelve a pedir sin vaciar la pantalla.
+    try { const { patrocinios: p } = await api.ngos.patrocinios.list(); setPatrocinios(p); }
+    catch { setActionError('Tu decisión se guardó, pero no pudimos actualizar la lista. Recargá la página para verla.'); }
     finally { setDecidingKey(null); }
   };
 
-  const pendientes = patrocinios.filter(p => p.estado === 'propuesto');
-  const decididas  = patrocinios.filter(p => p.estado !== 'propuesto');
-
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-    </div>
-  );
+  const pendientes = (patrocinios ?? []).filter(p => p.estado === 'propuesto');
+  const decididas  = (patrocinios ?? []).filter(p => p.estado !== 'propuesto');
 
   return (
-    <div className="w-full p-4 md:p-8 max-w-3xl mx-auto">
-      <div className="flex items-center gap-2 mb-6">
-        <Handshake className="w-5 h-5 text-blue-600" />
-        <h1 className="text-xl font-black text-gray-900">Propuestas de patrocinio</h1>
-      </div>
+    <div className="min-h-screen bg-canvas-soft pb-28">
+      <div className="w-full max-w-[880px] mx-auto px-4 pt-2 md:pt-8 flex flex-col gap-4">
+        <h1 className="text-[22px] font-bold tracking-[-0.3px] min-h-11 flex items-center">Propuestas de patrocinio</h1>
 
-      {notice && <p role="status" className="mb-4 text-sm bg-surface-soft text-ink rounded-xl px-3 py-2">{notice}</p>}
-      {actionError && <p role="alert" className="mb-4 text-sm bg-surface-soft text-critical rounded-xl px-3 py-2">{actionError}</p>}
+        {notice && <p role="status" className={`${BLOCK} p-3 text-[13px] text-ink`}>{notice}</p>}
+        {actionError && <p role="alert" className={`${BLOCK} p-3 text-[13px] text-critical`}>{actionError}</p>}
 
-      {loadError ? (
-        <InlineError message={loadError} onRetry={load} />
-      ) : patrocinios.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm text-center py-12">
-          <p className="text-gray-400 text-sm">Todavía no recibiste propuestas de patrocinio.</p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {pendientes.length > 0 && (
-            <section>
-              <h2 className="text-xs font-bold text-gray-400 mb-2">Pendientes ({pendientes.length})</h2>
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50">
+        {loadError ? (
+          <InlineError message={loadError} onRetry={load} />
+        ) : !patrocinios ? (
+          // Esqueleto con la forma de la lista: dos propuestas con su logo, dos renglones y los botones.
+          <div role="status" aria-label="Cargando propuestas" className="flex flex-col gap-2">
+            {[0, 1].map(i => (
+              <div key={i} aria-hidden="true" className={`${BLOCK} p-4 flex flex-col gap-3`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 flex-shrink-0 rounded-[28%] skeleton" />
+                  <div className="flex-1 flex flex-col gap-2"><div className="h-4 w-1/2 rounded skeleton" /><div className="h-3 w-3/4 rounded skeleton" /></div>
+                </div>
+                <div className="h-10 rounded-[10px] skeleton" />
+              </div>
+            ))}
+          </div>
+        ) : patrocinios.length === 0 ? (
+          <p className={`${BLOCK} text-center py-12 px-4 text-[15px] text-ink-soft`}>Todavía no recibiste propuestas de patrocinio.</p>
+        ) : (
+          <>
+            {pendientes.length > 0 && (
+              <section className="flex flex-col gap-2">
+                <h2 className={SECTION_TITLE}>Pendientes ({pendientes.length})</h2>
                 {pendientes.map(p => {
                   const key = `${p.empresa_id}-${p.project_id}`;
+                  const busy = decidingKey === key;
                   return (
-                    <div key={key} className="p-4">
-                      <div className="flex items-center gap-3 mb-2">
-                        {p.empresa_logo
-                          ? <img src={p.empresa_logo} alt="" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
-                          : <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center text-sm font-bold text-violet-700 flex-shrink-0">{p.empresa_name?.[0]}</div>
-                        }
+                    <article key={key} className={`${BLOCK} p-4 flex flex-col gap-3`}>
+                      <div className="flex items-center gap-3">
+                        <Avatar src={p.empresa_logo} name={p.empresa_name ?? ''} kind="org" size={40} />
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-gray-900 truncate">{p.empresa_name}</p>
-                          <p className="text-xs text-gray-400 truncate">quiere patrocinar "{p.project_title}"</p>
+                          <p className="text-[15px] font-semibold truncate">{p.empresa_name}</p>
+                          <p className="text-[13px] text-ink-soft break-words">quiere patrocinar "{p.project_title}"</p>
                         </div>
                       </div>
-                      {p.mensaje && <p className="text-sm text-gray-600 bg-gray-50 rounded-xl px-3 py-2 mb-3">{p.mensaje}</p>}
-                      <Link to={`/ngo/patrocinios/${p.empresa_id}/${p.project_id}`} className="text-xs font-semibold text-ink underline mb-3 inline-block">
+                      {p.mensaje && <p className="text-[15px] leading-[1.45] text-ink-soft bg-surface-soft rounded-xl px-3 py-2 break-words">{p.mensaje}</p>}
+                      <Link to={`/ngo/patrocinios/${p.empresa_id}/${p.project_id}`} className="text-[13px] font-semibold text-ink underline self-start min-h-11 inline-flex items-center">
                         Ver acuerdo: puntos y charla
                       </Link>
                       <div className="flex gap-2">
-                        <button onClick={() => decide(p.empresa_id, p.project_id, 'aceptado')} disabled={decidingKey === key}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-ink hover:opacity-90 text-on-ink rounded-xl text-xs font-bold disabled:opacity-60 transition-colors">
-                          {decidingKey === key ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                        <Button variant="primary" className="flex-1" busy={busy} busyLabel="Guardando…"
+                          onClick={() => decide(p.empresa_id, p.project_id, 'aceptado')}>
                           Aceptar
-                        </button>
-                        <button onClick={() => decide(p.empresa_id, p.project_id, 'rechazado')} disabled={decidingKey === key}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold disabled:opacity-60 transition-colors">
-                          <XIcon className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="secondary" className="flex-1" disabled={busy}
+                          onClick={() => decide(p.empresa_id, p.project_id, 'rechazado')}>
                           Rechazar
-                        </button>
+                        </Button>
                       </div>
-                    </div>
+                    </article>
                   );
                 })}
-              </div>
-            </section>
-          )}
+              </section>
+            )}
 
-          {decididas.length > 0 && (
-            <section>
-              <h2 className="text-xs font-bold text-gray-400 mb-2">Historial</h2>
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50">
-                {decididas.map(p => (
-                  <div key={`${p.empresa_id}-${p.project_id}`} className="p-4 flex items-center gap-3">
-                    {p.empresa_logo
-                      ? <img src={p.empresa_logo} alt="" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" />
-                      : <div className="w-9 h-9 rounded-xl bg-gray-100 flex-shrink-0" />
-                    }
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-gray-800 truncate">{p.empresa_name} — {p.project_title}</p>
-                    </div>
-                    <span className={`text-xs font-bold px-2 py-1 rounded-full flex-shrink-0 ${SPONSORSHIP_BADGE[p.estado]}`}>
-                      {SPONSORSHIP_LABEL[p.estado]}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
-      )}
+            {decididas.length > 0 && (
+              <section className="flex flex-col gap-2">
+                <h2 className={SECTION_TITLE}>Historial</h2>
+                <ul className={`${BLOCK} divide-y divide-hairline`}>
+                  {decididas.map(p => (
+                    <li key={`${p.empresa_id}-${p.project_id}`} className="p-3 flex items-center gap-3">
+                      <Avatar src={p.empresa_logo} name={p.empresa_name ?? ''} kind="org" size={36} />
+                      <p className="min-w-0 flex-1 text-[15px] break-words">
+                        <span className="font-semibold">{p.empresa_name}</span>
+                        <span className="text-ink-soft"> · {p.project_title}</span>
+                      </p>
+                      <span className={`h-7 px-2.5 rounded-full text-xs font-semibold inline-flex items-center flex-shrink-0 ${SPONSORSHIP_BADGE[p.estado]}`}>
+                        {SPONSORSHIP_LABEL[p.estado]}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

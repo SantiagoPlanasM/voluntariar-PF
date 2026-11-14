@@ -31,12 +31,12 @@ beforeEach(() => {
 });
 
 describe('NGOProjectDetail desde el equipo', () => {
-  test('sin editar, KPIs ni estado; con las postulaciones y Aprobar', async () => {
+  test('sin editar, Impacto ni estado; con las postulaciones y Aprobar', async () => {
     const update = vi.spyOn(api.enrollments, 'updateStatus').mockResolvedValue({ message: 'ok' });
     mount(true);
     expect(await screen.findByText('Ana')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Editar/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: /KPIs/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Impacto' })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Estado del voluntariado' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /Aprobar/ }));
     await waitFor(() => expect(update).toHaveBeenCalledWith('e1', 'approved'));
@@ -51,7 +51,7 @@ describe('NGOProjectDetail desde el equipo', () => {
   test('el dueño sigue viendo todo y su chat es el de la ONG', async () => {
     mount(false);
     expect(await screen.findByRole('button', { name: /Editar/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /KPIs/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Impacto' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Estado del voluntariado' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Mensaje a Ana'));
     expect(await screen.findByText('chat de la ONG')).toBeInTheDocument();

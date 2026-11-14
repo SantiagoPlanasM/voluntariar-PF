@@ -8,6 +8,7 @@ import { Project } from '../../lib/api';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Modal } from './Modal';
+import { useToast } from '../ui/UiProvider';
 import { addBaseTiles, createPinIcon, DEFAULT_CENTER } from '../../lib/mapTiles';
 import { isRemote } from '../volunteering/isRemote';
 
@@ -132,6 +133,7 @@ function ProjectMapModal({
   onSelectProject,
 }: ProjectMapModalProps) {
   const navigate = useNavigate();
+  const toast = useToast();
   const modalMapContainerRef = useRef<HTMLDivElement | null>(null);
   const leafletMapRef = useRef<L.Map | null>(null);
   const leafletMarkersRef = useRef<L.Marker[]>([]);
@@ -303,7 +305,7 @@ function ProjectMapModal({
 
   const handleLocateMe = () => {
     if (!navigator.geolocation) {
-      alert('Tu navegador no soporta geolocalización');
+      toast('Tu navegador no permite ubicarte en el mapa', { kind: 'error' });
       return;
     }
     setIsLocating(true);
@@ -594,6 +596,7 @@ interface ProjectMapProps {
 
 export function ProjectMap({ projects: allProjects, className = '', onSelectProject }: ProjectMapProps) {
   const navigate = useNavigate();
+  const toast = useToast();
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   // Solo los que tienen un lugar físico: un remoto no tiene dónde ir (D31). También vale para el mapa ampliado.
   const projects = useMemo(() => allProjects.filter(p => !isRemote(p)), [allProjects]);
@@ -672,7 +675,7 @@ export function ProjectMap({ projects: allProjects, className = '', onSelectProj
 
   const handleLocateMe = () => {
     if (!navigator.geolocation) {
-      alert('Tu navegador no soporta geolocalización');
+      toast('Tu navegador no permite ubicarte en el mapa', { kind: 'error' });
       return;
     }
     setIsLocating(true);

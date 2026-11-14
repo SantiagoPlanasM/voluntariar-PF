@@ -59,7 +59,7 @@ frontend/src/
 | `/settings` | `SettingsScreen`: CV, Mercado Pago (link), tema, contraseña, Equipos/Acceso del equipo, Validación de la ONG, el panel de admin (con `isAdmin`), privacidad, cerrar sesión y borrar la cuenta | con sesión |
 | `/admin/validaciones` | `AdminValidations` (panel de administración) | con sesión; la API exige `ADMIN_EMAILS` (403 → "solo para el equipo de VoluntariAR") |
 | `/equipo/:ngoId` | `TeamPanel` | miembro activo |
-| `/equipo/:ngoId/project/:projectId` | `NGOProjectDetail team` (sin editar, KPIs ni estado) | coordinación |
+| `/equipo/:ngoId/project/:projectId` | `NGOProjectDetail team` (sin editar, Impacto ni estado) | coordinación |
 | `/equipo/:ngoId/postulaciones` | `NGOApplications team` | coordinación |
 | `/privacidad`, `/cuenta/borrar`, `/restablecer`, `/donaciones/vuelta` | `PrivacyPage`, `DeleteAccountPage`, `ResetPasswordPage`, `DonationReturn` | público; el código del link autoriza |
 | `*` | `NotFoundPage` (con `LoadError`) | — |
@@ -139,9 +139,11 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
   - **Lugar:** en un presencial, el pin es **obligatorio** (solo lo exige el formulario).
   - **Topes:** iguales a los del backend (80, 1000 y 5000).
   - **Foto (`ProjectPhotoField`):** vista previa en 4:5 y "Encuadre en las tarjetas" (Arriba, Centro, Abajo → `image_position`, que aplica `imagePositionClass`). Se sube **después** de guardar. Si falla, el voluntariado ya quedó guardado y aparece un aviso.
-- **`NGOProjectDetail`:** lista de postulantes.
-  - Acciones: aprobar o rechazar, cargar horas, "Ver CV" (solo con `has_cv`) e `InterviewPanel`.
-  - Botón "Editar" y "Estado del voluntariado": Finalizar y Cancelar con `useConfirm`; "Volver a activar" sin confirmación.
+- **`NGOProjectDetail`:** lista de postulantes, con la forma de los paneles (`canvas-soft`, bloques `surface` con borde `hairline`).
+  - Arriba, la doble meta (`DualGoal`); el tipo va con mayúscula (`TYPE_STYLE`).
+  - Acciones: aprobar o rechazar, cargar horas, "Ver CV" (solo con `has_cv`) e `InterviewPanel`. Los errores de aprobar, rechazar y guardar horas salen como aviso (`useToast`).
+  - Filtros por estado con `aria-pressed`; cada inscripto con `Avatar`.
+  - Botones "Editar" e "Impacto" (va a `NGOKPIs`), y "Estado del voluntariado": Finalizar y Cancelar con `useConfirm`; "Volver a activar" sin confirmación.
   - Con `?postulacion=<id>`, resalta esa fila, la lleva a la vista y abre el formulario de la entrevista.
 - **`InterviewPanel`:** agendar, reprogramar, cancelar o marcar realizada (`interviewPassed`, en UTC-3). Los mensajes del backend se muestran tal cual.
 - **`NGOOwnProfile`:** edita el perfil, con CUIT y "Link a balances y documentos". Incluye `MercadoPagoAccountSection` (ancla `#mercadopago`; vincular, volver a vincular o desvincular, con confirmación en la página).
@@ -161,6 +163,7 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
 - **`AdminValidations`** (`/admin/validaciones`): "En revisión" o "Todas" (`?status=all`); por fila, la ONG (link al perfil), CUIT, personería, los dos PDF, "Aprobar" (con `useConfirm`) y "Rechazar" (motivo de 10 a 500, `checkRejectReason`). Un error (p. ej. el 409 si otro admin ya decidió) queda en la fila.
 - **Insignia (`ui/VerifiedBadge.tsx`):** ícono azul (`text-brand-text`) con nombre "ONG validada". Va junto al nombre de la ONG en `ProfileHeader` (`verified`, perfil público), en `ProjectDetails` y en `FeedPostCard`, solo con `verified`/`ngo_verified` de la API.
 - **Equipo, lado del voluntario:** `useTeamMemberships` (`app/team/`) carga `GET /equipo/mias` y acepta, rechaza o sale (salir pide confirmación). Lo usan `TeamSection` ("Equipos", en el perfil y en Configuración; ancla `#equipos`, a la que llevan el aviso `team_invite` y "Volver" de `TeamPanel`) y `TeamInvites` (arriba del Inicio, solo las invitaciones; al aceptar, link al panel). Los dos se ocultan sin datos o si falla la carga. `TeamPanel` es el panel del miembro.
+- **`NGOPatrocinios`:** pendientes (logo de la empresa con `Avatar kind="org"`, mensaje, "Ver acuerdo", "Aceptar" y "Rechazar") e historial con el estado como chip (`SPONSORSHIP_BADGE`: "Aceptado" en `people-soft`, el resto gris). Carga con esqueleto; después de decidir vuelve a pedir la lista sin vaciar la pantalla.
 - **`NGOPatrocinios` y `SponsorshipAgreementScreen`:**
   - **Puntos (§325):** una sola lista con filtros por parte (con la cantidad) y el total de dinero; cada punto dice de qué parte es ("Aporta …" / "Ofrece …"), quién lo agregó y quién lo editó. Los propios tienen editar y borrar, y hay "Agregar punto", mientras el acuerdo está abierto.
   - **Cambios desde tu aceptación (§325):** si acepté una versión anterior a la vigente y el acuerdo está abierto, pide el historial y `changesSince` (`lib/sponsorship.ts`) marca los puntos nuevos o editados (con "Antes:") y avisa los quitados. Uno agregado y quitado después no cuenta. Si el historial falla, sin marcas.
@@ -172,7 +175,7 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
   - **Aceptación:** quién aceptó la vigente (y cuándo) y qué versión había aceptado quien no; "Estoy de acuerdo" manda `version`, y "Rechazar acuerdo".
   - **Charla:** el mensaje de la propuesta y los mensajes.
   - Un 409 recarga el acuerdo.
-- **`NGOKPIs`:** el CRUD de indicadores. **`NGOMoments`:** `MomentsFeed` con `ngo_id`; hasta tener el id no muestra nada.
+- **`NGOKPIs`** (título "Impacto"): el CRUD de indicadores. Arriba, hasta cuatro indicadores numéricos en grande; sin color por tipo. Borrar pregunta con `useConfirm` y avisa el error con `useToast`. No tiene el gráfico por mes ni "Publicar como dato de impacto" del diseño. **`NGOMoments`:** `MomentsFeed` con `ngo_id`; hasta tener el id no muestra nada.
 
 ### Empresa
 - **`CompanyDashboard`:** 4 KPIs y los proyectos. Las horas y los voluntarios se muestran solo en patrocinios aceptados.
@@ -277,6 +280,7 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
 - **Pie fijo de `CreateVoluntariado`** (`app/layout/fixedFooter.test.ts`): usa las medidas de `AppShell` (barra lateral de 72 y 244 px, barra inferior de `56px + área segura`). Si cambian en `AppShell`, el test obliga a cambiarlas en el pie.
 - **Plata y promedios:** montos con `formatMoney` (`$ 8.500`), nunca `toLocaleString()` sin `es-AR`; promedios con coma (`4,5`).
 - **Reglas chicas** (`app/layout/designRules.test.ts`, mira el código de toda la app): el `Heart` de lucide solo en `PostCard` (el "me gusta"), ninguna clase `uppercase`, ningún emoji.
+- **Sin diálogos del navegador** (mismo test): nadie llama a `alert()`; `window.confirm` solo en el respaldo de `UiProvider`; todo archivo que llama a `confirm(...)` lo saca de `useConfirm`. Preguntas con `useConfirm`, avisos con `useToast`.
 - **Azul y verde** (mismo test): ninguna clase `emerald`/`green`/`teal`/`lime` (el verde es el token `people`; `NGOEmpleados` queda afuera); `bg-people` y `bg-brand` solo en una lista de archivos (inscribirse, donar, barras, tipo, "te aceptaron", logo); los enlaces van en `text-ink font-semibold underline`, nunca `text-brand-text` con `underline`; los indicadores de carga, en `ink` o `ink-muted`. Todo botón que no sea Inscribirme ni Donar: `bg-ink text-on-ink`.
 - **`Avatar`:** las iniciales miden 12 px como mínimo. En la navegación, el aro del ítem activo sigue la forma del avatar (redondo para una persona, 28 % para una organización). El avatar de la cuenta de una ONG o una empresa se dibuja con `account` (logo y nombre de la organización); sin `account`, con `user`.
 - **Cargando** (`components/LoadingSkeletons.test.tsx`): ninguna pantalla centra un `Loader2` en un contenedor del alto de la pantalla. Se usa un esqueleto: `role="status"` con su `aria-label` y, adentro, bloques `.skeleton` bajo un `aria-hidden`. Los spinners dentro de una sección o de un botón siguen permitidos.

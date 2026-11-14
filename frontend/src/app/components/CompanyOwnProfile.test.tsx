@@ -203,9 +203,9 @@ describe('<CompanyOwnProfile />', () => {
     renderWithProviders(<CompanyOwnProfile />);
 
     const pendiente = await screen.findByText('Pendiente');
-    expect(pendiente.className).toContain('bg-amber-50 text-amber-700');
+    expect(pendiente.className).toContain('bg-surface-soft text-ink-soft');
     expect(screen.getByText('Aceptado').className).toContain('bg-people-soft text-people-text');
-    expect(screen.getByText('Rechazado').className).toContain('bg-red-50 text-red-600');
+    expect(screen.getByText('Rechazado').className).toContain('bg-surface-soft text-ink-soft');
   });
 });
 

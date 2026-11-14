@@ -1,17 +1,17 @@
+// Impacto de un voluntariado (/ngo/kpis/:projectId): los indicadores (KPIs) que carga la ONG. Pantalla de panel
+// (DESIGN.md → Paneles de gestión y "Reportes de impacto"): fondo `canvas-soft`, bloques `surface` con borde
+// `hairline`, los números importantes como texto grande y sin colores por tipo. El gráfico por mes y "Publicar como
+// dato de impacto" del diseño no están hechos.
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Plus, Trash2, Edit2, X, Save, Loader2, BarChart2, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { api, KPI } from '../../lib/api';
 import { useLatestRequest } from '../../lib/useLatestRequest';
 import { formatDateOnly, userMessage } from '../../lib/format';
+import { Button } from '../ui/Button';
+import { PROFILE_FIELD } from '../ui/fieldStyles';
+import { useConfirm, useToast } from '../ui/UiProvider';
 import { InlineError } from './LoadError';
-
-const TIPO_COLORS: Record<string, string> = {
-  numero:     'bg-blue-50 text-blue-700',
-  porcentaje: 'bg-violet-50 text-violet-700',
-  texto:      'bg-gray-100 text-gray-600',
-  booleano:   'bg-gray-100 text-gray-600',
-};
 
 // Etiquetas de todos los tipos (los KPIs de tipo 'texto' que ya existían se siguen mostrando)…
 const TIPO_LABELS: Record<string, string> = {
@@ -20,6 +20,10 @@ const TIPO_LABELS: Record<string, string> = {
 // …pero para crear o editar solo se ofrecen los numéricos: 'texto' se guardaba vacío (kpis.valor es numérica;
 // REVISION F3, decisión del usuario, PROJECT_ANALYSIS.md §90).
 const TIPOS_EDITABLES = ['numero', 'porcentaje', 'booleano'];
+
+const BLOCK = 'rounded-xl bg-surface border border-hairline';
+const LABEL = 'text-[13px] font-semibold text-ink-soft mb-1 block';
+const ICON_BUTTON = 'w-11 h-11 flex-shrink-0 rounded-full flex items-center justify-center hover:bg-surface-soft transition-colors';
 
 function formatValor(kpi: KPI): string {
   if (kpi.valor === null || kpi.valor === undefined) return '—';
@@ -31,6 +35,8 @@ function formatValor(kpi: KPI): string {
 export function NGOKPIs() {
   const { projectId } = useParams();
   const navigate       = useNavigate();
+  const confirm        = useConfirm();
+  const toast          = useToast();
   const [kpis, setKpis]       = useState<KPI[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -97,185 +103,146 @@ export function NGOKPIs() {
     setShowForm(true); setErr('');
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar este KPI?')) return;
-    try { await api.projects.kpis.delete(projectId!, id); setKpis(kpis.filter(k => k.id !== id)); }
-    catch (e: any) { alert(e.message); }
+  const handleDelete = async (kpi: KPI) => {
+    const ok = await confirm({ title: `¿Borrar el indicador ${kpi.nombre}?`, body: 'No se puede deshacer.', confirmLabel: 'Borrar', danger: true });
+    if (!ok) return;
+    try { await api.projects.kpis.delete(projectId!, kpi.id); setKpis(prev => prev.filter(k => k.id !== kpi.id)); }
+    catch (e) { toast(userMessage(e, 'No se pudo borrar. Revisá tu conexión y probá de nuevo.'), { kind: 'error' }); }
   };
 
   const cancelForm = () => { setShowForm(false); setEditing(null); setForm(emptyForm); setErr(''); };
 
-  const inp = 'w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
-
-  // Calcular resumen
-  const numericKPIs = kpis.filter(k => k.tipo_valor === 'numero' || k.tipo_valor === 'porcentaje');
+  // Arriba, los números (hasta cuatro): los indicadores numéricos, en grande.
+  const numericKPIs = kpis.filter(k => k.tipo_valor === 'numero' || k.tipo_valor === 'porcentaje').slice(0, 4);
+  const valorLabel = form.tipo_valor === 'booleano' ? 'Logrado (1=Sí, 0=No)' : 'Valor';
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} aria-label="Volver"
-              className="w-11 h-11 flex-shrink-0 rounded-full bg-gray-100 flex items-center justify-center">
-              <ArrowLeft className="w-4 h-4 text-gray-600" />
-            </button>
-            <div>
-              <h1 className="text-base font-bold text-gray-900">KPIs de Impacto</h1>
-              {projectTitle && <p className="text-xs text-gray-400 truncate max-w-[200px]">{projectTitle}</p>}
-            </div>
-          </div>
-          <button
-            onClick={() => { cancelForm(); setShowForm(true); }}
-            className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors">
-            <Plus className="w-3.5 h-3.5" />Agregar KPI
+    <div className="min-h-screen bg-canvas-soft pb-28">
+      <div className="w-full max-w-[880px] mx-auto px-4 pt-2 md:pt-8 flex flex-col gap-4">
+        <header className="flex items-center gap-1 -ml-3">
+          <button type="button" onClick={() => navigate(-1)} aria-label="Volver" className={ICON_BUTTON}>
+            <ArrowLeft size={22} strokeWidth={1.75} aria-hidden="true" />
           </button>
-        </div>
-      </header>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-[22px] font-bold tracking-[-0.3px]">Impacto</h1>
+            {projectTitle && <p className="text-[13px] text-ink-muted truncate">{projectTitle}</p>}
+          </div>
+          <Button variant="primary" className="flex-shrink-0" onClick={() => { cancelForm(); setShowForm(true); }}>
+            <Plus size={18} strokeWidth={2} aria-hidden="true" />Agregar KPI
+          </Button>
+        </header>
 
-      <div className="max-w-3xl mx-auto px-4 py-4 space-y-4">
-
-        {/* Resumen visual */}
-        {kpis.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-white rounded-2xl border border-gray-100 p-3 text-center col-span-2 sm:col-span-1">
-              <p className="text-2xl font-black text-ink">{kpis.length}</p>
-              <p className="text-xs text-gray-500">KPIs totales</p>
-            </div>
-            {numericKPIs.slice(0, 3).map(k => (
-              <div key={k.id} className="bg-white rounded-2xl border border-gray-100 p-3 text-center">
-                <p className="text-xl font-black text-people-text truncate">{formatValor(k)}</p>
-                <p className="text-xs text-gray-500 truncate">{k.nombre}</p>
+        {numericKPIs.length > 0 && (
+          <dl className={`${BLOCK} grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 p-4`}>
+            {numericKPIs.map(k => (
+              <div key={k.id} className="min-w-0 flex flex-col-reverse">
+                <dt className="text-[13px] text-ink-soft truncate">{k.nombre}</dt>
+                <dd className="text-2xl font-extrabold tracking-[-0.4px] truncate">{formatValor(k)}</dd>
               </div>
             ))}
-          </div>
+          </dl>
         )}
 
-        {/* Formulario */}
         {showForm && (
-          <form onSubmit={handleSubmit}
-            className="bg-white rounded-2xl border border-blue-100 shadow-sm p-4 space-y-3">
+          <form onSubmit={handleSubmit} className={`${BLOCK} p-4 flex flex-col gap-3`}>
             <div className="flex items-center justify-between">
-              <h2 className="font-bold text-sm text-gray-900">
-                {editing ? 'Editar KPI' : 'Nuevo KPI'}
-              </h2>
-              <button type="button" onClick={cancelForm} aria-label="Cerrar formulario"
-                className="w-11 h-11 flex-shrink-0 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200">
-                <X className="w-4 h-4 text-gray-500" />
+              <h2 className="text-lg font-bold tracking-[-0.2px]">{editing ? 'Editar KPI' : 'Nuevo KPI'}</h2>
+              <button type="button" onClick={cancelForm} aria-label="Cerrar formulario" className={`${ICON_BUTTON} -mr-2`}>
+                <X size={20} strokeWidth={1.75} aria-hidden="true" />
               </button>
             </div>
 
             <div>
-              <label htmlFor="kpi-nombre" className="text-xs font-semibold text-gray-500 mb-1 block">Nombre *</label>
-              <input id="kpi-nombre" className={inp} placeholder="Ej: Árboles plantados, Familias beneficiadas"
+              <label htmlFor="kpi-nombre" className={LABEL}>Nombre *</label>
+              <input id="kpi-nombre" className={PROFILE_FIELD} placeholder="Ej: Árboles plantados, Familias beneficiadas"
                 aria-label="Nombre" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
             </div>
 
             <div>
-              <label htmlFor="kpi-descripcion" className="text-xs font-semibold text-gray-500 mb-1 block">Descripción</label>
-              <input id="kpi-descripcion" className={inp} placeholder="Qué mide este indicador"
+              <label htmlFor="kpi-descripcion" className={LABEL}>Descripción</label>
+              <input id="kpi-descripcion" className={PROFILE_FIELD} placeholder="Qué mide este indicador"
                 aria-label="Descripción" value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor="kpi-tipo" className="text-xs font-semibold text-gray-500 mb-1 block">Tipo</label>
-                <select id="kpi-tipo" className={inp} aria-label="Tipo" value={form.tipo_valor}
+                <label htmlFor="kpi-tipo" className={LABEL}>Tipo</label>
+                <select id="kpi-tipo" className={PROFILE_FIELD} aria-label="Tipo" value={form.tipo_valor}
                   onChange={e => setForm(f => ({ ...f, tipo_valor: e.target.value }))}>
                   {TIPOS_EDITABLES.map(v => <option key={v} value={v}>{TIPO_LABELS[v]}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">
-                  {form.tipo_valor === 'booleano' ? 'Logrado (1=Sí, 0=No)' : 'Valor'}
-                </label>
-                <input className={inp}
+                <label htmlFor="kpi-valor" className={LABEL}>{valorLabel}</label>
+                <input id="kpi-valor" className={PROFILE_FIELD}
                   type="number"
                   placeholder={form.tipo_valor === 'porcentaje' ? '85' : form.tipo_valor === 'booleano' ? '1 o 0' : '500'}
-                  aria-label={form.tipo_valor === 'booleano' ? 'Logrado (1=Sí, 0=No)' : 'Valor'} value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} />
+                  aria-label={valorLabel} value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor="kpi-unidad" className="text-xs font-semibold text-gray-500 mb-1 block">Unidad</label>
-                <input id="kpi-unidad" className={inp} placeholder="árboles, familias, hs..."
+                <label htmlFor="kpi-unidad" className={LABEL}>Unidad</label>
+                <input id="kpi-unidad" className={PROFILE_FIELD} placeholder="árboles, familias, hs..."
                   aria-label="Unidad" value={form.unidad} onChange={e => setForm(f => ({ ...f, unidad: e.target.value }))} />
               </div>
               <div>
-                <label htmlFor="kpi-fecha" className="text-xs font-semibold text-gray-500 mb-1 block">Fecha de medición</label>
-                <input id="kpi-fecha" className={inp} type="date"
+                <label htmlFor="kpi-fecha" className={LABEL}>Fecha de medición</label>
+                <input id="kpi-fecha" className={PROFILE_FIELD} type="date"
                   aria-label="Fecha de medición" value={form.fecha} onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))} />
               </div>
             </div>
 
-            {err && <p className="text-xs bg-surface-soft text-critical px-3 py-2 rounded-xl">{err}</p>}
+            {err && <p role="alert" className="text-[13px] bg-surface-soft text-critical px-3 py-2 rounded-xl">{err}</p>}
 
-            <button type="submit" disabled={saving}
-              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60 transition-colors">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            <Button type="submit" variant="primary" block busy={saving} busyLabel="Guardando…">
               {editing ? 'Guardar cambios' : 'Agregar KPI'}
-            </button>
+            </Button>
           </form>
         )}
 
-        {/* Lista de KPIs */}
         {loading ? (
-          <div role="status" aria-label="Cargando KPIs" className="flex justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+          // Esqueleto con la forma de la lista: nombre, valor y los dos botones de cada indicador.
+          <div role="status" aria-label="Cargando KPIs" className={`${BLOCK} divide-y divide-hairline`}>
+            {[0, 1, 2].map(i => (
+              <div key={i} aria-hidden="true" className="p-4 flex items-center gap-3">
+                <div className="flex-1 flex flex-col gap-2"><div className="h-4 w-1/2 rounded skeleton" /><div className="h-6 w-1/4 rounded skeleton" /></div>
+                <div className="w-20 h-9 rounded-[10px] skeleton" />
+              </div>
+            ))}
           </div>
         ) : loadError ? (
           <InlineError message={loadError} onRetry={load} />
         ) : kpis.length === 0 ? (
-          <div className="text-center py-14 bg-white rounded-2xl border border-gray-100">
-            <BarChart2 className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-            <p className="font-medium text-gray-400">Sin KPIs todavía</p>
-            <p className="text-sm text-ink-muted mt-1">
-              Agregá indicadores para medir el impacto del proyecto
-            </p>
+          <div className={`${BLOCK} text-center py-12 px-4`}>
+            <p className="text-[15px] font-semibold">Sin KPIs todavía</p>
+            <p className="text-[15px] text-ink-soft mt-1">Agregá indicadores para medir el impacto del voluntariado.</p>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="divide-y divide-gray-50">
-              {kpis.map(kpi => (
-                <div key={kpi.id} className="p-4 flex items-start gap-3">
-                  <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <TrendingUp className="w-5 h-5 text-blue-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-bold text-gray-900">{kpi.nombre}</p>
-                        {kpi.descripcion && (
-                          <p className="text-xs text-gray-500 mt-0.5">{kpi.descripcion}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <button onClick={() => handleEdit(kpi)} aria-label={`Editar KPI ${kpi.nombre}`}
-                          className="w-11 h-11 flex-shrink-0 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
-                          <Edit2 className="w-3.5 h-3.5 text-gray-500" />
-                        </button>
-                        <button onClick={() => handleDelete(kpi.id)} aria-label={`Borrar KPI ${kpi.nombre}`}
-                          className="w-11 h-11 flex-shrink-0 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center transition-colors">
-                          <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 mt-2 flex-wrap">
-                      <span className="text-xl font-black text-people-text">{formatValor(kpi)}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${TIPO_COLORS[kpi.tipo_valor]}`}>
-                        {TIPO_LABELS[kpi.tipo_valor]}
-                      </span>
-                      {kpi.fecha && (
-                        <span className="text-xs text-gray-400">
-                          {formatDateOnly(kpi.fecha)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+          <ul className={`${BLOCK} divide-y divide-hairline`}>
+            {kpis.map(kpi => (
+              <li key={kpi.id} className="p-4 flex items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[15px] font-semibold break-words">{kpi.nombre}</p>
+                  {kpi.descripcion && <p className="text-[13px] text-ink-soft break-words">{kpi.descripcion}</p>}
+                  <p className="flex items-baseline gap-x-2 flex-wrap mt-1">
+                    <span className="text-xl font-extrabold tracking-[-0.3px]">{formatValor(kpi)}</span>
+                    <span className="text-[13px] text-ink-soft">{TIPO_LABELS[kpi.tipo_valor]}</span>
+                    {kpi.fecha && <span className="text-[13px] text-ink-muted">{formatDateOnly(kpi.fecha)}</span>}
+                  </p>
                 </div>
-              ))}
-            </div>
-          </div>
+                <div className="flex items-center flex-shrink-0 -mr-2">
+                  <button type="button" onClick={() => handleEdit(kpi)} aria-label={`Editar KPI ${kpi.nombre}`} className={ICON_BUTTON}>
+                    <Pencil size={18} strokeWidth={1.75} aria-hidden="true" />
+                  </button>
+                  <button type="button" onClick={() => handleDelete(kpi)} aria-label={`Borrar KPI ${kpi.nombre}`} className={`${ICON_BUTTON} text-critical`}>
+                    <Trash2 size={18} strokeWidth={1.75} aria-hidden="true" />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </div>

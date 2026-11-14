@@ -25,9 +25,9 @@ export const formFields = (f: PointFormValue): PointFields =>
 export type SponsorshipState = Patrocinio['estado'];
 
 export const SPONSORSHIP_BADGE: Record<SponsorshipState, string> = {
-  propuesto: 'bg-amber-50 text-amber-700',
+  propuesto: 'bg-surface-soft text-ink-soft',
   aceptado:  'bg-people-soft text-people-text',
-  rechazado: 'bg-red-50 text-red-600',
+  rechazado: 'bg-surface-soft text-ink-soft',
 };
 
 export const SPONSORSHIP_LABEL: Record<SponsorshipState, string> = {

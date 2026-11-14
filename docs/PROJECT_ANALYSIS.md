@@ -992,3 +992,53 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - **Sin decidir con el usuario** (quedaron verdes): en Notificaciones, los globitos de "acuerdo cerrado", "te sumaste al equipo" y "ONG validada" usan el mismo verde que "te aceptaron"; y el estado "Aceptado" de un patrocinio.
 - **Fuera de esta tanda:** `NGOEmpleados` (se saca en la Etapa 4), el chip "Participó" con color fijo de `ReviewsModal` (T9), los valores en verde de `NGOKPIs` (T7) y el fondo del mapa en oscuro (T10).
 - Producción: sin desplegar al escribir esto.
+
+## 339. Gestión de la ONG con la forma de los paneles (T7) y sin diálogos del navegador
+
+### Qué se hizo
+- §338 quedó en producción antes de empezar (`832a90c`, CI #96, Deploy #92 con smoke y E2E, SonarCloud en OK con 0 issues). El usuario dejó elegir la tanda: T7 de la revisión contra `DESIGN.md` (inventario I1). Solo frontend.
+- Las tres pantallas pasaron a las reglas de "Paneles de gestión": fondo `canvas-soft`, bloques `surface` con borde `hairline`, sin sombras, título de 22 px, "Volver" de 44 px, y los componentes comunes en vez de botones y campos propios.
+- **`NGOPatrocinios`** (reescrita):
+  - Logo de la empresa con `Avatar kind="org"`: sin logo, las iniciales (antes una letra sobre violeta en pendientes y un cuadrado gris vacío en el historial).
+  - "Aceptar" y "Rechazar" con `ui/Button`; mientras se guarda, los dos de esa propuesta quedan deshabilitados y "Aceptar" dice "Guardando…".
+  - Carga con esqueleto. Después de decidir, la lista se vuelve a pedir **sin vaciar la pantalla**; si esa recarga falla, avisa que la decisión se guardó y deja la lista como estaba (antes reemplazaba todo por un error de carga).
+  - Los chips del estado (`SPONSORSHIP_BADGE`, también en el perfil y el panel de la empresa): "Pendiente" y "Rechazado" en gris; solo "Aceptado" lleva color.
+- **`NGOKPIs`** (reescrita; se llama "Impacto"):
+  - Arriba, hasta cuatro indicadores numéricos en grande, en el color del texto (antes en verde, más una caja "KPIs totales").
+  - La lista sin el ícono con fondo de cada fila ni el chip de color por tipo; campos con `PROFILE_FIELD`; carga con esqueleto.
+  - Borrar pregunta con `useConfirm` ("¿Borrar el indicador …?") y el error sale como aviso (`useToast`). Eran `confirm()` y `alert()` del navegador.
+  - Los nombres de los controles siguen diciendo "KPI" ("Agregar KPI", "Editar KPI …").
+- **`NGOProjectDetail`** (el JSX reescrito; la lógica, igual salvo los avisos):
+  - La doble meta con `DualGoal` (la misma del feed y de la página del voluntariado) en vez de dos cajitas con barras propias.
+  - `Avatar` por inscripto en vez de la inicial; el tipo con mayúscula ("Fugaz"); el botón "KPIs" ahora es "Impacto"; los filtros con `aria-pressed`; el botón de mensaje con `aria-label` además de `title`.
+  - "Aprobar" pasó de verde suave a `Button` primario, como en Postulaciones; "Rechazado" en gris.
+  - Los tres `alert()` (aprobar o rechazar que falla, horas inválidas, guardar horas que falla) son avisos de la app, y un fallo de red ya no muestra el texto en inglés del navegador.
+- **`ProjectMap`:** los dos `alert('Tu navegador no soporta geolocalización')` son un aviso de la app.
+- **El barrido 2a (§330) se había equivocado:** buscó `window.confirm` y `alert()` y anotó "`alert()`: 0" y un solo `window.confirm`. Había un `confirm()` y seis `alert()` llamados sin `window.`. Regla nueva en `designRules.test.ts` (3 tests): nadie llama a `alert()`; `window.confirm`/`alert`/`prompt` solo en el respaldo de `UiProvider`; todo archivo que llama a `confirm(...)` lo saca de `useConfirm`.
+- Docs: `FRONTEND_CONTEXT.md`, `PLAN_FEBRERO.md` (y la corrección del hallazgo B1) y `CLAUDE.md` (conteos).
+
+### Verificación
+- Rojo → verde: fallaban antes del código 7 tests de `NGOPatrocinios` (5 nuevos y 2 cambiados), 7 de `NGOKPIs`, 9 de los 11 de `NGOProjectDetailPanel.test.tsx` (los otros 2 describen lo que ya andaba), el del mapa y las 3 reglas nuevas.
+- Frontend: **1571**/1571 (antes 1541; +30), `typecheck` sin errores. Cobertura: sentencias 92,58 %, ramas 89,16 %, funciones 89,96 %, líneas 94,92 %.
+- `npm audit`: 0 en los dos paquetes.
+- Mutación, con corrida de control en verde:
+  - `NGOPatrocinios` y los chips (22 mutantes): en la primera pasada, 6 vivos; con 3 tests más quedaron 2. Uno era código que sobraba (`setPatrocinios(null)` al cargar: la lista ya está sin cargar las dos veces que corre) y se sacó. El otro es equivalente con el backend de hoy: mostrar el aviso sin mirar que la decisión fue "aceptar" (el mensaje "Aceptaste esta versión…" solo llega al aceptar).
+  - `NGOKPIs`, `NGOProjectDetail` y el mapa (34 mutantes): en la primera pasada, 5 vivos; con 3 tests más quedaron 2, y 1 no aplicó. Vivos: sacar la mitad del esqueleto de `NGOKPIs` (sigue habiendo esqueleto) y sacar el `aria-label` del botón de mensaje (el `title` le da el mismo nombre accesible en el test). El que no aplicó es el aviso del mapa: el texto está dos veces (mapa chico y ampliado) y el script pide una.
+- Saltos de línea sin cambios en los archivos que ya existían.
+- Backend: no se tocó y no se corrió.
+
+### Errores propios
+- **El hallazgo B1 de §330 era mío y estaba mal** (ver arriba): el grep llevaba el prefijo `window.`.
+- El título del test del mapa decía "en el mapa chico y en el ampliado" y solo prueba el chico: se corrigió el título. **El ampliado no tiene test.**
+- Un script de reemplazo con una expresión regular dentro de un heredoc perdió las barras invertidas (trampa ya anotada): falló sin tocar nada y ese cambio se hizo con `Edit`.
+- La primera regla de `window.confirm` marcaba tres archivos que solo lo nombran en un comentario: se ajustó a las llamadas.
+- Las primeras versiones de los tests no cubrían seis comportamientos (botones ocupados, reintento, tope de cuatro números): los marcó la mutación.
+
+### ⚠️ NO verificado
+- **Nada se vio en un navegador.** Son tres pantallas rehechas: falta mirarlas a 375 y 1440 px, en claro y oscuro. En particular: la cabecera de `NGOProjectDetail` con título largo y los dos botones a 375 px, el renglón de las horas, y los botones "Aceptar" / "Rechazar" de 40 px.
+- **El aviso (`useToast`) dura 4 segundos y no queda en la pantalla**: un error de aprobar o de guardar horas se puede perder si no se lo mira. Antes el `alert()` frenaba todo.
+- **`NGOKPIs` no tiene** el gráfico por mes ni "Publicar como dato de impacto" del diseño, ni los números de voluntarios, horas y recaudado arriba (solo los KPIs propios).
+- "Aprobar" en `NGOProjectDetail` ahora es negro y "Rechazado" gris: es un cambio de color que el usuario no eligió expresamente (sigue lo que ya hacía Postulaciones).
+- Los nombres "KPI" de los controles no se cambiaron a "indicador": la pantalla se llama "Impacto" y adentro dice "KPI".
+- El aviso del mapa ampliado (sin test) y el contraste de las pantallas nuevas (los tokens usados están entre los que mide `paletteContrast.test.ts`, pero no se midió la pantalla).
+- Producción: sin desplegar al escribir esto.

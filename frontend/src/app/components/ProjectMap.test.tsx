@@ -11,6 +11,7 @@ import { MemoryRouter } from 'react-router';
 import L from 'leaflet';
 import { ProjectMap, getProjectCoords } from './ProjectMap';
 import type { Project } from '../../lib/api';
+import { UiProvider } from '../ui/UiProvider';
 
 const project = (id: string, category: string, lat: number, lng: number): Project => ({
   id, title: `Proyecto ${id}`, category, latitude: lat, longitude: lng,
@@ -328,5 +329,17 @@ describe('<ProjectMap /> mapa ampliado — marcadores', () => {
     expect(userPins(modal)).toHaveLength(1);
     fireEvent.click(pins(modal)[0]);
     expect(userPins(modal)).toHaveLength(1);
+  });
+});
+
+// T7 (§339): sin geolocalización en el navegador, el mapa avisa con el aviso de la app (useToast), no con alert().
+describe('<ProjectMap />: sin geolocalización', () => {
+  test('"Centrar en mi ubicación" avisa en la pantalla (mapa chico)', async () => {
+    Object.defineProperty(navigator, 'geolocation', { configurable: true, value: undefined });
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    render(<UiProvider><MemoryRouter><ProjectMap projects={[P1]} onSelectProject={vi.fn()} /></MemoryRouter></UiProvider>);
+    fireEvent.click(screen.getAllByTitle('Centrar en mi ubicación')[0]);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Tu navegador no permite ubicarte en el mapa');
+    expect(alertSpy).not.toHaveBeenCalled();
   });
 });

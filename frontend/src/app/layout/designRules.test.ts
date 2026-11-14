@@ -30,6 +30,25 @@ describe('reglas chicas del diseño', () => {
     expect(matching(/(?<![\w:-])uppercase(?![\w-])/)).toEqual([]);
   });
 
+  // T7 (§339): el barrido de §330 buscó `window.confirm` y `alert()` con el prefijo y se le pasaron las llamadas
+  // sin `window.` (un `confirm()` y seis `alert()`). Las preguntas van con `useConfirm` y los avisos con `useToast`.
+  describe('sin diálogos del navegador', () => {
+    test('nadie llama a `alert()`', () => {
+      // El acento grave deja afuera el comentario de UiProvider que nombra a `alert()`.
+      expect(matching(/(?<![.\w`])alert\s*\(/)).toEqual([]);
+    });
+
+    test('`window.confirm` y `window.alert` solo en el respaldo de UiProvider', () => {
+      expect(matching(/window\.(confirm|alert|prompt)\s*\(/)).toEqual(['ui/UiProvider.tsx']);
+    });
+
+    test('todo archivo que llama a `confirm(...)` lo saca de `useConfirm`', () => {
+      const callers = sources.filter(f => /(?<![.\w])confirm\s*\(/.test(f.src) && f.rel !== 'ui/UiProvider.tsx');
+      expect(callers.length).toBeGreaterThan(5);
+      expect(callers.filter(f => !/const confirm\s*=\s*useConfirm\(\)/.test(f.src)).map(f => f.rel)).toEqual([]);
+    });
+  });
+
   // Tanda T5 (hallazgos B3 y B4): "azul = dinero y marca, verde = personas". Lo que se puede mirar en el código.
   describe('azul solo dinero, verde solo personas', () => {
     // `NGOEmpleados` se saca en la Etapa 4 del plan: no se revisa.
@@ -42,7 +61,6 @@ describe('reglas chicas del diseño', () => {
     test('el verde pleno (`bg-people`) solo en inscribirse, la barra de personas, el tipo Sostenido y "te aceptaron"', () => {
       expect(matching(/(?<![\w-])bg-people(?![\w-])/).sort()).toEqual([
         'components/CreateVoluntariado.tsx',   // el selector de tipo (Sostenido)
-        'components/NGOProjectDetail.tsx',     // la barra de inscriptos
         'components/NotificationsScreen.tsx',  // el globito de "te aceptaron"
         'components/PostCard.tsx',             // "Sumarme"
         'ui/Button.tsx',                       // variante `join`
@@ -54,7 +72,6 @@ describe('reglas chicas del diseño', () => {
     test('el azul pleno (`bg-brand`) solo en donar, la barra de dinero, el tipo Fugaz y el logo', () => {
       expect(matching(/(?<![\w-])bg-brand(?![\w-])/).sort()).toEqual([
         'components/CreateVoluntariado.tsx',   // el selector de tipo (Fugaz)
-        'components/NGOProjectDetail.tsx',     // la barra de lo recaudado
         'ui/Button.tsx',                       // variante `donate`
         'ui/Logo.tsx',
         'ui/Meter.tsx',                        // la barra de dinero

@@ -24,6 +24,8 @@ En este orden:
      - [x] **Hecho el 12/11** sobre los 117 archivos fuente de `frontend/src` (sin tests). Solo Grep y un script que
        lee las etiquetas tocables: **nada se miró en un navegador** y nada se arregló. Hallazgos (B = barrido):
        - **B1. `window.confirm`**: queda uno, `CompanyOwnProfile:125` (retirar propuesta). `alert()`: 0.
+         **Corregido el 14/11 (§339):** la búsqueda llevaba `window.` y se le pasaron un `confirm()` en `NGOKPIs`
+         y seis `alert()` (`NGOKPIs`, `NGOProjectDetail` ×3, `ProjectMap` ×2). Ya no queda ninguno.
        - **B2. Formato argentino**: `NGOProjectDetail:170` (`$` pegado y `toLocaleString()` sin `es-AR`);
          `ReviewsModal:158` (promedio con punto, "4.5"); `formatPesos` escribe `$32.000` sin espacio
          (`DonationReturn` y los mensajes de monto mínimo y máximo). Hay cuatro formas de escribir plata:
@@ -217,10 +219,16 @@ En este orden:
 5. [x] **T5: azul solo dinero, verde solo personas** (§338, 14/11; hallazgos B3 y B4): los botones verdes que no
    eran "Inscribirme" y el chip azul pasaron a `ink`; los 13 enlaces azules y los 2 verdes, a `ink` peso 600;
    spinners, iniciales, chips y el bloque de la reseña, a los grises. Regla nueva en `designRules.test.ts`.
-   Commit local, **sin push** (falta el OK). **Nada se vio en el navegador.** Quedó para decidir: los globitos
-   verdes de "acuerdo cerrado", "te sumaste al equipo" y "ONG validada" en Notificaciones, y el "Aceptado" verde
-   de un patrocinio.
-6. **Lo próximo:** otra tanda de diseño (T7–T13), o lo que siga de la Etapa 3: reputación (antes, que el
+   En producción (`832a90c`, CI #96, Deploy #92, SonarCloud en OK con 0 issues). **Nada se vio en el
+   navegador.** Quedó para decidir: los globitos verdes de "acuerdo cerrado", "te sumaste al equipo" y "ONG
+   validada" en Notificaciones, y el "Aceptado" verde de un patrocinio.
+6. [x] **T7: gestión de la ONG** (§339, 14/11): `NGOPatrocinios`, `NGOKPIs` (ahora "Impacto") y
+   `NGOProjectDetail` con la forma de los paneles y los componentes comunes (`Button`, `Avatar`, `DualGoal`,
+   esqueletos). De paso salieron un `confirm()` y seis `alert()` sin `window.` que el barrido 2a no había visto
+   (el hallazgo "`alert()`: 0" de B1 estaba mal), con regla nueva en `designRules.test.ts`. Commit local, **sin
+   push** (falta el OK). **Nada se vio en el navegador.** No se hizo el gráfico por mes ni "Publicar como dato de
+   impacto" de los KPIs.
+7. **Lo próximo:** otra tanda de diseño (T8–T13), o lo que siga de la Etapa 3: reputación (antes, que el
    usuario defina qué se mide) o empleados de empresa con cupos reservados. Elige el usuario.
 
 ## Devolución de los directores (5/11)

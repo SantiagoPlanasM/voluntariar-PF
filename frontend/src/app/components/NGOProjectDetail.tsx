@@ -1,14 +1,18 @@
 import { useParams, useNavigate, useLocation, Link } from 'react-router';
 import { useEffect, useId, useState } from 'react';
-import { ArrowLeft, Users, CheckCircle, Clock, XCircle, Loader2, DollarSign, BarChart2, MessageCircle, Clock3, Save, FileText, Pencil } from 'lucide-react';
+import { ArrowLeft, Check, FileText, MessageCircle, Pencil, X } from 'lucide-react';
 import { api, ApiError, Project, EnrollmentWithVolunteer } from '../../lib/api';
 import { openCv } from '../../lib/cv';
-import { formatMoney, userMessage } from '../../lib/format';
+import { userMessage } from '../../lib/format';
 import { useLatestRequest } from '../../lib/useLatestRequest';
 import { MomentsFeed } from './MomentsFeed';
 import { InterviewPanel } from './InterviewPanel';
 import { LoadError, describeLoadError } from './LoadError';
-import { useConfirm } from '../ui/UiProvider';
+import { Avatar } from '../ui/Avatar';
+import { Button } from '../ui/Button';
+import { DualGoal } from '../ui/Meter';
+import { TYPE_STYLE } from '../ui/TypeBadge';
+import { useConfirm, useToast } from '../ui/UiProvider';
 import { PROJECT_STATUS_LABEL } from '../volunteering/status';
 import { EnrollmentPhone } from './EnrollmentPhone';
 
@@ -27,6 +31,14 @@ const STATUS_CONFIRM = {
   },
 } as const;
 
+type Filter = 'all' | 'pending' | 'approved' | 'rejected';
+const FILTERS: [Filter, string][] = [['all', 'Todos'], ['pending', 'Pendientes'], ['approved', 'Aprobados'], ['rejected', 'Rechazados']];
+
+const BLOCK = 'rounded-xl bg-surface border border-hairline';
+const SECTION_TITLE = 'text-lg font-bold tracking-[-0.2px]';
+const ICON_BUTTON = 'w-11 h-11 flex-shrink-0 rounded-full flex items-center justify-center hover:bg-surface-soft transition-colors';
+const NETWORK_ERROR = 'Revisá tu conexión y probá de nuevo.';
+
 /** `team` (§296): abierto por un coordinador del equipo en /equipo/:ngoId/project/:projectId. Gestiona las
  *  postulaciones como el dueño, pero no ve lo que es solo del dueño (editar, KPIs, cambiar el estado). */
 export function NGOProjectDetail({ team = false }: { team?: boolean } = {}) {
@@ -38,13 +50,14 @@ export function NGOProjectDetail({ team = false }: { team?: boolean } = {}) {
   const [enrollments, setEnrollments] = useState<EnrollmentWithVolunteer[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<{ message: string; retry: boolean } | null>(null);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [filter, setFilter] = useState<Filter>('all');
   const [processing, setProcessing] = useState<string | null>(null);
   const [hoursDraft, setHoursDraft] = useState<Record<string, string>>({});
   const [savingHours, setSavingHours] = useState<string | null>(null);
   // "Ver CV" (§166): el aviso es por inscripción, debajo de su fila (sin alert).
   const [cvError, setCvError] = useState<Record<string, string>>({});
   const confirm = useConfirm();
+  const toast = useToast();
   const statusTitleId = useId();
   const [statusBusy, setStatusBusy] = useState(false);
   const [statusError, setStatusError] = useState('');
@@ -76,7 +89,7 @@ export function NGOProjectDetail({ team = false }: { team?: boolean } = {}) {
   const handle = async (id: string, status: 'approved' | 'rejected') => {
     setProcessing(id);
     try { await api.enrollments.updateStatus(id, status); void load(); }
-    catch (e: any) { alert(e.message); }
+    catch (e) { toast(userMessage(e, `No pudimos guardar tu decisión. ${NETWORK_ERROR}`), { kind: 'error' }); }
     finally { setProcessing(null); }
   };
 
@@ -96,12 +109,12 @@ export function NGOProjectDetail({ team = false }: { team?: boolean } = {}) {
 
   const handleSaveHours = async (id: string) => {
     const val = Number.parseFloat(hoursDraft[id]);
-    if (Number.isNaN(val) || val < 0) { alert('Ingresá un número de horas válido'); return; }
+    if (Number.isNaN(val) || val < 0) { toast('Ingresá un número de horas válido', { kind: 'error' }); return; }
     setSavingHours(id);
     try {
       await api.enrollments.logHours(id, val);
       setEnrollments(prev => prev.map(e => e.id === id ? { ...e, hours_logged: val } : e));
-    } catch (e: any) { alert(e.message); }
+    } catch (e) { toast(userMessage(e, `No pudimos guardar las horas. ${NETWORK_ERROR}`), { kind: 'error' }); }
     finally { setSavingHours(null); }
   };
 
@@ -138,188 +151,146 @@ export function NGOProjectDetail({ team = false }: { team?: boolean } = {}) {
       onRetry={loadError?.retry ? load : undefined} home={team ? `/equipo/${ngoId}` : '/ngo/dashboard'} />
   );
 
-  const fundPct = Math.min(100, (project.current_funding / project.funding_goal) * 100) || 0;
-  const volPct  = Math.min(100, (project.current_volunteers / project.volunteers_needed) * 100) || 0;
+  const typeLabel = TYPE_STYLE[project.type as keyof typeof TYPE_STYLE]?.label ?? project.type;
+  const countOf = (f: Filter) => (f === 'all' ? enrollments.length : enrollments.filter(e => e.status === f).length);
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-8">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="flex items-center gap-3 p-4">
-          <button onClick={() => navigate(-1)} aria-label="Volver" className="w-11 h-11 flex-shrink-0 rounded-full bg-gray-100 flex items-center justify-center">
-            <ArrowLeft className="w-4 h-4 text-gray-700" />
+    <div className="min-h-screen bg-canvas-soft pb-28">
+      <div className="w-full max-w-[880px] mx-auto px-4 pt-2 md:pt-8 flex flex-col gap-4">
+        <header className="flex flex-wrap items-center gap-x-1 gap-y-2 -ml-3">
+          <button type="button" onClick={() => navigate(-1)} aria-label="Volver" className={ICON_BUTTON}>
+            <ArrowLeft size={22} strokeWidth={1.75} aria-hidden="true" />
           </button>
-          <div>
-            <h1 className="text-base font-bold text-gray-900 leading-tight">{project.title}</h1>
-            <p className="text-xs text-gray-500">{project.category} · {project.type}</p>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-[22px] font-bold tracking-[-0.3px] leading-tight break-words">{project.title}</h1>
+            <p className="text-[13px] text-ink-muted truncate">{project.category} · {typeLabel}</p>
           </div>
           {!team && (
-            <>
-              <button
-                onClick={() => navigate(`/ngo/dashboard/project/${projectId}/editar`)}
-                className="ml-auto flex items-center gap-1.5 px-3 py-2 bg-surface-soft hover:bg-surface-pressed text-ink rounded-xl text-xs font-bold transition-colors">
-                <Pencil className="w-3.5 h-3.5" aria-hidden="true" />Editar
-              </button>
-              <button
-                onClick={() => navigate(`/ngo/kpis/${projectId}`)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-xl text-xs font-bold transition-colors">
-                <BarChart2 className="w-3.5 h-3.5" />KPIs
-              </button>
-            </>
+            <div className="flex gap-2 ml-3">
+              <Button variant="secondary" onClick={() => navigate(`/ngo/dashboard/project/${projectId}/editar`)}>
+                <Pencil size={16} strokeWidth={1.75} aria-hidden="true" />Editar
+              </Button>
+              <Button variant="secondary" onClick={() => navigate(`/ngo/kpis/${projectId}`)}>Impacto</Button>
+            </div>
           )}
-        </div>
-      </header>
+        </header>
 
-      <div className="p-4 space-y-4">
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white rounded-xl p-3 shadow-sm">
-            <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><Users className="w-3.5 h-3.5" />Voluntarios</p>
-            <p className="text-lg font-bold text-people-text">{project.current_volunteers}/{project.volunteers_needed}</p>
-            <div className="w-full h-1.5 bg-gray-100 rounded-full mt-1.5 overflow-hidden">
-              <div className="h-full bg-people rounded-full" style={{ width: `${volPct}%` }} />
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-3 shadow-sm">
-            <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><DollarSign className="w-3.5 h-3.5" />Financiamiento</p>
-            <p className="text-lg font-bold text-brand-text">{formatMoney(Number(project.current_funding))}</p>
-            <div className="w-full h-1.5 bg-gray-100 rounded-full mt-1.5 overflow-hidden">
-              <div className="h-full bg-brand rounded-full" style={{ width: `${fundPct}%` }} />
-            </div>
-          </div>
+        {/* La doble meta, como en el feed y en la página del voluntariado. */}
+        <div className={`${BLOCK} p-4`}>
+          <DualGoal fundingGoal={Number(project.funding_goal) || 0} currentFunding={Number(project.current_funding) || 0}
+            volunteersNeeded={project.volunteers_needed} currentVolunteers={project.current_volunteers} />
         </div>
 
         {/* Estado: finalizar, cancelar o volver a activar (§256). Solo el dueño (§296). */}
-        {!team && <section aria-labelledby={statusTitleId} className="bg-white rounded-2xl shadow-sm p-4 flex flex-col gap-3">
+        {!team && <section aria-labelledby={statusTitleId} className={`${BLOCK} p-4 flex flex-col gap-3`}>
           <div className="flex items-center justify-between gap-3">
-            <h2 id={statusTitleId} className="font-bold text-sm text-gray-900">Estado del voluntariado</h2>
-            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-surface-soft text-ink">
+            <h2 id={statusTitleId} className={SECTION_TITLE}>Estado del voluntariado</h2>
+            <span className="h-7 px-2.5 rounded-full text-xs font-semibold inline-flex items-center bg-surface-soft text-ink">
               {PROJECT_STATUS_LABEL[project.status] ?? 'Activo'}
             </span>
           </div>
-          {statusError && <p role="alert" className="text-xs text-critical">{statusError}</p>}
+          {statusError && <p role="alert" className="text-[13px] text-critical">{statusError}</p>}
           <div className="flex flex-wrap gap-2">
             {project.status === 'active' ? (
               <>
-                <button type="button" disabled={statusBusy} onClick={() => void changeStatus('completed')}
-                  className="px-3 py-2 rounded-xl bg-surface-soft hover:bg-surface-pressed text-ink text-xs font-bold disabled:opacity-50">
-                  Finalizar
-                </button>
-                <button type="button" disabled={statusBusy} onClick={() => void changeStatus('cancelled')}
-                  className="px-3 py-2 rounded-xl text-critical text-xs font-bold hover:bg-surface-soft disabled:opacity-50">
-                  Cancelar voluntariado
-                </button>
+                <Button variant="secondary" disabled={statusBusy} onClick={() => void changeStatus('completed')}>Finalizar</Button>
+                <Button variant="danger" disabled={statusBusy} onClick={() => void changeStatus('cancelled')}>Cancelar voluntariado</Button>
               </>
             ) : (
-              <button type="button" disabled={statusBusy} onClick={() => void changeStatus('active')}
-                className="px-3 py-2 rounded-xl bg-surface-soft hover:bg-surface-pressed text-ink text-xs font-bold disabled:opacity-50">
-                Volver a activar
-              </button>
+              <Button variant="secondary" disabled={statusBusy} onClick={() => void changeStatus('active')}>Volver a activar</Button>
             )}
           </div>
         </section>}
 
-        {/* Enrollments */}
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-gray-100">
-            <h2 className="font-bold text-sm text-gray-900 mb-3">Inscriptos ({enrollments.length})</h2>
+        <section className={BLOCK}>
+          <div className="p-4 border-b border-hairline flex flex-col gap-3">
+            <h2 className={SECTION_TITLE}>Inscriptos ({enrollments.length})</h2>
             <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-              {['all', 'pending', 'approved', 'rejected'].map(f => (
-                <button key={f} onClick={() => setFilter(f as any)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                    filter === f ? 'bg-ink text-on-ink' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              {FILTERS.map(([f, label]) => (
+                <button key={f} type="button" onClick={() => setFilter(f)} aria-pressed={filter === f}
+                  className={`h-8 px-3 rounded-full text-[13px] font-semibold whitespace-nowrap transition-colors ${
+                    filter === f ? 'bg-ink text-on-ink' : 'bg-surface-soft text-ink-soft hover:bg-surface-pressed'
                   }`}>
-                  {f === 'all' ? 'Todos' : f === 'pending' ? 'Pendientes' : f === 'approved' ? 'Aprobados' : 'Rechazados'}
-                  {' '}({f === 'all' ? enrollments.length : enrollments.filter(e => e.status === f).length})
+                  {label} ({countOf(f)})
                 </button>
               ))}
             </div>
           </div>
 
           {filtered.length === 0 ? (
-            <p className="text-center py-8 text-sm text-gray-400">Sin inscripciones en esta categoría</p>
+            <p className="text-center py-8 px-4 text-[15px] text-ink-soft">Sin inscripciones en esta categoría</p>
           ) : (
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-hairline">
               {filtered.map(e => (
                 <div key={e.id} id={`postulacion-${e.id}`} className={`p-4 ${e.id === marked ? 'bg-surface-soft' : ''}`}>
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-surface-soft flex items-center justify-center text-sm font-bold text-ink flex-shrink-0">
-                      {e.volunteer_name[0]}
-                    </div>
+                    <Avatar src={e.volunteer_avatar} name={e.volunteer_name} size={40} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-semibold text-gray-900">{e.volunteer_name}</p>
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        <p className="text-[15px] font-semibold min-w-0 break-words">{e.volunteer_name}</p>
+                        <div className="flex items-center flex-shrink-0">
+                          <span className={`h-7 px-2.5 mr-1 rounded-full text-xs font-semibold inline-flex items-center ${
                             // Tokens del rediseño: con la paleta vieja "Aprobado" daba 2,71:1 en oscuro (D25, §247).
-                            e.status === 'approved' ? 'bg-people-soft text-people-text'
-                            : e.status === 'pending' ? 'bg-surface-soft text-ink-soft'
-                            : 'bg-surface-soft text-critical'}`}>
+                            e.status === 'approved' ? 'bg-people-soft text-people-text' : 'bg-surface-soft text-ink-soft'}`}>
                             {e.status === 'approved' ? 'Aprobado' : e.status === 'pending' ? 'Pendiente' : 'Rechazado'}
                           </span>
                           {e.has_cv && (
-                            <button onClick={() => viewCv(e)} aria-label={`Ver CV de ${e.volunteer_name}`}
-                              className="w-11 h-11 flex-shrink-0 rounded-full bg-surface-soft hover:bg-surface-pressed flex items-center justify-center transition-colors"
-                              title={`CV de ${e.volunteer_name}`}>
-                              <FileText className="w-3.5 h-3.5 text-ink" />
+                            <button type="button" onClick={() => viewCv(e)} aria-label={`Ver CV de ${e.volunteer_name}`}
+                              title={`CV de ${e.volunteer_name}`} className={ICON_BUTTON}>
+                              <FileText size={18} strokeWidth={1.75} aria-hidden="true" />
                             </button>
                           )}
-                          <button onClick={() => navigate(`${team ? '' : '/ngo'}/messages/${e.user_id}`)}
-                            className="w-11 h-11 flex-shrink-0 rounded-full bg-blue-50 hover:bg-blue-100 flex items-center justify-center transition-colors"
-                            title={`Mensaje a ${e.volunteer_name}`}>
-                            <MessageCircle className="w-3.5 h-3.5 text-blue-600" />
+                          <button type="button" onClick={() => navigate(`${team ? '' : '/ngo'}/messages/${e.user_id}`)}
+                            aria-label={`Mensaje a ${e.volunteer_name}`} title={`Mensaje a ${e.volunteer_name}`} className={ICON_BUTTON}>
+                            <MessageCircle size={18} strokeWidth={1.75} aria-hidden="true" />
                           </button>
                         </div>
                       </div>
-                      <p className="text-xs text-gray-400">{e.volunteer_email}</p>
+                      <p className="text-[13px] text-ink-muted break-all">{e.volunteer_email}</p>
                       <EnrollmentPhone phone={e.phone} name={e.volunteer_name} />
-                      {e.message && <p className="text-xs text-gray-500 italic mt-1">"{e.message}"</p>}
-                      {cvError[e.id] && <p role="alert" className="text-xs text-red-600 mt-1">{cvError[e.id]}</p>}
+                      {e.message && <p className="text-[13px] text-ink-soft mt-1 break-words">"{e.message}"</p>}
+                      {cvError[e.id] && <p role="alert" className="text-[13px] text-critical mt-1">{cvError[e.id]}</p>}
                     </div>
                   </div>
                   {e.status === 'pending' && (
                     <div className="flex gap-2 mt-3 ml-13">
-                      <button onClick={() => handle(e.id, 'approved')} disabled={processing === e.id}
-                        className="flex-1 py-2 bg-people-soft text-people-text rounded-xl text-xs font-semibold hover:opacity-80 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50">
-                        {processing === e.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                        Aprobar
-                      </button>
-                      <button onClick={() => handle(e.id, 'rejected')} disabled={processing === e.id}
-                        className="flex-1 py-2 bg-surface-soft text-critical rounded-xl text-xs font-semibold hover:bg-surface-pressed transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50">
-                        <XCircle className="w-3.5 h-3.5" />Rechazar
-                      </button>
+                      <Button variant="primary" className="flex-1" busy={processing === e.id} onClick={() => handle(e.id, 'approved')}>
+                        <Check size={16} strokeWidth={2.25} aria-hidden="true" />Aprobar
+                      </Button>
+                      <Button variant="secondary" className="flex-1" disabled={processing === e.id} onClick={() => handle(e.id, 'rejected')}>
+                        <X size={16} strokeWidth={2} aria-hidden="true" />Rechazar
+                      </Button>
                     </div>
                   )}
                   <InterviewPanel enrollment={e} startOpen={e.id === marked}
                     onChange={iv => setEnrollments(prev => prev.map(x => (x.id === e.id ? { ...x, interview: iv } : x)))} />
                   {e.status === 'approved' && (
                     <div className="flex items-center gap-2 mt-3 ml-13">
-                      <Clock3 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                       <input
                         type="number" min="0" step="0.5"
                         aria-label={`Horas de ${e.volunteer_name}`}
                         placeholder={e.hours_logged ? undefined : '0'}
                         defaultValue={e.hours_logged || ''}
                         onChange={ev => setHoursDraft(d => ({ ...d, [e.id]: ev.target.value }))}
-                        className="w-20 px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-20 h-10 px-3 rounded-[10px] bg-surface-soft text-[15px] border-[1.5px] border-hairline focus:bg-surface focus:border-ink outline-none"
                       />
-                      <span className="text-xs text-gray-400">horas cumplidas</span>
-                      <button onClick={() => handleSaveHours(e.id)} disabled={savingHours === e.id || hoursDraft[e.id] === undefined}
-                        className="ml-auto flex items-center gap-1 px-2.5 py-1.5 bg-surface-soft hover:bg-surface-pressed text-ink-soft rounded-lg text-xs font-semibold disabled:opacity-40 transition-colors">
-                        {savingHours === e.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                      <span className="text-[13px] text-ink-soft">horas cumplidas</span>
+                      <Button variant="secondary" className="ml-auto" busy={savingHours === e.id} disabled={hoursDraft[e.id] === undefined}
+                        onClick={() => handleSaveHours(e.id)}>
                         Guardar
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </section>
 
         {/* Momentos del proyecto: la ONG dueña puede borrar cualquiera (el servidor manda `can_delete`) */}
         {projectId && (
-          <section aria-label="Momentos del proyecto" className="space-y-3">
-            <h2 className="font-bold text-gray-900 text-sm">Momentos del proyecto</h2>
+          <section aria-label="Momentos del proyecto" className="flex flex-col gap-3">
+            <h2 className={SECTION_TITLE}>Momentos del proyecto</h2>
             <MomentsFeed filters={{ project_id: projectId }} showComposer={false} />
           </section>
         )}

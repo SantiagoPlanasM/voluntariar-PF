@@ -29,6 +29,7 @@ vi.mock('../../lib/api', async () => {
 
 import { api } from '../../lib/api';
 import { NGOKPIs } from './NGOKPIs';
+import { UiProvider } from '../ui/UiProvider';
 
 const kpi = {
   id: 'k1', project_id: 'proj-1', nombre: 'Árboles plantados', descripcion: null, valor: 120,
@@ -179,28 +180,78 @@ describe('<NGOKPIs />: alta, borrado y navegación', () => {
     expect(screen.getByLabelText('Nombre')).toHaveValue('');
   });
 
-  test('borrar: si se cancela la confirmación no se borra', async () => {
-    confirmSpy.mockReturnValue(false);
-    render(<NGOKPIs />);
+  // T7 (§339): la pregunta es el diálogo propio (useConfirm) y el error un aviso (useToast); antes eran
+  // `confirm()` y `alert()` del navegador.
+  const pedirBorrado = async () => {
+    render(<UiProvider><NGOKPIs /></UiProvider>);
     fireEvent.click(await screen.findByRole('button', { name: 'Borrar KPI Árboles plantados' }));
-    expect(confirmSpy).toHaveBeenCalledWith('¿Eliminar este KPI?');
+    return screen.findByRole('dialog', { name: '¿Borrar el indicador Árboles plantados?' });
+  };
+
+  test('borrar: pregunta en un diálogo propio; "Volver" no borra', async () => {
+    const d = await pedirBorrado();
+    expect(confirmSpy).not.toHaveBeenCalled();
+    await waitFor(() => expect(within(d).getByRole('button', { name: 'Volver' })).toHaveFocus());
+    fireEvent.click(within(d).getByRole('button', { name: 'Volver' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(api.projects.kpis.delete).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Borrar KPI Árboles plantados' })).toBeInTheDocument();
   });
 
   test('borrar: confirmado, se borra y desaparece de la lista', async () => {
-    render(<NGOKPIs />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Borrar KPI Árboles plantados' }));
+    const d = await pedirBorrado();
+    fireEvent.click(within(d).getByRole('button', { name: 'Borrar' }));
     await waitFor(() => expect(api.projects.kpis.delete).toHaveBeenCalledWith('proj-1', 'k1'));
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Borrar KPI Árboles plantados' })).not.toBeInTheDocument());
   });
 
-  test('borrar: si falla, avisa con el mensaje y el KPI sigue', async () => {
+  test('borrar: si falla, avisa en la pantalla con el mensaje y el KPI sigue', async () => {
     vi.mocked(api.projects.kpis.delete).mockRejectedValue(new Error('No autorizado'));
-    render(<NGOKPIs />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Borrar KPI Árboles plantados' }));
-    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith('No autorizado'));
+    const d = await pedirBorrado();
+    fireEvent.click(within(d).getByRole('button', { name: 'Borrar' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('No autorizado');
+    expect(alertSpy).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Borrar KPI Árboles plantados' })).toBeInTheDocument();
+  });
+
+  test('borrar sin conexión: el aviso no muestra el error en inglés del navegador', async () => {
+    vi.mocked(api.projects.kpis.delete).mockRejectedValue(new TypeError('Failed to fetch'));
+    const d = await pedirBorrado();
+    fireEvent.click(within(d).getByRole('button', { name: 'Borrar' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo borrar. Revisá tu conexión y probá de nuevo.');
+  });
+
+  test('la pantalla se llama "Impacto" y lleva el nombre del voluntariado', async () => {
+    render(<NGOKPIs />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Impacto' })).toBeInTheDocument();
+    expect(await screen.findByText('Reforestación Urbana')).toBeInTheDocument();
+  });
+
+  test('mientras carga muestra un esqueleto, no un spinner', async () => {
+    vi.mocked(api.projects.kpis.list).mockReturnValue(new Promise(() => {}));
+    const { container } = render(<NGOKPIs />);
+    const cargando = screen.getByRole('status', { name: 'Cargando KPIs' });
+    expect(cargando.querySelector('.skeleton')).not.toBeNull();
+    expect(container.querySelector('.animate-spin')).toBeNull();
+  });
+
+  test('arriba van en grande hasta cuatro indicadores numéricos; los de sí/no y texto, no', async () => {
+    const k = (id: string, nombre: string, tipo_valor: string) => ({ ...kpi, id, nombre, tipo_valor }) as unknown as KPI;
+    vi.mocked(api.projects.kpis.list).mockResolvedValue({ kpis: [
+      k('a', 'Uno', 'numero'), k('b', 'Logrado', 'booleano'), k('c', 'Dos', 'porcentaje'), k('d', 'Tres', 'numero'),
+      k('e', 'Cuatro', 'numero'), k('f', 'Cinco', 'numero'),
+    ] });
+    const { container } = render(<NGOKPIs />);
+    await screen.findAllByText('Uno');
+    expect([...container.querySelectorAll('dt')].map(el => el.textContent)).toEqual(['Uno', 'Dos', 'Tres', 'Cuatro']);
+  });
+
+  test('el valor de cada KPI va en el color del texto, sin verde ni chip de color por tipo', async () => {
+    render(<NGOKPIs />);
+    const valores = await screen.findAllByText('120 árboles');
+    expect(valores.length).toBeGreaterThan(0);
+    for (const v of valores) expect(v.className).not.toMatch(/people|brand|emerald|blue|violet/);
+    expect(screen.getByText('Número').className).not.toMatch(/bg-/);
   });
 
   test('"Volver" vuelve a la pantalla anterior', async () => {
