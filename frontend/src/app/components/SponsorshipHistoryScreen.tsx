@@ -8,11 +8,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { api, SponsorshipAgreement, SponsorshipChange, SponsorshipPointSnapshot, SponsorshipVersion } from '../../lib/api';
-import { parseBackendDate } from '../../lib/format';
+import { formatMoney, parseBackendDate } from '../../lib/format';
 import { useLatestRequest } from '../../lib/useLatestRequest';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { LoadError, describeLoadError } from './LoadError';
-import { POINT_TYPE_LABEL, formatMoney as money } from '../../lib/sponsorship';
+import { POINT_TYPE_LABEL } from '../../lib/sponsorship';
 
 type Side = 'company' | 'ngo';
 const ACTION_LABEL: Record<SponsorshipChange['action'], string> = { add: 'Agregó', edit: 'Editó', remove: 'Quitó' };
@@ -95,7 +95,7 @@ export function SponsorshipHistoryScreen() {
   const snapshot = (s: SponsorshipPointSnapshot, struck = false) => (
     <>
       <span className={struck ? 'line-through' : ''}>{s.detail}</span>
-      {s.amount != null && <span className={`font-bold text-brand-text ${struck ? 'line-through' : ''}`}> · {money(s.amount)}</span>}
+      {s.amount != null && <span className={`font-bold text-brand-text ${struck ? 'line-through' : ''}`}> · {formatMoney(s.amount)}</span>}
     </>
   );
 

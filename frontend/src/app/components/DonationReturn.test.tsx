@@ -36,7 +36,8 @@ describe('<DonationReturn />', () => {
     const get = vi.spyOn(api.donaciones, 'get').mockResolvedValue(donation('completed'));
     mount();
     expect(await screen.findByRole('heading', { name: '¡Gracias por tu donación!' })).toBeInTheDocument();
-    expect(screen.getByText(/\$1\.500/)).toBeInTheDocument();
+    // Con espacio duro, como en el resto de la app (`formatMoney`); antes salía "$1.500".
+    expect(screen.getByText(/\$ 1\.500/).textContent).toBe('$\u00a01.500');
     expect(screen.getByText(/Reforestación/)).toBeInTheDocument();
     expect(get).toHaveBeenCalledWith('don-1', '55');
     fireEvent.click(screen.getByRole('link', { name: 'Volver al proyecto' }));

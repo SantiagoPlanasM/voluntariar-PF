@@ -96,6 +96,14 @@ export function compactNumber(n: number): string {
   return String(Math.round(n / 100) / 10).replace('.', ',') + 'k';
 }
 
+const moneyFormat = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 });
+/** Plata, de una sola forma en toda la app (DESIGN.md → "Formato argentino"): "$ 32.000", con espacio duro para
+ *  que el signo no quede solo al final de un renglón. Los centavos se muestran solo si los hay (los montos de las
+ *  donaciones son enteros; un punto de dinero de un acuerdo puede traerlos). Lo que no es un número finito es 0. */
+export function formatMoney(n: number): string {
+  return `$\u00a0${moneyFormat.format(Number.isFinite(n) ? n : 0)}`;
+}
+
 /** Mensaje de error para mostrarle al usuario. Los errores del servidor ya vienen en español y dicen algo
  *  útil ("Publicaste demasiado, esperá un rato"), así que se muestran tal cual. Un fallo de red de `fetch`
  *  es un TypeError en inglés ("Failed to fetch"): ese se reemplaza por `fallback`. */

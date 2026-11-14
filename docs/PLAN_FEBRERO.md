@@ -209,10 +209,13 @@ En este orden:
 3. [x] **Notificaciones instantáneas** por el WebSocket (§336, 13/11): toda notificación avisa al instante a su
    destinatario, y la ONG tiene el contador de postulaciones sin responder en la barra lateral. En producción
    (`e5f65e1`, CI #94, Deploy #90, SonarCloud en OK con 0 issues); falta probarlo en la interfaz desplegada.
-4. **Lo próximo** (el usuario dejó elegir la tanda el 14/11): sacar el `window.confirm` que queda
-   (`CompanyOwnProfile`, retirar propuesta; hallazgo B1) y unificar las cuatro funciones que escriben plata (lo que
-   quedó de T3, hallazgo B2). Después, otra tanda de diseño (T5, T7–T13), o lo que siga de la Etapa 3: reputación
-   (antes, que el usuario defina qué se mide) o empleados de empresa con cupos reservados.
+4. [x] **Sin `window.confirm` y una sola forma de escribir plata** (§337, 14/11; hallazgos B1 y B2, lo que quedaba
+   de T3): retirar una propuesta pregunta con el diálogo propio, y `formatMoney` (`lib/format.ts`) reemplaza a
+   `formatPesos`, a los dos `formatMoney` y al `money()` local. Commit local, **sin push** (falta el OK). Quedó
+   afuera: los mensajes de monto mínimo y máximo (`$100`, `$500.000`), que son textos del backend; y decidir si un
+   monto con centavos va `$ 99,5` o `$ 99,50`.
+5. **Lo próximo:** otra tanda de diseño (T5, T7–T13), o lo que siga de la Etapa 3: reputación (antes, que el
+   usuario defina qué se mide) o empleados de empresa con cupos reservados. Elige el usuario.
 
 ## Devolución de los directores (5/11)
 

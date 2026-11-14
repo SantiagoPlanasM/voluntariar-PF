@@ -3,9 +3,9 @@ import { Loader2, Menu, Pencil, Plus, Save, X, Sprout, Send, Trash2 } from 'luci
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { api, Empresa, Patrocinio, Project } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
-import { userMessage } from '../../lib/format';
+import { formatMoney, userMessage } from '../../lib/format';
 import {
-  POINT_TYPE_LABEL, PointFormValue, SPONSORSHIP_BADGE, SPONSORSHIP_LABEL, editPointForm, formFields, formatMoney, newPointForm,
+  POINT_TYPE_LABEL, PointFormValue, SPONSORSHIP_BADGE, SPONSORSHIP_LABEL, editPointForm, formFields, newPointForm,
 } from '../../lib/sponsorship';
 import { Draft, addPoint, editPoint, emptyDraft, newId, removePoint, toPoints } from '../../lib/sponsorshipDraft';
 import { InlineError } from './LoadError';
@@ -13,6 +13,7 @@ import { SponsorshipPointForm } from './SponsorshipPointForm';
 import { ProfilePhotoPicker } from './ProfilePhotoPicker';
 import { ProfileHeader } from '../ui/ProfileHeader';
 import { Button } from '../ui/Button';
+import { useConfirm } from '../ui/UiProvider';
 import { PROFILE_FIELD } from '../ui/fieldStyles';
 
 // Tope del listado de proyectos para proponer. Sin `limit` el backend devuelve 20 y los demás no se podían
@@ -27,6 +28,7 @@ const CATEGORIES = ['Medio Ambiente','Educación','Salud','Animales','Alimentaci
 export function CompanyOwnProfile() {
   const { logout } = useAuth();
   const navigate    = useNavigate();
+  const confirm     = useConfirm();
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -121,10 +123,15 @@ export function CompanyOwnProfile() {
   /** La propuesta rechazada del proyecto elegido, si hay: volver a proponer la reabre con sus puntos. */
   const previousRejected = patrocinios.find(x => x.project_id === proposeProjectId && x.estado === 'rechazado');
 
-  const handleWithdraw = async (projectId: string) => {
-    if (!window.confirm('¿Retirar esta propuesta de patrocinio?')) return;
+  const handleWithdraw = async (p: Patrocinio) => {
+    const ok = await confirm({
+      title: `¿Retirar la propuesta para ${p.project_title}?`,
+      body: 'La ONG deja de verla. Podés volver a proponer después.',
+      confirmLabel: 'Retirar propuesta', danger: true,
+    });
+    if (!ok) return;
     setWithdrawError('');
-    try { await api.empresas.patrocinios.withdraw(projectId); void loadPatrocinios(); }
+    try { await api.empresas.patrocinios.withdraw(p.project_id); void loadPatrocinios(); }
     catch (e) { setWithdrawError(userMessage(e, 'No se pudo retirar la propuesta. Revisá tu conexión y probá de nuevo.')); }
   };
 
@@ -374,7 +381,7 @@ export function CompanyOwnProfile() {
                         {SPONSORSHIP_LABEL[p.estado]}
                       </span>
                       {p.estado === 'propuesto' && (
-                        <button onClick={() => handleWithdraw(p.project_id)}
+                        <button onClick={() => handleWithdraw(p)}
                           className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-red-50 flex-shrink-0" title="Retirar propuesta">
                           <Trash2 className="w-3.5 h-3.5 text-red-400" />
                         </button>

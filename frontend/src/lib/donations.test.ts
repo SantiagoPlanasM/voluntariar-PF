@@ -5,7 +5,7 @@
 // Mercado Pago (Checkout Pro agrega external_reference, payment_id/collection_id y status/collection_status).
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { api } from './api';
-import { DONATION_MAX, DONATION_MIN, checkDonationAmount, formatPesos, readReturnParams } from './donations';
+import { DONATION_MAX, DONATION_MIN, checkDonationAmount, readReturnParams } from './donations';
 
 const json = (body: unknown, status = 200) =>
   Promise.resolve({ ok: status < 400, status, json: async () => body } as Response);
@@ -61,14 +61,6 @@ describe('checkDonationAmount(): lo mismo que rechaza el backend', () => {
     expect(checkDonationAmount(' 1500 ')).toEqual({ amount: 1500 });
     expect(checkDonationAmount('100')).toEqual({ amount: 100 });
     expect(checkDonationAmount('500000')).toEqual({ amount: 500000 });
-  });
-});
-
-describe('formatPesos()', () => {
-  test('con separador de miles argentino y sin decimales', () => {
-    expect(formatPesos(1500)).toBe('$1.500');
-    expect(formatPesos(500000)).toBe('$500.000');
-    expect(formatPesos(100)).toBe('$100');
   });
 });
 

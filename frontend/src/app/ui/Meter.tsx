@@ -1,9 +1,7 @@
 // Barras de progreso y la "doble meta" (DESIGN.md → Doble meta): transparencia de cuánto falta y para qué.
 // Azul = dinero, verde = personas. El valor siempre va escrito: el color nunca es la única señal.
 import { useEffect, useState } from 'react';
-
-const nf = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 });
-export const formatMoney = (n: number) => `$ ${nf.format(Number.isFinite(n) ? n : 0)}`;
+import { formatMoney } from '../../lib/format';
 
 export function pct(value: number | string | null | undefined, goal: number | string | null | undefined): number {
   const v = Number(value), g = Number(goal);

@@ -11,8 +11,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useParams, Link } from 'react-router';
 import { ArrowLeft, Check, History, Loader2, Pencil, Plus, Trash2, Undo2 } from 'lucide-react';
 import { api, ApiError, SponsorshipAgreement, SponsorshipPoint, SponsorshipVersion } from '../../lib/api';
-import { formatTime, timeAgo, userMessage } from '../../lib/format';
-import { POINT_TYPE_LABEL, PointFormValue, SPONSORSHIP_LABEL, changesSince, editPointForm, formFields, formatMoney as money, newPointForm } from '../../lib/sponsorship';
+import { formatMoney, formatTime, timeAgo, userMessage } from '../../lib/format';
+import { POINT_TYPE_LABEL, PointFormValue, SPONSORSHIP_LABEL, changesSince, editPointForm, formFields, newPointForm } from '../../lib/sponsorship';
 import { Draft, addPoint, draftCount, editPoint, emptyDraft, newId, removePoint, toChanges, undoRemove } from '../../lib/sponsorshipDraft';
 import { useLatestRequest } from '../../lib/useLatestRequest';
 import { useConfirm } from '../ui/UiProvider';
@@ -190,11 +190,11 @@ export function SponsorshipAgreementScreen() {
             )}
           </div>
           <p className={`text-[15px] leading-snug ${removing ? 'line-through' : ''}`}>{pt.detail}</p>
-          {pt.amount != null && <p className={`text-[15px] font-bold text-brand-text ${removing ? 'line-through' : ''}`}>{money(pt.amount)}</p>}
+          {pt.amount != null && <p className={`text-[15px] font-bold text-brand-text ${removing ? 'line-through' : ''}`}>{formatMoney(pt.amount)}</p>}
           {change?.kind === 'edit' && change.before && (
             <p className="text-[13px] text-ink-soft">
               Antes: <s>{change.before.detail}</s>
-              {change.before.amount != null && change.before.amount !== pt.amount && <> · <s>{money(change.before.amount)}</s></>}
+              {change.before.amount != null && change.before.amount !== pt.amount && <> · <s>{formatMoney(change.before.amount)}</s></>}
             </p>
           )}
           {info && <p className="text-xs text-ink-muted">{info}</p>}
@@ -287,7 +287,7 @@ export function SponsorshipAgreementScreen() {
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h2 id="puntos-acuerdo" className="text-[17px] font-bold">Puntos del acuerdo</h2>
                 {totalMoney > 0 && (
-                  <p className="text-sm text-ink-soft">Dinero comprometido: <strong className="text-brand-text">{money(totalMoney)}</strong></p>
+                  <p className="text-sm text-ink-soft">Dinero comprometido: <strong className="text-brand-text">{formatMoney(totalMoney)}</strong></p>
                 )}
               </div>
               {rows.length > 0 && (

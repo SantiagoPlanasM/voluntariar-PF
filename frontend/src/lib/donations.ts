@@ -18,9 +18,6 @@ export function checkDonationAmount(raw: string): { amount: number } | { error: 
   return { amount };
 }
 
-const pesos = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 });
-export const formatPesos = (n: number) => `$${pesos.format(n)}`;
-
 /**
  * Lo que agrega Mercado Pago a la URL de vuelta de Checkout Pro: external_reference (el id de la donación),
  * payment_id o collection_id (el pago) y status o collection_status. Cuando no hubo pago manda el texto "null".

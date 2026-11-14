@@ -927,3 +927,36 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - En Chrome se probó solo la postulación nueva hacia la ONG, en escritorio ancho y tema claro. Los otros 13 tipos de aviso los cubren los tests de a tres (postulación, decisión, seguidor) y el test que mira que nadie más inserte; no se vio la barra de solo íconos, el celular ni el tema oscuro. El contador nuevo no se pasó por la medición de contraste (usa el mismo globito `critical` que los otros).
 - El globito del contador va con `aria-hidden`, como los demás: un lector de pantalla no lo anuncia.
 - Un celular real.
+
+## 337. Una sola forma de escribir plata y sin `window.confirm` en el perfil de la empresa
+
+### Qué se hizo
+- Es el punto 4 de `PLAN_FEBRERO.md` (hallazgos B1 y B2 de la revisión de diseño; lo que quedaba de T3). Solo frontend.
+- **Plata, una sola función:** `formatMoney` en `lib/format.ts` → `$ 32.000`, con espacio duro y formato `es-AR`. Reemplaza a las que había:
+  - `formatPesos` (`lib/donations.ts`): escribía `$32.000`, sin espacio. La usaba la vuelta de la donación (`DonationReturn`), que ahora dice "Donaste **$ 1.500**".
+  - `formatMoney` de `ui/Meter.tsx` (con su `nf`): redondeaba a enteros.
+  - `formatMoney` de `lib/sponsorship.ts`: espacio común y hasta tres decimales; el acuerdo y el historial la importaban como `money()`.
+  - Las diez pantallas que escriben plata importan la de `lib/format.ts`; `Meter` también.
+- **Decimales:** hasta dos, y solo si los hay. Los montos de donaciones y lo recaudado son pesos enteros: se ven igual que antes. Cambia un caso: el costo por persona o un punto de dinero con centavos. Antes `Meter` lo redondeaba (`$ 100` por 99,5) y el acuerdo mostraba hasta tres decimales; ahora los dos muestran `$ 99,5`.
+- **Retirar una propuesta** (`CompanyOwnProfile`): la pregunta es el diálogo propio (`useConfirm`), con el nombre del voluntariado en el título ("¿Retirar la propuesta para Banco de Alimentos?"), el texto "La ONG deja de verla. Podés volver a proponer después." y el foco inicial en "Volver" (acción destructiva). No queda ningún `window.confirm` en las pantallas; el único está en `UiProvider`, como respaldo cuando no hay proveedor.
+- Docs: `FRONTEND_CONTEXT.md`, `PLAN_FEBRERO.md` y `CLAUDE.md` (conteos).
+
+### Verificación
+- Rojo → verde: los 6 tests nuevos o cambiados fallaban antes del código. Los 3 de `formatMoney` fallaban porque la función no existía en ese módulo (rojo débil); el de `DonationReturn` (leía `$1.500`) y los 2 del diálogo fallaban por el comportamiento.
+- Frontend: **1536**/1536 (antes 1532; +4), `typecheck` sin errores. Cobertura: sentencias 92,12 %, ramas 88,89 %, funciones 89,32 %, líneas 94,55 %.
+- `npm audit`: 0 en los dos paquetes.
+- Mutación (17 mutantes, con corrida de control en verde): 17 muertos. En la primera pasada quedaron 2 vivos ("sin foco en Volver" y "retira siempre la primera propuesta") y se sumó un test con dos propuestas pendientes que los mata.
+- Los saltos de línea de los 17 archivos tocados quedaron como estaban (`git ls-files --eol`).
+- Backend: no se tocó y no se corrió.
+
+### Errores propios
+- El script que cambió los imports dejó dos pantallas con el import viejo además del nuevo y otras dos sin ninguno: lo marcó `grep` antes de correr nada y se corrigió a mano.
+- El espacio duro quedó escrito como carácter invisible en vez del escape `\u00a0` (en el código y en dos tests): tres mutantes no encontraron su texto ("no aplica") y por eso se vio. Se pasó a escape y se repitió la mutación completa.
+- La primera versión de los tests no cubría el foco inicial ni que se retire la propuesta tocada (los dos mutantes vivos).
+
+### ⚠️ NO verificado
+- **Nada se vio en un navegador:** ni el diálogo de retirar (claro, oscuro, 375 px) ni los montos en las diez pantallas. Los tests miran el texto, no cómo se pinta.
+- **Los mensajes de monto mínimo y máximo** ("El monto mínimo es de $100", "…de $500.000") siguen sin espacio: son textos fijos copiados del backend (`routes/donaciones.js`) y cambiarlos toca los dos lados. Quedó sin hacer.
+- **Montos con centavos:** se escriben `$ 99,5`, no `$ 99,50`. No se decidió con el usuario cuál va; hoy solo puede pasar en el costo por persona y en un punto de dinero del acuerdo.
+- El botón de ícono "Retirar propuesta" sigue con `title` y sin `aria-label`, y con los colores viejos (`red-50`, `red-400`): es parte de la deuda de `CompanyOwnProfile` (I1), no de esta tanda.
+- Producción: sin desplegar al escribir esto.

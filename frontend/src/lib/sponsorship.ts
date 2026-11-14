@@ -12,7 +12,6 @@ import type { PointFields } from './sponsorshipDraft';
 export const POINT_TYPE_LABEL: Record<SponsorshipPoint['type'], string> = {
   money: 'Dinero', supplies: 'Insumos', volunteers: 'Voluntarios de la empresa', outreach: 'Difusión', other: 'Otro',
 };
-export const formatMoney = (n: number) => `$ ${n.toLocaleString('es-AR')}`;
 
 /** El formulario de un punto (SponsorshipPointForm): `id` null es uno nuevo; si no, el id del punto que se edita. */
 export type PointFormValue = { id: string | null; type: SponsorshipPoint['type']; detail: string; amount: string };

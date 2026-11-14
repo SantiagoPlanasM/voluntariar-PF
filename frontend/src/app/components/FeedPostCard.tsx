@@ -7,13 +7,13 @@ import { Bell, Check, ChevronDown, Clock, MapPin, Send, Star } from 'lucide-reac
 import { FeedProject, AppComment, Rating, api } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
 import { ReviewsModal } from './ReviewsModal';
-import { userMessage, FOLLOW_ERROR } from '../../lib/format';
+import { formatMoney, userMessage, FOLLOW_ERROR } from '../../lib/format';
 import { Avatar } from '../ui/Avatar';
 import { VerifiedBadge } from '../ui/VerifiedBadge';
 import { LogoMark } from '../ui/Logo';
 import { TypeBadge } from '../ui/TypeBadge';
 import { Button, ButtonLink } from '../ui/Button';
-import { DualGoal, formatMoney } from '../ui/Meter';
+import { DualGoal } from '../ui/Meter';
 import { cardActions } from '../volunteering/cardActions';
 import { imagePositionClass } from '../volunteering/imagePosition';
 

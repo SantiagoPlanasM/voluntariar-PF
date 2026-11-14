@@ -1,6 +1,31 @@
 // src/lib/format.test.ts
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
-import { timeAgo, formatTime, formatDateOnly, truncateText, userMessage, normalizeText } from './format';
+import { timeAgo, formatTime, formatDateOnly, truncateText, userMessage, normalizeText, formatMoney } from './format';
+
+// La única forma de escribir plata (DESIGN.md → "Formato argentino": `$ 32.000`). Antes había cuatro:
+// `formatPesos` (sin espacio), dos `formatMoney` (uno redondeaba, el otro no) y un `money()` local.
+describe('formatMoney', () => {
+  const NBSP = '\u00a0';
+
+  test('signo, espacio duro y separador de miles argentino', () => {
+    expect(formatMoney(1500)).toBe(`$${NBSP}1.500`);
+    expect(formatMoney(500000)).toBe(`$${NBSP}500.000`);
+    expect(formatMoney(100)).toBe(`$${NBSP}100`);
+    expect(formatMoney(0)).toBe(`$${NBSP}0`);
+  });
+
+  test('los centavos se muestran con coma y hasta dos decimales (un punto de dinero del acuerdo puede traerlos)', () => {
+    expect(formatMoney(1500.5)).toBe(`$${NBSP}1.500,5`);
+    expect(formatMoney(99.999)).toBe(`$${NBSP}100`);
+    expect(formatMoney(1234.567)).toBe(`$${NBSP}1.234,57`);
+  });
+
+  test('lo que no es un número finito se escribe como 0, nunca "NaN"', () => {
+    expect(formatMoney(Number.NaN)).toBe(`$${NBSP}0`);
+    expect(formatMoney(Infinity)).toBe(`$${NBSP}0`);
+    expect(formatMoney(undefined as unknown as number)).toBe(`$${NBSP}0`);
+  });
+});
 
 describe('timeAgo', () => {
   beforeEach(() => {

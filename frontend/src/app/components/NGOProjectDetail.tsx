@@ -3,13 +3,12 @@ import { useEffect, useId, useState } from 'react';
 import { ArrowLeft, Users, CheckCircle, Clock, XCircle, Loader2, DollarSign, BarChart2, MessageCircle, Clock3, Save, FileText, Pencil } from 'lucide-react';
 import { api, ApiError, Project, EnrollmentWithVolunteer } from '../../lib/api';
 import { openCv } from '../../lib/cv';
-import { userMessage } from '../../lib/format';
+import { formatMoney, userMessage } from '../../lib/format';
 import { useLatestRequest } from '../../lib/useLatestRequest';
 import { MomentsFeed } from './MomentsFeed';
 import { InterviewPanel } from './InterviewPanel';
 import { LoadError, describeLoadError } from './LoadError';
 import { useConfirm } from '../ui/UiProvider';
-import { formatMoney } from '../ui/Meter';
 import { PROJECT_STATUS_LABEL } from '../volunteering/status';
 import { EnrollmentPhone } from './EnrollmentPhone';
 

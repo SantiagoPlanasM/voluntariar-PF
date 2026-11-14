@@ -7,10 +7,9 @@
 import { useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { checkDonationAmount } from '../../lib/donations';
-import { userMessage } from '../../lib/format';
+import { formatMoney, userMessage } from '../../lib/format';
 import { Sheet } from '../ui/Sheet';
 import { Button } from '../ui/Button';
-import { formatMoney } from '../ui/Meter';
 
 const NETWORK_ERROR = 'No pudimos conectarnos. Revisá tu conexión y probá de nuevo.';
 const PRESETS = [1000, 2500, 5000, 10000];

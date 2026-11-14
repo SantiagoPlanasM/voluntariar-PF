@@ -11,7 +11,8 @@ import { Link, useLocation } from 'react-router';
 import { CheckCircle, Clock, XCircle, Loader2 } from 'lucide-react';
 import { api, ApiError, Donation } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
-import { formatPesos, readReturnParams } from '../../lib/donations';
+import { readReturnParams } from '../../lib/donations';
+import { formatMoney } from '../../lib/format';
 import { InlineError } from './LoadError';
 
 const POLL_MS = 3000;
@@ -84,7 +85,7 @@ export function DonationReturn() {
     content = <InlineError message={error} onRetry={refresh} />;
   } else if (donation?.status === 'completed') {
     content = box(<CheckCircle className="w-10 h-10 text-emerald-500" />, '¡Gracias por tu donación!',
-      <>Donaste <strong>{formatPesos(donation.amount)}</strong>{donation.project_title ? <> a <strong>{donation.project_title}</strong></> : null}. Gracias por apoyar este proyecto.</>,
+      <>Donaste <strong>{formatMoney(donation.amount)}</strong>{donation.project_title ? <> a <strong>{donation.project_title}</strong></> : null}. Gracias por apoyar este proyecto.</>,
       toProject);
   } else if (donation && (donation.status === 'failed' || donation.status === 'refunded' || NOT_PAID.has(mpStatus ?? 'null'))) {
     content = box(<XCircle className="w-10 h-10 text-red-400" />, 'El pago no se completó',
