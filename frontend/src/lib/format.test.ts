@@ -1,6 +1,23 @@
 // src/lib/format.test.ts
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
-import { timeAgo, formatTime, formatDateOnly, truncateText, userMessage, normalizeText, formatMoney } from './format';
+import { timeAgo, formatTime, formatDateOnly, truncateText, userMessage, normalizeText, formatMoney, formatMonthYear } from './format';
+
+// "abril 2026": el mes y el año de una reseña ("Participó en … · abril 2026", DESIGN.md → Comentarios y reseñas).
+describe('formatMonthYear', () => {
+  test('mes en minúscula y año, sin "de"', () => {
+    expect(formatMonthYear('2026-04-15 12:00:00')).toBe('abril 2026');
+    expect(formatMonthYear('2026-10-10T12:00:00.000Z')).toBe('octubre 2026');
+  });
+
+  test('una fecha sin hora no se corre de mes (en Córdoba, el 1 a medianoche UTC todavía es el mes anterior)', () => {
+    expect(formatMonthYear('2026-05-01')).toBe('mayo 2026');
+  });
+
+  test('lo que no es una fecha da ""', () => {
+    expect(formatMonthYear('')).toBe('');
+    expect(formatMonthYear('ayer')).toBe('');
+  });
+});
 
 // La única forma de escribir plata (DESIGN.md → "Formato argentino": `$ 32.000`). Antes había cuatro:
 // `formatPesos` (sin espacio), dos `formatMoney` (uno redondeaba, el otro no) y un `money()` local.

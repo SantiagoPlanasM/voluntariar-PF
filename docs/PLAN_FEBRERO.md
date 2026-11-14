@@ -225,10 +225,15 @@ En este orden:
 6. [x] **T7: gestión de la ONG** (§339, 14/11): `NGOPatrocinios`, `NGOKPIs` (ahora "Impacto") y
    `NGOProjectDetail` con la forma de los paneles y los componentes comunes (`Button`, `Avatar`, `DualGoal`,
    esqueletos). De paso salieron un `confirm()` y seis `alert()` sin `window.` que el barrido 2a no había visto
-   (el hallazgo "`alert()`: 0" de B1 estaba mal), con regla nueva en `designRules.test.ts`. Commit local, **sin
-   push** (falta el OK). **Nada se vio en el navegador.** No se hizo el gráfico por mes ni "Publicar como dato de
-   impacto" de los KPIs.
-7. **Lo próximo:** otra tanda de diseño (T8–T13), o lo que siga de la Etapa 3: reputación (antes, que el
+   (el hallazgo "`alert()`: 0" de B1 estaba mal), con regla nueva en `designRules.test.ts`. En producción
+   (`dbd1e59`, CI #97, Deploy #93, SonarCloud en OK con 0 issues). **Nada se vio en el navegador.** No se hizo el
+   gráfico por mes ni "Publicar como dato de impacto" de los KPIs.
+7. [x] **T9: reseñas y filtros como hojas** (§340, 14/11): `ReviewsModal` y `FilterModal` usan `Sheet`. Reseñas
+   con "Participó en … · mes y año" y "Reseñas de personas que participaron", sin el chip "Excelente / Muy
+   bueno" ni colores fijos. Filtros con `aria-pressed`, sin colores en `style` y "Mostrar 1 voluntariado".
+   Commit local, **sin push** (falta el OK). **Nada se vio en el navegador**: lo que más importa mirar es que la
+   hoja de filtros quede por encima del mapa de Explorar.
+8. **Lo próximo:** otra tanda de diseño (T8, T10–T13), o lo que siga de la Etapa 3: reputación (antes, que el
    usuario defina qué se mide) o empleados de empresa con cupos reservados. Elige el usuario.
 
 ## Devolución de los directores (5/11)

@@ -1,9 +1,11 @@
 import { useState, useEffect, useId } from 'react';
-import { X, Star, Loader2, MessageSquare, CheckCircle2, UserCheck } from 'lucide-react';
+import { Star } from 'lucide-react';
 import { api, Rating } from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
-import { userMessage } from '../../lib/format';
-import { Modal } from './Modal';
+import { formatMonthYear, userMessage } from '../../lib/format';
+import { Avatar } from '../ui/Avatar';
+import { Button } from '../ui/Button';
+import { Sheet } from '../ui/Sheet';
 import { InlineError } from './LoadError';
 
 interface ReviewsModalProps {
@@ -103,7 +105,7 @@ export function ReviewsModal({
     setSuccessMsg('');
     try {
       await api.projects.rate(projectId, userScore, userComment.trim() || undefined);
-      setSuccessMsg('¡Tu calificación se guardó correctamente!');
+      setSuccessMsg('Tu reseña se guardó.');
 
       // Recargar lista actualizada (el formulario queda con lo que se guardó: ahora es "tu reseña")
       const updated = await api.projects.get(projectId);
@@ -126,214 +128,121 @@ export function ReviewsModal({
   const editing = Boolean(mine(ratings));
 
   return (
-    <Modal onClose={onClose} labelledBy={titleId}
-      overlayClassName="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
-      className="bg-white rounded-3xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl border border-gray-100 overflow-hidden"
-    >
-        {/* ── Header ──────────────────────────────────────────────────────── */}
-        <div className="p-5 border-b border-gray-100 flex items-start justify-between gap-3">
-          <div>
-            <h3 id={titleId} className="text-lg font-black text-gray-900 leading-tight">
-              Reseñas y Calificaciones
-            </h3>
-            <p className="text-xs text-gray-500 font-medium mt-0.5 line-clamp-1">
-              {projectTitle}
+    <Sheet title="Reseñas" titleId={titleId} onClose={onClose}>
+      <div className="flex flex-col gap-5">
+        <p className="text-[13px] text-ink-muted truncate -mt-1">{projectTitle}</p>
+
+        {/* El promedio, en grande, con las estrellas y la cantidad. */}
+        <div className="flex items-center gap-3">
+          <span className="text-[32px] font-extrabold tracking-[-0.5px] leading-none">
+            {calculatedAvg > 0 ? calculatedAvg.toFixed(1).replace('.', ',') : '—'}
+          </span>
+          <div className="flex flex-col gap-0.5">
+            <Stars value={Math.round(calculatedAvg)} size={16} />
+            <p className="text-[13px] text-ink-soft">
+              {loadError ? 'No se pudieron cargar las reseñas'
+                : ratings.length === 1 ? '1 reseña en total' : `${ratings.length} reseñas en total`}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Cerrar"
-            className="w-11 h-11 flex-shrink-0 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
 
-        {/* ── Contenido con Scroll ────────────────────────────────────────── */}
-        <div className="p-5 overflow-y-auto space-y-5 flex-1">
-          {/* Resumen de Calificación */}
-          <div className="flex items-center justify-between p-4 rounded-2xl bg-amber-50/60 border border-amber-100/80">
-            <div className="flex items-center gap-3">
-              <div className="text-3xl font-black text-amber-500">
-                {calculatedAvg > 0 ? calculatedAvg.toFixed(1).replace('.', ',') : '—'}
-              </div>
-              <div>
-                <div className="flex items-center gap-0.5">
-                  {[1, 2, 3, 4, 5].map(star => (
-                    <Star
-                      key={star}
-                      className={`w-4 h-4 ${
-                        star <= Math.round(calculatedAvg)
-                          ? 'fill-amber-400 text-amber-400'
-                          : 'text-amber-200'
-                      }`}
-                    />
-                  ))}
-                </div>
-                <p className="text-xs text-gray-500 font-medium mt-0.5">
-                  {loadError ? 'No se pudieron cargar las reseñas'
-                    : ratings.length === 1 ? '1 reseña en total' : `${ratings.length} reseñas en total`}
-                </p>
-              </div>
-            </div>
-            <span className="text-xs font-bold text-amber-700 bg-amber-100/80 px-2.5 py-1 rounded-full">
-              {calculatedAvg >= 4.5 ? 'Excelente' : calculatedAvg >= 3.5 ? 'Muy bueno' : calculatedAvg > 0 ? 'Aceptable' : 'Sin calificar'}
-            </span>
-          </div>
+        {/* Formulario de calificación (si participó y fue aprobado) */}
+        {canRate && (
+          <form onSubmit={handleSubmitReview} className="rounded-xl bg-surface-soft p-4 flex flex-col gap-3">
+            <p className="text-[15px] font-semibold">{editing
+              ? 'Ya calificaste este voluntariado. Podés editar tu reseña.'
+              : '¿Participaste en este voluntariado? Dejá tu opinión'}</p>
 
-          {/* Formulario de Calificación (si es participante aprobado) */}
-          {canRate && (
-            <div className="p-4 rounded-2xl bg-surface-soft border border-hairline space-y-3">
-              <div className="flex items-center gap-1.5 text-xs font-extrabold text-ink">
-                <UserCheck className="w-4 h-4 text-ink-soft" />
-                <span>{editing
-                  ? 'Ya calificaste este voluntariado. Podés editar tu reseña.'
-                  : '¿Participaste en este voluntariado? Dejá tu opinión'}</span>
-              </div>
-
-              <form onSubmit={handleSubmitReview} className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-600 font-medium">Puntuación:</span>
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5].map(star => (
-                      <button
-                        type="button"
-                        key={star}
-                        aria-label={`${star} estrella${star > 1 ? 's' : ''}`} aria-pressed={star === userScore}
-                        onClick={() => setUserScore(star)}
-                        className="p-1 hover:scale-125 transition-transform"
-                      >
-                        <Star
-                          className={`w-6 h-6 ${
-                            star <= userScore
-                              ? 'fill-yellow-400 text-yellow-400'
-                              : 'text-gray-300'
-                          }`}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                  <span className="text-xs font-bold text-gray-700 ml-1">
-                    {userScore} / 5
-                  </span>
-                </div>
-
-                <textarea
-                  aria-label="Tu reseña"
-                  value={userComment}
-                  onChange={e => { setUserComment(e.target.value); setErrorMsg(''); }}
-                  placeholder="Contá tu experiencia, aprendizajes o qué te pareció la coordinación..."
-                  rows={2}
-                  className="w-full px-3.5 py-2.5 bg-white text-xs rounded-xl border border-gray-200 focus:border-ink focus:outline-none resize-none"
-                />
-
-                {errorMsg && (
-                  <p role="alert" className="text-xs text-red-600 font-medium">{errorMsg}</p>
-                )}
-                {successMsg && (
-                  <p className="text-xs text-ink font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>{successMsg}</span>
-                  </p>
-                )}
-
+            <div className="flex items-center gap-1 -ml-2.5">
+              {[1, 2, 3, 4, 5].map(star => (
                 <button
-                  type="submit"
-                  // Mientras cargan no se sabe si ya calificó: mandar ahí pisaría su reseña con 5 ★ (S4).
-                  disabled={submitting || loading}
-                  className="px-4 py-2 bg-ink hover:opacity-90 disabled:opacity-50 text-on-ink rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                  type="button"
+                  key={star}
+                  aria-label={`${star} estrella${star > 1 ? 's' : ''}`} aria-pressed={star === userScore}
+                  onClick={() => setUserScore(star)}
+                  className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-full active:scale-95 transition-transform"
                 >
-                  {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <span>{editing ? 'Actualizar reseña' : 'Publicar reseña'}</span>
+                  <Star size={26} className={star <= userScore ? 'fill-star text-star' : 'text-border-strong'} aria-hidden="true" />
                 </button>
-              </form>
+              ))}
+              <span className="text-[13px] font-semibold text-ink-soft ml-1">{userScore} de 5</span>
             </div>
-          )}
 
-          {/* Lista de Reseñas */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold text-gray-500">
-              Todas las reseñas
-            </h4>
+            <textarea
+              aria-label="Tu reseña"
+              value={userComment}
+              onChange={e => { setUserComment(e.target.value); setErrorMsg(''); }}
+              placeholder="Contá tu experiencia, aprendizajes o qué te pareció la coordinación..."
+              rows={3}
+              className="w-full px-3.5 py-2.5 rounded-[10px] bg-surface text-[15px] leading-[1.45] border-[1.5px] border-hairline focus:border-ink outline-none resize-none"
+            />
 
-            {/* Si ya hay una lista (la del feed), se sigue viendo mientras se recarga. */}
-            {loading && ratings.length === 0 ? (
-              <div className="py-8 flex items-center justify-center text-gray-400">
-                <Loader2 className="w-6 h-6 animate-spin text-ink-muted" />
-              </div>
-            ) : loadError ? (
-              <InlineError message={loadError} onRetry={loadRatings} />
-            ) : ratings.length === 0 ? (
-              <div className="py-8 text-center bg-gray-50 rounded-2xl border border-gray-100 p-4">
-                <MessageSquare className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-gray-600">Sin reseñas todavía</p>
-                <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">
-                  Los voluntarios que participen y completen este voluntariado podrán calificarlo acá.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {ratings.map(r => (
-                  <div
-                    key={r.id}
-                    className="p-3.5 rounded-2xl bg-gray-50 border border-gray-100 text-xs space-y-2"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        {/* La foto de quien calificó, o la inicial si no tiene (§133). */}
-                        {r.user_avatar ? (
-                          <img src={r.user_avatar} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
-                        ) : (
-                          <div data-initial className="w-7 h-7 rounded-full bg-surface-soft text-ink font-bold flex items-center justify-center text-xs">
-                            {r.user_name?.[0] || 'U'}
-                          </div>
-                        )}
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-gray-900">{r.user_name}</span>
-                            <span className="px-1.5 py-0.5 bg-[#e4f1e0] text-[#255f24] text-xs font-bold rounded">
-                              Participó
-                            </span>
-                          </div>
-                        </div>
-                      </div>
+            {errorMsg && <p role="alert" className="text-[13px] text-critical">{errorMsg}</p>}
+            {successMsg && <p role="status" className="text-[13px] font-semibold">{successMsg}</p>}
 
-                      {/* Estrellas */}
-                      <div className="flex items-center gap-0.5">
-                        {[1, 2, 3, 4, 5].map(star => (
-                          <Star
-                            key={star}
-                            className={`w-3.5 h-3.5 ${
-                              star <= r.rating
-                                ? 'fill-amber-400 text-amber-400'
-                                : 'text-gray-200'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </div>
+            {/* Mientras cargan no se sabe si ya calificó: mandar ahí pisaría su reseña con 5 ★ (S4). */}
+            <Button type="submit" variant="primary" className="self-start" busy={submitting} busyLabel="Guardando…" disabled={loading}>
+              {editing ? 'Actualizar reseña' : 'Publicar reseña'}
+            </Button>
+          </form>
+        )}
 
-                    {r.comment && (
-                      <p className="text-gray-600 leading-relaxed pl-9">
-                        {r.comment}
+        <div className="flex flex-col gap-3">
+          <h3 className="text-[13px] font-semibold text-ink-soft">Reseñas de personas que participaron</h3>
+
+          {/* Si ya hay una lista (la del feed), se sigue viendo mientras se recarga. */}
+          {loading && ratings.length === 0 ? (
+            <div role="status" aria-label="Cargando reseñas" className="flex flex-col gap-4">
+              {[0, 1].map(i => (
+                <div key={i} aria-hidden="true" className="flex gap-3">
+                  <div className="w-9 h-9 flex-shrink-0 rounded-full skeleton" />
+                  <div className="flex-1 flex flex-col gap-2"><div className="h-4 w-1/3 rounded skeleton" /><div className="h-3 w-2/3 rounded skeleton" /></div>
+                </div>
+              ))}
+            </div>
+          ) : loadError ? (
+            <InlineError message={loadError} onRetry={loadRatings} />
+          ) : ratings.length === 0 ? (
+            <div className="py-6 text-center">
+              <p className="text-[15px] font-semibold">Sin reseñas todavía</p>
+              <p className="text-[13px] text-ink-soft mt-1 max-w-xs mx-auto">
+                Quienes participen de este voluntariado van a poder calificarlo acá.
+              </p>
+            </div>
+          ) : (
+            <ul className="flex flex-col gap-4">
+              {ratings.map(r => {
+                const when = formatMonthYear(r.created_at || '');
+                return (
+                  <li key={r.id} className="flex gap-3">
+                    {/* La foto de quien calificó, o sus iniciales si no tiene (§133). */}
+                    <Avatar src={r.user_avatar} name={r.user_name} size={36} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[15px] font-semibold break-words">{r.user_name}</p>
+                      <p className="text-[13px] text-ink-soft break-words">
+                        Participó en <span className="font-semibold text-ink">{projectTitle}</span>{when && ` · ${when}`}
                       </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                      <Stars value={r.rating} size={14} className="my-1" />
+                      {r.comment && <p className="text-[15px] leading-snug text-ink-soft break-words">{r.comment}</p>}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
+      </div>
+    </Sheet>
+  );
+}
 
-        {/* ── Footer ──────────────────────────────────────────────────────── */}
-        <div className="p-3 bg-gray-50 border-t border-gray-100 text-center">
-          <button
-            onClick={onClose}
-            className="px-5 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl text-xs font-bold transition-colors"
-          >
-            Cerrar
-          </button>
-        </div>
-    </Modal>
+/** Estrellas de solo lectura: el color nunca es la única señal, se leen como "4 de 5". */
+function Stars({ value, size, className = '' }: { value: number; size: number; className?: string }) {
+  return (
+    <div className={`flex gap-0.5 ${className}`} role="img" aria-label={`${value} de 5`}>
+      {[1, 2, 3, 4, 5].map(star => (
+        <Star key={star} size={size} className={star <= value ? 'fill-star text-star' : 'text-hairline'} aria-hidden="true" />
+      ))}
+    </div>
   );
 }

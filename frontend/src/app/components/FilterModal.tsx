@@ -1,10 +1,11 @@
-import React, { useEffect, useId, useState, useMemo } from 'react';
+import { useEffect, useId, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Sparkles, Zap, Calendar, Laptop, MapPin, DollarSign, Check, Globe } from 'lucide-react';
+import { Sparkles, Zap, Calendar, Laptop, MapPin, Check, Globe } from 'lucide-react';
 import { Project } from '../../lib/api';
 import { normalizeText } from '../../lib/format';
 import { CATEGORY_COLORS } from './ProjectMap';
-import { Modal } from './Modal';
+import { Button } from '../ui/Button';
+import { Sheet } from '../ui/Sheet';
 
 export interface FilterState {
   categories: string[];
@@ -24,6 +25,33 @@ export const DEFAULT_FILTERS: FilterState = {
 };
 
 const MAX_HOURS = { hasta2: 2, hasta5: 5 } as const;
+
+const TYPE_OPTIONS: { id: FilterState['type']; label: string; desc: string; icon: typeof Zap }[] = [
+  { id: 'all', label: 'Todos', desc: 'Cualquier tipo', icon: Sparkles },
+  { id: 'fugaz', label: 'Fugaz', desc: '1 a 2 días', icon: Zap },
+  { id: 'sostenido', label: 'Sostenido', desc: 'Todas las semanas', icon: Calendar },
+];
+const MODALITY_OPTIONS: { id: FilterState['modality']; label: string; icon: typeof Zap }[] = [
+  { id: 'all', label: 'Cualquiera', icon: Sparkles },
+  { id: 'presencial', label: 'Presencial', icon: MapPin },
+  { id: 'remoto', label: 'Remoto', icon: Laptop },
+  { id: 'hibrido', label: 'Híbrido', icon: Globe },
+];
+const COST_OPTIONS: { id: FilterState['cost']; label: string; desc: string }[] = [
+  { id: 'all', label: 'Cualquiera', desc: 'Con o sin costo' },
+  { id: 'gratis', label: 'Sin costo', desc: 'No hay que pagar nada' },
+];
+const HOURS_OPTIONS: { id: FilterState['hours']; label: string; desc: string }[] = [
+  { id: 'all', label: 'Cualquiera', desc: 'Sin límite' },
+  { id: 'hasta2', label: 'Hasta 2 h por semana', desc: 'Poco tiempo' },
+  { id: 'hasta5', label: 'Hasta 5 h por semana', desc: 'Algo más' },
+];
+
+const SECTION_TITLE = 'text-[15px] font-bold';
+const HINT = 'text-[13px] leading-snug text-ink-muted';
+const OPTION = 'p-3 rounded-xl border-[1.5px] text-left transition-colors';
+const OPTION_CHOSEN = 'border-ink bg-surface-soft';
+const OPTION_IDLE = 'border-hairline bg-surface hover:border-border-strong';
 
 interface FilterModalProps {
   isOpen: boolean;
@@ -144,245 +172,122 @@ export function FilterModal({
 
   if (!isOpen) return null;
 
+  const pick = <K extends keyof FilterState>(key: K, value: FilterState[K]) => setDraft(prev => ({ ...prev, [key]: value }));
+
+  // El portal a <body> deja la hoja por encima de todo Explorar (el mapa incluido).
   return createPortal(
-    <Modal onClose={onClose} labelledBy={titleId}
-      overlayClassName="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200"
-      className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-gray-100 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200"
+    <Sheet title="Filtros" titleId={titleId} onClose={onClose}
+      footer={
+        <div className="flex items-center justify-between gap-3">
+          <Button variant="text" onClick={handleResetDraft}>Limpiar filtros</Button>
+          <Button variant="primary" onClick={handleApply}>
+            Mostrar {previewCount} {previewCount === 1 ? 'voluntariado' : 'voluntariados'}
+          </Button>
+        </div>
+      }
     >
-        {/* ── Cabecera ────────────────────────────────────────── */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
-          <div>
-            <h3 id={titleId} className="font-bold text-lg text-gray-900 leading-tight">
-              Filtros
-            </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Personalizá tu búsqueda de voluntariados
-            </p>
+      <div className="flex flex-col gap-6">
+        <p className="text-[13px] text-ink-muted -mt-1">Personalizá tu búsqueda de voluntariados</p>
+
+        <section className="flex flex-col gap-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className={SECTION_TITLE}>Categorías</h3>
+            {draft.categories.length > 0 && (
+              <span className="text-[13px] font-semibold text-ink-soft">
+                {draft.categories.length} {draft.categories.length === 1 ? 'elegida' : 'elegidas'}
+              </span>
+            )}
           </div>
-          <button
-            onClick={onClose}
-            className="w-11 h-11 flex-shrink-0 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-colors cursor-pointer"
-            title="Cerrar (Esc)"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* ── Cuerpo con Scroll ───────────────────────────────── */}
-        <div className="p-6 space-y-6 overflow-y-auto flex-1 text-sm">
-          {/* 1. Categorías de Impacto */}
-          <div>
-            <div className="flex items-center justify-between mb-2.5">
-              <p className="font-bold text-gray-900 text-sm">
-                Categorías de Impacto
-              </p>
-              {draft.categories.length > 0 && (
-                <span className="text-xs font-semibold text-ink-soft bg-surface-soft px-2 py-0.5 rounded-full">
-                  {draft.categories.length} seleccionadas
-                </span>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(CATEGORY_COLORS).map(([name, col]) => {
-                const isSelected = draft.categories.includes(name);
-                return (
-                  <button
-                    key={name}
-                    type="button"
-                    onClick={() => toggleCategory(name)}
-                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer select-none active:scale-95 ${
-                      isSelected
-                        ? 'shadow-sm text-white'
-                        : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-200 hover:border-gray-300'
-                    }`}
-                    style={
-                      isSelected
-                        ? { backgroundColor: col.bg, borderColor: col.border }
-                        : undefined
-                    }
-                  >
-                    <span
-                      className={`w-2 h-2 rounded-full shrink-0 transition-transform ${
-                        isSelected ? 'bg-white scale-125' : ''
-                      }`}
-                      style={!isSelected ? { backgroundColor: col.bg } : undefined}
-                    />
-                    <span>{name}</span>
-                    {isSelected && <Check className="w-3 h-3 ml-0.5" />}
-                  </button>
-                );
-              })}
-            </div>
+          <div className="flex flex-wrap gap-2">
+            {Object.keys(CATEGORY_COLORS).map(name => {
+              const isSelected = draft.categories.includes(name);
+              return (
+                <button key={name} type="button" aria-pressed={isSelected} onClick={() => toggleCategory(name)}
+                  className={`h-8 px-3 rounded-full text-[13px] font-semibold transition-colors active:scale-95 ${
+                    isSelected ? 'bg-ink text-on-ink' : 'bg-surface-soft text-ink hover:bg-surface-pressed'
+                  }`}>
+                  {name}
+                </button>
+              );
+            })}
           </div>
+        </section>
 
-          <hr className="border-gray-100" />
-
-          {/* 2. Tipo de Voluntariado */}
+        <section className="flex flex-col gap-2.5">
           <div>
-            <p className="font-bold text-gray-900 text-sm block mb-1">
-              Tipo de Compromiso
-            </p>
-            <p className="text-xs text-gray-500 mb-3">
-              Elegí según el tiempo y la dedicación que quieras aportar
-            </p>
-            <div className="grid grid-cols-3 gap-2.5">
-              {[
-                { id: 'all', label: 'Todos', desc: 'Cualquier tipo', icon: Sparkles },
-                { id: 'fugaz', label: 'Fugaz', desc: '1 a 2 días', icon: Zap },
-                { id: 'sostenido', label: 'Sostenido', desc: 'Continuo semanal', icon: Calendar },
-              ].map(opt => {
-                const isSelected = draft.type === opt.id;
-                const Icon = opt.icon;
-                const tone = opt.id === 'fugaz' ? 'brand' : opt.id === 'sostenido' ? 'people' : 'ink';
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setDraft(prev => ({ ...prev, type: opt.id as any }))}
-                    className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
-                      isSelected
-                        ? (tone === 'brand' ? 'border-brand bg-brand-soft ring-1 ring-brand' : tone === 'people' ? 'border-people bg-people-soft ring-1 ring-people' : 'border-ink bg-surface-soft ring-1 ring-ink')
-                        : 'border-hairline hover:border-border-strong bg-surface'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full mb-1">
-                      <Icon className={`w-4 h-4 ${opt.id === 'fugaz' ? 'text-brand-text' : opt.id === 'sostenido' ? 'text-people-text' : isSelected ? 'text-ink' : 'text-ink-muted'}`} />
-                      {isSelected && <Check className={`w-3.5 h-3.5 ${opt.id === 'fugaz' ? 'text-brand-text' : opt.id === 'sostenido' ? 'text-people-text' : 'text-ink'}`} />}
-                    </div>
-                    <div>
-                      <div className={`font-bold text-xs ${isSelected ? (opt.id === 'fugaz' ? 'text-brand-text' : opt.id === 'sostenido' ? 'text-people-text' : 'text-ink') : 'text-ink'}`}>
-                        {opt.label}
-                      </div>
-                      <div className="text-xs text-gray-400 leading-tight mt-0.5">
-                        {opt.desc}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            <h3 className={SECTION_TITLE}>Tipo</h3>
+            <p className={HINT}>Elegí según el tiempo y la dedicación que quieras aportar</p>
           </div>
+          <div className="grid grid-cols-3 gap-2">
+            {TYPE_OPTIONS.map(opt => {
+              const isSelected = draft.type === opt.id;
+              const Icon = opt.icon;
+              // El tipo lleva color (la única excepción a "azul = dinero, verde = personas"): Fugaz azul, Sostenido verde.
+              const tone = opt.id === 'fugaz' ? 'text-brand-text' : opt.id === 'sostenido' ? 'text-people-text' : 'text-ink';
+              const chosen = opt.id === 'fugaz' ? 'border-brand bg-brand-soft' : opt.id === 'sostenido' ? 'border-people bg-people-soft' : 'border-ink bg-surface-soft';
+              return (
+                <button key={opt.id} type="button" aria-pressed={isSelected} onClick={() => pick('type', opt.id)}
+                  className={`${OPTION} flex flex-col gap-1 ${isSelected ? chosen : OPTION_IDLE}`}>
+                  <span className="flex items-center justify-between w-full">
+                    <Icon size={18} strokeWidth={1.75} className={isSelected || opt.id !== 'all' ? tone : 'text-ink-muted'} aria-hidden="true" />
+                    {isSelected && <Check size={16} strokeWidth={2.25} className={tone} aria-hidden="true" />}
+                  </span>
+                  <span className={`text-[13px] font-bold ${isSelected ? tone : ''}`}>{opt.label}</span>
+                  <span className={HINT}>{opt.desc}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
-          <hr className="border-gray-100" />
+        <section className="flex flex-col gap-2.5">
+          <h3 className={SECTION_TITLE}>Modalidad</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {MODALITY_OPTIONS.map(opt => {
+              const isSelected = draft.modality === opt.id;
+              const Icon = opt.icon;
+              return (
+                <button key={opt.id} type="button" aria-pressed={isSelected} onClick={() => pick('modality', opt.id)}
+                  className={`${OPTION} flex items-center justify-center gap-1.5 text-[13px] font-semibold ${isSelected ? OPTION_CHOSEN : OPTION_IDLE}`}>
+                  <Icon size={16} strokeWidth={1.75} aria-hidden="true" />{opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
-          {/* 3. Modalidad */}
+        <section className="flex flex-col gap-2.5">
+          <h3 className={SECTION_TITLE}>Costo</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {COST_OPTIONS.map(opt => (
+              <TextOption key={opt.id} label={opt.label} desc={opt.desc} selected={draft.cost === opt.id} onClick={() => pick('cost', opt.id)} />
+            ))}
+          </div>
+        </section>
+
+        {/* Carga horaria (§283) */}
+        <section className="flex flex-col gap-2.5">
           <div>
-            <p className="font-bold text-gray-900 text-sm block mb-1">
-              Modalidad de Participación
-            </p>
-            <div className="grid grid-cols-2 gap-2.5 mt-2">
-              {[
-                { id: 'all', label: 'Cualquiera', icon: Sparkles },
-                { id: 'presencial', label: 'Presencial', icon: MapPin },
-                { id: 'remoto', label: 'Remoto', icon: Laptop },
-                { id: 'hibrido', label: 'Híbrido', icon: Globe },
-              ].map(opt => {
-                const isSelected = draft.modality === opt.id;
-                const Icon = opt.icon;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setDraft(prev => ({ ...prev, modality: opt.id as any }))}
-                    className={`p-2.5 rounded-xl border text-center flex items-center justify-center gap-1.5 transition-all cursor-pointer font-semibold text-xs ${
-                      isSelected
-                        ? 'border-ink bg-surface-soft text-ink ring-1 ring-ink'
-                        : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span>{opt.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <h3 className={SECTION_TITLE}>Carga horaria</h3>
+            <p className={HINT}>Horas por semana de los sostenidos. Los fugaces son de una sola vez: siempre aparecen.</p>
           </div>
-
-          <hr className="border-gray-100" />
-
-          {/* 4. Costo */}
-          <div>
-            <p className="font-bold text-gray-900 text-sm block mb-1">
-              Costo para el Voluntario
-            </p>
-            <div className="grid grid-cols-2 gap-2.5 mt-2">
-              {[
-                { id: 'all', label: 'Cualquiera', desc: 'Con o sin aporte' },
-                { id: 'gratis', label: '100% Gratis', desc: 'Sin arancel ni costo' },
-              ].map(opt => {
-                const isSelected = draft.cost === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setDraft(prev => ({ ...prev, cost: opt.id as any }))}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                      isSelected
-                        ? 'border-ink bg-surface-soft text-ink ring-1 ring-ink'
-                        : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
-                    }`}
-                  >
-                    <div className="font-bold text-xs">{opt.label}</div>
-                    <div className="text-xs text-gray-400 mt-0.5">{opt.desc}</div>
-                  </button>
-                );
-              })}
-            </div>
+          <div className="grid grid-cols-3 gap-2">
+            {HOURS_OPTIONS.map(opt => (
+              <TextOption key={opt.id} label={opt.label} desc={opt.desc} selected={draft.hours === opt.id} onClick={() => pick('hours', opt.id)} />
+            ))}
           </div>
-
-          <hr className="border-gray-100" />
-
-          {/* 5. Carga horaria (§283) */}
-          <div>
-            <p className="font-bold text-gray-900 text-sm block mb-1">Carga horaria</p>
-            <p className="text-xs text-gray-400">Horas por semana de los sostenidos. Los fugaces son de una sola vez: siempre aparecen.</p>
-            <div className="grid grid-cols-3 gap-2.5 mt-2">
-              {[
-                { id: 'all', label: 'Cualquiera', desc: 'Sin límite' },
-                { id: 'hasta2', label: 'Hasta 2 h por semana', desc: 'Poco tiempo' },
-                { id: 'hasta5', label: 'Hasta 5 h por semana', desc: 'Algo más' },
-              ].map(opt => {
-                const isSelected = draft.hours === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    aria-pressed={isSelected}
-                    onClick={() => setDraft(prev => ({ ...prev, hours: opt.id as FilterState['hours'] }))}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                      isSelected
-                        ? 'border-ink bg-surface-soft text-ink ring-1 ring-ink'
-                        : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
-                    }`}
-                  >
-                    <div className="font-bold text-xs">{opt.label}</div>
-                    <div className="text-xs text-gray-400 mt-0.5">{opt.desc}</div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Pie de Acción Fijo ──────────────────────────────── */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/80 shrink-0 gap-3">
-          <button
-            type="button"
-            onClick={handleResetDraft}
-            className="text-xs font-bold text-gray-600 hover:text-gray-900 underline cursor-pointer px-2 py-1"
-          >
-            Limpiar filtros
-          </button>
-
-          <button
-            type="button"
-            onClick={handleApply}
-            className="bg-ink hover:opacity-90 text-on-ink font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm transition-all shadow-sm active:scale-95 cursor-pointer flex items-center gap-2"
-          >
-            <span>Mostrar {previewCount} voluntariados</span>
-          </button>
-        </div>
-    </Modal>,
+        </section>
+      </div>
+    </Sheet>,
     document.body
+  );
+}
+
+function TextOption({ label, desc, selected, onClick }: { label: string; desc: string; selected: boolean; onClick: () => void }) {
+  return (
+    <button type="button" aria-pressed={selected} onClick={onClick} className={`${OPTION} flex flex-col gap-0.5 ${selected ? OPTION_CHOSEN : OPTION_IDLE}`}>
+      <span className="text-[13px] font-bold">{label}</span>
+      <span className={HINT}>{desc}</span>
+    </button>
   );
 }

@@ -32,7 +32,7 @@ describe('Hoja de reseñas: el promedio', () => {
   test('con decimales va con coma: 5 y 4 dan "4,5"', async () => {
     vi.mocked(api.projects.get).mockResolvedValue({ project: { ratings: [rating('a', 5), rating('b', 4)] } } as never);
     open();
-    const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    const d = await screen.findByRole('dialog', { name: 'Reseñas' });
     expect(await within(d).findByText('4,5')).toBeInTheDocument();
     expect(within(d).queryByText('4.5')).not.toBeInTheDocument();
   });
@@ -40,7 +40,7 @@ describe('Hoja de reseñas: el promedio', () => {
   test('entero también lleva un decimal: "5,0"', async () => {
     vi.mocked(api.projects.get).mockResolvedValue({ project: { ratings: [rating('a', 5)] } } as never);
     open();
-    const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    const d = await screen.findByRole('dialog', { name: 'Reseñas' });
     expect(await within(d).findByText('5,0')).toBeInTheDocument();
   });
 });

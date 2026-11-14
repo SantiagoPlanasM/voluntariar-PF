@@ -1042,3 +1042,42 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - Los nombres "KPI" de los controles no se cambiaron a "indicador": la pantalla se llama "Impacto" y adentro dice "KPI".
 - El aviso del mapa ampliado (sin test) y el contraste de las pantallas nuevas (los tokens usados están entre los que mide `paletteContrast.test.ts`, pero no se midió la pantalla).
 - Producción: sin desplegar al escribir esto.
+
+## 340. Reseñas y filtros como hojas (T9)
+
+### Qué se hizo
+- §339 quedó en producción antes de empezar (`dbd1e59`, CI #97, Deploy #93 con smoke y E2E, SonarCloud en OK con 0 issues). El usuario dejó elegir la tanda: T9 de la revisión contra `DESIGN.md` (inventario I1). Solo frontend; la lógica de las dos pantallas (cargar, calificar, filtrar) no cambió.
+- Los dos eran diálogos armados a mano sobre `Modal`. Ahora usan **`Sheet`**: hoja inferior en el celular y diálogo de 480 px en escritorio, con la cabecera, el "Cerrar" de 44 px y el pie fijo del componente.
+- **`ReviewsModal`:**
+  - Se titula "Reseñas" (antes "Reseñas y Calificaciones") y tiene un solo "Cerrar" (había dos: la cruz y un botón al pie).
+  - El promedio va en grande con las estrellas y la cantidad. Se fue la caja amarilla con el chip "Excelente / Muy bueno / Aceptable / Sin calificar".
+  - La lista se titula "Reseñas de personas que participaron". Cada reseña: `Avatar`, nombre, **"Participó en <voluntariado> · <mes y año>"** y las estrellas, que se leen como "4 de 5". El mes y el año salen de la fecha de la reseña (`formatMonthYear`, nuevo en `lib/format.ts`: "abril 2026"); si la fecha no sirve, va solo el voluntariado.
+  - Se fue el chip "Participó" con color fijo (`#e4f1e0`/`#255f24`, hallazgo B6) y toda la paleta vieja: estrellas con el token `star`, campos y botón con los estilos comunes (`ui/Button`, "Guardando…").
+  - Carga con esqueleto; el aviso de que se guardó tiene `role="status"` y dice "Tu reseña se guardó."
+- **`FilterModal`:**
+  - Títulos de sección sin mayúsculas de título: "Categorías", "Tipo", "Modalidad", "Costo", "Carga horaria".
+  - La categoría elegida va en `bg-ink text-on-ink`. Antes llevaba el color en `style` (`#0F1419`) con `text-white`, y el punto de cada categoría no se veía en oscuro (parte de D35).
+  - Todas las opciones llevan `aria-pressed` (solo las de carga horaria lo tenían).
+  - El botón cuenta bien: "Mostrar 1 voluntariado" (decía "1 voluntariados"). "100% Gratis" pasó a "Sin costo", como en el resto de la app.
+  - Sigue en un portal a `<body>`.
+- Docs: `FRONTEND_CONTEXT.md`, `PLAN_FEBRERO.md` y `CLAUDE.md` (conteos).
+
+### Verificación
+- Rojo → verde: fallaban antes del código los 3 tests de `formatMonthYear` (la función no existía: rojo débil), 9 de los 10 primeros tests de `ReviewsModalSheet.test.tsx`, 8 de los 9 de `FilterModalSheet.test.tsx` (en los dos, el que pasaba es "cerrada no dibuja nada") y 4 de `ExploreScreen.test.tsx` por los nombres cambiados. Además se renombró el diálogo en 22 lugares de 4 archivos de test.
+- Frontend: **1594**/1594 (antes 1571; +23), `typecheck` sin errores. Cobertura: sentencias 92,62 %, ramas 89,20 %, funciones 90,03 %, líneas 94,95 %.
+- `npm audit`: 0 en los dos paquetes.
+- Mutación (36 mutantes, con corrida de control en verde): 35 muertos en la primera pasada; el vivo (las estrellas del promedio con un valor fijo) se cubrió con un test más.
+- Saltos de línea sin cambios en los archivos que ya existían.
+- Backend: no se tocó y no se corrió.
+
+### Errores propios
+- La primera versión de los tests de reseñas no miraba las estrellas del promedio (el mutante vivo).
+
+### ⚠️ NO verificado
+- **Nada se vio en un navegador.** Lo que más importa: que la hoja de filtros quede **por encima del mapa** de Explorar. Antes el diálogo usaba `z-[9999]` y ahora la hoja usa el `z-50` de `Sheet`; el mapa de Leaflet vive en su propio contexto (`z-0`), así que por código debería quedar debajo, pero no se vio.
+- La hoja en el celular (altura, arrastre, el pie con los dos botones a 375 px) y en oscuro.
+- **"<mes y año>" es la fecha de la reseña, no la de la participación** (el backend no manda cuándo participó). El diseño dice "Participó en … · abril 2026".
+- El mutante "una fecha sin hora tomada como UTC" murió en esta máquina (Córdoba); en una máquina en UTC ese test pasa igual con el mutante. El CI corre en los dos husos.
+- Las opciones de costo siguen siendo dos ("Cualquiera" y "Sin costo"): el filtro `pago` existe en `filterProjects` y no tiene botón (ya era así).
+- `CATEGORY_COLORS` de `ProjectMap` se sigue usando solo por sus nombres (los colores sobran; es de T10).
+- Producción: sin desplegar al escribir esto.

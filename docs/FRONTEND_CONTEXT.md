@@ -83,7 +83,7 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
 - **`MainFeed`:** usa `/api/follows/feed`. Con un error muestra "Reintentar", nunca el estado vacío. Cada voluntariado es un `FeedPostCard` (like, comentar, inscribirse, reseñas). La barra de escritorio, `FeedSidebar`, solo presenta: el error de las sugerencias y el de seguir le llegan por props.
 - **`ExploreScreen`:** pide `limit: 500` (`EXPLORE_LIMIT`) y filtra en el navegador. Si la respuesta viene llena, avisa.
   - "Para vos" muestra hasta 6, y la lista general saca solo esas.
-  - Filtros: `FilterModal` / `filterProjects()` (categoría, tipo, modalidad, costo y carga horaria de 2 o 5 h por semana; los fugaces siempre pasan). Compara con `normalizeText`.
+  - Filtros: `FilterModal` / `filterProjects()` (categoría, tipo, modalidad, costo y carga horaria de 2 o 5 h por semana; los fugaces siempre pasan). Compara con `normalizeText`. La hoja es una `Sheet`: cada opción lleva `aria-pressed`, la categoría elegida va en `bg-ink text-on-ink` (sin colores en `style`) y el botón cuenta en singular y plural ("Mostrar 1 voluntariado").
   - Con error, no dibuja el mapa.
 - **`ProjectMap`** (Leaflet + OpenStreetMap, `lib/mapTiles.ts`):
   - Un proyecto sin coordenadas va a un punto de respaldo estable, que sale del hash de su id. Los remotos no van al mapa (`isRemote`).
@@ -109,7 +109,7 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
 - **`VolunteerProfile`:** habilidades con nivel. Si falla una carga, muestra "—" y no pisa las habilidades al guardar. La foto de una persona es siempre `avatar`, nunca `foto_perfil`.
 - **`ProfilePhotoPicker`:** comprime (`compressImage`), sube con `api.auth.uploadPhoto` y actualiza la sesión (`updateUser`).
 - **`NotificationsScreen`:** usa `unread` del backend. Con la pantalla abierta, un aviso del servidor (`notificationTick`) trae la lista de nuevo, sin esqueleto; si ese pedido falla, queda lo que se veía. `notificationHref(n, role)` lleva a la pantalla de cada aviso: entrevistas a `/participation`, donaciones recibidas o revertidas (`donation_reversed`) al voluntariado en el panel de la ONG acuerdos a su pantalla según el rol y la validación de la ONG (`ngo_validation_approved`/`_rejected`) a `/ngo/validacion`.
-- **`ReviewsModal`:** reseñas y formulario. Cada vez que se abre pide `GET /api/projects/:id`.
+- **`ReviewsModal`:** reseñas y formulario, en una `Sheet` titulada "Reseñas". Cada vez que se abre pide `GET /api/projects/:id`. Arriba el promedio en grande; la lista, "Reseñas de personas que participaron", con `Avatar` y "Participó en <voluntariado> · <mes y año>" (`formatMonthYear` sobre la fecha de la reseña). Estrellas con el token `star` y nombre accesible ("4 de 5").
 - **`DonateModal`:** monto inicial $ 2.500, con atajos de $ 1.000 a $ 10.000 y "Otro monto". Valida con `checkDonationAmount` y redirige a `checkout_url`.
 - **`DonationReturn`:** lo que muestra lo decide el backend, que concilia el pago. Si está pendiente, vuelve a preguntar hasta 5 veces cada 3 s.
 - **Cuenta:**
@@ -225,6 +225,7 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
 - **`lib/format.ts`:**
   - `parseBackendDate`: toda fecha del backend pasa por acá; la usan `timeAgo` y `formatTime`.
   - `formatDateOnly`: fechas sin hora, nunca `new Date("YYYY-MM-DD")`.
+  - `formatMonthYear`: "abril 2026" (sin "de"); "" si no es una fecha.
   - `formatMoney`: la única forma de escribir plata (`$ 32.000`, espacio duro, `es-AR`, centavos solo si los hay).
   - `normalizeText`, `compactNumber`, `truncateText`, `userMessage(err, respaldo)` y `FOLLOW_ERROR`.
 - **Otros de `lib/`:**

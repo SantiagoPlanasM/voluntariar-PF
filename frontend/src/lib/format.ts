@@ -57,6 +57,15 @@ export function formatDateOnly(value: string): string {
   return Number.isNaN(ms) ? '' : new Date(ms).toLocaleDateString('es-AR', opts);
 }
 
+/** Mes y año de una fecha del backend, como "abril 2026" (sin "de"); "" si no es una fecha. Una fecha sin hora
+ *  ("YYYY-MM-DD") se toma como local, igual que en `formatDateOnly`. */
+export function formatMonthYear(value: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  const date = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(parseBackendDate(value));
+  if (Number.isNaN(date.getTime())) return '';
+  return `${date.toLocaleDateString('es-AR', { month: 'long' })} ${date.getFullYear()}`;
+}
+
 /** Recorta un texto largo para mostrarlo con "ver más". Corta por cantidad de caracteres (`max`) y también
  *  por cantidad de líneas (`maxLines`): un texto cortito pero con muchos saltos de línea ocupa mucho alto.
  *  Corta en el límite de una palabra (salvo que la primera palabra sea larguísima) y agrega "…". */

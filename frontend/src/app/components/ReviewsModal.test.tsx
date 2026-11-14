@@ -55,7 +55,7 @@ describe('Feed: reabrir las reseñas después de calificar (S3)', () => {
     render(<MemoryRouter><FeedPostCard project={feedProject as never} /></MemoryRouter>);
 
     fireEvent.click(screen.getByRole('button', { name: /Ver reseñas/ }));
-    let d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    let d = await screen.findByRole('dialog', { name: 'Reseñas' });
     await waitFor(() => expect(within(d).getByRole('button', { name: /Publicar reseña/ })).toBeEnabled());
     fireEvent.click(within(d).getByRole('button', { name: '3 estrellas' }));
     fireEvent.change(within(d).getByRole('textbox', { name: 'Tu reseña' }), { target: { value: 'Faltó organización' } });
@@ -67,7 +67,7 @@ describe('Feed: reabrir las reseñas después de calificar (S3)', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Ver reseñas/ }));
-    d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    d = await screen.findByRole('dialog', { name: 'Reseñas' });
     expect(await within(d).findByText('2 reseñas en total')).toBeInTheDocument();
     expect(within(d).getByText('Faltó organización', { selector: 'p' })).toBeInTheDocument();
     // El promedio del modal sale de la lista actualizada (5 y 3), no de la vieja (solo el 5).
@@ -78,7 +78,7 @@ describe('Feed: reabrir las reseñas después de calificar (S3)', () => {
     vi.mocked(api.projects.get).mockReturnValue(new Promise(() => {}) as never);
     render(<MemoryRouter><FeedPostCard project={feedProject as never} /></MemoryRouter>);
     fireEvent.click(screen.getByRole('button', { name: /Ver reseñas/ }));
-    const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    const d = await screen.findByRole('dialog', { name: 'Reseñas' });
     expect(within(d).getByText('Muy bueno')).toBeInTheDocument();
     expect(api.projects.get).toHaveBeenCalledWith('proj-1');
   });
@@ -94,7 +94,7 @@ describe('Volver a calificar: se precarga la reseña propia (S4)', () => {
   test('si ya calificó: estrellas y comentario propios, "Actualizar reseña" y aviso de que ya calificó', async () => {
     vi.mocked(api.projects.get).mockResolvedValue({ project: { ratings: [juan, mia] } } as never);
     openRating();
-    const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    const d = await screen.findByRole('dialog', { name: 'Reseñas' });
     expect(await within(d).findByRole('button', { name: /Actualizar reseña/ })).toBeEnabled();
     expect(within(d).queryByRole('button', { name: /Publicar reseña/ })).not.toBeInTheDocument();
     expect(within(d).getByText(/Ya calificaste este voluntariado/)).toBeInTheDocument();
@@ -107,7 +107,7 @@ describe('Volver a calificar: se precarga la reseña propia (S4)', () => {
     vi.mocked(api.projects.get).mockResolvedValue({ project: { ratings: [juan, mia] } } as never);
     vi.mocked(api.projects.rate).mockResolvedValue({ message: 'ok' } as never);
     openRating();
-    const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    const d = await screen.findByRole('dialog', { name: 'Reseñas' });
     fireEvent.click(await within(d).findByRole('button', { name: /Actualizar reseña/ }));
     await waitFor(() => expect(api.projects.rate).toHaveBeenCalledWith('proj-1', 3, 'Faltó organización'));
     expect(await within(d).findByText(/se guardó/)).toBeInTheDocument();
@@ -117,7 +117,7 @@ describe('Volver a calificar: se precarga la reseña propia (S4)', () => {
   test('si no calificó (solo hay reseñas de otros): 5 ★, vacío y "Publicar reseña", sin aviso', async () => {
     vi.mocked(api.projects.get).mockResolvedValue({ project: { ratings: [juan] } } as never);
     openRating();
-    const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    const d = await screen.findByRole('dialog', { name: 'Reseñas' });
     expect(await within(d).findByText('Muy bueno')).toBeInTheDocument();
     expect(within(d).getByRole('button', { name: /Publicar reseña/ })).toBeEnabled();
     expect(within(d).queryByText(/Ya calificaste/)).not.toBeInTheDocument();
@@ -129,7 +129,7 @@ describe('Volver a calificar: se precarga la reseña propia (S4)', () => {
     auth.user = null;
     vi.mocked(api.projects.get).mockResolvedValue({ project: { ratings: [mia] } } as never);
     openRating();
-    const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    const d = await screen.findByRole('dialog', { name: 'Reseñas' });
     expect(await within(d).findByText('Faltó organización')).toBeInTheDocument();
     expect(within(d).getByRole('button', { name: /Publicar reseña/ })).toBeInTheDocument();
     expect(within(d).getByRole('textbox', { name: 'Tu reseña' })).toHaveValue('');
@@ -141,7 +141,7 @@ describe('Volver a calificar: se precarga la reseña propia (S4)', () => {
     const deFeed = [{ id: 'r1', user_name: 'Juan Pérez', rating: 4, comment: 'Me encantó', created_at: '2026-10-10 12:00:00' }];
     render(<MemoryRouter><ReviewsModal isOpen onClose={() => {}} projectId="proj-1" projectTitle="Reforestación"
       initialRatings={deFeed as never} canRate /></MemoryRouter>);
-    const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    const d = await screen.findByRole('dialog', { name: 'Reseñas' });
     expect(within(d).getByText('Me encantó')).toBeInTheDocument();
     expect(within(d).queryByText(/Ya calificaste/)).not.toBeInTheDocument();
     expect(within(d).getByRole('button', { name: /Publicar reseña/ })).toBeInTheDocument();
@@ -153,7 +153,7 @@ describe('Volver a calificar: se precarga la reseña propia (S4)', () => {
       : { project: { ratings: [] } }) as never);
     vi.mocked(api.projects.rate).mockResolvedValue({ message: 'ok' } as never);
     openRating();
-    const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    const d = await screen.findByRole('dialog', { name: 'Reseñas' });
     await waitFor(() => expect(within(d).getByRole('button', { name: /Publicar reseña/ })).toBeEnabled());
     fireEvent.click(within(d).getByRole('button', { name: '4 estrellas' }));
     fireEvent.change(within(d).getByRole('textbox', { name: 'Tu reseña' }), { target: { value: '  Mejoró  ' } });
@@ -173,11 +173,11 @@ describe('Volver a calificar: se precarga la reseña propia (S4)', () => {
         initialRatings={initialRatings} canRate /></MemoryRouter>
     );
     const { rerender } = render(view('proj-1'));
-    const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    const d = await screen.findByRole('dialog', { name: 'Reseñas' });
     expect(await within(d).findByRole('textbox', { name: 'Tu reseña' })).toHaveValue('Faltó organización');
 
     rerender(view('proj-2', [otra]));
-    const d2 = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    const d2 = await screen.findByRole('dialog', { name: 'Reseñas' });
     expect(await within(d2).findByText('Otra cosa')).toBeInTheDocument();
     expect(within(d2).queryByText('Muy bueno')).not.toBeInTheDocument();
     expect(within(d2).getByRole('button', { name: '5 estrellas' })).toHaveAttribute('aria-pressed', 'true');
@@ -188,7 +188,7 @@ describe('Volver a calificar: se precarga la reseña propia (S4)', () => {
     vi.mocked(api.projects.get).mockResolvedValue({ project: { ratings: [] } } as never);
     vi.mocked(api.projects.rate).mockRejectedValue(new ApiError('El comentario contiene palabras no permitidas', 400));
     openRating();
-    const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    const d = await screen.findByRole('dialog', { name: 'Reseñas' });
     await waitFor(() => expect(within(d).getByRole('button', { name: /Publicar reseña/ })).toBeEnabled());
     expect(within(d).queryByRole('alert')).not.toBeInTheDocument();
     fireEvent.click(within(d).getByRole('button', { name: /Publicar reseña/ }));
@@ -199,7 +199,7 @@ describe('Volver a calificar: se precarga la reseña propia (S4)', () => {
     let resolve!: (v: unknown) => void;
     vi.mocked(api.projects.get).mockReturnValue(new Promise(r => { resolve = r; }) as never);
     openRating();
-    const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    const d = await screen.findByRole('dialog', { name: 'Reseñas' });
     expect(within(d).getByRole('button', { name: /Publicar reseña/ })).toBeDisabled();
     resolve({ project: { ratings: [mia] } });
     expect(await within(d).findByRole('button', { name: /Actualizar reseña/ })).toBeEnabled();
@@ -212,7 +212,7 @@ describe('ReviewsModal: error al cargar las reseñas (S1)', () => {
       .mockRejectedValueOnce(new ApiError('Error al obtener el proyecto', 500))
       .mockResolvedValueOnce({ project: { ratings: [juan] } } as never);
     open();
-    const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    const d = await screen.findByRole('dialog', { name: 'Reseñas' });
     expect(await within(d).findByText('Error al obtener el proyecto')).toBeInTheDocument();
     // Se anuncia a los lectores de pantalla (S10).
     expect(within(d).getByRole('alert')).toHaveTextContent('Error al obtener el proyecto');
@@ -229,7 +229,7 @@ describe('ReviewsModal: error al cargar las reseñas (S1)', () => {
   test('sin conexión (fetch tira TypeError): mensaje en español, no el texto técnico', async () => {
     vi.mocked(api.projects.get).mockRejectedValueOnce(new TypeError('Failed to fetch'));
     open();
-    const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    const d = await screen.findByRole('dialog', { name: 'Reseñas' });
     expect(await within(d).findByText('No pudimos cargar las reseñas. Revisá tu conexión.')).toBeInTheDocument();
     expect(within(d).queryByText('Failed to fetch')).not.toBeInTheDocument();
     expect(within(d).queryByText('Sin reseñas todavía')).not.toBeInTheDocument();
@@ -238,7 +238,7 @@ describe('ReviewsModal: error al cargar las reseñas (S1)', () => {
   test('si de verdad no hay reseñas, sigue diciendo "Sin reseñas todavía" (sin error)', async () => {
     vi.mocked(api.projects.get).mockResolvedValueOnce({ project: { ratings: [] } } as never);
     open();
-    const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    const d = await screen.findByRole('dialog', { name: 'Reseñas' });
     expect(await within(d).findByText('Sin reseñas todavía')).toBeInTheDocument();
     expect(within(d).queryByRole('button', { name: /Reintentar/ })).not.toBeInTheDocument();
   });

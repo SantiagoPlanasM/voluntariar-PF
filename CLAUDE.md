@@ -20,7 +20,7 @@ Respondé en español rioplatense (voseo).
   - `test:pg` necesita Postgres en `localhost:5432` (`TEST_PG_*` en `helpers.js`): `docker run --rm -d -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=voluntariar_test postgres:18` (la versión de producción).
   - `email-redos.test.js` tiene 1500 ms de umbral (con 500 fallaba a veces en local).
   - Scripts del CI aparte: `node --test ".github/scripts/*.test.js"` (con comillas).
-- **Frontend:** `npm test`, **solo** (a la par de las suites del backend varios pasan los 5 s). Hoy **1571** tests; cobertura: sentencias 92,58 %, ramas 89,16 %, funciones 89,96 %, líneas 94,92 % (`npm run test:coverage`, reportes en `frontend/reports/`).
+- **Frontend:** `npm test`, **solo** (a la par de las suites del backend varios pasan los 5 s). Hoy **1594** tests; cobertura: sentencias 92,62 %, ramas 89,20 %, funciones 90,03 %, líneas 94,95 % (`npm run test:coverage`, reportes en `frontend/reports/`).
   - Tipos: `npm run typecheck` (TypeScript 7), **0 errores**. Nunca `npx tsc`: el paquete `tsc` de npm no es TypeScript.
   - `src/styles/paletteContrast.test.ts` exige 4,5:1 a todo `text-white` sobre la paleta y a los textos de color, en claro y oscuro. Para texto: `text-people-text`/`text-brand-text`, no `text-people`/`text-brand`. Sobre `bg-ink`/`bg-critical`: `text-on-ink`, no `text-white`.
   - `src/app/layout/pageWidth.test.ts`: toda raíz de pantalla con `mx-auto` lleva `w-full` (si no, scroll horizontal a 375 px).

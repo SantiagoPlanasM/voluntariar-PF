@@ -249,8 +249,8 @@ describe('ExploreScreen: búsqueda y filtros', () => {
     fireEvent.click(within(modal).getByRole('button', { name: /^Educación/ }));
     fireEvent.click(within(modal).getByRole('button', { name: /Sostenido/ }));
     fireEvent.click(within(modal).getByRole('button', { name: /Remoto/ }));
-    fireEvent.click(within(modal).getByRole('button', { name: /100% Gratis/ }));
-    fireEvent.click(within(modal).getByRole('button', { name: /Mostrar 1 voluntariados/ }));
+    fireEvent.click(within(modal).getByRole('button', { name: /^Sin costo/ }));
+    fireEvent.click(within(modal).getByRole('button', { name: 'Mostrar 1 voluntariado' }));
   };
 
   beforeEach(() => {
@@ -350,7 +350,7 @@ describe('ExploreScreen: búsqueda y filtros', () => {
     fireEvent.click(filtros());
     const modal = await screen.findByRole('dialog');
     fireEvent.click(within(modal).getByRole('button', { name: /Sostenido/ }));
-    fireEvent.click(within(modal).getByTitle('Cerrar (Esc)'));
+    fireEvent.click(within(modal).getByRole('button', { name: 'Cerrar' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.queryByRole('button', { name: 'Quitar filtro de tipo' })).not.toBeInTheDocument();
     // Con un filtro aplicado, "Limpiar filtros" del modal lo quita

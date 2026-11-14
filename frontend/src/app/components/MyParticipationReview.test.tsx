@@ -43,7 +43,7 @@ describe('Mis participaciones: reseña', () => {
     // Rediseño (§240): la reseña está en la pestaña Realizados (aprobada en un voluntariado que ya no está activo).
     fireEvent.click(await screen.findByRole('tab', { name: /Realizados/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Dejá tu reseña' }));
-    const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    const d = await screen.findByRole('dialog', { name: 'Reseñas' });
     expect(await within(d).findByText('Muy bueno')).toBeInTheDocument();
     fireEvent.click(within(d).getByRole('button', { name: '4 estrellas' }));
     fireEvent.change(within(d).getByRole('textbox', { name: 'Tu reseña' }), { target: { value: 'Aprendí un montón' } });

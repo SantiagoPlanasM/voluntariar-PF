@@ -77,10 +77,10 @@ describe('ReviewsModal', () => {
       initialRatings={[]} canRate onReviewAdded={() => {}} />
   );
 
-  test('diálogo "Reseñas y Calificaciones", el foco entra y Escape cierra', async () => {
+  test('diálogo "Reseñas", el foco entra y Escape cierra', async () => {
     const onClose = vi.fn();
     render(<MemoryRouter>{reviews(onClose)}</MemoryRouter>);
-    const d = await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    const d = await screen.findByRole('dialog', { name: 'Reseñas' });
     expect(d.contains(document.activeElement)).toBe(true);
     fireEvent.keyDown(document.body, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -89,7 +89,7 @@ describe('ReviewsModal', () => {
   test('con el login abierto ENCIMA (sin sesión, "calificar" lo abre), Escape cierra solo el login', async () => {
     const onClose = vi.fn();
     const { rerender } = render(<MemoryRouter>{reviews(onClose)}<AuthModal /></MemoryRouter>);
-    await screen.findByRole('dialog', { name: 'Reseñas y Calificaciones' });
+    await screen.findByRole('dialog', { name: 'Reseñas' });
     auth.showAuthModal = true;
     rerender(<MemoryRouter>{reviews(onClose)}<AuthModal /></MemoryRouter>);
     expect(screen.getByRole('dialog', { name: 'Iniciar sesión' })).toBeInTheDocument();
