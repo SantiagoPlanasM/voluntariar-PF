@@ -199,7 +199,7 @@ En este orden:
      - [x] **T6, segunda parte** (§335, 13/11): el avatar de la cuenta de una ONG o una empresa muestra el logo
        (o las iniciales) de la organización, con `account` en `AuthContext`; y esqueletos en vez de spinner a
        pantalla completa en `CreateVoluntariado`, `CompanyOwnProfile`, `NGOProjectDetail`, `TeamPanel` y
-       `RequireRole`. **Commit local, sin push** (falta el OK del usuario).
+       `RequireRole`. En producción (`263989e`, CI #93, Deploy #89, SonarCloud en OK con 0 issues).
      - **Lo próximo:** la tanda que elija el usuario (T5, T7–T13 de la
        [página de tandas](https://claude.ai/artifact/5FLvxTAFSd629UcB8X59x2)); es deuda de diseño, no defectos.
        Si no elige, el punto 3 (notificaciones instantáneas).
