@@ -10,6 +10,7 @@ import { Link, MemoryRouter, Routes, Route, useNavigate } from 'react-router';
 const { auth, chat } = vi.hoisted(() => ({
   auth: {
     user: null as null | Record<string, unknown>,
+    account: null as null | { name: string; avatar: string | null },
     logout: vi.fn(), openAuthModal: vi.fn(),
   },
   chat: { unreadTotal: 0 },
@@ -52,6 +53,7 @@ const labels = (nav: HTMLElement) => within(nav).getAllByRole('link').concat(wit
 
 beforeEach(() => {
   as('volunteer');
+  auth.account = null;
   chat.unreadTotal = 0;
   auth.logout.mockReset();
   auth.openAuthModal.mockReset();
@@ -216,6 +218,44 @@ describe('<AppShell />', () => {
     const ring = perfil.querySelector('[data-initial]')!.parentElement!;
     expect(ring.className).toContain('ring-2');
     expect(ring.className).toContain('rounded-full');
+  });
+
+  // T6 (§335, hallazgo C9): en una ONG o una empresa, `user` es la persona que se registró ("Ana Pérez"). El avatar
+  // de la cuenta es el de la organización (`account`, de /auth/me): su logo o las iniciales de su nombre.
+  test('ONG con logo: el avatar de la cuenta es el logo de la organización, cuadrado', () => {
+    as('ngo');
+    auth.account = { name: 'Sustentando', avatar: 'https://img.test/logo.png' };
+    app('/ngo/profile');
+    const perfil = within(tabBar()).getByRole('link', { name: 'Perfil' });
+    const img = perfil.querySelector('img')!;
+    expect(img).toHaveAttribute('src', 'https://img.test/logo.png');
+    expect(img.style.borderRadius).toBe('28%');
+    expect(perfil).not.toHaveTextContent('AP');
+    // También en la barra lateral (el grupo "Mi ONG").
+    expect(within(sideBar()).getByRole('button', { name: 'Mi ONG' }).querySelector('img')).toHaveAttribute('src', 'https://img.test/logo.png');
+  });
+
+  test('empresa sin logo: las iniciales de la empresa, no las de la persona', () => {
+    as('company');
+    auth.account = { name: 'TechCorp', avatar: null };
+    app('/company/dashboard');
+    const perfil = within(tabBar()).getByRole('link', { name: 'Perfil' });
+    expect(perfil).toHaveTextContent('TE');
+    expect(perfil).not.toHaveTextContent('AP');
+  });
+
+  test('ONG sin `account` todavía (o si /auth/me falló): las iniciales del usuario, como antes', () => {
+    as('ngo');
+    app('/ngo/dashboard');
+    expect(within(tabBar()).getByRole('link', { name: 'Perfil' })).toHaveTextContent('AP');
+  });
+
+  test('un voluntario se dibuja siempre con su propia foto, aunque quede un `account` colgado', () => {
+    auth.account = { name: 'Sustentando', avatar: 'https://img.test/logo.png' };
+    app('/feed');
+    const perfil = within(tabBar()).getByRole('link', { name: 'Perfil' });
+    expect(perfil).toHaveTextContent('AP');
+    expect(perfil.querySelector('img')).toBeNull();
   });
 
   test('el botón de tema cambia a oscuro y lo recuerda', () => {

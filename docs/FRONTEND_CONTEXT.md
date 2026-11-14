@@ -22,7 +22,7 @@ main.tsx: StrictMode > AuthProvider > ChatProvider > UiProvider > RouterProvider
   ancla, y el mismo destino sin ancla (Perfil) deja de marcarse cuando hay una.
 - **Contadores (`useBadges` en `AppShell`):** Mensajes (no leídos del chat), Notificaciones (`GET /notifications`) y, solo para el voluntario, **Perfil** con las invitaciones a equipos sin responder (`GET /equipo/mias`). Los dos pedidos se repiten al cambiar de pantalla; si fallan, no hay contador.
 - **`ScrollToTop`:** una navegación nueva vuelve arriba; "atrás" y los `#ancla`, no.
-- **`RequireRole`:** muestra "cargando" mientras verifica. Sin sesión, va al inicio con el login abierto; con otro rol, al inicio de ese rol (`homeFor`). Es solo experiencia de uso: la autorización está en el backend.
+- **`RequireRole`:** muestra un esqueleto ("Verificando sesión") mientras verifica. Sin sesión, va al inicio con el login abierto; con otro rol, al inicio de ese rol (`homeFor`). Es solo experiencia de uso: la autorización está en el backend.
 
 ```
 frontend/src/
@@ -200,8 +200,9 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
 
 ## 4. Contextos y cliente HTTP
 
-- **`AuthContext`** (`useAuth`): `user`, `token`, `initializing`, `isAdmin`, `login`, `register`, `googleLogin`, `googleRegister`, `logout`, `updateUser`, `openAuthModal(mode)`, `closeAuthModal`.
+- **`AuthContext`** (`useAuth`): `user`, `token`, `initializing`, `isAdmin`, `account`, `login`, `register`, `googleLogin`, `googleRegister`, `logout`, `updateUser`, `openAuthModal(mode)`, `closeAuthModal`.
   - `isAdmin` sale de `is_admin` de `GET /auth/me`: al montar y, después de entrar (el login no lo trae), con un pedido aparte que no se espera. Una respuesta que llega después de `logout` no cuenta. Es cosmético: solo muestra el link al panel.
+  - `account` es la organización de una ONG o una empresa: `{ name, avatar }`, de `profile.nombre` y `profile.foto_perfil` de `GET /auth/me`. Llega junto con `isAdmin` (mismo pedido, mismas reglas). Es `null` para un voluntario, hasta que responde `/auth/me` y si falla. `updateUser` (cambio de foto) le cambia el `avatar`; cambiar el nombre de la organización no lo actualiza hasta recargar. No se guarda en `localStorage`.
   - Al montar, revalida con `GET /auth/me`. Cierra la sesión **solo** ante un 401 o 404; con otros errores (por ejemplo, un 502 de Render dormido) conserva `v_user`.
   - `logout` solo borra `v_token` y `v_user`: el token no se invalida en el servidor.
 - **`ChatContext`** (`useChat`): `conversations`, `unreadTotal`, `connected`, `refreshConversations`, `onMessage(cb)`.
@@ -272,7 +273,8 @@ Al iniciar sesión, la ONG va a `/ngo/dashboard`, la empresa a `/company/profile
 - **Pie fijo de `CreateVoluntariado`** (`app/layout/fixedFooter.test.ts`): usa las medidas de `AppShell` (barra lateral de 72 y 244 px, barra inferior de `56px + área segura`). Si cambian en `AppShell`, el test obliga a cambiarlas en el pie.
 - **Plata y promedios:** montos con `formatMoney` (`$ 8.500`), nunca `toLocaleString()` sin `es-AR`; promedios con coma (`4,5`).
 - **Reglas chicas** (`app/layout/designRules.test.ts`, mira el código de toda la app): el `Heart` de lucide solo en `PostCard` (el "me gusta"), ninguna clase `uppercase`, ningún emoji.
-- **`Avatar`:** las iniciales miden 12 px como mínimo. En la navegación, el aro del ítem activo sigue la forma del avatar (redondo para una persona, 28 % para una organización).
+- **`Avatar`:** las iniciales miden 12 px como mínimo. En la navegación, el aro del ítem activo sigue la forma del avatar (redondo para una persona, 28 % para una organización). El avatar de la cuenta de una ONG o una empresa se dibuja con `account` (logo y nombre de la organización); sin `account`, con `user`.
+- **Cargando** (`components/LoadingSkeletons.test.tsx`): ninguna pantalla centra un `Loader2` en un contenedor del alto de la pantalla. Se usa un esqueleto: `role="status"` con su `aria-label` y, adentro, bloques `.skeleton` bajo un `aria-hidden`. Los spinners dentro de una sección o de un botón siguen permitidos.
 - **Botones de ícono** (`app/layout/iconButtonSize.test.ts`): miden 44 px, `w-11 h-11 flex-shrink-0` (o `IconButton` de `ui/Button`). Sin `shrink-0`, en una fila flex ceden ancho al texto de al lado. Un botón que pierde el texto en el celular (`hidden sm:inline`) también mide 44 ahí.
 - **Combinaciones correctas:**
   - Botones llenos: `bg-ink text-on-ink`, `bg-people text-white`, `bg-critical text-on-ink`.

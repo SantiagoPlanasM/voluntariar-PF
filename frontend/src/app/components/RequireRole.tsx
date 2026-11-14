@@ -5,7 +5,6 @@
 // Es solo experiencia de uso: la autorización real está en el backend (AI_RULES regla 15).
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Navigate } from 'react-router';
-import { Loader2 } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 
 type Role = 'volunteer' | 'ngo' | 'company';
@@ -29,9 +28,13 @@ export function RequireRole({ role, children }: { role: Role; children: ReactNod
     // Solo cuando cambia la sesión: no reabrir el modal en cada render.
   }, [initializing, user]);
 
+  // Esqueleto y no spinner a pantalla completa (DESIGN.md → Estados; §335). Todavía no se sabe qué pantalla viene:
+  // la forma es la de un panel cualquiera (título y dos bloques).
   if (initializing) return (
-    <div role="status" aria-label="Verificando sesión" className="min-h-screen flex items-center justify-center bg-gray-50">
-      <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+    <div role="status" aria-label="Verificando sesión" className="min-h-screen bg-canvas-soft">
+      <div aria-hidden="true" className="w-full max-w-[640px] mx-auto p-4 md:pt-8 flex flex-col gap-4">
+        <div className="h-8 w-48 rounded skeleton" /><div className="h-24 rounded-xl skeleton" /><div className="h-64 rounded-xl skeleton" />
+      </div>
     </div>
   );
   if (!user) return <Navigate to="/" replace />;

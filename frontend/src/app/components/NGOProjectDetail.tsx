@@ -119,7 +119,21 @@ export function NGOProjectDetail({ team = false }: { team?: boolean } = {}) {
 
   const filtered = filter === 'all' ? enrollments : enrollments.filter(e => e.status === filter);
 
-  if (loading) return <div role="status" aria-label="Cargando voluntariado" className="flex items-center justify-center h-screen"><Loader2 className="w-8 h-8 animate-spin text-brand" /></div>;
+  // Esqueleto con la forma de la pantalla: la barra con el título, las dos cifras y los bloques de abajo (§335).
+  if (loading) return (
+    <div role="status" aria-label="Cargando voluntariado" className="min-h-screen bg-canvas-soft">
+      <div aria-hidden="true">
+        <div className="bg-surface border-b border-hairline p-4 flex items-center gap-3">
+          <div className="w-11 h-11 flex-shrink-0 rounded-full skeleton" />
+          <div className="flex-1 flex flex-col gap-2"><div className="h-4 w-1/2 rounded skeleton" /><div className="h-3 w-1/3 rounded skeleton" /></div>
+        </div>
+        <div className="p-4 flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-3"><div className="h-20 rounded-xl skeleton" /><div className="h-20 rounded-xl skeleton" /></div>
+          <div className="h-24 rounded-2xl skeleton" /><div className="h-64 rounded-2xl skeleton" />
+        </div>
+      </div>
+    </div>
+  );
   if (loadError || !project) return (
     <LoadError message={loadError?.message ?? 'No encontramos este voluntariado'}
       onRetry={loadError?.retry ? load : undefined} home={team ? `/equipo/${ngoId}` : '/ngo/dashboard'} />

@@ -4,7 +4,7 @@
 // Momento". Qué ve cada uno lo decide el backend.
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { ArrowLeft, ChevronRight, Loader2, SquarePlus } from 'lucide-react';
+import { ArrowLeft, ChevronRight, SquarePlus } from 'lucide-react';
 import { api, TeamPanel as Panel } from '../../lib/api';
 import { useLatestRequest } from '../../lib/useLatestRequest';
 import { LoadError, describeLoadError } from './LoadError';
@@ -30,7 +30,19 @@ export function TeamPanel() {
   useEffect(() => { if (ngoId) void load(); }, [ngoId]);
 
   if (loadError) return <LoadError message={loadError.message} onRetry={loadError.retry ? load : undefined} home="/profile#equipos" />;
-  if (!panel) return <div role="status" aria-label="Cargando panel" className="flex items-center justify-center h-screen"><Loader2 className="w-8 h-8 animate-spin text-ink-muted" /></div>;
+  // Esqueleto con la forma de la pantalla: logo y nombre de la ONG, el botón y una lista (§335).
+  if (!panel) return (
+    <div role="status" aria-label="Cargando panel" className="min-h-screen bg-canvas-soft">
+      <div aria-hidden="true" className="w-full max-w-[640px] mx-auto px-4 pt-2 md:pt-8 flex flex-col gap-5">
+        <div className="h-11 flex items-center gap-3">
+          <div className="w-10 h-10 flex-shrink-0 rounded-[28%] skeleton" />
+          <div className="flex-1 flex flex-col gap-2"><div className="h-5 w-1/2 rounded skeleton" /><div className="h-3 w-1/4 rounded skeleton" /></div>
+        </div>
+        <div className="h-11 rounded-[10px] skeleton" />
+        <div className="h-40 rounded-xl skeleton" />
+      </div>
+    </div>
+  );
 
   const coordinator = panel.role === 'coordinator';
   const base = `/equipo/${panel.ngo.id}`;

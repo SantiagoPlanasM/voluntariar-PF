@@ -853,3 +853,35 @@ Con una base temporal (`SQLITE_PATH`) y, desde la entrevista en adelante, sin cl
 - No se vieron en Chrome el ícono nuevo de Mercado Pago (el grupo "Mi ONG" estaba cerrado), el del rol ONG en el registro, el certificado ni el paso "Revisar". Los íconos elegidos (billetera, grupo de personas) son una decisión mía: si el usuario prefiere otros, se cambian.
 - De paso se vio que el perfil de la ONG tiene scroll horizontal en un marco de 320 px (las tres cifras de arriba). El diseño se revisa a 375 px y ahí no pasa; queda anotado, sin tocar.
 - Un celular real.
+
+## 335. Logo de la organización en el avatar de la cuenta y esqueletos de carga (tanda T6, segunda parte)
+
+### Qué se hizo
+- El usuario pidió retomar por `PLAN_FEBRERO.md` → "Para retomar": lo próximo era terminar T6. Solo frontend; el backend no se tocó (`GET /auth/me` ya mandaba `profile` con `nombre` y `foto_perfil`).
+- **Avatar de la cuenta (hallazgo C9).** En una ONG o una empresa, las barras mostraban las iniciales de la persona que se registró ("AS" por "Admin Sustentando"). `AuthContext` ahora expone `account` (`{ name, avatar }`), sacado de `profile` de `/auth/me` al recargar y después de entrar, en el mismo pedido que `isAdmin` y con la misma guarda de sesión. `AppShell` dibuja el avatar con `account` si la cuenta es una organización, y con `user` si no hay `account` (voluntario, `/auth/me` sin responder o con error, perfil sin nombre).
+  - `updateUser` (cambio de foto) cambia también `account.avatar`: `PUT /auth/me/photo` guarda la misma URL en los dos lados.
+  - `logout` y un ingreso nuevo borran `account`.
+  - El tipo de `api.auth.me()` suma `nombre` y `foto_perfil` a `profile`.
+- **Esqueletos en vez de spinner a pantalla completa (hallazgo B9)** en las cinco pantallas: `RequireRole`, `TeamPanel`, `CompanyOwnProfile`, `NGOProjectDetail` y `CreateVoluntariado` (al editar). Cada uno con la forma de su pantalla, `role="status"` con el mismo `aria-label` de antes (`CompanyOwnProfile` no tenía: ahora "Cargando perfil") y los bloques bajo `aria-hidden`. Fondo y bordes con tokens (`canvas-soft`, `surface`, `hairline`).
+- Tests nuevos: `components/LoadingSkeletons.test.tsx` (monta las cinco pantallas con el pedido en vuelo y, aparte, mira el código de todos los componentes para que no vuelva un `Loader2` centrado a pantalla completa), 11 casos de `account` en `AuthContext.test.tsx` y 4 en `AppShell.test.tsx`.
+- Docs: `FRONTEND_CONTEXT.md` (`account`, `RequireRole`, regla de carga) y `PLAN_FEBRERO.md`. `DESIGN.md` no cambia: la regla ya estaba.
+
+### Verificación
+- Rojo → verde: 12 de los 20 tests nuevos fallaban antes del código (los otros 8 describen lo que no tenía que cambiar: voluntario, sin perfil, error). El caso 21 ("entrar con otra cuenta sin cerrar la anterior") se agregó después, para matar un mutante.
+- Frontend: 1516/1516 (antes 1495; +21), `typecheck` sin errores. Cobertura: sentencias 91,97 %, ramas 88,75 %, funciones 89,15 %, líneas 94,40 %.
+- Mutación (20 mutantes sobre `AuthContext`, `AppShell` y `RequireRole`, con corrida de control en verde): 18 muertos. En la primera vuelta sobrevivían 3; uno ("un ingreso nuevo no limpia `account`") se mató con el test 21. Los 2 que quedan son **equivalentes**: sacar `?? null` deja `undefined` en vez de `null`, y `Avatar` trata igual los dos.
+- Chrome local (base SQLite aparte con el seed, 1517 px de ancho, tema oscuro):
+  - ONG Sustentando: el avatar de la cuenta dice "SU" (antes "AS"), cuadrado redondeado (28 %), 12 px de letra, en la barra lateral y en la inferior. Empresa TechCorp: "TE".
+  - Con los pedidos demorados 6 s: esqueleto en la gestión de un voluntariado (7 bloques; captura vista), en editar un voluntariado (13) y en el perfil de la empresa (5); en los tres, 0 spinners, animación `shimmer`, sin scroll horizontal, y al responder el pedido aparece la pantalla.
+- El backend no se tocó: no se corrieron sus suites en local.
+
+### Errores propios
+- Ninguno que haya llegado al código. La primera tanda de tests no cubría el ingreso con otra cuenta sin cerrar la anterior: lo mostró la mutación.
+
+### ⚠️ NO verificado
+- **Un logo real.** El seed solo trae imágenes de DiceBear, que `Avatar` trata como "sin foto": en Chrome se vieron las iniciales de la organización, no una imagen. Que el logo subido se dibuje lo cubren los tests (`AppShell.test.tsx`), no el navegador. No se subió ninguna foto.
+- **Cambiar el nombre de la organización** desde su perfil no actualiza `account` hasta recargar (solo importa si no tiene logo: cambian las iniciales). Los perfiles propios se montan en varios tests sin `AuthProvider`; sumarles `useAuth` quedaba fuera de la tanda. Queda anotado, sin tocar.
+- Entre que se entra y responde `/auth/me` se ven un instante las iniciales de la persona. No se midió cuánto dura en producción (con Render dormido puede ser más).
+- No se vieron en Chrome los esqueletos de `RequireRole` (solo aparece al recargar, no se pudo demorar) ni de `TeamPanel` (no se entró como voluntaria del equipo); tampoco ninguno a 375 px ni en tema claro. Los cubren los tests.
+- Quedan spinners de página que no son "a pantalla completa" y no entraban en B9: `NGOPatrocinios`, `CertificatePage`, el acuerdo y el historial de patrocinio, `NGOApplications`, `NGOValidation`, `AdminValidations`. Sin tocar (regla 16).
+- Un celular real y un lector de pantalla.

@@ -2,6 +2,18 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { api, ApiError, getToken, setToken, removeToken, getUser, setUser, removeUser, User, GoogleProfile } from './api';
 
+/** La organización de la cuenta (ONG o empresa): su nombre y su logo, no los de la persona que se registró. */
+export interface Account { name: string; avatar: string | null }
+
+type MeProfile = Awaited<ReturnType<typeof api.auth.me>>['profile'];
+
+// De `profile` de /auth/me (ngos o empresas: `nombre` y `foto_perfil`). Un voluntario no tiene organización: su foto
+// es users.avatar (la copia de voluntarios.foto_perfil no se actualiza, F2).
+function accountOf(u: User, profile: MeProfile): Account | null {
+  if (u.role === 'volunteer' || !profile?.nombre) return null;
+  return { name: profile.nombre, avatar: profile.foto_perfil ?? null };
+}
+
 interface Ctx {
   loading: boolean;
   initializing: boolean;
@@ -23,6 +35,9 @@ interface Ctx {
   user: User | null;
   /** §317: el mail está en ADMIN_EMAILS (is_admin de /auth/me). Solo muestra el panel; la API lo vuelve a controlar. */
   isAdmin: boolean;
+  /** §335: la organización de una ONG o una empresa, para el avatar de la cuenta en las barras. `null` para un
+   *  voluntario, y hasta que responde /auth/me (o si falla): ahí las barras usan `user`. */
+  account: Account | null;
 }
 
 const AuthContext = createContext<Ctx | null>(null);
@@ -37,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authModalIntent, setAuthModalIntent] = useState('');
   const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [account, setAccount] = useState<Account | null>(null);
   // Cada sesión tiene su número: una respuesta de /auth/me que llega después de cerrar la sesión (o de otra) no cuenta.
   const session = useRef(0);
 
@@ -44,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const savedToken = getToken();
     if (savedToken) {
       api.auth.me()
-        .then(({ user: u, is_admin }) => { setU(u); setUser(u); setIsAdmin(is_admin === true); })
+        .then(({ user: u, profile, is_admin }) => { setU(u); setUser(u); setIsAdmin(is_admin === true); setAccount(accountOf(u, profile)); })
         .catch((err) => {
           // Solo se cierra la sesión si de verdad no vale: token inválido/vencido (401) o usuario que ya no
           // existe (404). Antes se cerraba ante CUALQUIER error: con Render "dormido" (502), sin red o con
@@ -78,15 +94,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   const closeAuthModal = () => setShowAuthModal(false);
 
-  // Deja la sesión iniciada (login, registro y Google). El login no trae `is_admin` (§317): se pregunta a /auth/me
-  // aparte, sin esperar; si falla, queda en false (solo se pierde el link al panel hasta recargar).
+  // Deja la sesión iniciada (login, registro y Google). El login no trae `is_admin` (§317) ni la organización (§335):
+  // se preguntan a /auth/me aparte, sin esperar; si falla, quedan en false y null (se pierde el link al panel y las
+  // barras muestran las iniciales del usuario hasta recargar).
   const startSession = (t: string, u: User) => {
     setToken(t); setUser(u); setT(t); setU(u);
     setShowAuthModal(false);
     setIsAdmin(false);
+    setAccount(null);
     const mine = ++session.current;
     api.auth.me()
-      .then(({ is_admin }) => { if (session.current === mine) setIsAdmin(is_admin === true); })
+      .then(({ profile, is_admin }) => {
+        if (session.current !== mine) return;
+        setIsAdmin(is_admin === true);
+        setAccount(accountOf(u, profile));
+      })
       .catch(() => {});
   };
 
@@ -128,11 +150,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally { setLoading(false); }
   };
 
-  const logout = () => { removeToken(); removeUser(); setT(null); setU(null); setIsAdmin(false); session.current++; };
-  const updateUser = (u: User) => { setUser(u); setU(u); };
+  const logout = () => { removeToken(); removeUser(); setT(null); setU(null); setIsAdmin(false); setAccount(null); session.current++; };
+  // La foto nueva es también el logo: PUT /auth/me/photo guarda la misma URL en users.avatar y en foto_perfil (§162).
+  const updateUser = (u: User) => {
+    setUser(u); setU(u);
+    setAccount((a) => (a ? { ...a, avatar: u.avatar ?? null } : a));
+  };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, initializing, showAuthModal, authModalIntent, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, register, googleLogin, googleRegister, logout, updateUser, isAdmin }}>
+    <AuthContext.Provider value={{ user, token, loading, initializing, showAuthModal, authModalIntent, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, register, googleLogin, googleRegister, logout, updateUser, isAdmin, account }}>
       {children}
     </AuthContext.Provider>
   );

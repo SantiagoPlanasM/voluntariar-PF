@@ -150,8 +150,12 @@ export function CompanyOwnProfile() {
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center h-screen">
-      <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
+    // Esqueleto con la forma del perfil (logo cuadrado, nombre, texto y la lista de patrocinios), como el de la ONG (§335).
+    <div role="status" aria-label="Cargando perfil" className="min-h-screen bg-canvas-soft">
+      <div aria-hidden="true" className="w-full max-w-[640px] mx-auto p-4 md:pt-8 flex flex-col gap-4">
+        <div className="flex items-center gap-4"><div className="w-[88px] h-[88px] flex-shrink-0 rounded-[28%] skeleton" /><div className="flex-1 h-10 rounded skeleton" /></div>
+        <div className="h-4 w-1/2 rounded skeleton" /><div className="h-11 rounded-[10px] skeleton" /><div className="h-40 rounded-xl skeleton" />
+      </div>
     </div>
   );
   if (!empresa) return null;

@@ -76,7 +76,8 @@ export const api = {
       req<{ token: string; user: User }>('/auth/google/register', { method: 'POST', body: JSON.stringify(b) }),
     // `profile` es la fila del rol; del voluntario solo se lee `has_cv` (§165). Puede ser null.
     // `is_admin` (§317): el mail está en ADMIN_EMAILS. Solo decide si se muestra el panel; la API lo vuelve a controlar.
-    me: () => req<{ user: User; profile?: { has_cv?: boolean } | null; is_admin?: boolean }>('/auth/me'),
+    // `profile` es la fila de voluntarios, ngos o empresas, con sus columnas en español: acá solo lo que se usa.
+    me: () => req<{ user: User; profile?: { has_cv?: boolean; nombre?: string | null; foto_perfil?: string | null } | null; is_admin?: boolean }>('/auth/me'),
     updateMe: (b: { name?: string; bio?: string; location?: string; avatar?: string }) =>
       req<{ user: User }>('/auth/me', { method: 'PUT', body: JSON.stringify(b) }),
     /** §272: cambiar la contraseña (la actual tiene que ser la correcta). */

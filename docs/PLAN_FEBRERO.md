@@ -196,11 +196,13 @@ En este orden:
      - [x] **T6, primera parte** (§334, 13/11): iniciales del avatar a 12 px, el corazón solo para el "me gusta"
        (billetera en Mercado Pago, grupo de personas en el rol ONG), sin `uppercase`, sin emojis, y el aro del
        avatar de la cuenta con la forma del avatar.
-     - [ ] **T6, lo que falta:** el logo de la organización en el avatar de la cuenta (guardar el perfil de
-       `/auth/me` en `AuthContext`) y esqueletos en vez de spinner a pantalla completa en `CreateVoluntariado`,
-       `CompanyOwnProfile`, `NGOProjectDetail`, `TeamPanel` y `RequireRole`.
-     - **Lo próximo:** terminar T6, o la tanda que elija el usuario (T5, T7–T13 de la
+     - [x] **T6, segunda parte** (§335, 13/11): el avatar de la cuenta de una ONG o una empresa muestra el logo
+       (o las iniciales) de la organización, con `account` en `AuthContext`; y esqueletos en vez de spinner a
+       pantalla completa en `CreateVoluntariado`, `CompanyOwnProfile`, `NGOProjectDetail`, `TeamPanel` y
+       `RequireRole`. **Commit local, sin push** (falta el OK del usuario).
+     - **Lo próximo:** la tanda que elija el usuario (T5, T7–T13 de la
        [página de tandas](https://claude.ai/artifact/5FLvxTAFSd629UcB8X59x2)); es deuda de diseño, no defectos.
+       Si no elige, el punto 3 (notificaciones instantáneas).
    - [x] De paso, la deuda chica del front de la Etapa 4: `es-AR` en `NGOProjectDetail` (§333).
    - Sumar al inventario lo nuevo de §329: los puntos en "Proponer" (`CompanyOwnProfile`, que sigue con el resto de
      la pantalla en los estilos viejos) y `SponsorshipPointForm`.

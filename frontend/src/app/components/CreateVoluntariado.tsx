@@ -189,8 +189,25 @@ export function CreateVoluntariado() {
   }, [fieldErrors.length, step]);
 
   if (loadingProject) return (
-    <div role="status" aria-label="Cargando voluntariado" className="flex items-center justify-center h-screen">
-      <Loader2 className="w-8 h-8 animate-spin text-brand" />
+    // Esqueleto con la forma del formulario: la barra con el título y los pasos, y los campos (§335).
+    <div role="status" aria-label="Cargando voluntariado" className="min-h-screen bg-canvas-soft">
+      <div aria-hidden="true">
+        <div className="bg-surface border-b border-hairline">
+          <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-4 flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 flex-shrink-0 rounded-full skeleton" />
+              <div className="flex-1 flex flex-col gap-2"><div className="h-4 w-40 rounded skeleton" /><div className="h-3 w-28 rounded skeleton" /></div>
+            </div>
+            <div className="h-1.5 rounded-full skeleton" />
+            <div className="h-8 rounded-lg skeleton" />
+          </div>
+        </div>
+        <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-6 flex flex-col gap-5">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="flex flex-col gap-2"><div className="h-4 w-32 rounded skeleton" /><div className="h-12 rounded-xl skeleton" /></div>
+          ))}
+        </div>
+      </div>
     </div>
   );
   if (loadError) return (

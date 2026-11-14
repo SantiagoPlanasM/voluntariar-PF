@@ -43,13 +43,15 @@ function Badge({ n, className = '' }: { n: number; className?: string }) {
 }
 
 function ItemIcon({ item, active, size }: { item: Pick<NavItem, 'icon' | 'fill' | 'avatar'>; active: boolean; size: number }) {
-  const { user } = useAuth();
+  const { user, account } = useAuth();
   if (item.avatar && user) {
     // El aro del ítem activo sigue la forma del avatar: redondo para una persona, cuadrado redondeado para una organización.
     const org = user.role !== 'volunteer';
+    // Una ONG o una empresa se dibuja con su logo y su nombre (`account`, §335), no con los de quien se registró.
+    const who = org && account ? account : user;
     return (
       <span className={`inline-flex ${org ? 'rounded-[28%]' : 'rounded-full'} ${active ? 'ring-2 ring-ink ring-offset-2 ring-offset-canvas' : ''}`}>
-        <Avatar src={user.avatar} name={user.name} kind={org ? 'org' : 'person'} size={size} />
+        <Avatar src={who.avatar} name={who.name} kind={org ? 'org' : 'person'} size={size} />
       </span>
     );
   }
